@@ -18,6 +18,8 @@ pub struct FileRead {
     grants: Grants,
     /// The chunk handed out last; it counts as consumed once the caller asks for the next one.
     last: u64,
+    /// The stream ended, with or without an error; there is nothing more to read.
+    done: bool,
 }
 
 impl Session {
@@ -29,14 +31,18 @@ impl Session {
             .as_u64()
             .ok_or_else(|| RpcError::new("protocol_error", "file.read answered without a size"))?;
         stream.credit(WINDOW);
-        Ok(FileRead { size, stream, grants: Grants::default(), last: 0 })
+        Ok(FileRead { size, stream, grants: Grants::default(), last: 0, done: false })
     }
 }
 
 impl FileRead {
-    /// The next chunk; `None` once the whole file arrived. Taking it counts the previous one as
-    /// consumed, so the sender never gets ahead of the caller by more than a window.
+    /// The next chunk; `None` once the whole file arrived (and after an error). Taking it counts
+    /// the previous one as consumed, so the sender never gets ahead of the caller by more than a
+    /// window.
     pub async fn next(&mut self) -> Option<Result<Vec<u8>, RpcError>> {
+        if self.done {
+            return None;
+        }
         let (grants, grant) = self.grants.consumed(std::mem::take(&mut self.last));
         self.grants = grants;
         if let Some(n) = grant {
@@ -48,8 +54,10 @@ impl FileRead {
                     self.last = chunk.len() as u64;
                     return Some(Ok(chunk));
                 }
-                StreamEvent::End(None) => return None,
-                StreamEvent::End(Some(err)) => return Some(Err(err)),
+                StreamEvent::End(end) => {
+                    self.done = true;
+                    return end.map(Err);
+                }
                 StreamEvent::Frame { .. } => tracing::debug!("ignoring a screen frame on a file"),
             }
         }

@@ -20,6 +20,7 @@ pub async fn read(session: &Session, mid: &str) {
         received.extend(chunk);
     }
     assert!(received == content, "the file arrives byte for byte");
+    assert!(read.next().await.is_none(), "a finished read stays finished");
 
     let missing = dir.path().join("missing.md");
     let err = session.read_file(mid, missing.to_str().unwrap()).await.err().unwrap();
