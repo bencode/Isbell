@@ -6,6 +6,8 @@ use isbell_proto::frame::RpcError;
 use serde::Serialize;
 use serde_json::{Value, json};
 
+use crate::relay::RelayError;
+
 #[derive(Clone, Copy)]
 pub struct Output {
     pub json: bool,
@@ -90,12 +92,13 @@ impl From<anyhow::Error> for CliError {
     }
 }
 
-impl From<crate::relay::RelayError> for CliError {
-    fn from(err: crate::relay::RelayError) -> Self {
-        Self {
-            code: "relay_error".into(),
-            message: err.to_string(),
-        }
+impl From<RelayError> for CliError {
+    fn from(err: RelayError) -> Self {
+        let code = match err {
+            RelayError::Replaced => "gateway_replaced",
+            _ => "relay_error",
+        };
+        Self::new(code, err.to_string())
     }
 }
 

@@ -6,9 +6,10 @@ use isbell_proto::state::{Agent, AgentStatus, MachineState};
 use serde_json::{Value, json};
 use tokio::sync::broadcast::error::RecvError;
 
+use super::Ctx;
 use super::output::CliError;
-use super::{Ctx, SessionEvent};
-use crate::gateway::state::now_ms;
+use crate::client::SessionEvent;
+use crate::now_ms;
 
 pub async fn run(ctx: &Ctx) -> Result<(), CliError> {
     let session = ctx.session().await?;

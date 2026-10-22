@@ -1,11 +1,11 @@
 //! Derives the reported `MachineState` from herdr's session snapshot.
 
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use isbell_proto::frame::MachineInfo;
 use isbell_proto::state::{Agent, AgentStatus, Caps, HerdrState, MachineState};
 use serde::Deserialize;
 use serde_json::Value;
+
+use crate::now_ms;
 
 /// herdr agent kinds and the executable each launches (`cursor` and `kiro` differ from their kind).
 const AGENT_KINDS: &[(&str, &str)] = &[
@@ -51,13 +51,6 @@ pub struct AgentInfo {
 /// Agents from a `session.snapshot` result.
 pub fn snapshot_agents(result: &Value) -> Result<Vec<AgentInfo>, serde_json::Error> {
     Vec::deserialize(&result["snapshot"]["agents"])
-}
-
-pub fn now_ms() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("clock after epoch")
-        .as_millis() as u64
 }
 
 /// `status_since` carries over from `prev` while an agent keeps its status.

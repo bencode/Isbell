@@ -12,10 +12,11 @@ use isbell_proto::identity::Identity;
 use isbell_proto::state::{Caps, HerdrState, MachineState};
 use serde_json::json;
 use tokio::sync::{mpsc, watch};
-use tokio::task::JoinHandle;
+use tokio::task::{JoinHandle, JoinSet};
 
 use self::herdr::Herdr;
-use self::state::{StateTracker, derive_agents, now_ms, snapshot_agents};
+use self::state::{StateTracker, derive_agents, snapshot_agents};
+use crate::now_ms;
 use crate::relay::{self, FrameSink, FrameStream, RelayError};
 
 const BACKOFF: &[u64] = &[1, 2, 5, 10, 30];
@@ -43,8 +44,8 @@ impl<T> Drop for AbortOnDrop<T> {
     }
 }
 
-/// Runs until the relay reports that another gateway took over this machine.
-pub async fn run(opts: GatewayOptions) -> anyhow::Result<()> {
+/// Runs until another gateway takes over this machine, or the relay URL / origin is unusable.
+pub async fn run(opts: GatewayOptions) -> Result<(), RelayError> {
     let slot: HerdrSlot = Arc::default();
     let (state_tx, state_rx) = watch::channel(None);
     let (refresh_tx, refresh_rx) = mpsc::channel(1);
@@ -88,6 +89,8 @@ async fn state_loop(
                 .await;
                 tracing::warn!(%err, "lost herdr");
                 *slot.write().expect("herdr slot poisoned") = None;
+                // herdr may still report itself running while not answering; don't spin.
+                tokio::time::sleep(REDISCOVER_EVERY).await;
             }
             Err(herdr_state) => {
                 if let Some(state) = tracker.update(herdr_state, Vec::new()) {
@@ -166,12 +169,33 @@ fn spawn_watcher(herdr: Herdr, panes: Vec<String>, refresh: mpsc::Sender<()>) ->
 
 // ---------- relay side ----------
 
+/// Responses produced by calls; drained by whichever relay connection is current.
+/// Calls belong to the gateway process, not to a connection: a response finished after a
+/// reconnect still reaches its caller, because responses are routed by the caller's connection.
+struct Outbox {
+    rx: mpsc::UnboundedReceiver<Frame>,
+    /// A response whose send failed on a dying connection, retried first on the next one.
+    retry: Option<Frame>,
+}
+
+/// Requests in flight and the channel their responses go to; outlives relay connections.
+struct Calls {
+    tasks: JoinSet<()>,
+    responses: mpsc::UnboundedSender<Frame>,
+}
+
 async fn relay_loop(
     opts: &GatewayOptions,
     slot: &HerdrSlot,
     state_rx: watch::Receiver<Option<MachineState>>,
     refresh_tx: mpsc::Sender<()>,
-) -> anyhow::Result<()> {
+) -> Result<(), RelayError> {
+    let (responses, rx) = mpsc::unbounded_channel();
+    let mut outbox = Outbox { rx, retry: None };
+    let mut calls = Calls {
+        tasks: JoinSet::new(),
+        responses,
+    };
     let mut attempt = 0;
     loop {
         let result =
@@ -179,14 +203,28 @@ async fn relay_loop(
                 Ok(conn) => {
                     tracing::info!(relay = %opts.relay, "connected to relay");
                     attempt = 0;
-                    serve(conn.sink, conn.stream, slot, state_rx.clone(), &refresh_tx).await
+                    let mut state_rx = state_rx.clone();
+                    let (mut sink, mut stream) = (conn.sink, conn.stream);
+                    serve(
+                        &mut sink,
+                        &mut stream,
+                        slot,
+                        &mut state_rx,
+                        &refresh_tx,
+                        &mut calls,
+                        &mut outbox,
+                    )
+                    .await
                 }
                 Err(err) => Err(err),
             };
         match result {
-            Err(RelayError::Replaced) => return Err(RelayError::Replaced.into()),
-            Err(err @ (RelayError::OriginMismatch { .. } | RelayError::Url(_))) => {
-                return Err(err.into());
+            Err(
+                err @ (RelayError::Replaced
+                | RelayError::OriginMismatch { .. }
+                | RelayError::Url(_)),
+            ) => {
+                return Err(err);
             }
             Err(err) => tracing::warn!(%err, "relay connection lost"),
             Ok(()) => {}
@@ -197,76 +235,68 @@ async fn relay_loop(
     }
 }
 
+/// Serves one relay connection until it fails.
 async fn serve(
-    mut sink: FrameSink,
-    mut stream: FrameStream,
+    sink: &mut FrameSink,
+    stream: &mut FrameStream,
     slot: &HerdrSlot,
-    mut state_rx: watch::Receiver<Option<MachineState>>,
+    state_rx: &mut watch::Receiver<Option<MachineState>>,
     refresh_tx: &mpsc::Sender<()>,
+    calls: &mut Calls,
+    outbox: &mut Outbox,
 ) -> Result<(), RelayError> {
-    let (out_tx, mut out_rx) = mpsc::unbounded_channel::<Frame>();
-    let writer = AbortOnDrop(tokio::spawn(async move {
-        while let Some(frame) = out_rx.recv().await {
-            sink.send(&frame).await?;
-        }
-        Ok::<_, RelayError>(())
-    }));
-    let states_out = out_tx.clone();
-    let _states = AbortOnDrop(tokio::spawn(async move {
-        state_rx.mark_changed();
-        while state_rx.changed().await.is_ok() {
-            let Some(state) = state_rx.borrow_and_update().clone() else {
-                continue;
-            };
-            let state = serde_json::to_value(&state).expect("state serializes");
-            if states_out
-                .send(Frame::new(Header::State { state }))
-                .is_err()
-            {
-                break;
-            }
-        }
-    }));
-
+    if let Some(frame) = outbox.retry.take() {
+        send_or_keep(sink, frame, outbox).await?;
+    }
+    // Every new connection starts with the current state.
+    state_rx.mark_changed();
     loop {
-        let frame = stream.next(RELAY_IDLE).await?;
-        let Header::Call {
-            id,
-            m,
-            p,
-            from: Some(from),
-            ..
-        } = frame.header
-        else {
-            tracing::debug!("ignoring unexpected frame from relay");
-            continue;
-        };
-        let herdr = slot.read().expect("herdr slot poisoned").clone();
-        let out = out_tx.clone();
-        let refresh = refresh_tx.clone();
-        tokio::spawn(async move {
-            let result = rpc::handle(herdr, &m, p).await;
-            if m == rpc::START_AGENT && refresh.try_send(()).is_err() {
-                tracing::trace!("refresh already pending");
+        while calls.tasks.try_join_next().is_some() {}
+        tokio::select! {
+            frame = stream.next(RELAY_IDLE) => {
+                let Header::Call { id, m, p, from: Some(to), .. } = frame?.header else {
+                    tracing::debug!("ignoring unexpected frame from relay");
+                    continue;
+                };
+                let herdr = slot.read().expect("herdr slot poisoned").clone();
+                let (responses, refresh) = (calls.responses.clone(), refresh_tx.clone());
+                calls.tasks.spawn(async move {
+                    let result = rpc::handle(herdr, &m, p).await;
+                    if m == rpc::START_AGENT && refresh.try_send(()).is_err() {
+                        tracing::trace!("refresh already pending");
+                    }
+                    let (ok, r, e) = match result {
+                        Ok(r) => (true, Some(r), None),
+                        Err(e) => (false, None, Some(e)),
+                    };
+                    let res = Header::Res { id, ok, r, e, mid: None, to: Some(to) };
+                    if responses.send(Frame::new(res)).is_err() {
+                        tracing::debug!(id, "gateway stopped before the response");
+                    }
+                });
             }
-            let (ok, r, e) = match result {
-                Ok(r) => (true, Some(r), None),
-                Err(e) => (false, None, Some(e)),
-            };
-            let res = Header::Res {
-                id,
-                ok,
-                r,
-                e,
-                mid: None,
-                to: Some(from),
-            };
-            if out.send(Frame::new(res)).is_err() {
-                tracing::debug!(id, "relay connection closed before the response");
+            Some(frame) = outbox.rx.recv() => send_or_keep(sink, frame, outbox).await?,
+            changed = state_rx.changed() => {
+                if changed.is_err() {
+                    return Ok(());
+                }
+                let Some(state) = state_rx.borrow_and_update().clone() else { continue };
+                let state = serde_json::to_value(&state).expect("state serializes");
+                sink.send(&Frame::new(Header::State { state })).await?;
             }
-        });
-        if writer.0.is_finished() {
-            return Err(RelayError::Closed(None));
         }
     }
+}
+
+/// Sends a response, keeping it for the next connection if this one fails.
+async fn send_or_keep(
+    sink: &mut FrameSink,
+    frame: Frame,
+    outbox: &mut Outbox,
+) -> Result<(), RelayError> {
+    let result = sink.send(&frame).await;
+    if result.is_err() {
+        outbox.retry = Some(frame);
+    }
+    result
 }
