@@ -29,6 +29,7 @@ async fn gateway_serves_cli_through_relay() {
     checks::terminal_new(&session, mid, log, calls).await;
     checks::terminal_observe(&session, mid, log).await;
     files::read(&session, mid).await;
+    files::write(&session, mid).await;
 
     failover::reconnect(&session, &mut events, &harness).await;
     let second_gateway = failover::takeover(&session, &mut events, &harness, first_gateway).await;

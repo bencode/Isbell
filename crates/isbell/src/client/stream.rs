@@ -13,6 +13,8 @@ pub enum StreamEvent {
     Frame { body: Vec<u8>, full: bool },
     /// A piece of a byte stream (a file being read).
     Chunk(Vec<u8>),
+    /// The machine can take `n` more bytes (a file being written).
+    Credit(u64),
     /// The stream ended; `Some` when it ended because of an error.
     End(Option<RpcError>),
 }
@@ -23,7 +25,10 @@ pub struct Stream {
     link: Link,
     rx: mpsc::UnboundedReceiver<StreamEvent>,
     inflight: Inflight,
+    /// The machine ended the stream.
     ended: bool,
+    /// This side ended it; the machine's end may still follow.
+    closed: bool,
 }
 
 impl Stream {
@@ -33,7 +38,7 @@ impl Stream {
         rx: mpsc::UnboundedReceiver<StreamEvent>,
         inflight: Inflight,
     ) -> Stream {
-        Stream { id, link, rx, inflight, ended: false }
+        Stream { id, link, rx, inflight, ended: false, closed: false }
     }
 
     pub async fn next(&mut self) -> StreamEvent {
@@ -52,6 +57,26 @@ impl Stream {
 
     pub fn ping(&self) {
         self.send(DataKind::Ping, None, None);
+    }
+
+    /// Sends a piece of a byte stream (a file being written).
+    pub fn chunk(&self, bytes: Vec<u8>) {
+        self.send(DataKind::Chunk, Some(bytes), None);
+    }
+
+    /// Tells the machine this side is done; its own end (and any error) still arrives through
+    /// [`Stream::next`].
+    pub fn close(&mut self) {
+        if !self.closed {
+            self.closed = true;
+            self.push(Frame::new(Header::End {
+                id: self.id,
+                e: None,
+                mid: None,
+                from: None,
+                to: None,
+            }));
+        }
     }
 
     /// Lets the sender send `n` more bytes (see [`isbell_proto::flow`]).
@@ -85,8 +110,7 @@ impl Drop for Stream {
     fn drop(&mut self) {
         self.inflight.forget_stream(self.id);
         if !self.ended {
-            let end = Header::End { id: self.id, e: None, mid: None, from: None, to: None };
-            self.push(Frame::new(end));
+            self.close();
         }
     }
 }

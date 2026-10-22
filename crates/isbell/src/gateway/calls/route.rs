@@ -15,11 +15,12 @@ pub enum Method {
     StartAgent,
     Terminal,
     FileRead,
+    FileWrite,
 }
 
 impl Method {
-    const ALL: [Method; 4] =
-        [Method::Herdr, Method::StartAgent, Method::Terminal, Method::FileRead];
+    const ALL: [Method; 5] =
+        [Method::Herdr, Method::StartAgent, Method::Terminal, Method::FileRead, Method::FileWrite];
 
     pub fn name(self) -> &'static str {
         match self {
@@ -27,6 +28,7 @@ impl Method {
             Method::StartAgent => "isbell.agent.start",
             Method::Terminal => "isbell.terminal",
             Method::FileRead => "isbell.file.read",
+            Method::FileWrite => "isbell.file.write",
         }
     }
 
@@ -116,6 +118,7 @@ pub fn output_frame(id: u64, output: Output) -> Frame {
             };
             Frame { header, body: Some(body) }
         }
+        Output::Credit(n) => Frame::new(Header::Credit { id, n, mid: None, from: None, to: None }),
         Output::End(e) => Frame::new(Header::End { id, e, mid: None, from: None, to: None }),
     }
 }
@@ -204,6 +207,8 @@ mod tests {
         let chunk = output_frame(3, Output::Chunk(vec![7; 10]));
         assert!(matches!(chunk.header, Header::Data { id: 3, k: DataKind::Chunk, .. }));
         assert_eq!(chunk.body, Some(vec![7; 10]));
+        let credit = output_frame(4, Output::Credit(512));
+        assert!(matches!(credit.header, Header::Credit { id: 4, n: 512, .. }));
     }
 
     #[test]

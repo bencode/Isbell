@@ -1,26 +1,41 @@
-//! `isbell file get`: copies a file from a machine. A local file appears only once all of it
-//! arrived; until then it is written to a temporary file next to it.
+//! `isbell file get | put`: copies a file from or to a machine. Either way the destination appears
+//! only once all of it arrived; until then it is a temporary file next to it.
 
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use clap::Subcommand;
+use isbell_proto::flow::MAX_CHUNK;
 use serde_json::json;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 
 use super::Ctx;
 use super::output::CliError;
 use super::target::{parse_remote_path, resolve_machine};
-use crate::client::FileRead;
+use crate::client::{FileRead, FileWrite};
+
+/// How long an interrupted upload waits for its end to reach the relay, so the machine drops the
+/// partial file at once rather than after its idle timeout.
+const ABANDON_GRACE: Duration = Duration::from_millis(300);
 
 #[derive(Subcommand)]
 pub enum FileCmd {
     /// Copy a file from a machine. SOURCE is `<machine>:<absolute path>`; DEST defaults to the
     /// file's name in the current directory, `-` writes it to stdout. An existing file is replaced.
     Get { source: String, dest: Option<String> },
+    /// Copy a file to a machine. DEST is `<machine>:<absolute path>` in an existing directory. An
+    /// existing file is replaced, keeping its permissions.
+    Put { source: String, dest: String },
 }
 
 pub async fn run(ctx: &Ctx, cmd: FileCmd) -> Result<(), CliError> {
-    let FileCmd::Get { source, dest } = cmd;
+    match cmd {
+        FileCmd::Get { source, dest } => get(ctx, source, dest).await,
+        FileCmd::Put { source, dest } => put(ctx, source, dest).await,
+    }
+}
+
+async fn get(ctx: &Ctx, source: String, dest: Option<String>) -> Result<(), CliError> {
     let remote = parse_remote_path(&source)?;
     let session = ctx.session().await?;
     let machines = session.machines();
@@ -44,6 +59,55 @@ pub async fn run(ctx: &Ctx, cmd: FileCmd) -> Result<(), CliError> {
         false => println!("fetched {source} → {} ({size} bytes)", local.display()),
     }
     Ok(())
+}
+
+async fn put(ctx: &Ctx, source: String, dest: String) -> Result<(), CliError> {
+    let remote = parse_remote_path(&dest)?;
+    let local = tokio::fs::File::open(&source).await.map_err(local_error)?;
+    let meta = local.metadata().await.map_err(local_error)?;
+    if !meta.is_file() {
+        let message = format!("{source} is not a regular file");
+        return Err(CliError::new("local_io_error", message));
+    }
+    let size = meta.len();
+    let session = ctx.session().await?;
+    let machines = session.machines();
+    let (state, _) = resolve_machine(&machines, remote.machine)?;
+    let write = session.write_file(&state.machine.id, remote.path, size).await?;
+    tokio::select! {
+        sent = send_all(write, local, size) => sent?,
+        _ = tokio::signal::ctrl_c() => {
+            // The dropped upload ends its stream; give that end a moment to leave.
+            tokio::time::sleep(ABANDON_GRACE).await;
+            return Err(CliError::new("interrupted", "interrupted"));
+        }
+    }
+    match ctx.out.json {
+        true => ctx.out.json(&json!({"local": source, "path": dest, "size": size})),
+        false => println!("sent {source} → {dest} ({size} bytes)"),
+    }
+    Ok(())
+}
+
+/// Sends exactly `size` bytes of `source`, then waits until the machine stored them.
+async fn send_all(
+    mut write: FileWrite,
+    mut source: impl AsyncRead + Unpin,
+    size: u64,
+) -> Result<(), CliError> {
+    let mut sent = 0;
+    while sent < size {
+        let mut chunk =
+            vec![0; usize::try_from(size - sent).map_or(MAX_CHUNK, |n| n.min(MAX_CHUNK))];
+        let n = source.read(&mut chunk).await.map_err(local_error)?;
+        if n == 0 {
+            return Err(CliError::new("local_io_error", "the file got shorter while it was sent"));
+        }
+        chunk.truncate(n);
+        write.send(chunk).await?;
+        sent += n as u64;
+    }
+    Ok(write.finish().await?)
 }
 
 /// Where a remote file is copied: `dest`, inside it when it is a directory, else the file's name

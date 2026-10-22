@@ -116,8 +116,8 @@ async fn attached(mut stream: Stream, control: bool, mut resized: Option<Signal>
                         return Ended::Failed(err);
                     }
                 }
-                // A terminal stream carries no file chunks.
-                StreamEvent::Chunk(_) => {}
+                // A terminal stream carries no file chunks or credit.
+                StreamEvent::Chunk(_) | StreamEvent::Credit(_) => {}
                 StreamEvent::End(err) => return Ended::Closed(err),
             },
             bytes = keys.recv() => {

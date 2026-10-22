@@ -1,9 +1,4 @@
-//! Files of this machine as streams: any absolute path, read in chunks no faster than the caller
-//! grants credit.
-
-use std::io::ErrorKind;
-use std::path::Path;
-use std::time::Duration;
+//! Reading a file: chunks no faster than the reader grants credit.
 
 use isbell_proto::flow::{Credit, MAX_CHUNK};
 use isbell_proto::frame::RpcError;
@@ -14,35 +9,18 @@ use tokio::io::AsyncReadExt;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::TryRecvError;
 
-use super::stream::{Input, Output};
-
-/// A reader that granted nothing for this long has gone away: over the relay the gateway is not
-/// told when a caller disconnects.
-const STALLED_FOR: Duration = Duration::from_secs(5 * 60);
+use super::{STALLED_FOR, absolute_path, bad_request, io_error};
+use crate::gateway::stream::{Input, Output};
 
 #[derive(Deserialize)]
 struct ReadRequest {
     path: String,
 }
 
-fn io_error(err: std::io::Error) -> RpcError {
-    let code = match err.kind() {
-        ErrorKind::NotFound => "not_found",
-        ErrorKind::PermissionDenied => "permission_denied",
-        _ => "io_error",
-    };
-    RpcError::new(code, err.to_string())
-}
-
 /// Opens the regular file at the absolute `path`; answers with its size.
 pub async fn open_read(p: Value) -> Result<(File, Value), RpcError> {
-    let req: ReadRequest =
-        serde_json::from_value(p).map_err(|err| RpcError::new("bad_request", err.to_string()))?;
-    if !Path::new(&req.path).is_absolute() {
-        let message = format!("{} is not an absolute path", req.path);
-        return Err(RpcError::new("bad_request", message));
-    }
-    let file = File::open(&req.path).await.map_err(io_error)?;
+    let req: ReadRequest = serde_json::from_value(p).map_err(|err| bad_request(err.to_string()))?;
+    let file = File::open(absolute_path(&req.path)?).await.map_err(io_error)?;
     let meta = file.metadata().await.map_err(io_error)?;
     if !meta.is_file() {
         return Err(RpcError::new("not_a_file", format!("{} is not a regular file", req.path)));
@@ -117,6 +95,7 @@ async fn send_chunk(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
 
     async fn opened(content: &[u8]) -> (tempfile::TempDir, File) {
         let dir = tempfile::tempdir().unwrap();

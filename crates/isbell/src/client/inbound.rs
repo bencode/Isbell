@@ -55,6 +55,9 @@ fn inbound(frame: Frame) -> Inbound {
             let event = StreamEvent::Chunk(frame.body.unwrap_or_default());
             Inbound::Stream { id, event, last: false }
         }
+        Header::Credit { id, n, .. } => {
+            Inbound::Stream { id, event: StreamEvent::Credit(n), last: false }
+        }
         Header::End { id, e, .. } => Inbound::Stream { id, event: StreamEvent::End(e), last: true },
         Header::State { state } => match serde_json::from_value(state) {
             Ok(state) => Inbound::State(Box::new(state)),
@@ -174,6 +177,15 @@ mod tests {
         assert!(matches!(
             inbound(Frame::new(end)),
             Inbound::Stream { id: 2, event: StreamEvent::End(None), last: true }
+        ));
+        let chunk = inbound(Frame { header: data(DataKind::Chunk), body: Some(b"part".to_vec()) });
+        assert!(
+            matches!(chunk, Inbound::Stream { event: StreamEvent::Chunk(ref b), last: false, .. } if b == b"part")
+        );
+        let credit = Header::Credit { id: 2, n: 64, mid: None, from: None, to: None };
+        assert!(matches!(
+            inbound(Frame::new(credit)),
+            Inbound::Stream { id: 2, event: StreamEvent::Credit(64), last: false }
         ));
     }
 

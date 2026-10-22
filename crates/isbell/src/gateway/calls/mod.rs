@@ -100,6 +100,11 @@ impl Calls {
                 let streams = Arc::clone(&self.streams);
                 self.tasks.spawn(serve_stream(link, id, streams, file::open_read(p), run))
             }
+            Method::FileWrite => {
+                let run = |target, input, emit| file::pump_write(target, input, emit);
+                let streams = Arc::clone(&self.streams);
+                self.tasks.spawn(serve_stream(link, id, streams, file::open_write(p), run))
+            }
         };
     }
 }

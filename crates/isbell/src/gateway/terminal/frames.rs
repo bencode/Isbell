@@ -166,7 +166,7 @@ mod tests {
             .iter()
             .filter_map(|o| match o {
                 Output::Frame { body, full, cols, .. } => Some((body.len(), *full, *cols)),
-                Output::Chunk(_) | Output::End(_) => None,
+                Output::Chunk(_) | Output::Credit(_) | Output::End(_) => None,
             })
             .collect()
     }
@@ -226,7 +226,7 @@ mod tests {
         );
         let bodies = output.into_iter().flat_map(|o| match o {
             Output::Frame { body, .. } => body,
-            Output::Chunk(_) | Output::End(_) => Vec::new(),
+            Output::Chunk(_) | Output::Credit(_) | Output::End(_) => Vec::new(),
         });
         assert!(bodies.eq(big));
     }

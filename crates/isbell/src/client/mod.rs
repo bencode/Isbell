@@ -18,7 +18,7 @@ use isbell_proto::state::MachineState;
 use serde_json::Value;
 use tokio::sync::{broadcast, mpsc, oneshot};
 
-pub use self::file::FileRead;
+pub use self::file::{FileRead, FileWrite};
 use self::inbound::{read_loop, write_loop};
 use self::inflight::{Inflight, Target, disconnected};
 use self::link::Link;

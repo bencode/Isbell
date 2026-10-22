@@ -29,5 +29,7 @@ pub enum Output {
     },
     /// A piece of a byte stream (a file being read).
     Chunk(Vec<u8>),
+    /// The caller can send `n` more bytes (a file being written).
+    Credit(u64),
     End(Option<RpcError>),
 }
