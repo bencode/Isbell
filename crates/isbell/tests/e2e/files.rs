@@ -53,9 +53,17 @@ pub async fn write(session: &Session, mid: &str) {
     only_target_left(dir.path(), "notes.md").await;
     assert!(std::fs::read(&path).unwrap() == content, "an abandoned write changes nothing");
 
+    // A write the machine ended fails the sender's next chunks, not only its finish.
     let mut oversized = session.write_file(mid, path_str, 2).await.unwrap();
-    oversized.send(b"too long".to_vec()).await.unwrap();
-    assert_eq!(oversized.finish().await.unwrap_err().code, "size_mismatch");
+    let failed = async {
+        loop {
+            if let Err(err) = oversized.send(b"too long".to_vec()).await {
+                return err;
+            }
+        }
+    };
+    let err = tokio::time::timeout(Duration::from_secs(5), failed).await.expect("send fails");
+    assert_eq!(err.code, "size_mismatch");
     only_target_left(dir.path(), "notes.md").await;
 }
 

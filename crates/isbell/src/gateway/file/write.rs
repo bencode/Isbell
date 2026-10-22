@@ -68,7 +68,7 @@ impl Received {
 pub async fn open_write(p: Value) -> Result<(Target, Value), RpcError> {
     let req: WriteRequest =
         serde_json::from_value(p).map_err(|err| bad_request(err.to_string()))?;
-    let path = absolute_path(&req.path)?.to_owned();
+    let path = real_path(absolute_path(&req.path)?).await?;
     if tokio::fs::metadata(&path).await.is_ok_and(|meta| meta.is_dir()) {
         return Err(RpcError::new("not_a_file", format!("{} is a directory", path.display())));
     }
@@ -77,6 +77,16 @@ pub async fn open_write(p: Value) -> Result<(Target, Value), RpcError> {
         OpenOptions::new().write(true).create_new(true).open(&temp).await.map_err(io_error)?;
     let received = Received { bytes: 0, size: req.size, grants: Grants::default() };
     Ok((Target { path, temp, file, received }, json!({})))
+}
+
+/// The file a symlink points to, so writing through it updates that file (as `cp` does) and the
+/// link stays; a path that does not exist yet is used as it is.
+async fn real_path(path: &Path) -> Result<PathBuf, RpcError> {
+    match tokio::fs::canonicalize(path).await {
+        Ok(real) => Ok(real),
+        Err(err) if err.kind() == ErrorKind::NotFound => Ok(path.to_owned()),
+        Err(err) => Err(io_error(err)),
+    }
 }
 
 fn temp_path(path: &Path) -> PathBuf {
@@ -216,6 +226,18 @@ mod tests {
         assert_eq!(ended(long), "size_mismatch");
         assert_eq!(std::fs::read(&path).unwrap(), b"old");
         assert_eq!(names(dir.path()), ["notes.md"], "no temporary file is left");
+    }
+
+    #[tokio::test]
+    async fn writes_through_symlinks() {
+        let dir = tempfile::tempdir().unwrap();
+        let (real, link) = (dir.path().join("real.md"), dir.path().join("link.md"));
+        std::fs::write(&real, "old").unwrap();
+        std::os::unix::fs::symlink(&real, &link).unwrap();
+        let out = write(&link, 3, vec![Input::Chunk(b"new".to_vec()), Input::Close]).await;
+        assert_eq!(out.last(), Some(&Output::End(None)));
+        assert!(std::fs::symlink_metadata(&link).unwrap().file_type().is_symlink());
+        assert_eq!(std::fs::read(&real).unwrap(), b"new");
     }
 
     #[tokio::test]

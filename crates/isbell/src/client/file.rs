@@ -96,14 +96,18 @@ impl Session {
 
 impl FileWrite {
     /// Sends one chunk (at most `MAX_CHUNK` bytes) once the machine's credit and the pace allow.
+    /// Fails as soon as the machine ended the write (e.g. its disk is full).
     pub async fn send(&mut self, chunk: Vec<u8>) -> Result<(), RpcError> {
         assert!(chunk.len() <= MAX_CHUNK, "chunks are at most MAX_CHUNK bytes");
         let len = chunk.len() as u64;
-        while self.credit.available() < len {
-            let event = self.stream.next().await;
-            self.credit = granted(self.credit, event)?;
+        loop {
+            // Watch the machine while waiting for credit and the pace.
+            tokio::select! {
+                biased;
+                event = self.stream.next() => self.credit = granted(self.credit, event)?,
+                _ = self.pace.tick(), if self.credit.available() >= len => break,
+            }
         }
-        self.pace.tick().await;
         self.credit = self.credit.spent(len);
         self.stream.chunk(chunk);
         Ok(())
