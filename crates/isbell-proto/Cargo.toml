@@ -1,0 +1,16 @@
+[package]
+name = "isbell-proto"
+description = "Isbell wire protocol: identity and frames"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+data-encoding.workspace = true
+ed25519-dalek.workspace = true
+hkdf.workspace = true
+rand.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
