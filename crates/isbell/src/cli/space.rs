@@ -4,6 +4,7 @@ use serde_json::json;
 
 use super::Ctx;
 use super::output::CliError;
+use crate::config::Config;
 
 #[derive(Subcommand)]
 pub enum SpaceCmd {
@@ -65,9 +66,8 @@ fn exists() -> CliError {
 
 /// A machine that switches spaces becomes a new machine there.
 fn forget_machine(ctx: &Ctx) -> Result<(), CliError> {
-    let mut config = ctx.config.clone();
-    if config.machine.take().is_some() {
-        ctx.paths.save(&config)?;
+    if ctx.config.machine.is_some() {
+        ctx.paths.save(&Config { machine: None, ..ctx.config.clone() })?;
     }
     Ok(())
 }

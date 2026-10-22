@@ -11,18 +11,18 @@ use super::output::CliError;
 use crate::client::SessionEvent;
 use crate::now_ms;
 
+/// Machine id → (name, agent pane id → status), to report transitions.
+type Known = HashMap<String, (String, HashMap<String, AgentStatus>)>;
+
 pub async fn run(ctx: &Ctx) -> Result<(), CliError> {
     let session = ctx.session().await?;
     let mut events = session.events();
-    // Machine id → (name, agent pane id → status), to report transitions.
-    let mut known: HashMap<String, (String, HashMap<String, AgentStatus>)> = HashMap::new();
-    for (state, online) in session.machines() {
+    let machines = session.machines();
+    for (state, online) in &machines {
         emit(json!({"at": now_ms(), "machine": state.machine.name, "online": online}));
-        for agent in &state.agents {
-            emit(agent_line(&state, agent, None));
-        }
-        known.insert(state.machine.id.clone(), (state.machine.name.clone(), statuses(&state)));
+        status_lines(state, None).into_iter().for_each(emit);
     }
+    let mut known: Known = machines.iter().map(|(state, _)| known_entry(state)).collect();
     loop {
         match events.recv().await {
             Ok(SessionEvent::Presence { mid, online }) => {
@@ -30,17 +30,10 @@ pub async fn run(ctx: &Ctx) -> Result<(), CliError> {
                 emit(json!({"at": now_ms(), "machine": name, "online": online}));
             }
             Ok(SessionEvent::State(state)) => {
-                let previous = known.get(&state.machine.id).map(|(_, s)| s);
-                for agent in &state.agents {
-                    let prev = previous.and_then(|s| s.get(&agent.pane_id)).copied();
-                    if prev != Some(agent.status) {
-                        emit(agent_line(&state, agent, prev));
-                    }
-                }
-                known.insert(
-                    state.machine.id.clone(),
-                    (state.machine.name.clone(), statuses(&state)),
-                );
+                let previous = known.get(&state.machine.id).map(|(_, statuses)| statuses);
+                status_lines(&state, previous).into_iter().for_each(emit);
+                let (mid, entry) = known_entry(&state);
+                known.insert(mid, entry);
             }
             Ok(SessionEvent::Closed) | Err(RecvError::Closed) => {
                 return Err(CliError::new("disconnected", "lost the relay connection"));
@@ -50,6 +43,25 @@ pub async fn run(ctx: &Ctx) -> Result<(), CliError> {
             }
         }
     }
+}
+
+/// A line per agent whose status differs from `previous` (every agent of a machine not seen yet).
+fn status_lines(
+    state: &MachineState,
+    previous: Option<&HashMap<String, AgentStatus>>,
+) -> Vec<Value> {
+    state
+        .agents
+        .iter()
+        .filter_map(|agent| {
+            let prev = previous.and_then(|s| s.get(&agent.pane_id)).copied();
+            (prev != Some(agent.status)).then(|| agent_line(state, agent, prev))
+        })
+        .collect()
+}
+
+fn known_entry(state: &MachineState) -> (String, (String, HashMap<String, AgentStatus>)) {
+    (state.machine.id.clone(), (state.machine.name.clone(), statuses(state)))
 }
 
 fn statuses(state: &MachineState) -> HashMap<String, AgentStatus> {
