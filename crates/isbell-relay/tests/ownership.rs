@@ -3,7 +3,7 @@
 mod common;
 
 use common::*;
-use isbell_relay::CLOSE_REPLACED;
+use isbell_proto::frame::CLOSE_REPLACED;
 
 #[tokio::test]
 async fn newer_gateway_replaces_older() {

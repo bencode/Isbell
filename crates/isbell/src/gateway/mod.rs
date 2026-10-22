@@ -45,13 +45,13 @@ impl<T> Drop for AbortOnDrop<T> {
 pub enum GatewayError {
     #[error(transparent)]
     Relay(#[from] RelayError),
-    /// The herdr state loop ended, which only a bug can cause; state would never be reported again.
-    #[error("the herdr state loop stopped unexpectedly")]
-    StateLoopStopped,
+    /// The herdr monitor ended, which only a bug can cause; state would never be reported again.
+    #[error("the herdr monitor stopped unexpectedly")]
+    MonitorStopped,
 }
 
 /// Runs until another gateway takes over this machine, the relay URL / origin is unusable, or the
-/// state loop dies.
+/// monitor dies.
 pub async fn run(opts: GatewayOptions) -> Result<(), GatewayError> {
     let slot: HerdrSlot = Arc::default();
     let (states, states_rx) = watch::channel(None);
@@ -68,7 +68,7 @@ pub async fn run(opts: GatewayOptions) -> Result<(), GatewayError> {
             if let Err(err) = joined {
                 tracing::error!(%err, "herdr monitor failed");
             }
-            Err(GatewayError::StateLoopStopped)
+            Err(GatewayError::MonitorStopped)
         }
     }
 }

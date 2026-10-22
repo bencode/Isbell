@@ -4,7 +4,7 @@
 pub mod bus;
 pub mod config;
 mod conn;
-pub mod limits;
+mod limits;
 
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
@@ -23,8 +23,6 @@ use tokio::task::JoinHandle;
 use crate::bus::Bus;
 use crate::config::Config;
 use crate::limits::IpGate;
-
-pub use conn::{CLOSE_AUTH_FAILED, CLOSE_AUTH_TIMEOUT, CLOSE_BAD_FRAME, CLOSE_REPLACED};
 
 const MAX_MESSAGE: usize = 1 << 20;
 

@@ -9,3 +9,10 @@ mod header;
 
 pub use codec::{Encoded, Frame, FrameError};
 pub use header::{DataKind, Header, Route, RpcError, SnapshotEntry};
+
+/// Close codes the relay ends a WebSocket with; clients act on them (a replaced gateway stops
+/// instead of reconnecting).
+pub const CLOSE_REPLACED: u16 = 4001;
+pub const CLOSE_AUTH_FAILED: u16 = 4003;
+pub const CLOSE_AUTH_TIMEOUT: u16 = 4004;
+pub const CLOSE_BAD_FRAME: u16 = 4400;

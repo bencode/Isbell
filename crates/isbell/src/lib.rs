@@ -3,7 +3,7 @@
 
 pub mod cli;
 pub mod client;
-pub mod config;
+mod config;
 pub mod gateway;
 pub mod relay;
 

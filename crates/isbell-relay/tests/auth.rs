@@ -3,7 +3,7 @@
 mod common;
 
 use common::*;
-use isbell_relay::{CLOSE_AUTH_FAILED, CLOSE_AUTH_TIMEOUT, CLOSE_BAD_FRAME};
+use isbell_proto::frame::{CLOSE_AUTH_FAILED, CLOSE_AUTH_TIMEOUT, CLOSE_BAD_FRAME};
 
 #[tokio::test]
 async fn rejects_bad_signature() {

@@ -21,7 +21,9 @@ use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use axum::extract::ws::WebSocket;
-use isbell_proto::frame::{Frame, Header};
+use isbell_proto::frame::{
+    CLOSE_AUTH_FAILED, CLOSE_AUTH_TIMEOUT, CLOSE_BAD_FRAME, CLOSE_REPLACED, Frame, Header,
+};
 use isbell_proto::identity::Role;
 use isbell_proto::state::MachineInfo;
 use tracing::Instrument;
@@ -33,10 +35,6 @@ const PING_EVERY: Duration = Duration::from_secs(15);
 const PONG_TIMEOUT: Duration = Duration::from_secs(30);
 const REFRESH_EVERY: Duration = Duration::from_secs(10);
 
-pub const CLOSE_REPLACED: u16 = 4001;
-pub const CLOSE_AUTH_FAILED: u16 = 4003;
-pub const CLOSE_AUTH_TIMEOUT: u16 = 4004;
-pub const CLOSE_BAD_FRAME: u16 = 4400;
 const CLOSE_INTERNAL: u16 = 1011;
 
 /// Payload published to a connection's channel to close it as replaced. Never a valid frame.

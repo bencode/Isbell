@@ -20,9 +20,7 @@ use self::inbound::{read_loop, write_loop};
 use self::inflight::{Inflight, Target, disconnected};
 use self::space::Space;
 pub use self::stream::{Stream, StreamEvent};
-use crate::relay::{self, RelayError};
-
-const RELAY_IDLE: Duration = Duration::from_secs(45);
+use crate::relay::{self, RELAY_IDLE, RelayError};
 
 #[derive(Debug, Clone)]
 pub enum SessionEvent {

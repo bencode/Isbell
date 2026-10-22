@@ -9,10 +9,9 @@ use tokio::sync::{mpsc, watch};
 
 use super::GatewayOptions;
 use super::calls::Calls;
-use crate::relay::{self, RelayConn, RelayError};
+use crate::relay::{self, RELAY_IDLE, RelayConn, RelayError};
 
 const BACKOFF: &[u64] = &[1, 2, 5, 10, 30];
-const RELAY_IDLE: Duration = Duration::from_secs(45);
 
 /// Frames produced by calls, drained by whichever relay connection is current.
 pub struct Outbox {

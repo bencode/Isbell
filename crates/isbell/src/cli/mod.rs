@@ -2,9 +2,9 @@
 
 mod agent;
 mod machine;
-pub mod output;
+mod output;
 mod space;
-pub mod target;
+mod target;
 mod terminal;
 mod watch;
 
@@ -126,7 +126,7 @@ async fn run_gateway(mut ctx: Ctx) -> Result<(), CliError> {
         let code = match err {
             GatewayError::Relay(RelayError::Replaced) => "gateway_replaced",
             GatewayError::Relay(_) => "relay_error",
-            GatewayError::StateLoopStopped => "gateway_failed",
+            GatewayError::MonitorStopped => "gateway_failed",
         };
         CliError::new(code, err.to_string())
     })

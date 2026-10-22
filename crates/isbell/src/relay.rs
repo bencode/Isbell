@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
-use isbell_proto::frame::{Encoded, Frame, FrameError, Header};
+use isbell_proto::frame::{CLOSE_REPLACED, Encoded, Frame, FrameError, Header};
 use isbell_proto::identity::{Identity, Role};
 use isbell_proto::state::MachineInfo;
 use tokio::net::TcpStream;
@@ -13,8 +13,8 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 
 type Ws = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
-/// Relay close code for a gateway replaced by a newer connection for the same machine.
-const CLOSE_REPLACED: u16 = 4001;
+/// The relay pings every 15s; a connection silent for three pings is gone.
+pub const RELAY_IDLE: Duration = Duration::from_secs(45);
 const AUTH_TIMEOUT: Duration = Duration::from_secs(15);
 
 #[derive(Debug, thiserror::Error)]

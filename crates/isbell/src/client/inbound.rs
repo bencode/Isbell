@@ -8,11 +8,11 @@ use isbell_proto::state::MachineState;
 use serde_json::Value;
 use tokio::sync::{broadcast, mpsc};
 
+use super::SessionEvent;
 use super::inflight::{Inflight, Reply, Target, restarted};
 use super::space::Space;
 use super::stream::StreamEvent;
-use super::{RELAY_IDLE, SessionEvent};
-use crate::relay::{FrameSink, FrameStream};
+use crate::relay::{FrameSink, FrameStream, RELAY_IDLE};
 
 pub async fn write_loop(mut sink: FrameSink, mut out: mpsc::UnboundedReceiver<Frame>) {
     while let Some(frame) = out.recv().await {
