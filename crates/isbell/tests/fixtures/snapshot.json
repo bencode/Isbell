@@ -1,0 +1,41 @@
+{
+  "type": "session_snapshot",
+  "snapshot": {
+    "version": "0.9.3",
+    "protocol": 22,
+    "workspaces": [],
+    "tabs": [],
+    "panes": [],
+    "layouts": [],
+    "agents": [
+      {
+        "terminal_id": "t1",
+        "name": "reviewer",
+        "agent": "claude",
+        "display_agent": "Claude Code",
+        "title": "review the diff",
+        "agent_status": "working",
+        "workspace_id": "w1",
+        "tab_id": "w1:t1",
+        "pane_id": "w1:p1",
+        "focused": true,
+        "interactive_ready": true,
+        "state_change_seq": 4,
+        "cwd": "/Users/dev/work/isbell",
+        "foreground_cwd": "/Users/dev/work/isbell/crates",
+        "revision": 12
+      },
+      {
+        "terminal_id": "t2",
+        "agent": "codex",
+        "agent_status": "idle",
+        "workspace_id": "w2",
+        "tab_id": "w2:t1",
+        "pane_id": "w2:p1",
+        "focused": false,
+        "cwd": "/Users/dev/work/other",
+        "revision": 3
+      }
+    ]
+  }
+}

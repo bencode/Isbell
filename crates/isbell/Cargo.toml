@@ -1,0 +1,29 @@
+[package]
+name = "isbell"
+description = "Isbell: remote access to herdr agents across your machines"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+isbell-proto.workspace = true
+
+anyhow.workspace = true
+clap.workspace = true
+futures-util.workspace = true
+gethostname.workspace = true
+rand.workspace = true
+# Gives tokio-tungstenite's rustls a crypto backend for wss://.
+rustls.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tokio-tungstenite.workspace = true
+toml.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[dev-dependencies]
+isbell-relay.workspace = true
+tempfile.workspace = true

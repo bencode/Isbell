@@ -26,7 +26,29 @@ Relay configuration (environment variables):
 | `LIMIT_IP_CONCURRENT` / `LIMIT_IP_PER_MINUTE` | `20` / `30` |
 | `LIMIT_RATE` / `LIMIT_BURST` | `50` / `100` messages per connection |
 
-Checks (the relay integration tests need Redis running):
+Try the gateway and CLI against a local relay and this machine's herdr server:
+
+```bash
+export ISBELL_RELAY=ws://localhost:8787/v1/ws
+cargo run -p isbell -- space init
+cargo run -p isbell -- gateway run &          # reports this machine's herdr agents
+cargo run -p isbell -- machine list
+cargo run -p isbell -- agent list
+cargo run -p isbell -- agent prompt <machine>/<agent> "..." --wait
+cargo run -p isbell -- watch                  # NDJSON presence and status changes
+```
+
+| Variable | Purpose |
+|---|---|
+| `ISBELL_RELAY` | Relay URL (default `wss://isbell.upivot.io/v1/ws`) |
+| `ISBELL_KEY` | Space key, instead of this machine's key file |
+| `ISBELL_CONFIG_DIR` | Config directory (default `~/.config/isbell`); a second directory simulates a second machine |
+| `ISBELL_HERDR_SOCKET` | Use this herdr socket instead of discovering it with `herdr status` |
+
+Agents started through herdr inherit the herdr server's environment and the pane's login shell,
+so settings such as `http_proxy` belong in the shell profile (e.g. `~/.zshrc`).
+
+Checks (the relay and isbell integration tests need Redis running):
 
 ```bash
 cargo test --workspace
