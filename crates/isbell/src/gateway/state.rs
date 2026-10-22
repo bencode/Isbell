@@ -1,6 +1,6 @@
 //! Derives the reported `MachineState` from herdr's session snapshot.
 
-use isbell_proto::frame::MachineInfo;
+use isbell_proto::state::MachineInfo;
 use isbell_proto::state::{Agent, AgentStatus, Caps, HerdrState, MachineState};
 use serde::Deserialize;
 use serde_json::Value;

@@ -288,7 +288,6 @@ impl Stream {
         let header = Header::Data {
             id: self.id,
             k,
-            z: None,
             full: None,
             cols: size.map(|s| s.0),
             rows: size.map(|s| s.1),

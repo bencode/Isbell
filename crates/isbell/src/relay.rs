@@ -4,8 +4,9 @@ use std::time::Duration;
 
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
-use isbell_proto::frame::{Encoded, Frame, FrameError, Header, MachineInfo};
+use isbell_proto::frame::{Encoded, Frame, FrameError, Header};
 use isbell_proto::identity::{Identity, Role};
+use isbell_proto::state::MachineInfo;
 use tokio::net::TcpStream;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};

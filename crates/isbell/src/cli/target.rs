@@ -65,7 +65,7 @@ pub fn resolve_machine<'m>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use isbell_proto::frame::MachineInfo;
+    use isbell_proto::state::MachineInfo;
     use isbell_proto::state::{Caps, HerdrState, HerdrStatus};
 
     fn machine(id: &str, name: &str) -> (MachineState, bool) {

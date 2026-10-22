@@ -12,8 +12,8 @@ use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
-use isbell_proto::frame::MachineInfo;
 use isbell_proto::identity::Identity;
+use isbell_proto::state::MachineInfo;
 use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_RELAY: &str = "wss://isbell.upivot.io/v1/ws";

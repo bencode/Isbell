@@ -90,8 +90,11 @@ impl Identity {
     }
 
     pub fn key_string(&self) -> String {
-        let mut bytes = self.secret.to_vec();
-        bytes.extend_from_slice(&Sha256::digest(self.secret)[..CHECKSUM_LEN]);
+        let bytes = [
+            &self.secret[..],
+            &Sha256::digest(self.secret)[..CHECKSUM_LEN],
+        ]
+        .concat();
         format!(
             "{KEY_PREFIX}{}",
             BASE32_NOPAD.encode(&bytes).to_ascii_lowercase()
@@ -134,11 +137,8 @@ pub fn verify_auth(pk: &str, sig: &str, role: Role, origin: &str, nonce: &str) -
 }
 
 fn sid_of(key: &VerifyingKey) -> String {
-    let mut sid = BASE32_NOPAD
-        .encode(&Sha256::digest(key.as_bytes()))
-        .to_ascii_lowercase();
-    sid.truncate(SID_LEN);
-    sid
+    let encoded = BASE32_NOPAD.encode(&Sha256::digest(key.as_bytes()));
+    encoded[..SID_LEN].to_ascii_lowercase()
 }
 
 fn auth_message(role: Role, origin: &str, nonce: &str) -> Vec<u8> {

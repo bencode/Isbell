@@ -9,8 +9,9 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 
-use isbell_proto::frame::{DataKind, Frame, Header, MachineInfo, RpcError};
+use isbell_proto::frame::{DataKind, Frame, Header, RpcError};
 use isbell_proto::identity::Identity;
+use isbell_proto::state::MachineInfo;
 use isbell_proto::state::{Caps, HerdrState, MachineState};
 use serde_json::{Value, json};
 use tokio::sync::{mpsc, watch};
@@ -443,7 +444,6 @@ async fn terminal_stream(
                 let header = Header::Data {
                     id,
                     k: DataKind::Frame,
-                    z: None,
                     full: Some(full),
                     cols: Some(cols),
                     rows: Some(rows),

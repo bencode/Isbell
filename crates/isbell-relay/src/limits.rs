@@ -13,6 +13,7 @@ pub struct IpGate {
     ips: Mutex<HashMap<IpAddr, IpState>>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
 struct IpState {
     active: usize,
     window_start: Instant,
@@ -38,25 +39,41 @@ impl IpGate {
         let now = Instant::now();
         let mut ips = self.ips.lock().expect("ip gate poisoned");
         ips.retain(|_, s| s.active > 0 || now - s.window_start < WINDOW);
-        let state = ips.entry(ip).or_insert(IpState {
-            active: 0,
-            window_start: now,
-            opened: 0,
-        });
-        if now - state.window_start >= WINDOW {
-            state.window_start = now;
-            state.opened = 0;
-        }
-        if state.active >= self.concurrent || state.opened >= self.per_minute {
-            return None;
-        }
-        state.active += 1;
-        state.opened += 1;
+        let admitted = admit(ips.get(&ip).copied(), now, self.concurrent, self.per_minute)?;
+        ips.insert(ip, admitted);
         Some(IpPermit {
             gate: Arc::clone(self),
             ip,
         })
     }
+}
+
+/// The IP's state after one more connection, or `None` when it is over a limit.
+fn admit(
+    state: Option<IpState>,
+    now: Instant,
+    concurrent: usize,
+    per_minute: u32,
+) -> Option<IpState> {
+    let fresh = IpState {
+        active: 0,
+        window_start: now,
+        opened: 0,
+    };
+    let state = match state {
+        Some(s) if now - s.window_start < WINDOW => s,
+        Some(s) => IpState {
+            window_start: now,
+            opened: 0,
+            ..s
+        },
+        None => fresh,
+    };
+    (state.active < concurrent && state.opened < per_minute).then_some(IpState {
+        active: state.active + 1,
+        opened: state.opened + 1,
+        ..state
+    })
 }
 
 impl Drop for IpPermit {
@@ -136,6 +153,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn admit_applies_both_limits_and_resets_the_window() {
+        let t0 = Instant::now();
+        let one = admit(None, t0, 2, 3).unwrap();
+        assert_eq!((one.active, one.opened), (1, 1));
+        let full = IpState { active: 2, ..one };
+        assert_eq!(admit(Some(full), t0, 2, 3), None, "concurrency limit");
+        let spent = IpState {
+            active: 0,
+            opened: 3,
+            ..one
+        };
+        assert_eq!(admit(Some(spent), t0, 2, 3), None, "per-minute limit");
+        let next_window = admit(Some(spent), t0 + WINDOW, 2, 3).unwrap();
+        assert_eq!(
+            (next_window.opened, next_window.window_start),
+            (1, t0 + WINDOW)
+        );
+    }
+
+    #[test]
     fn ip_gate_enforces_concurrency_and_rate() {
         let ip: IpAddr = "10.0.0.1".parse().unwrap();
         let gate = IpGate::new(2, 3);
@@ -143,8 +180,7 @@ mod tests {
         let _b = gate.try_acquire(ip).unwrap();
         assert!(gate.try_acquire(ip).is_none(), "concurrency limit");
         drop(a);
-        let _c = gate.try_acquire(ip).unwrap();
-        drop(_c);
+        drop(gate.try_acquire(ip).unwrap());
         assert!(gate.try_acquire(ip).is_none(), "per-minute limit");
         assert!(
             gate.try_acquire("10.0.0.2".parse().unwrap()).is_some(),

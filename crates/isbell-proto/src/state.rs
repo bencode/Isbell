@@ -1,8 +1,31 @@
-//! Machine state reported by a gateway. The relay caches and forwards it without interpreting it.
+//! Machines: their identity, and the state a gateway reports (the relay caches and forwards it
+//! without interpreting it).
 
 use serde::{Deserialize, Serialize};
 
-use crate::frame::MachineInfo;
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MachineInfo {
+    pub id: String,
+    pub name: String,
+    pub hostname: String,
+    pub os: String,
+    pub version: String,
+}
+
+/// Machine ids are 16 lowercase hex characters.
+pub fn is_machine_id(id: &str) -> bool {
+    id.len() == 16 && id.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+}
+
+impl MachineInfo {
+    pub fn is_valid(&self) -> bool {
+        is_machine_id(&self.id)
+            && self.name.len() <= 64
+            && self.hostname.len() <= 255
+            && self.os.len() <= 32
+            && self.version.len() <= 32
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -94,5 +117,27 @@ impl AgentStatus {
             AgentStatus::Done => "done",
             AgentStatus::Unknown => "unknown",
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validates_machine_info() {
+        let valid = MachineInfo {
+            id: "0123456789abcdef".into(),
+            name: "n".into(),
+            hostname: "h".into(),
+            os: "o".into(),
+            version: "v".into(),
+        };
+        assert!(valid.is_valid());
+        let upper = MachineInfo {
+            id: "0123456789ABCDEF".into(),
+            ..valid
+        };
+        assert!(!upper.is_valid());
     }
 }

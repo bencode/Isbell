@@ -1,159 +1,18 @@
-//! Frames shared by every transport (relay WebSocket and, later, WebRTC DataChannel).
+//! Frames on the wire. Changes when the encoding changes.
 //!
 //! ```text
 //! text message   = JSON(header)
 //! binary message = u32be(headerLen) ‖ JSON(header) ‖ body
 //! ```
-//!
-//! Routing fields are only present on relay hops:
-//! client → relay carries `mid`; relay → gateway carries `from`;
-//! gateway → relay carries `to`; relay → client carries `mid`.
 
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-
-use crate::identity::Role;
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "t", rename_all = "snake_case")]
-pub enum Header {
-    Challenge {
-        nonce: String,
-        origin: String,
-    },
-    Auth {
-        role: Role,
-        pk: String,
-        sig: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        machine: Option<MachineInfo>,
-    },
-    AuthOk {
-        sid: String,
-        conn: String,
-    },
-    Call {
-        id: u64,
-        m: String,
-        #[serde(default)]
-        p: Value,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        mid: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        from: Option<String>,
-    },
-    Res {
-        id: u64,
-        ok: bool,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        r: Option<Value>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        e: Option<RpcError>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        mid: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        to: Option<String>,
-    },
-    Data {
-        id: u64,
-        k: DataKind,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        z: Option<u8>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        full: Option<bool>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        cols: Option<u16>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        rows: Option<u16>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        mid: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        from: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        to: Option<String>,
-    },
-    End {
-        id: u64,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        e: Option<RpcError>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        mid: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        from: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        to: Option<String>,
-    },
-    State {
-        state: Value,
-    },
-    Presence {
-        mid: String,
-        online: bool,
-    },
-    Snapshot {
-        machines: Vec<SnapshotEntry>,
-    },
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum DataKind {
-    Frame,
-    Input,
-    Resize,
-    /// Client keepalive for a stream; carries nothing.
-    Ping,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MachineInfo {
-    pub id: String,
-    pub name: String,
-    pub hostname: String,
-    pub os: String,
-    pub version: String,
-}
-
-/// Machine ids are 16 lowercase hex characters.
-pub fn is_machine_id(id: &str) -> bool {
-    id.len() == 16 && id.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
-}
-
-impl MachineInfo {
-    pub fn is_valid(&self) -> bool {
-        is_machine_id(&self.id)
-            && self.name.len() <= 64
-            && self.hostname.len() <= 255
-            && self.os.len() <= 32
-            && self.version.len() <= 32
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RpcError {
-    pub code: String,
-    pub msg: String,
-}
-
-impl RpcError {
-    pub fn new(code: &str, msg: impl Into<String>) -> Self {
-        Self {
-            code: code.to_owned(),
-            msg: msg.into(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SnapshotEntry {
-    pub state: Value,
-    pub online: bool,
-}
+use super::{Header, Route};
 
 #[derive(Debug, thiserror::Error)]
 pub enum FrameError {
     #[error("binary frame is truncated")]
     Truncated,
+    #[error("frame header is not UTF-8")]
+    NotUtf8,
     #[error("invalid frame header: {0}")]
     Header(#[from] serde_json::Error),
 }
@@ -161,6 +20,28 @@ pub enum FrameError {
 pub enum Encoded {
     Text(String),
     Binary(Vec<u8>),
+}
+
+impl Encoded {
+    /// A binary-framed payload as it should go on the wire: text when it has no body.
+    pub fn from_binary(payload: Vec<u8>) -> Result<Encoded, FrameError> {
+        let (header, body) = split_binary(&payload)?;
+        if !body.is_empty() {
+            return Ok(Encoded::Binary(payload));
+        }
+        String::from_utf8(header.to_vec())
+            .map(Encoded::Text)
+            .map_err(|_| FrameError::NotUtf8)
+    }
+}
+
+/// `u32be(headerLen) ‖ header ‖ body` → (header, body).
+fn split_binary(msg: &[u8]) -> Result<(&[u8], &[u8]), FrameError> {
+    let (len, rest) = msg.split_first_chunk::<4>().ok_or(FrameError::Truncated)?;
+    let len = u32::from_be_bytes(*len) as usize;
+    (len <= rest.len())
+        .then(|| rest.split_at(len))
+        .ok_or(FrameError::Truncated)
 }
 
 /// A frame; an empty body is normalized to `None`.
@@ -175,16 +56,19 @@ impl Frame {
         Self { header, body: None }
     }
 
+    /// The same frame with new routing fields (see [`Header::rerouted`]).
+    pub fn rerouted(self, route: Route) -> Frame {
+        Frame {
+            header: self.header.rerouted(route),
+            body: self.body,
+        }
+    }
+
     pub fn decode(msg: &[u8], binary: bool) -> Result<Frame, FrameError> {
         if !binary {
             return Ok(Frame::new(serde_json::from_slice(msg)?));
         }
-        let (len, rest) = msg.split_first_chunk::<4>().ok_or(FrameError::Truncated)?;
-        let len = u32::from_be_bytes(*len) as usize;
-        if len > rest.len() {
-            return Err(FrameError::Truncated);
-        }
-        let (header, body) = rest.split_at(len);
+        let (header, body) = split_binary(msg)?;
         Ok(Frame {
             header: serde_json::from_slice(header)?,
             body: (!body.is_empty()).then(|| body.to_vec()),
@@ -201,12 +85,13 @@ impl Frame {
 
     pub fn encode_binary(&self) -> Vec<u8> {
         let header = self.header_json();
-        let body = self.body.as_deref().unwrap_or_default();
-        let mut out = Vec::with_capacity(4 + header.len() + body.len());
-        out.extend_from_slice(&(header.len() as u32).to_be_bytes());
-        out.extend_from_slice(header.as_bytes());
-        out.extend_from_slice(body);
-        out
+        let len = (header.len() as u32).to_be_bytes();
+        [
+            &len[..],
+            header.as_bytes(),
+            self.body.as_deref().unwrap_or_default(),
+        ]
+        .concat()
     }
 
     fn header_json(&self) -> String {
@@ -217,7 +102,10 @@ impl Frame {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::json;
+    use crate::frame::{DataKind, RpcError, SnapshotEntry};
+    use crate::identity::Role;
+    use crate::state::MachineInfo;
+    use serde_json::{Value, json};
 
     fn samples() -> Vec<Frame> {
         let machine = MachineInfo {
@@ -292,23 +180,20 @@ mod tests {
                 }],
             },
         ];
-        let mut frames: Vec<Frame> = headers.into_iter().map(Frame::new).collect();
-        frames.push(Frame::new(Header::Data {
+        let ping = Frame::new(Header::Data {
             id: 5,
             k: DataKind::Ping,
-            z: None,
             full: None,
             cols: None,
             rows: None,
             mid: Some("m".into()),
             from: None,
             to: None,
-        }));
-        frames.push(Frame {
+        });
+        let with_body = Frame {
             header: Header::Data {
                 id: 4,
                 k: DataKind::Frame,
-                z: Some(1),
                 full: Some(true),
                 cols: Some(80),
                 rows: Some(24),
@@ -317,8 +202,12 @@ mod tests {
                 to: Some("s.c".into()),
             },
             body: Some(vec![0, 1, 2, 255]),
-        });
-        frames
+        };
+        headers
+            .into_iter()
+            .map(Frame::new)
+            .chain([ping, with_body])
+            .collect()
     }
 
     fn decode(encoded: Encoded) -> Frame {
@@ -375,16 +264,23 @@ mod tests {
     }
 
     #[test]
-    fn validates_machine_info() {
-        let mut m = MachineInfo {
-            id: "0123456789abcdef".into(),
-            name: "n".into(),
-            hostname: "h".into(),
-            os: "o".into(),
-            version: "v".into(),
-        };
-        assert!(m.is_valid());
-        m.id = "0123456789ABCDEF".into();
-        assert!(!m.is_valid());
+    fn binary_payloads_become_text_without_a_body() {
+        let text = Frame::new(Header::Presence {
+            mid: "m".into(),
+            online: true,
+        });
+        assert!(matches!(
+            Encoded::from_binary(text.encode_binary()),
+            Ok(Encoded::Text(_))
+        ));
+        let with_body = samples().pop().unwrap();
+        assert!(matches!(
+            Encoded::from_binary(with_body.encode_binary()),
+            Ok(Encoded::Binary(_))
+        ));
+        assert!(matches!(
+            Encoded::from_binary(vec![0, 0, 0, 9]),
+            Err(FrameError::Truncated)
+        ));
     }
 }
