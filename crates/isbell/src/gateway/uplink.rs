@@ -3,28 +3,25 @@
 
 use std::time::Duration;
 
-use isbell_proto::frame::{Frame, Header};
+use isbell_proto::frame::{Frame, Header, Route};
 use isbell_proto::state::MachineState;
 use tokio::sync::{mpsc, watch};
 
 use super::GatewayOptions;
 use super::calls::Calls;
+use super::link::Link;
 use crate::relay::{self, RELAY_IDLE, RelayConn, RelayError};
 
 const BACKOFF: &[u64] = &[1, 2, 5, 10, 30];
 
 /// Frames produced by calls, drained by whichever relay connection is current.
-pub struct Outbox {
+struct Outbox {
     rx: mpsc::UnboundedReceiver<Frame>,
     /// A frame whose send failed on a dying connection, sent first on the next one.
     retry: Option<Frame>,
 }
 
 impl Outbox {
-    pub fn new(rx: mpsc::UnboundedReceiver<Frame>) -> Outbox {
-        Outbox { rx, retry: None }
-    }
-
     async fn next(&mut self) -> Option<Frame> {
         match self.retry.take() {
             Some(frame) => Some(frame),
@@ -37,9 +34,11 @@ impl Outbox {
 pub async fn run(
     opts: &GatewayOptions,
     mut calls: Calls,
-    mut outbox: Outbox,
     states: watch::Receiver<Option<MachineState>>,
 ) -> Result<(), RelayError> {
+    // Every relay link's replies go to `out`, drained by whichever relay connection is current.
+    let (out, rx) = mpsc::unbounded_channel();
+    let mut outbox = Outbox { rx, retry: None };
     let mut attempt = 0;
     loop {
         let served =
@@ -47,7 +46,7 @@ pub async fn run(
                 Ok(conn) => {
                     tracing::info!(relay = %opts.relay, "connected to relay");
                     attempt = 0;
-                    serve(conn, &mut calls, &mut outbox, states.clone()).await
+                    serve(conn, &mut calls, &out, &mut outbox, states.clone()).await
                 }
                 Err(err) => Err(err),
             };
@@ -69,10 +68,21 @@ fn backoff(attempt: usize) -> Duration {
     Duration::from_secs(BACKOFF[attempt.min(BACKOFF.len() - 1)])
 }
 
+/// The caller of a relayed frame, and the frame without routing fields. The relay always sets
+/// `from` on frames from clients.
+fn from_relay(frame: Frame, out: &mpsc::UnboundedSender<Frame>) -> Option<(Link, Frame)> {
+    let Some(Route { from: Some(conn), .. }) = frame.header.route() else {
+        tracing::debug!("ignoring a relayed frame without a caller");
+        return None;
+    };
+    Some((Link::relay(conn, out.clone()), frame.rerouted(Route::default())))
+}
+
 /// Serves one relay connection until it fails.
 async fn serve(
     conn: RelayConn,
     calls: &mut Calls,
+    out: &mpsc::UnboundedSender<Frame>,
     outbox: &mut Outbox,
     mut states: watch::Receiver<Option<MachineState>>,
 ) -> Result<(), RelayError> {
@@ -82,7 +92,11 @@ async fn serve(
     loop {
         calls.reap();
         tokio::select! {
-            frame = stream.next(RELAY_IDLE) => calls.handle(frame?),
+            frame = stream.next(RELAY_IDLE) => {
+                if let Some((link, frame)) = from_relay(frame?, out) {
+                    calls.handle(link, frame);
+                }
+            }
             Some(frame) = outbox.next() => {
                 if let Err(err) = sink.send(&frame).await {
                     outbox.retry = Some(frame);
@@ -111,6 +125,21 @@ mod tests {
         assert!(is_fatal(&RelayError::Url("x".into())));
         assert!(!is_fatal(&RelayError::Idle));
         assert!(!is_fatal(&RelayError::Closed(Some(1011))));
+    }
+
+    #[test]
+    fn relayed_frames_lose_their_route_and_name_their_caller() {
+        let (out, mut rx) = mpsc::unbounded_channel();
+        let end = |from: Option<&str>| {
+            let from = from.map(str::to_owned);
+            Frame::new(Header::End { id: 7, e: None, mid: None, from, to: None })
+        };
+        let (link, frame) = from_relay(end(Some("c1")), &out).unwrap();
+        assert_eq!(link.key(), "c1");
+        assert_eq!(frame.header.route(), Some(Route::default()));
+        link.send(frame);
+        assert_eq!(rx.try_recv().unwrap().header.route().unwrap().to.as_deref(), Some("c1"));
+        assert!(from_relay(end(None), &out).is_none(), "the relay always names the caller");
     }
 
     #[test]

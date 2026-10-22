@@ -3,6 +3,7 @@
 
 mod inbound;
 mod inflight;
+mod link;
 mod space;
 mod stream;
 
@@ -18,6 +19,7 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 
 use self::inbound::{read_loop, write_loop};
 use self::inflight::{Inflight, Target, disconnected};
+use self::link::Link;
 use self::space::Space;
 pub use self::stream::{Stream, StreamEvent};
 use crate::relay::{self, RELAY_IDLE, RelayError};
@@ -33,7 +35,8 @@ pub enum SessionEvent {
 pub struct Session {
     space: Arc<Mutex<Space>>,
     inflight: Inflight,
-    out: mpsc::UnboundedSender<Frame>,
+    /// Frames for the relay connection, whatever machine they are for.
+    to_relay: mpsc::UnboundedSender<Frame>,
     events: broadcast::Sender<SessionEvent>,
     next_id: AtomicU64,
 }
@@ -47,11 +50,11 @@ impl Session {
         let space = Arc::new(Mutex::new(Space::from_snapshot(machines)));
         let inflight = Inflight::new();
         let (events, _) = broadcast::channel(256);
-        let (out, out_rx) = mpsc::unbounded_channel();
-        tokio::spawn(write_loop(conn.sink, out_rx));
+        let (to_relay, relay_rx) = mpsc::unbounded_channel();
+        tokio::spawn(write_loop(conn.sink, relay_rx));
         let read = read_loop(conn.stream, Arc::clone(&space), inflight.clone(), events.clone());
         tokio::spawn(read);
-        Ok(Session { space, inflight, out, events, next_id: AtomicU64::new(1) })
+        Ok(Session { space, inflight, to_relay, events, next_id: AtomicU64::new(1) })
     }
 
     /// Every known machine with its online flag, ordered by name.
@@ -86,9 +89,14 @@ impl Session {
         let (tx, rx) = mpsc::unbounded_channel();
         // Registered before the call so no data after the response is missed.
         self.inflight.add_stream(id, self.target(mid), tx)?;
-        let stream = Stream::new(id, mid.to_owned(), self.out.clone(), rx, self.inflight.clone());
+        let stream = Stream::new(id, self.link(mid), rx, self.inflight.clone());
         let r = self.request(id, mid, m, p, Some(timeout)).await?;
         Ok((r, stream))
+    }
+
+    /// The way to machine `mid`: the relay connection.
+    fn link(&self, mid: &str) -> Link {
+        Link::relay(self.to_relay.clone(), mid)
     }
 
     fn next_id(&self) -> u64 {
@@ -110,10 +118,10 @@ impl Session {
     ) -> Result<Value, RpcError> {
         let (tx, rx) = oneshot::channel();
         self.inflight.add_call(id, self.target(mid), tx)?;
-        let call = Header::Call { id, m: m.into(), p, mid: Some(mid.into()), from: None };
-        if self.out.send(Frame::new(call)).is_err() {
+        let call = Header::Call { id, m: m.into(), p, mid: None, from: None };
+        if let Err(err) = self.link(mid).send(Frame::new(call)) {
             self.inflight.forget_call(id);
-            return Err(disconnected());
+            return Err(err);
         }
         let reply = match timeout {
             Some(limit) => tokio::time::timeout(limit, rx).await.map_err(|_| {

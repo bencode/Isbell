@@ -1,7 +1,7 @@
-//! Calls in flight and the streams they open: each call runs as a task, and each open stream is
-//! registered so client input reaches it. Calls belong to the gateway process, not to a relay
-//! connection: their frames are addressed to the caller's connection, so a result finished after a
-//! reconnect still reaches its caller.
+//! Calls in flight and the streams they open: each call runs as a task that replies through its
+//! caller's link, and each open stream is registered so the caller's input reaches it. Calls belong
+//! to the gateway process, not to a relay connection, so a result finished after a reconnect still
+//! reaches its caller.
 
 mod route;
 
@@ -14,8 +14,9 @@ use tokio::sync::mpsc;
 use tokio::task::JoinSet;
 
 pub use self::route::methods;
-use self::route::{Inbound, Method, StreamKey, output_frame, response_frame, route};
+use self::route::{Inbound, Method, output_frame, response_frame, route};
 use super::herdr::Herdr;
+use super::link::Link;
 use super::terminal::{self, Input, TerminalRequest};
 use super::{HerdrSlot, nudge, rpc};
 
@@ -26,38 +27,35 @@ fn unavailable() -> RpcError {
     RpcError::new("herdr_unavailable", "herdr server is not available")
 }
 
+/// A stream by its caller (the link's key) and call id.
+type StreamKey = (String, u64);
+
 /// Open streams, for routing client input to them.
 type Streams = Arc<Mutex<HashMap<StreamKey, mpsc::Sender<Input>>>>;
 
-/// Calls in flight and where their frames go; outlives relay connections.
+/// Calls in flight; they outlive relay connections, since each replies through its caller's link.
 pub struct Calls {
     tasks: JoinSet<()>,
-    out: mpsc::UnboundedSender<Frame>,
     streams: Streams,
     slot: HerdrSlot,
     refresh: mpsc::Sender<()>,
 }
 
 impl Calls {
-    /// Also returns the receiving end of the calls' frames, for the relay connection to drain.
-    pub fn new(
-        slot: HerdrSlot,
-        refresh: mpsc::Sender<()>,
-    ) -> (Calls, mpsc::UnboundedReceiver<Frame>) {
-        let (out, rx) = mpsc::unbounded_channel();
-        (Calls { tasks: JoinSet::new(), out, streams: Arc::default(), slot, refresh }, rx)
+    pub fn new(slot: HerdrSlot, refresh: mpsc::Sender<()>) -> Calls {
+        Calls { tasks: JoinSet::new(), streams: Arc::default(), slot, refresh }
     }
 
-    /// Acts on one frame from the relay: a call starts a task, stream input feeds its stream.
-    pub fn handle(&mut self, frame: Frame) {
+    /// Acts on one frame from `link`'s caller: a call starts a task, stream input feeds its stream.
+    pub fn handle(&mut self, link: Link, frame: Frame) {
         match route(frame) {
-            Inbound::Call { id, to, method: Ok(method), p } => self.start(id, to, method, p),
-            Inbound::Call { id, to, method: Err(m), .. } => {
+            Inbound::Call { id, method: Ok(method), p } => self.start(link, id, method, p),
+            Inbound::Call { id, method: Err(m), .. } => {
                 let unknown = RpcError::new("method_not_allowed", format!("unknown method {m}"));
-                send(&self.out, response_frame(id, to, Err(unknown)));
+                link.send(response_frame(id, Err(unknown)));
             }
-            Inbound::Input { key, input } => feed(&self.streams, key, input),
-            Inbound::Ignore(what) => tracing::debug!(what, "ignoring a frame from the relay"),
+            Inbound::Input { id, input } => feed(&self.streams, (link.key().to_owned(), id), input),
+            Inbound::Ignore(what) => tracing::debug!(what, "ignoring a frame from a caller"),
         }
     }
 
@@ -70,43 +68,35 @@ impl Calls {
         }
     }
 
-    fn start(&mut self, id: u64, to: String, method: Method, p: Value) {
+    fn start(&mut self, link: Link, id: u64, method: Method, p: Value) {
         let herdr = self.slot.read().expect("herdr slot poisoned").clone().ok_or_else(unavailable);
-        let out = self.out.clone();
         match method {
             Method::Herdr => self.tasks.spawn(async move {
                 let result = async { rpc::passthrough(&herdr?, p).await }.await;
-                send(&out, response_frame(id, to, result));
+                link.send(response_frame(id, result));
             }),
             Method::StartAgent => {
                 let refresh = self.refresh.clone();
                 self.tasks.spawn(async move {
                     let result = async { rpc::start_agent(&herdr?, p).await }.await;
                     nudge(&refresh);
-                    send(&out, response_frame(id, to, result));
+                    link.send(response_frame(id, result));
                 })
             }
             Method::Terminal => {
                 let streams = Arc::clone(&self.streams);
-                self.tasks.spawn(stream_terminal(herdr, id, to, p, out, streams))
+                self.tasks.spawn(stream_terminal(herdr, link, id, p, streams))
             }
         };
-    }
-}
-
-fn send(out: &mpsc::UnboundedSender<Frame>, frame: Frame) {
-    if out.send(frame).is_err() {
-        tracing::debug!("gateway stopped before a call's frame was sent");
     }
 }
 
 /// Opens a terminal session and streams it to the caller until either side ends it.
 async fn stream_terminal(
     herdr: Result<Herdr, RpcError>,
+    link: Link,
     id: u64,
-    to: String,
     p: Value,
-    out: mpsc::UnboundedSender<Frame>,
     streams: Streams,
 ) {
     let opened = async {
@@ -114,16 +104,15 @@ async fn stream_terminal(
         let req: TerminalRequest = serde_json::from_value(p)
             .map_err(|err| RpcError::new("bad_request", err.to_string()))?;
         // Registered before the response so input sent right after it is not lost.
-        let (registered, input) = register(&streams, (to.clone(), id))?;
+        let (registered, input) = register(&streams, (link.key().to_owned(), id))?;
         let (session, r) = terminal::open(&herdr, req).await?;
         Ok((registered, input, session, r))
     };
     match opened.await {
-        Err(err) => send(&out, response_frame(id, to, Err(err))),
+        Err(err) => link.send(response_frame(id, Err(err))),
         Ok((_registered, input, session, r)) => {
-            send(&out, response_frame(id, to.clone(), Ok(r)));
-            terminal::pump(session, input, |output| send(&out, output_frame(id, &to, output)))
-                .await;
+            link.send(response_frame(id, Ok(r)));
+            terminal::pump(session, input, |output| link.send(output_frame(id, output))).await;
         }
     }
 }

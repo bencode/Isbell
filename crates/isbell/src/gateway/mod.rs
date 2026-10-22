@@ -2,6 +2,7 @@
 
 mod calls;
 mod herdr;
+mod link;
 mod monitor;
 mod rpc;
 mod state;
@@ -19,7 +20,6 @@ use tokio::task::JoinHandle;
 use self::calls::Calls;
 use self::herdr::Herdr;
 use self::state::Reporter;
-use self::uplink::Outbox;
 use crate::now_ms;
 use crate::relay::RelayError;
 
@@ -61,9 +61,9 @@ pub async fn run(opts: GatewayOptions) -> Result<(), GatewayError> {
     let reporter = Reporter { machine: opts.machine.clone(), caps, boot: now_ms() };
     let monitor = monitor::run(reporter, Arc::clone(&slot), states, refresh.clone(), refresh_rx);
     let mut monitor = AbortOnDrop(tokio::spawn(monitor));
-    let (calls, frames) = Calls::new(slot, refresh);
+    let calls = Calls::new(slot, refresh);
     tokio::select! {
-        result = uplink::run(&opts, calls, Outbox::new(frames), states_rx) => Ok(result?),
+        result = uplink::run(&opts, calls, states_rx) => Ok(result?),
         joined = &mut monitor.0 => {
             if let Err(err) = joined {
                 tracing::error!(%err, "herdr monitor failed");

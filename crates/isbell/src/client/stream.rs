@@ -5,6 +5,7 @@ use isbell_proto::frame::{DataKind, Frame, Header, RpcError};
 use tokio::sync::mpsc;
 
 use super::inflight::{Inflight, disconnected};
+use super::link::Link;
 
 #[derive(Debug)]
 pub enum StreamEvent {
@@ -19,8 +20,7 @@ pub enum StreamEvent {
 /// Dropping it ends the stream.
 pub struct Stream {
     id: u64,
-    mid: String,
-    out: mpsc::UnboundedSender<Frame>,
+    link: Link,
     rx: mpsc::UnboundedReceiver<StreamEvent>,
     inflight: Inflight,
     ended: bool,
@@ -29,12 +29,11 @@ pub struct Stream {
 impl Stream {
     pub(super) fn new(
         id: u64,
-        mid: String,
-        out: mpsc::UnboundedSender<Frame>,
+        link: Link,
         rx: mpsc::UnboundedReceiver<StreamEvent>,
         inflight: Inflight,
     ) -> Stream {
-        Stream { id, mid, out, rx, inflight, ended: false }
+        Stream { id, link, rx, inflight, ended: false }
     }
 
     pub async fn next(&mut self) -> StreamEvent {
@@ -57,15 +56,22 @@ impl Stream {
 
     fn send(&self, k: DataKind, body: Option<Vec<u8>>, size: Option<(u16, u16)>) {
         let (cols, rows) = (size.map(|s| s.0), size.map(|s| s.1));
-        let mid = Some(self.mid.clone());
-        let header =
-            Header::Data { id: self.id, k, full: None, cols, rows, mid, from: None, to: None };
+        let header = Header::Data {
+            id: self.id,
+            k,
+            full: None,
+            cols,
+            rows,
+            mid: None,
+            from: None,
+            to: None,
+        };
         self.push(Frame { header, body });
     }
 
     fn push(&self, frame: Frame) {
-        if self.out.send(frame).is_err() {
-            tracing::debug!(id = self.id, "relay connection closed");
+        if self.link.send(frame).is_err() {
+            tracing::debug!(id = self.id, "the link to the machine is closed");
         }
     }
 }
@@ -74,8 +80,8 @@ impl Drop for Stream {
     fn drop(&mut self) {
         self.inflight.forget_stream(self.id);
         if !self.ended {
-            let mid = Some(self.mid.clone());
-            self.push(Frame::new(Header::End { id: self.id, e: None, mid, from: None, to: None }));
+            let end = Header::End { id: self.id, e: None, mid: None, from: None, to: None };
+            self.push(Frame::new(end));
         }
     }
 }

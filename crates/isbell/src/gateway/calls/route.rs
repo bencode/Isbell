@@ -1,5 +1,5 @@
-//! What frames from the relay ask of the gateway, and the frames that answer them: the mapping
-//! between the wire protocol and calls / stream input.
+//! What a caller's frames ask of the gateway, and the frames that answer them: the mapping between
+//! the wire protocol and calls / stream input. Frames here carry no routing fields.
 
 use isbell_proto::frame::{DataKind, Frame, Header, RpcError};
 use serde_json::Value;
@@ -38,55 +38,51 @@ pub fn methods() -> Vec<String> {
     rpc::ALLOWED.iter().copied().chain(own).map(str::to_owned).collect()
 }
 
-/// A stream by its caller's connection and call id.
-pub type StreamKey = (String, u64);
-
-/// What a frame from the relay asks of the gateway.
+/// What a frame from a caller asks of the gateway.
 #[derive(Debug, PartialEq)]
 pub enum Inbound {
     /// `method` is the unknown name when the gateway does not serve it.
     Call {
         id: u64,
-        to: String,
         method: Result<Method, String>,
         p: Value,
     },
     Input {
-        key: StreamKey,
+        id: u64,
         input: Input,
     },
     Ignore(&'static str),
 }
 
+/// Maps a frame without routing fields (the link has taken them off) to what it asks for.
 pub fn route(frame: Frame) -> Inbound {
-    let input = |from, id, input| Inbound::Input { key: (from, id), input };
+    let input = |id, input| Inbound::Input { id, input };
     match frame.header {
-        Header::Call { id, m, p, from: Some(to), .. } => {
-            Inbound::Call { id, to, method: Method::parse(&m).ok_or(m), p }
+        Header::Call { id, m, p, .. } => {
+            Inbound::Call { id, method: Method::parse(&m).ok_or(m), p }
         }
-        Header::Data { id, k, cols, rows, from: Some(from), .. } => match (k, cols, rows) {
-            (DataKind::Input, ..) => input(from, id, Input::Bytes(frame.body.unwrap_or_default())),
+        Header::Data { id, k, cols, rows, .. } => match (k, cols, rows) {
+            (DataKind::Input, ..) => input(id, Input::Bytes(frame.body.unwrap_or_default())),
             (DataKind::Resize, Some(cols @ 1..), Some(rows @ 1..)) => {
-                input(from, id, Input::Resize(cols, rows))
+                input(id, Input::Resize(cols, rows))
             }
-            (DataKind::Ping, ..) => input(from, id, Input::Ping),
+            (DataKind::Ping, ..) => input(id, Input::Ping),
             (DataKind::Resize | DataKind::Frame, ..) => Inbound::Ignore("invalid stream frame"),
         },
-        Header::End { id, from: Some(from), .. } => input(from, id, Input::Close),
+        Header::End { id, .. } => input(id, Input::Close),
         _ => Inbound::Ignore("unexpected frame"),
     }
 }
 
-pub fn response_frame(id: u64, to: String, result: Result<Value, RpcError>) -> Frame {
+pub fn response_frame(id: u64, result: Result<Value, RpcError>) -> Frame {
     let (ok, r, e) = match result {
         Ok(r) => (true, Some(r), None),
         Err(e) => (false, None, Some(e)),
     };
-    Frame::new(Header::Res { id, ok, r, e, mid: None, to: Some(to) })
+    Frame::new(Header::Res { id, ok, r, e, mid: None, to: None })
 }
 
-pub fn output_frame(id: u64, to: &str, output: Output) -> Frame {
-    let to = Some(to.to_owned());
+pub fn output_frame(id: u64, output: Output) -> Frame {
     match output {
         Output::Frame { body, full, cols, rows } => {
             let (full, cols, rows) = (Some(full), Some(cols), Some(rows));
@@ -98,51 +94,38 @@ pub fn output_frame(id: u64, to: &str, output: Output) -> Frame {
                 rows,
                 mid: None,
                 from: None,
-                to,
+                to: None,
             };
             Frame { header, body: Some(body) }
         }
-        Output::End(e) => Frame::new(Header::End { id, e, mid: None, from: None, to }),
+        Output::End(e) => Frame::new(Header::End { id, e, mid: None, from: None, to: None }),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use isbell_proto::frame::Route;
     use serde_json::json;
 
     fn call(m: &str) -> Frame {
-        Frame::new(Header::Call {
-            id: 1,
-            m: m.into(),
-            p: json!({}),
-            mid: None,
-            from: Some("c".into()),
-        })
+        Frame::new(Header::Call { id: 1, m: m.into(), p: json!({}), mid: None, from: None })
     }
 
     fn data(k: DataKind, cols: Option<u16>, rows: Option<u16>, body: Option<&[u8]>) -> Frame {
-        let header = Header::Data {
-            id: 2,
-            k,
-            full: None,
-            cols,
-            rows,
-            mid: None,
-            from: Some("c".into()),
-            to: None,
-        };
+        let header =
+            Header::Data { id: 2, k, full: None, cols, rows, mid: None, from: None, to: None };
         Frame { header, body: body.map(<[u8]>::to_vec) }
     }
 
     fn input(input: Input) -> Inbound {
-        Inbound::Input { key: ("c".into(), 2), input }
+        Inbound::Input { id: 2, input }
     }
 
     #[test]
     fn routes_calls_by_method() {
         let routed = |m| match route(call(m)) {
-            Inbound::Call { id: 1, to, method, .. } if to == "c" => method,
+            Inbound::Call { id: 1, method, .. } => method,
             other => panic!("expected a call, got {other:?}"),
         };
         assert_eq!(routed("isbell.terminal"), Ok(Method::Terminal));
@@ -165,7 +148,7 @@ mod tests {
             input(Input::Resize(100, 30))
         );
         assert_eq!(route(data(DataKind::Ping, None, None, None)), input(Input::Ping));
-        let end = Header::End { id: 2, e: None, mid: None, from: Some("c".into()), to: None };
+        let end = Header::End { id: 2, e: None, mid: None, from: None, to: None };
         assert_eq!(route(Frame::new(end)), input(Input::Close));
         assert!(matches!(
             route(data(DataKind::Resize, Some(0), Some(30), None)),
@@ -175,18 +158,24 @@ mod tests {
     }
 
     #[test]
-    fn addresses_frames_to_the_caller() {
-        let res = response_frame(1, "c".into(), Err(RpcError::new("herdr_unavailable", "x")));
-        assert!(
-            matches!(res.header, Header::Res { id: 1, ok: false, ref to, .. } if to.as_deref() == Some("c"))
-        );
+    fn answers_carry_no_route() {
+        let res = response_frame(1, Err(RpcError::new("herdr_unavailable", "x")));
+        assert!(matches!(res.header, Header::Res { id: 1, ok: false, .. }));
+        assert_eq!(res.header.route(), Some(Route::default()));
         let output = Output::Frame { body: b"hi".to_vec(), full: true, cols: 80, rows: 24 };
-        let frame = output_frame(2, "c", output);
+        let frame = output_frame(2, output);
         assert!(matches!(
             frame.header,
-            Header::Data { id: 2, k: DataKind::Frame, full: Some(true), cols: Some(80), rows: Some(24), ref to, .. }
-                if to.as_deref() == Some("c")
+            Header::Data {
+                id: 2,
+                k: DataKind::Frame,
+                full: Some(true),
+                cols: Some(80),
+                rows: Some(24),
+                ..
+            }
         ));
+        assert_eq!(frame.header.route(), Some(Route::default()));
         assert_eq!(frame.body.as_deref(), Some(&b"hi"[..]));
     }
 
