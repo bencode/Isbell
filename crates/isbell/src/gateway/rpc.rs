@@ -1,7 +1,7 @@
-//! Requests the gateway serves: allowlisted herdr methods and `isbell.*` compositions.
-//! The allowlist guards against accidental remote misuse; holders of the space key are trusted.
+//! The gateway's unary methods: allowlisted herdr methods passed through, and starting an agent in
+//! a workspace of its own. The allowlist guards against accidental remote misuse; holders of the
+//! space key are trusted.
 
-use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use isbell_proto::frame::RpcError;
@@ -9,6 +9,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use super::herdr::{Herdr, HerdrError};
+use super::workspace;
 
 pub const ALLOWED: &[&str] = &[
     "agent.list",
@@ -23,9 +24,6 @@ pub const ALLOWED: &[&str] = &[
     "workspace.list",
     "session.snapshot",
 ];
-pub const START_AGENT: &str = "isbell.agent.start";
-pub const TERMINAL: &str = "isbell.terminal";
-
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 const START_TIMEOUT: Duration = Duration::from_secs(35);
 const BUSY_RETRY_FOR: Duration = Duration::from_secs(10);
@@ -33,45 +31,25 @@ const READY_WAIT_FOR: Duration = Duration::from_secs(30);
 const POLL_EVERY: Duration = Duration::from_millis(500);
 const MAX_NAME: usize = 28;
 
-pub fn methods() -> Vec<String> {
-    ALLOWED.iter().chain([&START_AGENT, &TERMINAL]).map(|m| (*m).to_owned()).collect()
-}
-
-impl From<HerdrError> for RpcError {
-    fn from(err: HerdrError) -> Self {
-        RpcError { code: err.code, msg: err.message }
-    }
-}
-
 fn bad_request(err: impl std::fmt::Display) -> RpcError {
     RpcError::new("bad_request", err.to_string())
 }
 
-pub async fn handle(herdr: Option<Herdr>, m: &str, p: Value) -> Result<Value, RpcError> {
-    let herdr =
-        herdr.ok_or_else(|| RpcError::new("herdr_unavailable", "herdr server is not available"))?;
-    match m {
-        "herdr" => {
-            #[derive(Deserialize)]
-            struct Passthrough {
-                method: String,
-                #[serde(default)]
-                params: Value,
-            }
-            let call: Passthrough = serde_json::from_value(p).map_err(bad_request)?;
-            if !ALLOWED.contains(&call.method.as_str()) {
-                return Err(RpcError::new(
-                    "method_not_allowed",
-                    format!("{} is not allowed remotely", call.method),
-                ));
-            }
-            Ok(herdr
-                .request(&call.method, call.params.clone(), timeout_for(&call.method, &call.params))
-                .await?)
-        }
-        START_AGENT => start_agent(&herdr, serde_json::from_value(p).map_err(bad_request)?).await,
-        _ => Err(RpcError::new("method_not_allowed", format!("unknown method {m}"))),
+/// An allowlisted herdr method, called as is.
+pub async fn passthrough(herdr: &Herdr, p: Value) -> Result<Value, RpcError> {
+    #[derive(Deserialize)]
+    struct Passthrough {
+        method: String,
+        #[serde(default)]
+        params: Value,
     }
+    let call: Passthrough = serde_json::from_value(p).map_err(bad_request)?;
+    if !ALLOWED.contains(&call.method.as_str()) {
+        let msg = format!("{} is not allowed remotely", call.method);
+        return Err(RpcError::new("method_not_allowed", msg));
+    }
+    let timeout = timeout_for(&call.method, &call.params);
+    Ok(herdr.request(&call.method, call.params, timeout).await?)
 }
 
 /// Waiting calls run as long as herdr's own `timeout_ms` (or indefinitely); others get a default.
@@ -81,7 +59,7 @@ fn timeout_for(method: &str, params: &Value) -> Option<Duration> {
 }
 
 #[derive(Deserialize)]
-pub struct StartAgent {
+struct StartAgent {
     cwd: String,
     kind: String,
     name: Option<String>,
@@ -91,53 +69,35 @@ pub struct StartAgent {
 }
 
 /// workspace.create → agent.start (retrying while the shell is busy) → optional prompt once ready.
-async fn start_agent(herdr: &Herdr, req: StartAgent) -> Result<Value, RpcError> {
-    let cwd = resolve_cwd(&req.cwd)?;
+pub async fn start_agent(herdr: &Herdr, p: Value) -> Result<Value, RpcError> {
+    let req: StartAgent = serde_json::from_value(p).map_err(bad_request)?;
+    let cwd = workspace::resolve_cwd(&req.cwd)?;
     let name = match req.name {
         Some(name) => name,
         None => {
-            let base =
-                cwd.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-            unique_name(herdr, &default_name(&req.kind, &base)).await?
+            let base = default_name(&req.kind, &workspace::dir_name(&cwd));
+            first_free(&base, &agent_names(herdr).await?)
         }
     };
-    let created = herdr
-        .request(
-            "workspace.create",
-            json!({"cwd": cwd, "label": name, "focus": false, "env": {}}),
-            Some(DEFAULT_TIMEOUT),
-        )
-        .await?;
-    let pane_id = created["root_pane"]["pane_id"]
-        .as_str()
-        .ok_or_else(|| RpcError::new("herdr_error", "workspace.create returned no root pane"))?
-        .to_owned();
-
-    let mut args = req.args;
-    if req.kind == "codex" {
-        // Codex hooks only run inside the pane without its background daemon.
-        args.insert(0, "--no-daemon".into());
-    }
+    let pane_id = workspace::create(herdr, &cwd, &name).await?;
+    let args = agent_args(&req.kind, req.args);
     let start = json!({"name": name, "kind": req.kind, "pane_id": pane_id, "args": args, "timeout_ms": 30_000});
     if let Err(err) = start_retrying_busy(herdr, start).await {
-        if let Err(close_err) =
-            herdr.request("pane.close", json!({"pane_id": pane_id}), Some(DEFAULT_TIMEOUT)).await
-        {
-            tracing::warn!(%close_err, pane_id, "cannot close pane after failed agent start");
-        }
+        workspace::close_pane(herdr, &pane_id, "agent start").await;
         return Err(err.into());
     }
     if let Some(text) = req.prompt {
         wait_until_ready(herdr, &pane_id).await?;
-        herdr
-            .request(
-                "agent.prompt",
-                json!({"target": pane_id, "text": text}),
-                Some(DEFAULT_TIMEOUT),
-            )
-            .await?;
+        let prompt = json!({"target": pane_id, "text": text});
+        herdr.request("agent.prompt", prompt, Some(DEFAULT_TIMEOUT)).await?;
     }
     Ok(json!({"name": name, "paneId": pane_id}))
+}
+
+/// Codex hooks only run inside the pane without its background daemon.
+fn agent_args(kind: &str, args: Vec<String>) -> Vec<String> {
+    let no_daemon = (kind == "codex").then(|| "--no-daemon".to_owned());
+    no_daemon.into_iter().chain(args).collect()
 }
 
 async fn start_retrying_busy(herdr: &Herdr, params: Value) -> Result<Value, HerdrError> {
@@ -167,50 +127,34 @@ async fn wait_until_ready(herdr: &Herdr, pane_id: &str) -> Result<(), RpcError> 
     Err(RpcError::new("agent_not_ready", "agent started but did not become ready for the prompt"))
 }
 
-/// An existing absolute directory, with a leading `~` expanded on this machine.
-pub fn resolve_cwd(cwd: &str) -> Result<PathBuf, RpcError> {
-    expand_home(cwd).filter(|p| p.is_absolute() && p.is_dir()).ok_or_else(|| {
-        RpcError::new("invalid_cwd", format!("{cwd} is not an existing absolute directory"))
-    })
-}
-
-fn expand_home(path: &str) -> Option<PathBuf> {
-    let home = || std::env::var_os("HOME").map(PathBuf::from);
-    match path.strip_prefix('~') {
-        Some("") => home(),
-        Some(rest) => rest.strip_prefix('/').and_then(|rest| home().map(|h| h.join(rest))),
-        None => Some(PathBuf::from(path)),
-    }
-}
-
 /// `{kind}-{dir}` reduced to herdr's name alphabet (`[a-z][a-z0-9_-]*`).
 fn default_name(kind: &str, dir: &str) -> String {
     let raw = format!("{kind}-{dir}").to_ascii_lowercase();
-    let mut name = String::new();
-    for c in raw.chars() {
-        let c = if c.is_ascii_alphanumeric() || c == '_' { c } else { '-' };
-        if !(c == '-' && name.ends_with('-')) {
-            name.push(c);
-        }
+    let words: Vec<&str> = raw
+        .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+        .filter(|w| !w.is_empty())
+        .collect();
+    let name: String = words.join("-").chars().take(MAX_NAME).collect();
+    let name = name.trim_end_matches('-');
+    if name.starts_with(|c: char| c.is_ascii_lowercase()) {
+        name.to_owned()
+    } else {
+        format!("a-{name}")
     }
-    name.truncate(MAX_NAME);
-    let name = name.trim_matches('-').to_owned();
-    if name.starts_with(|c: char| c.is_ascii_lowercase()) { name } else { format!("a-{name}") }
 }
 
-async fn unique_name(herdr: &Herdr, base: &str) -> Result<String, RpcError> {
+async fn agent_names(herdr: &Herdr) -> Result<Vec<String>, RpcError> {
     let list = herdr.request("agent.list", json!({}), Some(DEFAULT_TIMEOUT)).await?;
-    let taken: Vec<&str> = list["agents"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(|a| a["name"].as_str())
-        .collect();
-    let name = (1..)
+    let agents = list["agents"].as_array().into_iter().flatten();
+    Ok(agents.filter_map(|a| a["name"].as_str()).map(str::to_owned).collect())
+}
+
+/// `base`, else the first `base-N` not taken.
+fn first_free(base: &str, taken: &[String]) -> String {
+    (1..)
         .map(|n| if n == 1 { base.to_owned() } else { format!("{base}-{n}") })
-        .find(|candidate| !taken.contains(&candidate.as_str()))
-        .expect("an unused suffix exists");
-    Ok(name)
+        .find(|candidate| !taken.contains(candidate))
+        .expect("an unused suffix exists")
 }
 
 #[cfg(test)]
@@ -222,6 +166,12 @@ mod tests {
         assert_eq!(default_name("claude", "Isbell"), "claude-isbell");
         assert_eq!(default_name("codex", "my repo.v2"), "codex-my-repo-v2");
         assert_eq!(default_name("claude", "a-really-long-directory-name-here").len(), MAX_NAME);
+        assert_eq!(default_name("claude", "--Über__x--"), "claude-ber__x");
+        assert_eq!(default_name("9", ""), "a-9");
+        assert_eq!(
+            default_name("claude", "abcdefghijklmnopqrst-uvw"),
+            "claude-abcdefghijklmnopqrst"
+        );
     }
 
     #[test]
@@ -230,5 +180,19 @@ mod tests {
         assert_eq!(timeout_for("agent.prompt", &json!({"wait": {}})), None);
         assert_eq!(timeout_for("agent.prompt", &json!({})), Some(DEFAULT_TIMEOUT));
         assert_eq!(timeout_for("agent.read", &json!({})), Some(DEFAULT_TIMEOUT));
+    }
+
+    #[test]
+    fn picks_the_first_free_name() {
+        let taken = ["claude-x".to_owned(), "claude-x-2".to_owned()];
+        assert_eq!(first_free("claude-y", &taken), "claude-y");
+        assert_eq!(first_free("claude-x", &taken), "claude-x-3");
+    }
+
+    #[test]
+    fn codex_runs_without_its_daemon() {
+        let args = || vec!["--model".to_owned(), "m".to_owned()];
+        assert_eq!(agent_args("codex", args()), ["--no-daemon", "--model", "m"]);
+        assert_eq!(agent_args("claude", args()), args());
     }
 }
