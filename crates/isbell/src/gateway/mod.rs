@@ -47,8 +47,18 @@ impl<T> Drop for AbortOnDrop<T> {
     }
 }
 
-/// Runs until another gateway takes over this machine, or the relay URL / origin is unusable.
-pub async fn run(opts: GatewayOptions) -> Result<(), RelayError> {
+#[derive(Debug, thiserror::Error)]
+pub enum GatewayError {
+    #[error(transparent)]
+    Relay(#[from] RelayError),
+    /// The herdr state loop ended, which only a bug can cause; state would never be reported again.
+    #[error("the herdr state loop stopped unexpectedly")]
+    StateLoopStopped,
+}
+
+/// Runs until another gateway takes over this machine, the relay URL / origin is unusable, or the
+/// state loop dies.
+pub async fn run(opts: GatewayOptions) -> Result<(), GatewayError> {
     let slot: HerdrSlot = Arc::default();
     let (state_tx, state_rx) = watch::channel(None);
     let (refresh_tx, refresh_rx) = mpsc::channel(1);
@@ -57,14 +67,22 @@ pub async fn run(opts: GatewayOptions) -> Result<(), RelayError> {
         agent_kinds: state::agent_kinds(),
     };
     let tracker = StateTracker::new(opts.machine.clone(), caps);
-    let _state_task = AbortOnDrop(tokio::spawn(state_loop(
+    let mut state_task = AbortOnDrop(tokio::spawn(state_loop(
         tracker,
         Arc::clone(&slot),
         state_tx,
         refresh_tx.clone(),
         refresh_rx,
     )));
-    relay_loop(&opts, &slot, state_rx, refresh_tx).await
+    tokio::select! {
+        result = relay_loop(&opts, &slot, state_rx, refresh_tx) => Ok(result?),
+        joined = &mut state_task.0 => {
+            if let Err(err) = joined {
+                tracing::error!(%err, "herdr state loop failed");
+            }
+            Err(GatewayError::StateLoopStopped)
+        }
+    }
 }
 
 // ---------- herdr side ----------
@@ -262,7 +280,11 @@ async fn serve(
     // Every new connection starts with the current state.
     state_rx.mark_changed();
     loop {
-        while calls.tasks.try_join_next().is_some() {}
+        while let Some(joined) = calls.tasks.try_join_next() {
+            if let Err(err) = joined {
+                tracing::error!(%err, "request task failed");
+            }
+        }
         tokio::select! {
             frame = stream.next(RELAY_IDLE) => dispatch(frame?, slot, refresh_tx, calls),
             Some(frame) = outbox.rx.recv() => send_or_keep(sink, frame, outbox).await?,
@@ -314,11 +336,17 @@ fn dispatch(frame: Frame, slot: &HerdrSlot, refresh_tx: &mpsc::Sender<()>, calls
             from: Some(from),
             ..
         } => {
-            let input = match k {
-                DataKind::Input => Input::Bytes(frame.body.unwrap_or_default()),
-                DataKind::Resize => Input::Resize(cols.unwrap_or(0), rows.unwrap_or(0)),
-                DataKind::Ping => Input::Ping,
-                DataKind::Frame => return,
+            let input = match (k, cols, rows) {
+                (DataKind::Input, ..) => Input::Bytes(frame.body.unwrap_or_default()),
+                (DataKind::Resize, Some(cols @ 1..), Some(rows @ 1..)) => Input::Resize(cols, rows),
+                (DataKind::Ping, ..) => Input::Ping,
+                (DataKind::Resize | DataKind::Frame, ..) => {
+                    return tracing::debug!(
+                        id,
+                        ?k,
+                        "ignoring an invalid stream frame from a client"
+                    );
+                }
             };
             feed(&calls.streams, from, id, input);
         }

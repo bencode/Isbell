@@ -3,7 +3,7 @@
 
 use isbell_proto::state::MachineState;
 
-use super::output::CliError;
+use super::output::{CliError, short_id};
 
 const MIN_ID_PREFIX: usize = 4;
 
@@ -49,7 +49,7 @@ pub fn resolve_machine<'m>(
         many => {
             let candidates: Vec<String> = many
                 .iter()
-                .map(|(s, _)| format!("{} ({})", s.machine.name, &s.machine.id[..8]))
+                .map(|(s, _)| format!("{} ({})", s.machine.name, short_id(&s.machine.id)))
                 .collect();
             Err(CliError::new(
                 "machine_ambiguous",

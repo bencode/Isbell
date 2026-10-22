@@ -97,24 +97,50 @@ pub async fn open(herdr: &Herdr, req: TerminalRequest) -> Result<(Session, Value
     if req.cols == 0 || req.rows == 0 {
         return Err(bad_request("cols and rows must be positive"));
     }
-    let (target, result) = match (req.target, req.new) {
-        (Some(target), None) => (target, json!({})),
+    let created = match (&req.target, &req.new) {
+        (Some(_), None) => None,
         (None, Some(_)) if req.mode == Mode::Observe => {
             return Err(bad_request("a new shell needs control mode"));
         }
-        (None, Some(new)) => {
-            let pane = new_shell(herdr, &new.cwd).await?;
-            (pane.clone(), json!({"paneId": pane}))
-        }
+        (None, Some(new)) => Some(new_shell(herdr, &new.cwd).await?),
         _ => return Err(bad_request("give exactly one of target or new")),
     };
+    let target = created
+        .as_deref()
+        .or(req.target.as_deref())
+        .expect("target or new shell");
+    match (start_session(herdr, target, &req).await, created) {
+        (Ok(session), created) => Ok((session, json!({"paneId": created}))),
+        (Err(err), Some(pane)) => {
+            // Don't leave behind the shell workspace we just created.
+            if let Err(close_err) = herdr
+                .request(
+                    "pane.close",
+                    json!({"pane_id": pane}),
+                    Some(Duration::from_secs(30)),
+                )
+                .await
+            {
+                tracing::warn!(%close_err, pane, "cannot close the new shell after a failed attach");
+            }
+            Err(err)
+        }
+        (Err(err), None) => Err(err),
+    }
+}
+
+async fn start_session(
+    herdr: &Herdr,
+    target: &str,
+    req: &TerminalRequest,
+) -> Result<Session, RpcError> {
     let control = req.mode == Mode::Control;
     let mut cmd = herdr.command();
     cmd.args([
         "terminal",
         "session",
         if control { "control" } else { "observe" },
-        &target,
+        target,
     ]);
     cmd.args([
         "--cols",
@@ -140,15 +166,20 @@ pub async fn open(herdr: &Herdr, req: TerminalRequest) -> Result<(Session, Value
     let mut stdout = BufReader::new(child.stdout.take().expect("piped")).lines();
     let mut stderr = child.stderr.take().expect("piped");
 
-    let first = tokio::time::timeout(FIRST_FRAME_WITHIN, stdout.next_line()).await;
-    let first = match first {
+    let first = match tokio::time::timeout(FIRST_FRAME_WITHIN, stdout.next_line()).await {
         Ok(Ok(Some(line))) => parse_line(&line).map_err(|err| RpcError::new("herdr_error", err))?,
-        Ok(_) => {
+        Ok(Ok(None)) => {
             let mut message = String::new();
             if let Err(err) = stderr.read_to_string(&mut message).await {
                 tracing::debug!(%err, "cannot read herdr stderr");
             }
             return Err(RpcError::new("terminal_failed", message.trim().to_owned()));
+        }
+        Ok(Err(err)) => {
+            return Err(RpcError::new(
+                "herdr_error",
+                format!("cannot read herdr output: {err}"),
+            ));
         }
         Err(_) => return Err(RpcError::new("timeout", "herdr sent no terminal frame")),
     };
@@ -158,15 +189,12 @@ pub async fn open(herdr: &Herdr, req: TerminalRequest) -> Result<(Session, Value
             tracing::warn!(line, "herdr terminal session");
         }
     });
-    Ok((
-        Session {
-            _child: child,
-            stdin,
-            stdout,
-            first,
-        },
-        result,
-    ))
+    Ok(Session {
+        _child: child,
+        stdin,
+        stdout,
+        first,
+    })
 }
 
 async fn new_shell(herdr: &Herdr, cwd: &str) -> Result<String, RpcError> {
@@ -311,6 +339,8 @@ struct Coalescer {
     bytes: Vec<u8>,
     full: bool,
     size: (u16, u16),
+    /// The size last sent to the client.
+    sent_size: Option<(u16, u16)>,
     deadline: Option<Instant>,
 }
 
@@ -341,19 +371,32 @@ impl Coalescer {
         }
     }
 
+    /// Emits pending output; a repaint or resize goes out even with no bytes.
     fn flush(&mut self, emit: &mut impl FnMut(Output)) {
         self.deadline = None;
         let (cols, rows) = self.size;
-        let mut full = std::mem::take(&mut self.full);
-        for chunk in std::mem::take(&mut self.bytes).chunks(MAX_CHUNK) {
-            emit(Output::Frame {
+        let full = std::mem::take(&mut self.full);
+        let bytes = std::mem::take(&mut self.bytes);
+        let resized = self.sent_size != Some(self.size);
+        if bytes.is_empty() && !full && !resized {
+            return;
+        }
+        self.sent_size = Some(self.size);
+        let chunks: Vec<&[u8]> = if bytes.is_empty() {
+            vec![&[]]
+        } else {
+            bytes.chunks(MAX_CHUNK).collect()
+        };
+        chunks
+            .into_iter()
+            .enumerate()
+            .map(|(i, chunk)| Output::Frame {
                 body: chunk.to_vec(),
-                full,
+                full: full && i == 0,
                 cols,
                 rows,
-            });
-            full = false;
-        }
+            })
+            .for_each(&mut *emit);
     }
 }
 
@@ -380,6 +423,41 @@ mod tests {
         assert!(parse_line(r#"{"type":"terminal.other"}"#).is_err());
         assert!(
             parse_line(r#"{"type":"terminal.frame","width":1,"height":1,"bytes":"!"}"#).is_err()
+        );
+    }
+
+    #[test]
+    fn repaints_and_resizes_are_sent_even_without_bytes() {
+        let mut sent = Vec::new();
+        let mut emit = |o: Output| {
+            if let Output::Frame {
+                body,
+                full,
+                cols,
+                rows,
+            } = o
+            {
+                sent.push((body.len(), full, cols, rows));
+            }
+        };
+        let frame = |full, cols| Event::Frame {
+            bytes: Vec::new(),
+            full,
+            cols,
+            rows: 24,
+        };
+        let mut out = Coalescer::default();
+        out.push(frame(false, 80), &mut emit);
+        out.flush(&mut emit); // first size
+        out.push(frame(false, 80), &mut emit);
+        out.flush(&mut emit); // nothing new
+        out.push(frame(true, 80), &mut emit);
+        out.flush(&mut emit); // repaint
+        out.push(frame(false, 100), &mut emit);
+        out.flush(&mut emit); // resize
+        assert_eq!(
+            sent,
+            [(0, false, 80, 24), (0, true, 80, 24), (0, false, 100, 24)]
         );
     }
 

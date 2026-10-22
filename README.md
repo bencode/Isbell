@@ -22,9 +22,10 @@ Relay configuration (environment variables):
 | `BIND` | `0.0.0.0:8787` |
 | `REDIS_URL` | `redis://127.0.0.1:6379` |
 | `PUBLIC_ORIGIN` | `ws://localhost:8787` |
-| `TRUST_PROXY` | unset (`1` to use the first `x-forwarded-for` hop) |
+| `TRUST_PROXY` | unset (`1` to use the last `x-forwarded-for` hop, the one added by the reverse proxy) |
 | `LIMIT_IP_CONCURRENT` / `LIMIT_IP_PER_MINUTE` | `20` / `30` |
-| `LIMIT_RATE` / `LIMIT_BURST` | `50` / `100` messages per connection |
+| `LIMIT_RATE` / `LIMIT_BURST` | `50` / `100` messages per client connection; beyond it clients get `rate_limited` |
+| `LIMIT_GATEWAY_BYTES_PER_SEC` / `LIMIT_GATEWAY_BURST_BYTES` | 8 MiB / 16 MiB per gateway connection; beyond it the relay reads more slowly (frames are never dropped) |
 
 Try the gateway and CLI against a local relay and this machine's herdr server:
 

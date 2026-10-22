@@ -13,7 +13,8 @@ use isbell_proto::identity::Identity;
 
 use crate::client::Session;
 use crate::config::{Config, MachineConfig, Paths, resolve_relay};
-use crate::gateway::{self, GatewayOptions};
+use crate::gateway::{self, GatewayError, GatewayOptions};
+use crate::relay::RelayError;
 use output::{CliError, Output};
 
 #[derive(Parser)]
@@ -86,7 +87,9 @@ impl Ctx {
     }
 
     async fn session(&self) -> Result<Session, CliError> {
-        Ok(Session::connect(&self.relay, &self.identity()?).await?)
+        Session::connect(&self.relay, &self.identity()?)
+            .await
+            .map_err(|err| CliError::new("relay_error", err.to_string()))
     }
 }
 
@@ -127,5 +130,12 @@ async fn run_gateway(mut ctx: Ctx) -> Result<(), CliError> {
         identity,
         machine: machine.info(),
     };
-    Ok(gateway::run(opts).await?)
+    gateway::run(opts).await.map_err(|err| {
+        let code = match err {
+            GatewayError::Relay(RelayError::Replaced) => "gateway_replaced",
+            GatewayError::Relay(_) => "relay_error",
+            GatewayError::StateLoopStopped => "gateway_failed",
+        };
+        CliError::new(code, err.to_string())
+    })
 }

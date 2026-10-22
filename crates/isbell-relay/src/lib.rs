@@ -17,6 +17,7 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use tokio::net::TcpListener;
+use tokio::sync::watch;
 use tokio::task::JoinHandle;
 
 use crate::bus::Bus;
@@ -37,12 +38,23 @@ pub struct RelayHandle {
     pub addr: SocketAddr,
     bus: Bus,
     task: JoinHandle<()>,
+    /// Flips to true when the HTTP server stops.
+    stopped: watch::Receiver<bool>,
 }
 
 impl RelayHandle {
-    /// Resolves when the relay can no longer route (its Redis pub/sub connection is lost).
+    /// Resolves when the relay can no longer serve: its Redis pub/sub connection is lost or its
+    /// HTTP server stopped.
     pub async fn failed(&self) {
-        self.bus.lost().await;
+        let mut stopped = self.stopped.clone();
+        tokio::select! {
+            () = self.bus.lost() => {}
+            result = stopped.wait_for(|stopped| *stopped) => {
+                if let Err(err) = result {
+                    tracing::error!(%err, "relay server state unknown");
+                }
+            }
+        }
     }
 
     pub fn shutdown(self) {
@@ -65,12 +77,20 @@ pub async fn serve(config: Config) -> Result<RelayHandle> {
         .route("/v1/ws", get(upgrade))
         .with_state(ctx)
         .into_make_service_with_connect_info::<SocketAddr>();
+    let (stopped_tx, stopped) = watch::channel(false);
     let task = tokio::spawn(async move {
-        if let Err(err) = axum::serve(listener, app).await {
-            tracing::error!(%err, "relay server stopped");
+        match axum::serve(listener, app).await {
+            Ok(()) => tracing::error!("relay server stopped"),
+            Err(err) => tracing::error!(%err, "relay server stopped"),
         }
+        stopped_tx.send_replace(true);
     });
-    Ok(RelayHandle { addr, bus, task })
+    Ok(RelayHandle {
+        addr,
+        bus,
+        task,
+        stopped,
+    })
 }
 
 async fn healthz(State(ctx): State<Arc<Ctx>>) -> StatusCode {
@@ -103,17 +123,56 @@ async fn upgrade(
         })
 }
 
+/// The peer address, or behind a trusted proxy the hop that proxy appended to
+/// `X-Forwarded-For` (the last one; earlier hops come from the client and can be forged).
 fn client_ip(trust_proxy: bool, headers: &HeaderMap, peer: SocketAddr) -> IpAddr {
     let forwarded = || {
         headers
             .get("x-forwarded-for")?
             .to_str()
             .ok()?
-            .split(',')
+            .rsplit(',')
             .next()?
             .trim()
             .parse()
             .ok()
     };
     trust_proxy.then(forwarded).flatten().unwrap_or(peer.ip())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ip(trust_proxy: bool, forwarded: Option<&str>) -> IpAddr {
+        let headers: HeaderMap = forwarded
+            .map(|v| {
+                [("x-forwarded-for".parse().unwrap(), v.parse().unwrap())]
+                    .into_iter()
+                    .collect()
+            })
+            .unwrap_or_default();
+        client_ip(trust_proxy, &headers, ([10, 0, 0, 9], 4000).into())
+    }
+
+    #[test]
+    fn takes_the_hop_added_by_the_trusted_proxy() {
+        assert_eq!(
+            ip(true, Some("203.0.113.7")),
+            "203.0.113.7".parse::<IpAddr>().unwrap()
+        );
+        assert_eq!(
+            ip(true, Some("1.2.3.4, 203.0.113.7")),
+            "203.0.113.7".parse::<IpAddr>().unwrap()
+        );
+        assert_eq!(
+            ip(true, Some("not-an-ip")),
+            "10.0.0.9".parse::<IpAddr>().unwrap()
+        );
+        assert_eq!(
+            ip(false, Some("203.0.113.7")),
+            "10.0.0.9".parse::<IpAddr>().unwrap()
+        );
+        assert_eq!(ip(true, None), "10.0.0.9".parse::<IpAddr>().unwrap());
+    }
 }

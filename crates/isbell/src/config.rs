@@ -8,7 +8,7 @@
 
 use std::fs;
 use std::io::Write;
-use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
+use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
@@ -123,6 +123,8 @@ impl Paths {
             .mode(0o600)
             .open(&path)
             .with_context(|| format!("cannot write {}", path.display()))?;
+        // `mode` only applies when creating; tighten a key file that already existed.
+        file.set_permissions(fs::Permissions::from_mode(0o600))?;
         writeln!(file, "{}", id.key_string())?;
         Ok(())
     }

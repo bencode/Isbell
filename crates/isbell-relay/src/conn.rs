@@ -30,8 +30,8 @@ const MAX_AUTH_FRAME: usize = 4096;
 const PING_EVERY: Duration = Duration::from_secs(15);
 const PONG_TIMEOUT: Duration = Duration::from_secs(30);
 const REFRESH_EVERY: Duration = Duration::from_secs(10);
-/// Stream ids that already got a `rate_limited` end during one throttling episode.
-const MAX_THROTTLED: usize = 1024;
+/// Streams the relay ended for a rate-limited client; their later frames are dropped.
+const MAX_ENDED_STREAMS: usize = 1024;
 
 pub const CLOSE_REPLACED: u16 = 4001;
 pub const CLOSE_AUTH_FAILED: u16 = 4003;
@@ -66,13 +66,7 @@ pub async fn handle_socket(mut socket: WebSocket, ctx: Arc<Ctx>) {
         role = authed.role.as_str(),
         mid
     );
-    let exit = match run(&mut socket, &ctx, &authed).await {
-        Ok(exit) => exit,
-        Err(err) => {
-            tracing::error!(%err, sid = &authed.sid[..6], "connection failed");
-            Exit::Close(1011, "internal error")
-        }
-    };
+    let exit = run(&mut socket, &ctx, &authed).await;
     let code = match exit {
         Exit::Close(code, reason) => {
             close(socket, code, reason).await;
@@ -252,23 +246,62 @@ async fn setup_client(
     Ok(subs)
 }
 
-async fn run(socket: &mut WebSocket, ctx: &Ctx, authed: &Authed) -> Result<Exit> {
+/// Serves the connection, then always cleans up: a gateway that still owns its machine releases
+/// it and is announced offline, even when serving failed.
+async fn run(socket: &mut WebSocket, ctx: &Ctx, authed: &Authed) -> Exit {
+    let exit = serve(socket, ctx, authed).await.unwrap_or_else(|err| {
+        tracing::error!(%err, sid = &authed.sid[..6], "connection failed");
+        Exit::Close(1011, "internal error")
+    });
+    let replaced = matches!(exit, Exit::Close(CLOSE_REPLACED, _));
+    if let (Some(machine), false) = (&authed.machine, replaced) {
+        release(ctx, &authed.sid, &machine.id, &authed.conn).await;
+    }
+    exit
+}
+
+async fn release(ctx: &Ctx, sid: &str, mid: &str, conn: &str) {
+    if let Err(err) = ctx.bus.release_gateway(sid, mid, conn).await {
+        tracing::error!(%err, sid = &sid[..6], mid, "cannot release the machine");
+    }
+    let offline = Header::Presence {
+        mid: mid.to_owned(),
+        online: false,
+    };
+    if let Err(err) = ctx
+        .bus
+        .publish(&clients_channel(sid), Frame::new(offline).encode_binary())
+        .await
+    {
+        tracing::error!(%err, sid = &sid[..6], mid, "cannot announce the machine offline");
+    }
+}
+
+async fn serve(socket: &mut WebSocket, ctx: &Ctx, authed: &Authed) -> Result<Exit> {
     let (tx, mut rx) = mpsc::unbounded_channel();
     let sid = authed.sid.as_str();
     let mid = authed.machine.as_ref().map(|m| m.id.as_str());
-    let subs = match mid {
+    let _subs = match mid {
         Some(mid) => setup_gateway(socket, ctx, authed, mid, &tx).await?,
         None => setup_client(socket, ctx, authed, &tx).await?,
     };
 
-    let mut bucket = TokenBucket::new(ctx.config.limits.rate, ctx.config.limits.burst);
-    let mut throttled: HashSet<u64> = HashSet::new();
+    let limits = ctx.config.limits;
+    // Clients are limited per message and told so; gateways per byte, by slowing our reads.
+    let mut bucket = match mid {
+        Some(_) => TokenBucket::new(
+            limits.gateway_bytes_per_sec,
+            limits.gateway_burst_bytes,
+            Instant::now(),
+        ),
+        None => TokenBucket::new(limits.rate, limits.burst, Instant::now()),
+    };
+    let mut ended: HashSet<u64> = HashSet::new();
     let mut ping = tokio::time::interval(PING_EVERY);
     let mut refresh = tokio::time::interval(REFRESH_EVERY);
     let mut last_seen = Instant::now();
-    let mut owner = true;
 
-    let exit = loop {
+    loop {
         tokio::select! {
             msg = socket.recv() => {
                 last_seen = Instant::now();
@@ -276,75 +309,58 @@ async fn run(socket: &mut WebSocket, ctx: &Ctx, authed: &Authed) -> Result<Exit>
                     Some(Ok(Message::Text(text))) => (text.as_bytes().to_vec(), false),
                     Some(Ok(Message::Binary(bytes))) => (bytes.to_vec(), true),
                     Some(Ok(Message::Ping(_) | Message::Pong(_))) => continue,
-                    Some(Ok(Message::Close(_)) | Err(_)) | None => break Exit::Closed,
+                    Some(Ok(Message::Close(_)) | Err(_)) | None => return Ok(Exit::Closed),
                 };
                 let Ok(frame) = Frame::decode(&data, binary) else {
-                    break Exit::Close(CLOSE_BAD_FRAME, "bad frame");
+                    return Ok(Exit::Close(CLOSE_BAD_FRAME, "bad frame"));
                 };
                 let handled = match mid {
-                    Some(mid) => on_gateway_frame(ctx, authed, mid, frame, &mut bucket).await?,
-                    None => on_client_frame(socket, ctx, authed, frame, &mut bucket, &mut throttled).await?,
+                    Some(mid) => {
+                        let (next, wait) = bucket.reserve(data.len() as f64, Instant::now());
+                        bucket = next;
+                        // Backpressure: not reading further slows the gateway down; nothing is dropped.
+                        tokio::time::sleep(wait).await;
+                        on_gateway_frame(ctx, authed, mid, frame).await?
+                    }
+                    None => on_client_frame(socket, ctx, authed, frame, &mut bucket, &mut ended).await?,
                 };
                 if !handled {
-                    break Exit::Close(CLOSE_BAD_FRAME, "frame not allowed");
+                    return Ok(Exit::Close(CLOSE_BAD_FRAME, "frame not allowed"));
                 }
             }
             Some(payload) = rx.recv() => {
                 if payload == KICK {
-                    owner = false;
-                    break Exit::Close(CLOSE_REPLACED, "replaced by another gateway");
+                    return Ok(Exit::Close(CLOSE_REPLACED, "replaced by another gateway"));
                 }
                 forward(socket, payload).await?;
             }
             _ = ping.tick() => {
                 if last_seen.elapsed() > PONG_TIMEOUT {
-                    break Exit::Closed;
+                    return Ok(Exit::Closed);
                 }
                 socket.send(Message::Ping(Default::default())).await?;
             }
             _ = refresh.tick(), if mid.is_some() => {
                 let mid = mid.expect("gateway");
                 if !ctx.bus.refresh_gateway(sid, mid, &authed.conn).await? {
-                    owner = false;
-                    break Exit::Close(CLOSE_REPLACED, "replaced by another gateway");
+                    return Ok(Exit::Close(CLOSE_REPLACED, "replaced by another gateway"));
                 }
             }
         }
-    };
-
-    drop(subs);
-    if let (Some(mid), true) = (mid, owner) {
-        ctx.bus.release_gateway(sid, mid, &authed.conn).await?;
-        let offline = Header::Presence {
-            mid: mid.to_owned(),
-            online: false,
-        };
-        ctx.bus
-            .publish(&clients_channel(sid), Frame::new(offline).encode_binary())
-            .await?;
     }
-    Ok(exit)
 }
 
 /// Gateway may send `state`, and `res` / `data` / `end` addressed `to` a client of its own space.
-async fn on_gateway_frame(
-    ctx: &Ctx,
-    authed: &Authed,
-    mid: &str,
-    mut frame: Frame,
-    bucket: &mut TokenBucket,
-) -> Result<bool> {
+async fn on_gateway_frame(ctx: &Ctx, authed: &Authed, mid: &str, mut frame: Frame) -> Result<bool> {
     let sid = authed.sid.as_str();
     if let Header::State { state } = &frame.header {
         if state.pointer("/machine/id").and_then(|v| v.as_str()) != Some(mid) {
             return Ok(false);
         }
-        if bucket.take() {
-            ctx.bus.put_state(sid, mid, &state.to_string()).await?;
-            ctx.bus
-                .publish(&clients_channel(sid), frame.encode_binary())
-                .await?;
-        }
+        ctx.bus.put_state(sid, mid, &state.to_string()).await?;
+        ctx.bus
+            .publish(&clients_channel(sid), frame.encode_binary())
+            .await?;
         return Ok(true);
     }
     let to = match &mut frame.header {
@@ -377,11 +393,9 @@ async fn on_gateway_frame(
         );
         return Ok(true);
     }
-    if bucket.take() {
-        ctx.bus
-            .publish(&conn_channel(&to), frame.encode_binary())
-            .await?;
-    }
+    ctx.bus
+        .publish(&conn_channel(&to), frame.encode_binary())
+        .await?;
     Ok(true)
 }
 
@@ -392,7 +406,7 @@ async fn on_client_frame(
     authed: &Authed,
     mut frame: Frame,
     bucket: &mut TokenBucket,
-    throttled: &mut HashSet<u64>,
+    ended: &mut HashSet<u64>,
 ) -> Result<bool> {
     let (id, mid) = match &mut frame.header {
         Header::Call { id, mid, from, .. }
@@ -419,26 +433,20 @@ async fn on_client_frame(
         _ => return Ok(false),
     };
     let is_call = matches!(frame.header, Header::Call { .. });
-    if !bucket.take() {
+    if !is_call && ended.contains(&id) {
+        return Ok(true);
+    }
+    let (next, allowed) = bucket.try_take(1.0, Instant::now());
+    *bucket = next;
+    if !allowed {
         let limited = RpcError::new("rate_limited", "too many messages");
         if is_call {
             send(socket, &error_res(id, mid, limited)).await?;
-        } else if throttled.len() < MAX_THROTTLED && throttled.insert(id) {
-            send(
-                socket,
-                &Frame::new(Header::End {
-                    id,
-                    e: Some(limited),
-                    mid: Some(mid),
-                    from: None,
-                    to: None,
-                }),
-            )
-            .await?;
+        } else {
+            end_stream(socket, ctx, authed, id, mid, limited, ended).await?;
         }
         return Ok(true);
     }
-    throttled.clear();
     let delivered = ctx
         .bus
         .publish(&gateway_channel(&authed.sid, &mid), frame.encode_binary())
@@ -448,6 +456,48 @@ async fn on_client_frame(
         send(socket, &error_res(id, mid, offline)).await?;
     }
     Ok(true)
+}
+
+/// Ends a rate-limited client stream on both sides so the gateway frees its session at once.
+async fn end_stream(
+    socket: &mut WebSocket,
+    ctx: &Ctx,
+    authed: &Authed,
+    id: u64,
+    mid: String,
+    err: RpcError,
+    ended: &mut HashSet<u64>,
+) -> Result<()> {
+    if ended.len() >= MAX_ENDED_STREAMS {
+        tracing::warn!(
+            sid = &authed.sid[..6],
+            id,
+            "too many rate-limited streams; dropping without notice"
+        );
+        return Ok(());
+    }
+    ended.insert(id);
+    let to_gateway = Header::End {
+        id,
+        e: None,
+        mid: None,
+        from: Some(authed.conn.clone()),
+        to: None,
+    };
+    ctx.bus
+        .publish(
+            &gateway_channel(&authed.sid, &mid),
+            Frame::new(to_gateway).encode_binary(),
+        )
+        .await?;
+    let to_client = Header::End {
+        id,
+        e: Some(err),
+        mid: Some(mid),
+        from: None,
+        to: None,
+    };
+    send(socket, &Frame::new(to_client)).await
 }
 
 fn error_res(id: u64, mid: String, err: RpcError) -> Frame {

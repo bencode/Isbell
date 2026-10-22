@@ -2,7 +2,7 @@ use clap::Subcommand;
 use isbell_proto::state::HerdrStatus;
 
 use super::Ctx;
-use super::output::CliError;
+use super::output::{CliError, short_id};
 
 #[derive(Subcommand)]
 pub enum MachineCmd {
@@ -35,7 +35,7 @@ pub async fn run(ctx: &Ctx, cmd: MachineCmd) -> Result<(), CliError> {
             };
             vec![
                 state.machine.name.clone(),
-                state.machine.id[..8].to_owned(),
+                short_id(&state.machine.id).to_owned(),
                 if *online { "online" } else { "offline" }.into(),
                 herdr,
                 state.agents.len().to_string(),

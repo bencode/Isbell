@@ -7,7 +7,7 @@ use std::time::Duration;
 use clap::Subcommand;
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
 use serde_json::json;
-use tokio::signal::unix::{SignalKind, signal};
+use tokio::signal::unix::{Signal, SignalKind, signal};
 use tokio::sync::mpsc;
 
 use super::Ctx;
@@ -17,7 +17,8 @@ use crate::client::{Stream, StreamEvent};
 
 const DETACH: u8 = 0x1d; // ctrl+]
 const PING_EVERY: Duration = Duration::from_secs(15);
-const OPEN_TIMEOUT: Duration = Duration::from_secs(40);
+/// The gateway may take 30s to create a shell workspace plus 10s for herdr's first frame.
+const OPEN_TIMEOUT: Duration = Duration::from_secs(50);
 
 #[derive(Subcommand)]
 pub enum TerminalCmd {
@@ -75,9 +76,13 @@ pub async fn run(ctx: &Ctx, cmd: TerminalCmd) -> Result<(), CliError> {
         .as_str()
         .map(|pane| format!("{}/{pane}", state.machine.name));
 
+    // Set up before the alternate screen so a warning here stays visible.
+    let resized = signal(SignalKind::window_change())
+        .inspect_err(|err| tracing::warn!(%err, "cannot watch for terminal resizes"))
+        .ok();
     let ended = {
         let _screen = Screen::enter()?;
-        attached(stream, control).await
+        attached(stream, control, resized).await
     };
     match ended {
         Ended::Detached => match reattach {
@@ -88,6 +93,7 @@ pub async fn run(ctx: &Ctx, cmd: TerminalCmd) -> Result<(), CliError> {
         },
         Ended::Closed(None) => println!("terminal closed"),
         Ended::Closed(Some(err)) => return Err(err.into()),
+        Ended::Failed(err) => return Err(CliError::new("terminal_error", err.to_string())),
     }
     Ok(())
 }
@@ -106,6 +112,8 @@ fn terminal_size() -> Result<(u16, u16), CliError> {
 enum Ended {
     Detached,
     Closed(Option<isbell_proto::frame::RpcError>),
+    /// Local terminal I/O failed; reported once the alternate screen is gone.
+    Failed(std::io::Error),
 }
 
 /// Raw mode on the alternate screen, restored on drop (including on errors).
@@ -132,30 +140,26 @@ impl Drop for Screen {
     }
 }
 
-async fn attached(mut stream: Stream, control: bool) -> Ended {
+async fn attached(mut stream: Stream, control: bool, mut resized: Option<Signal>) -> Ended {
     let mut keys = read_stdin();
     let mut ping = tokio::time::interval(PING_EVERY);
-    let mut resized = match signal(SignalKind::window_change()) {
-        Ok(resized) => Some(resized),
-        Err(err) => {
-            tracing::warn!(%err, "cannot watch for terminal resizes");
-            None
-        }
-    };
     let mut stdout = std::io::stdout();
     loop {
         tokio::select! {
             event = stream.next() => match event {
                 StreamEvent::Frame { body, .. } => {
                     if let Err(err) = stdout.write_all(&body).and_then(|()| stdout.flush()) {
-                        tracing::warn!(%err, "cannot write to the terminal");
-                        return Ended::Detached;
+                        return Ended::Failed(err);
                     }
                 }
                 StreamEvent::End(err) => return Ended::Closed(err),
             },
             bytes = keys.recv() => {
-                let Some(bytes) = bytes else { return Ended::Detached };
+                let bytes = match bytes {
+                    Some(Ok(bytes)) => bytes,
+                    Some(Err(err)) => return Ended::Failed(err),
+                    None => return Ended::Detached,
+                };
                 if let Some(at) = bytes.iter().position(|b| *b == DETACH) {
                     if control && at > 0 {
                         stream.input(bytes[..at].to_vec());
@@ -176,7 +180,7 @@ async fn attached(mut stream: Stream, control: bool) -> Ended {
     }
 }
 
-async fn recv_resize(resized: &mut Option<tokio::signal::unix::Signal>) -> Option<()> {
+async fn recv_resize(resized: &mut Option<Signal>) -> Option<()> {
     match resized {
         Some(signal) => signal.recv().await,
         None => std::future::pending().await,
@@ -184,23 +188,21 @@ async fn recv_resize(resized: &mut Option<tokio::signal::unix::Signal>) -> Optio
 }
 
 /// Keystrokes from a plain thread: a blocking read must not keep the runtime from exiting.
-fn read_stdin() -> mpsc::Receiver<Vec<u8>> {
+/// A read error is passed on, not logged, since logs are invisible on the alternate screen.
+fn read_stdin() -> mpsc::Receiver<std::io::Result<Vec<u8>>> {
     let (tx, rx) = mpsc::channel(64);
     std::thread::spawn(move || {
         let mut stdin = std::io::stdin();
         let mut buf = [0u8; 4096];
         loop {
-            match stdin.read(&mut buf) {
+            let read = match stdin.read(&mut buf) {
                 Ok(0) => return,
-                Ok(n) => {
-                    if tx.blocking_send(buf[..n].to_vec()).is_err() {
-                        return;
-                    }
-                }
-                Err(err) => {
-                    tracing::warn!(%err, "cannot read keystrokes");
-                    return;
-                }
+                Ok(n) => Ok(buf[..n].to_vec()),
+                Err(err) => Err(err),
+            };
+            let failed = read.is_err();
+            if tx.blocking_send(read).is_err() || failed {
+                return;
             }
         }
     });

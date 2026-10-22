@@ -238,13 +238,12 @@ impl Session {
             from: None,
         };
         if self.out.send(Frame::new(call)).is_err() {
+            self.forget_call(id);
             return Err(disconnected());
         }
         let reply = match timeout {
             Some(limit) => tokio::time::timeout(limit, rx).await.map_err(|_| {
-                if let Some(inflight) = self.inflight.lock().expect("session poisoned").as_mut() {
-                    inflight.calls.remove(&id);
-                }
+                self.forget_call(id);
                 RpcError::new(
                     "timeout",
                     format!("no response within {}s", limit.as_secs()),
@@ -253,6 +252,12 @@ impl Session {
             None => rx.await,
         };
         reply.unwrap_or_else(|_| Err(disconnected()))
+    }
+
+    fn forget_call(&self, id: u64) {
+        if let Some(inflight) = self.inflight.lock().expect("session poisoned").as_mut() {
+            inflight.calls.remove(&id);
+        }
     }
 }
 
@@ -317,6 +322,12 @@ impl Drop for Stream {
     }
 }
 
+/// A later boot is a new gateway process: the old one's calls will never answer. An earlier boot
+/// is only a late state from the old process.
+fn restarted(sent_to: Option<u64>, seen: u64) -> bool {
+    sent_to.is_some_and(|boot| seen > boot)
+}
+
 fn disconnected() -> RpcError {
     RpcError::new("disconnected", "lost the relay connection")
 }
@@ -376,9 +387,8 @@ async fn read_loop(
             }
             Header::State { state } => match serde_json::from_value::<MachineState>(state) {
                 Ok(state) => {
-                    // A new boot is a new gateway process: the old one's calls will never answer.
                     fail(&inflight, "machine restarted before answering", |t| {
-                        t.mid == state.machine.id && t.boot.is_some_and(|b| b != state.boot)
+                        t.mid == state.machine.id && restarted(t.boot, state.boot)
                     });
                     let mut shared = shared.lock().expect("session poisoned");
                     let newer = shared
@@ -476,5 +486,18 @@ fn fail(inflight: &Mutex<Option<Inflight>>, reason: &str, lost: impl Fn(&Target)
         if slot.tx.send(StreamEvent::End(Some(err()))).is_err() {
             tracing::debug!(id, "stream reader is gone");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::restarted;
+
+    #[test]
+    fn only_a_later_boot_means_a_restart() {
+        assert!(restarted(Some(10), 11));
+        assert!(!restarted(Some(10), 10), "same process");
+        assert!(!restarted(Some(10), 9), "late state from the old process");
+        assert!(!restarted(None, 11), "unknown when sent");
     }
 }

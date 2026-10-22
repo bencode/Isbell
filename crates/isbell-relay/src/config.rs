@@ -13,12 +13,18 @@ pub struct Config {
     pub limits: Limits,
 }
 
+const MIB: f64 = 1024.0 * 1024.0;
+
 #[derive(Debug, Clone, Copy)]
 pub struct Limits {
     pub ip_concurrent: usize,
     pub ip_per_minute: u32,
+    /// Client messages per second (and burst); beyond it the relay answers `rate_limited`.
     pub rate: f64,
     pub burst: f64,
+    /// Gateway bytes per second (and burst); beyond it the relay slows its reads, never drops.
+    pub gateway_bytes_per_sec: f64,
+    pub gateway_burst_bytes: f64,
 }
 
 impl Default for Limits {
@@ -28,6 +34,8 @@ impl Default for Limits {
             ip_per_minute: 30,
             rate: 50.0,
             burst: 100.0,
+            gateway_bytes_per_sec: 8.0 * MIB,
+            gateway_burst_bytes: 16.0 * MIB,
         }
     }
 }
@@ -46,6 +54,10 @@ impl Config {
                 ip_per_minute: var("LIMIT_IP_PER_MINUTE")?.unwrap_or(defaults.ip_per_minute),
                 rate: var("LIMIT_RATE")?.unwrap_or(defaults.rate),
                 burst: var("LIMIT_BURST")?.unwrap_or(defaults.burst),
+                gateway_bytes_per_sec: var("LIMIT_GATEWAY_BYTES_PER_SEC")?
+                    .unwrap_or(defaults.gateway_bytes_per_sec),
+                gateway_burst_bytes: var("LIMIT_GATEWAY_BURST_BYTES")?
+                    .unwrap_or(defaults.gateway_burst_bytes),
             },
         })
     }

@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use isbell::client::{Session, SessionEvent, Stream, StreamEvent};
-use isbell::gateway::{self, GatewayOptions};
+use isbell::gateway::{self, GatewayError, GatewayOptions};
 use isbell::relay::RelayError;
 use isbell_proto::frame::{MachineInfo, RpcError};
 use isbell_proto::identity::Identity;
@@ -172,16 +172,21 @@ async fn wait_for_presence(
 
 /// Waits until herdr has received `n` calls of `method`.
 async fn wait_for_calls(calls: &Calls, method: &str, n: usize) {
-    while calls
-        .lock()
-        .unwrap()
-        .iter()
-        .filter(|(m, _)| m == method)
-        .count()
-        < n
-    {
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
+    let arrived = async {
+        while calls
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(m, _)| m == method)
+            .count()
+            < n
+        {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    };
+    tokio::time::timeout(Duration::from_secs(10), arrived)
+        .await
+        .unwrap_or_else(|_| panic!("{method} #{n} not received within 10s"));
 }
 
 /// An `agent.wait` without a timeout, as `isbell agent wait` sends it.
@@ -294,7 +299,7 @@ fn spawn_gateway(
     url: &str,
     id: &Identity,
     machine: &MachineInfo,
-) -> JoinHandle<Result<(), RelayError>> {
+) -> JoinHandle<Result<(), GatewayError>> {
     tokio::spawn(gateway::run(GatewayOptions {
         relay: url.to_owned(),
         identity: Identity::parse(&id.key_string()).unwrap(),
@@ -419,7 +424,7 @@ async fn gateway_serves_cli_through_relay() {
     assert_eq!(lost.code, "machine_offline");
     assert!(matches!(
         finished(first_gateway).await,
-        Err(RelayError::Replaced)
+        Err(GatewayError::Relay(RelayError::Replaced))
     ));
     wait_for_presence(&mut events, &mid, true).await; // the takeover is never seen as offline
 

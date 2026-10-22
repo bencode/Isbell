@@ -6,8 +6,6 @@ use isbell_proto::frame::RpcError;
 use serde::Serialize;
 use serde_json::{Value, json};
 
-use crate::relay::RelayError;
-
 #[derive(Clone, Copy)]
 pub struct Output {
     pub json: bool,
@@ -92,14 +90,9 @@ impl From<anyhow::Error> for CliError {
     }
 }
 
-impl From<RelayError> for CliError {
-    fn from(err: RelayError) -> Self {
-        let code = match err {
-            RelayError::Replaced => "gateway_replaced",
-            _ => "relay_error",
-        };
-        Self::new(code, err.to_string())
-    }
+/// The first 8 characters of a machine id; ids come from remote gateways, so never assume length.
+pub fn short_id(id: &str) -> &str {
+    id.get(..8).unwrap_or(id)
 }
 
 /// Human age of a gateway timestamp (ms), e.g. `42s`, `5m`, `3h`, `2d`.

@@ -12,7 +12,9 @@ use crate::now_ms;
 
 /// Slightly above the gateway's 30s so its own timeout error arrives first.
 const CALL_TIMEOUT: Duration = Duration::from_secs(35);
-const START_TIMEOUT: Duration = Duration::from_secs(90);
+/// The gateway's worst case: workspace 30s + busy retries 10s + start 35s + ready 30s + prompt 30s
+/// = 135s, plus a margin so its own error arrives first.
+const START_TIMEOUT: Duration = Duration::from_secs(150);
 const WAIT_MARGIN: Duration = Duration::from_secs(10);
 
 #[derive(Subcommand)]

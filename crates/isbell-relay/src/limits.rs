@@ -73,32 +73,61 @@ impl Drop for IpPermit {
     }
 }
 
+/// A token bucket as a value: every operation takes the current time and returns a new bucket.
+#[derive(Debug, Clone, Copy)]
 pub struct TokenBucket {
     rate: f64,
     burst: f64,
     tokens: f64,
-    last: Instant,
+    at: Instant,
 }
 
 impl TokenBucket {
-    pub fn new(rate: f64, burst: f64) -> Self {
+    pub fn new(rate: f64, burst: f64, now: Instant) -> Self {
         Self {
             rate,
             burst,
             tokens: burst,
-            last: Instant::now(),
+            at: now,
         }
     }
 
-    pub fn take(&mut self) -> bool {
-        let now = Instant::now();
-        self.tokens = (self.tokens + (now - self.last).as_secs_f64() * self.rate).min(self.burst);
-        self.last = now;
-        if self.tokens < 1.0 {
-            return false;
+    fn refilled(self, now: Instant) -> Self {
+        let tokens = (self.tokens
+            + now.saturating_duration_since(self.at).as_secs_f64() * self.rate)
+            .min(self.burst);
+        Self {
+            tokens,
+            at: now,
+            ..self
         }
-        self.tokens -= 1.0;
-        true
+    }
+
+    /// Spends `cost` even into debt; returns how long to wait until the balance is back to zero.
+    pub fn reserve(self, cost: f64, now: Instant) -> (Self, Duration) {
+        let bucket = self.refilled(now);
+        let tokens = bucket.tokens - cost;
+        let wait = if tokens >= 0.0 {
+            Duration::ZERO
+        } else {
+            Duration::from_secs_f64(-tokens / bucket.rate)
+        };
+        (Self { tokens, ..bucket }, wait)
+    }
+
+    /// Spends `cost` only if the balance covers it.
+    pub fn try_take(self, cost: f64, now: Instant) -> (Self, bool) {
+        let bucket = self.refilled(now);
+        if bucket.tokens < cost {
+            return (bucket, false);
+        }
+        (
+            Self {
+                tokens: bucket.tokens - cost,
+                ..bucket
+            },
+            true,
+        )
     }
 }
 
@@ -124,9 +153,28 @@ mod tests {
     }
 
     #[test]
-    fn token_bucket_allows_burst_then_limits() {
-        let mut bucket = TokenBucket::new(1.0, 3.0);
-        assert!((0..3).all(|_| bucket.take()));
-        assert!(!bucket.take());
+    fn try_take_allows_the_burst_then_refuses_without_spending() {
+        let start = Instant::now();
+        let (bucket, taken) =
+            (0..3).fold((TokenBucket::new(1.0, 3.0, start), true), |(b, ok), _| {
+                let (b, took) = b.try_take(1.0, start);
+                (b, ok && took)
+            });
+        assert!(taken);
+        let (bucket, took) = bucket.try_take(1.0, start);
+        assert!(!took);
+        let (_, took) = bucket.try_take(1.0, start + Duration::from_secs(1));
+        assert!(took, "refilled after a second");
+    }
+
+    #[test]
+    fn reserve_goes_into_debt_and_reports_the_wait() {
+        let start = Instant::now();
+        let (bucket, wait) = TokenBucket::new(100.0, 100.0, start).reserve(60.0, start);
+        assert_eq!(wait, Duration::ZERO);
+        let (bucket, wait) = bucket.reserve(90.0, start);
+        assert_eq!(wait, Duration::from_millis(500), "50 tokens short at 100/s");
+        let (_, wait) = bucket.reserve(0.0, start + Duration::from_millis(500));
+        assert_eq!(wait, Duration::ZERO);
     }
 }
