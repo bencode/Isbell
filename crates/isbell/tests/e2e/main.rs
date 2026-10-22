@@ -1,10 +1,11 @@
-//! relay + gateway + client session against a fake herdr: calls, agent start, terminals, and
+//! relay + gateway + client session against a fake herdr: calls, agent start, terminals, files, and
 //! what happens to calls in flight when the gateway reconnects, is taken over, or goes offline.
 //! Needs a real Redis (`docker compose up -d redis`, or REDIS_URL).
 
 mod checks;
 mod failover;
 mod fake_herdr;
+mod files;
 mod harness;
 
 use std::sync::Arc;
@@ -27,6 +28,7 @@ async fn gateway_serves_cli_through_relay() {
     checks::terminal_control(&session, mid, log).await;
     checks::terminal_new(&session, mid, log, calls).await;
     checks::terminal_observe(&session, mid, log).await;
+    files::read(&session, mid).await;
 
     failover::reconnect(&session, &mut events, &harness).await;
     let second_gateway = failover::takeover(&session, &mut events, &harness, first_gateway).await;

@@ -14,12 +14,10 @@ use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader, Lines};
 use tokio::process::{Child, ChildStderr, ChildStdin, ChildStdout};
 
 use self::frames::{Event, parse_line};
-pub use self::frames::{Input, Output};
 pub use self::pump::pump;
 use super::herdr::Herdr;
 use super::workspace;
 
-pub const MAX_TERMINALS: usize = 8;
 const FIRST_FRAME_WITHIN: Duration = Duration::from_secs(10);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]

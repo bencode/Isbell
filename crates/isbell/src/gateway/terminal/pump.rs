@@ -9,10 +9,9 @@ use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc;
 use tokio::time::Instant;
 
-use super::frames::{
-    Coalescer, Command, Event, Input, Output, command, read_event, release_command,
-};
+use super::frames::{Coalescer, Command, Event, command, read_event, release_command};
 use super::{Session, herdr_error};
+use crate::gateway::stream::{Input, Output};
 
 /// The client pings every 15s; a stream silent for longer has lost its client.
 const CLIENT_IDLE: Duration = Duration::from_secs(45);

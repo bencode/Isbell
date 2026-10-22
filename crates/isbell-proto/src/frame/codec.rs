@@ -137,6 +137,7 @@ mod tests {
                 to: None,
             },
             Header::End { id: 3, e: None, mid: None, from: Some("s.c".into()), to: None },
+            Header::Credit { id: 5, n: 1 << 20, mid: Some("m".into()), from: None, to: None },
             Header::State { state: json!({"machine": {"id": "0123456789abcdef"}}) },
             Header::Presence { mid: "m".into(), online: true },
             Header::Snapshot { machines: vec![SnapshotEntry { state: json!({}), online: false }] },
@@ -164,7 +165,20 @@ mod tests {
             },
             body: Some(vec![0, 1, 2, 255]),
         };
-        headers.into_iter().map(Frame::new).chain([ping, with_body]).collect()
+        let chunk = Frame {
+            header: Header::Data {
+                id: 5,
+                k: DataKind::Chunk,
+                full: None,
+                cols: None,
+                rows: None,
+                mid: None,
+                from: None,
+                to: Some("s.c".into()),
+            },
+            body: Some(vec![9; 300]),
+        };
+        headers.into_iter().map(Frame::new).chain([ping, with_body, chunk]).collect()
     }
 
     fn decode(encoded: Encoded) -> Frame {

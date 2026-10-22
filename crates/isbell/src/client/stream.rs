@@ -9,10 +9,10 @@ use super::link::Link;
 
 #[derive(Debug)]
 pub enum StreamEvent {
-    Frame {
-        body: Vec<u8>,
-        full: bool,
-    },
+    /// A terminal screen update.
+    Frame { body: Vec<u8>, full: bool },
+    /// A piece of a byte stream (a file being read).
+    Chunk(Vec<u8>),
     /// The stream ended; `Some` when it ended because of an error.
     End(Option<RpcError>),
 }
@@ -52,6 +52,11 @@ impl Stream {
 
     pub fn ping(&self) {
         self.send(DataKind::Ping, None, None);
+    }
+
+    /// Lets the sender send `n` more bytes (see [`isbell_proto::flow`]).
+    pub fn credit(&self, n: u64) {
+        self.push(Frame::new(Header::Credit { id: self.id, n, mid: None, from: None, to: None }));
     }
 
     fn send(&self, k: DataKind, body: Option<Vec<u8>>, size: Option<(u16, u16)>) {

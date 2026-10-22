@@ -1,5 +1,5 @@
-//! `<machine>/<agent>` targets. Machines match by exact name, else by id prefix (≥ 4 chars);
-//! the agent part is passed to herdr unchanged (agent name or pane id).
+//! `<machine>/<agent>` targets and `<machine>:<path>` files. Machines match by exact name, else by
+//! id prefix (≥ 4 chars); the agent part is passed to herdr unchanged (agent name or pane id).
 
 use isbell_proto::state::MachineState;
 
@@ -20,6 +20,24 @@ pub fn parse_target(target: &str) -> Result<Target<'_>, CliError> {
         _ => {
             Err(CliError::new("bad_target", format!("expected <machine>/<agent>, got {target:?}")))
         }
+    }
+}
+
+/// A file on a machine: `<machine>:<absolute path>`.
+pub struct RemotePath<'a> {
+    pub machine: &'a str,
+    pub path: &'a str,
+}
+
+pub fn parse_remote_path(spec: &str) -> Result<RemotePath<'_>, CliError> {
+    match spec.split_once(':') {
+        Some((machine, path)) if !machine.is_empty() && path.starts_with('/') => {
+            Ok(RemotePath { machine, path })
+        }
+        _ => Err(CliError::new(
+            "bad_path",
+            format!("expected <machine>:<absolute path>, got {spec:?}"),
+        )),
     }
 }
 
@@ -87,6 +105,15 @@ mod tests {
         assert_eq!(parse_target("macmini/w1:p1").unwrap().agent, "w1:p1");
         assert!(parse_target("macmini").is_err());
         assert!(parse_target("/reviewer").is_err());
+    }
+
+    #[test]
+    fn parses_remote_paths() {
+        let p = parse_remote_path("macmini:/Users/me/notes:v2.md").unwrap();
+        assert_eq!((p.machine, p.path), ("macmini", "/Users/me/notes:v2.md"));
+        for bad in ["macmini:notes.md", "macmini:~/notes.md", ":/x", "/x", "macmini"] {
+            assert_eq!(parse_remote_path(bad).err().unwrap().code, "bad_path", "{bad}");
+        }
     }
 
     #[test]

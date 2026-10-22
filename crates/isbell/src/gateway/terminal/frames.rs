@@ -5,31 +5,15 @@ use std::time::Duration;
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
-use isbell_proto::frame::RpcError;
+use isbell_proto::flow::MAX_CHUNK;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio::time::Instant;
 
-/// Largest data body, so frames also fit a WebRTC DataChannel message.
-const MAX_CHUNK: usize = 64 * 1024;
+use crate::gateway::stream::{Input, Output};
+
 const COALESCE_FOR: Duration = Duration::from_millis(50);
 const COALESCE_BYTES: usize = 32 * 1024;
-
-/// What a client sends into a stream.
-#[derive(Debug, PartialEq)]
-pub enum Input {
-    Bytes(Vec<u8>),
-    Resize(u16, u16),
-    Ping,
-    Close,
-}
-
-/// What a stream sends to its client.
-#[derive(Debug, PartialEq)]
-pub enum Output {
-    Frame { body: Vec<u8>, full: bool, cols: u16, rows: u16 },
-    End(Option<RpcError>),
-}
 
 /// What herdr reports on the session's stdout.
 #[derive(Debug, PartialEq)]
@@ -56,7 +40,7 @@ pub fn command(input: Input) -> Command {
         Input::Resize(cols, rows) => {
             Command::Write(json!({"type": "terminal.resize", "cols": cols, "rows": rows}))
         }
-        Input::Ping => Command::Nothing,
+        Input::Ping | Input::Chunk(_) | Input::Credit(_) => Command::Nothing,
         Input::Close => Command::Release,
     }
 }
@@ -182,7 +166,7 @@ mod tests {
             .iter()
             .filter_map(|o| match o {
                 Output::Frame { body, full, cols, .. } => Some((body.len(), *full, *cols)),
-                Output::End(_) => None,
+                Output::Chunk(_) | Output::End(_) => None,
             })
             .collect()
     }
@@ -242,7 +226,7 @@ mod tests {
         );
         let bodies = output.into_iter().flat_map(|o| match o {
             Output::Frame { body, .. } => body,
-            Output::End(_) => Vec::new(),
+            Output::Chunk(_) | Output::End(_) => Vec::new(),
         });
         assert!(bodies.eq(big));
     }

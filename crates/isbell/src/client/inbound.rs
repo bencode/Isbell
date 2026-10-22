@@ -51,6 +51,10 @@ fn inbound(frame: Frame) -> Inbound {
                 last: false,
             }
         }
+        Header::Data { id, k: DataKind::Chunk, .. } => {
+            let event = StreamEvent::Chunk(frame.body.unwrap_or_default());
+            Inbound::Stream { id, event, last: false }
+        }
         Header::End { id, e, .. } => Inbound::Stream { id, event: StreamEvent::End(e), last: true },
         Header::State { state } => match serde_json::from_value(state) {
             Ok(state) => Inbound::State(Box::new(state)),

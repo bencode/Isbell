@@ -5,7 +5,7 @@ use isbell_proto::frame::{DataKind, Frame, Header, RpcError};
 use serde_json::Value;
 
 use crate::gateway::rpc;
-use crate::gateway::terminal::{Input, Output};
+use crate::gateway::stream::{Input, Output};
 
 /// The methods a gateway serves. A new method gets a variant here and its handler in
 /// `Calls::start` (`calls/mod.rs`).
@@ -14,16 +14,19 @@ pub enum Method {
     Herdr,
     StartAgent,
     Terminal,
+    FileRead,
 }
 
 impl Method {
-    const ALL: [Method; 3] = [Method::Herdr, Method::StartAgent, Method::Terminal];
+    const ALL: [Method; 4] =
+        [Method::Herdr, Method::StartAgent, Method::Terminal, Method::FileRead];
 
     pub fn name(self) -> &'static str {
         match self {
             Method::Herdr => "herdr",
             Method::StartAgent => "isbell.agent.start",
             Method::Terminal => "isbell.terminal",
+            Method::FileRead => "isbell.file.read",
         }
     }
 
@@ -67,8 +70,10 @@ pub fn route(frame: Frame) -> Inbound {
                 input(id, Input::Resize(cols, rows))
             }
             (DataKind::Ping, ..) => input(id, Input::Ping),
+            (DataKind::Chunk, ..) => input(id, Input::Chunk(frame.body.unwrap_or_default())),
             (DataKind::Resize | DataKind::Frame, ..) => Inbound::Ignore("invalid stream frame"),
         },
+        Header::Credit { id, n, .. } => input(id, Input::Credit(n)),
         Header::End { id, .. } => input(id, Input::Close),
         _ => Inbound::Ignore("unexpected frame"),
     }
@@ -92,6 +97,19 @@ pub fn output_frame(id: u64, output: Output) -> Frame {
                 full,
                 cols,
                 rows,
+                mid: None,
+                from: None,
+                to: None,
+            };
+            Frame { header, body: Some(body) }
+        }
+        Output::Chunk(body) => {
+            let header = Header::Data {
+                id,
+                k: DataKind::Chunk,
+                full: None,
+                cols: None,
+                rows: None,
                 mid: None,
                 from: None,
                 to: None,
@@ -155,6 +173,12 @@ mod tests {
             Inbound::Ignore(_)
         ));
         assert!(matches!(route(data(DataKind::Frame, None, None, Some(b"x"))), Inbound::Ignore(_)));
+        assert_eq!(
+            route(data(DataKind::Chunk, None, None, Some(b"part"))),
+            input(Input::Chunk(b"part".to_vec()))
+        );
+        let credit = Header::Credit { id: 2, n: 4096, mid: None, from: None, to: None };
+        assert_eq!(route(Frame::new(credit)), input(Input::Credit(4096)));
     }
 
     #[test]
@@ -177,6 +201,9 @@ mod tests {
         ));
         assert_eq!(frame.header.route(), Some(Route::default()));
         assert_eq!(frame.body.as_deref(), Some(&b"hi"[..]));
+        let chunk = output_frame(3, Output::Chunk(vec![7; 10]));
+        assert!(matches!(chunk.header, Header::Data { id: 3, k: DataKind::Chunk, .. }));
+        assert_eq!(chunk.body, Some(vec![7; 10]));
     }
 
     #[test]

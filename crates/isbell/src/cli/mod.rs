@@ -1,6 +1,7 @@
 //! Command line: `isbell <resource> <verb> [target]`.
 
 mod agent;
+mod file;
 mod machine;
 mod output;
 mod space;
@@ -47,6 +48,9 @@ enum Command {
     /// Agents on the space's machines.
     #[command(subcommand)]
     Agent(agent::AgentCmd),
+    /// Files on the space's machines.
+    #[command(subcommand)]
+    File(file::FileCmd),
     /// Remote terminals: attach to a pane, or open a new shell.
     #[command(subcommand)]
     Terminal(terminal::TerminalCmd),
@@ -104,6 +108,7 @@ pub async fn run(cli: Cli) -> Result<(), CliError> {
         Command::Gateway(GatewayCmd::Run) => run_gateway(ctx).await,
         Command::Machine(cmd) => machine::run(&ctx, cmd).await,
         Command::Agent(cmd) => agent::run(&ctx, cmd).await,
+        Command::File(cmd) => file::run(&ctx, cmd).await,
         Command::Terminal(cmd) => terminal::run(&ctx, cmd).await,
         Command::Watch => watch::run(&ctx).await,
     }

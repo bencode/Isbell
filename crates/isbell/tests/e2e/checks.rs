@@ -114,6 +114,7 @@ async fn next_frame(stream: &mut Stream) -> Vec<u8> {
         .expect("frame within 10s");
     match event {
         StreamEvent::Frame { body, .. } => body,
+        StreamEvent::Chunk(_) => panic!("a file chunk on a terminal stream"),
         StreamEvent::End(err) => panic!("stream ended: {err:?}"),
     }
 }

@@ -15,12 +15,15 @@ use tokio::task::JoinSet;
 
 pub use self::route::methods;
 use self::route::{Inbound, Method, output_frame, response_frame, route};
-use super::herdr::Herdr;
+use super::file;
 use super::link::Link;
-use super::terminal::{self, Input, TerminalRequest};
+use super::stream::{Input, Output};
+use super::terminal::{self, TerminalRequest};
 use super::{HerdrSlot, nudge, rpc};
 
-/// Queued client input per stream; keystrokes beyond this are dropped while the session lags.
+/// Open terminals and files together.
+const MAX_STREAMS: usize = 8;
+/// Queued caller input per stream; input beyond this is dropped while the stream lags.
 const STREAM_INPUT_BUFFER: usize = 256;
 
 fn unavailable() -> RpcError {
@@ -84,35 +87,50 @@ impl Calls {
                 })
             }
             Method::Terminal => {
+                let open = async move {
+                    let herdr = herdr?;
+                    let req: TerminalRequest = serde_json::from_value(p).map_err(bad_request)?;
+                    terminal::open(&herdr, req).await
+                };
+                let run = |session, input, emit| terminal::pump(session, input, emit);
+                self.tasks.spawn(serve_stream(link, id, Arc::clone(&self.streams), open, run))
+            }
+            Method::FileRead => {
+                let run = |file, input, emit| file::pump_read(file, input, emit);
                 let streams = Arc::clone(&self.streams);
-                self.tasks.spawn(stream_terminal(herdr, link, id, p, streams))
+                self.tasks.spawn(serve_stream(link, id, streams, file::open_read(p), run))
             }
         };
     }
 }
 
-/// Opens a terminal session and streams it to the caller until either side ends it.
-async fn stream_terminal(
-    herdr: Result<Herdr, RpcError>,
+fn bad_request(err: serde_json::Error) -> RpcError {
+    RpcError::new("bad_request", err.to_string())
+}
+
+/// Delivers a stream's output to its caller.
+type Emit = Box<dyn FnMut(Output) + Send>;
+
+/// Registers the stream, opens it, answers the call, then runs the stream until either side ends
+/// it. Registered before the answer so input sent right after it is not lost.
+async fn serve_stream<S, R: Future<Output = ()>>(
     link: Link,
     id: u64,
-    p: Value,
     streams: Streams,
+    open: impl Future<Output = Result<(S, Value), RpcError>>,
+    run: impl FnOnce(S, mpsc::Receiver<Input>, Emit) -> R,
 ) {
     let opened = async {
-        let herdr = herdr?;
-        let req: TerminalRequest = serde_json::from_value(p)
-            .map_err(|err| RpcError::new("bad_request", err.to_string()))?;
-        // Registered before the response so input sent right after it is not lost.
         let (registered, input) = register(&streams, (link.key().to_owned(), id))?;
-        let (session, r) = terminal::open(&herdr, req).await?;
-        Ok((registered, input, session, r))
+        let (stream, r) = open.await?;
+        Ok::<_, RpcError>((registered, input, stream, r))
     };
     match opened.await {
         Err(err) => link.send(response_frame(id, Err(err))),
-        Ok((_registered, input, session, r)) => {
+        Ok((_registered, input, stream, r)) => {
             link.send(response_frame(id, Ok(r)));
-            terminal::pump(session, input, |output| link.send(output_frame(id, output))).await;
+            let caller = link.clone();
+            run(stream, input, Box::new(move |output| caller.send(output_frame(id, output)))).await;
         }
     }
 }
@@ -134,8 +152,8 @@ fn register(
     key: StreamKey,
 ) -> Result<(Registered, mpsc::Receiver<Input>), RpcError> {
     let mut open = streams.lock().expect("streams poisoned");
-    if open.len() >= terminal::MAX_TERMINALS {
-        return Err(RpcError::new("too_many_terminals", "too many open terminals"));
+    if open.len() >= MAX_STREAMS {
+        return Err(RpcError::new("too_many_streams", "too many open streams"));
     }
     let (tx, rx) = mpsc::channel(STREAM_INPUT_BUFFER);
     open.insert(key.clone(), tx);
@@ -147,7 +165,7 @@ fn feed(streams: &Streams, key: StreamKey, input: Input) {
     let stream = streams.lock().expect("streams poisoned").get(&key).cloned();
     match stream.map(|tx| tx.try_send(input)) {
         Some(Ok(())) => {}
-        Some(Err(err)) => tracing::warn!(id, %err, "terminal input dropped"),
+        Some(Err(err)) => tracing::warn!(id, %err, "stream input dropped"),
         None => tracing::debug!(id, "input for an unknown stream"),
     }
 }

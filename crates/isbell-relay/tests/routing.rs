@@ -66,6 +66,20 @@ async fn routes_stream_data_both_ways() {
         matches!(got.header, Header::Data { k: DataKind::Input, from: Some(ref f), .. } if *f == client.conn)
     );
     assert_eq!(got.body.as_deref(), Some(&b"ls\r"[..]));
+
+    // Credit flows from a stream's receiver to its sender, either way.
+    let credit = |mid: Option<&str>, to: Option<&str>| {
+        let (mid, to) = (mid.map(str::to_owned), to.map(str::to_owned));
+        Frame::new(Header::Credit { id: 7, n: 1 << 20, mid, from: None, to })
+    };
+    client.send(credit(Some(&mid), None)).await;
+    let got = gateway.recv().await;
+    assert!(
+        matches!(got.header, Header::Credit { n: 1048576, from: Some(ref f), .. } if *f == client.conn)
+    );
+    gateway.send(credit(None, Some(&client.conn))).await;
+    let got = client.recv().await;
+    assert!(matches!(got.header, Header::Credit { id: 7, mid: Some(ref m), .. } if *m == mid));
 }
 
 #[tokio::test]

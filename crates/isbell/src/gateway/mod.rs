@@ -1,11 +1,13 @@
 //! `isbell gateway run`: keeps this machine's herdr state reported to the relay and serves requests.
 
 mod calls;
+mod file;
 mod herdr;
 mod link;
 mod monitor;
 mod rpc;
 mod state;
+mod stream;
 mod terminal;
 mod uplink;
 mod workspace;

@@ -57,9 +57,11 @@ pub struct ClientFrame {
 
 /// `None` when a client may not send this frame.
 pub fn route_client(conn: &str, frame: Frame) -> Option<ClientFrame> {
-    // Clients call machines, or send stream data / end to them, addressed by `mid`.
+    // Clients call machines, or send stream data / credit / end to them, addressed by `mid`.
     let is_call = matches!(frame.header, Header::Call { .. });
-    if !(is_call || matches!(frame.header, Header::Data { .. } | Header::End { .. })) {
+    let streamed =
+        matches!(frame.header, Header::Data { .. } | Header::Credit { .. } | Header::End { .. });
+    if !(is_call || streamed) {
         return None;
     }
     let id = frame.header.id()?;
@@ -150,6 +152,11 @@ mod tests {
         assert!(
             route_client("me", data(Some(MID), None, Some("x"))).is_none(),
             "clients cannot address connections"
+        );
+        let credit = Header::Credit { id: 2, n: 64, mid: Some(MID.into()), from: None, to: None };
+        let routed = route_client("me", Frame::new(credit)).unwrap();
+        assert!(
+            matches!(routed.frame.header, Header::Credit { n: 64, from: Some(ref f), .. } if f == "me")
         );
     }
 }

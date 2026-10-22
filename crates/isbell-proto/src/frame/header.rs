@@ -73,6 +73,17 @@ pub enum Header {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         to: Option<String>,
     },
+    /// The receiver of a stream lets its sender send `n` more bytes (see [`crate::flow`]).
+    Credit {
+        id: u64,
+        n: u64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        mid: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        from: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        to: Option<String>,
+    },
     State {
         state: Value,
     },
@@ -93,6 +104,8 @@ pub enum DataKind {
     Resize,
     /// Client keepalive for a stream; carries nothing.
     Ping,
+    /// A piece of a byte stream (a file), in either direction.
+    Chunk,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -122,18 +135,19 @@ pub struct Route {
 }
 
 impl Header {
-    /// The request id of a call, response, data or end frame.
+    /// The request id of a call, response, data, credit or end frame.
     pub fn id(&self) -> Option<u64> {
         match self {
             Header::Call { id, .. }
             | Header::Res { id, .. }
             | Header::Data { id, .. }
+            | Header::Credit { id, .. }
             | Header::End { id, .. } => Some(*id),
             _ => None,
         }
     }
 
-    /// The routing fields of a call, response, data or end frame.
+    /// The routing fields of a call, response, data, credit or end frame.
     pub fn route(&self) -> Option<Route> {
         let route = |mid: &Option<String>, from: Option<&String>, to: Option<&String>| Route {
             mid: mid.clone(),
@@ -143,9 +157,9 @@ impl Header {
         match self {
             Header::Call { mid, from, .. } => Some(route(mid, from.as_ref(), None)),
             Header::Res { mid, to, .. } => Some(route(mid, None, to.as_ref())),
-            Header::Data { mid, from, to, .. } | Header::End { mid, from, to, .. } => {
-                Some(route(mid, from.as_ref(), to.as_ref()))
-            }
+            Header::Data { mid, from, to, .. }
+            | Header::Credit { mid, from, to, .. }
+            | Header::End { mid, from, to, .. } => Some(route(mid, from.as_ref(), to.as_ref())),
             _ => None,
         }
     }
@@ -159,6 +173,7 @@ impl Header {
             Header::Data { id, k, full, cols, rows, .. } => {
                 Header::Data { id, k, full, cols, rows, mid, from, to }
             }
+            Header::Credit { id, n, .. } => Header::Credit { id, n, mid, from, to },
             Header::End { id, e, .. } => Header::End { id, e, mid, from, to },
             other => other,
         }
@@ -207,5 +222,15 @@ mod tests {
             Some(Route { mid: Some("m".into()), from: None, to: Some("c".into()) })
         );
         assert_eq!(Header::Presence { mid: "m".into(), online: true }.route(), None);
+    }
+
+    #[test]
+    fn credits_route_like_stream_frames() {
+        let credit = Header::Credit { id: 5, n: 64, mid: Some("m".into()), from: None, to: None };
+        let to_gateway = Route { from: Some("c".into()), ..Route::default() };
+        let rerouted = credit.rerouted(to_gateway.clone());
+        assert_eq!(rerouted.route(), Some(to_gateway));
+        assert_eq!(rerouted.id(), Some(5));
+        assert!(matches!(rerouted, Header::Credit { n: 64, .. }));
     }
 }

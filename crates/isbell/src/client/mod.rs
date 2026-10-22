@@ -1,6 +1,7 @@
 //! Client connection to the relay: the space snapshot, live state / presence, and calls and
 //! streams to machines.
 
+mod file;
 mod inbound;
 mod inflight;
 mod link;
@@ -17,6 +18,7 @@ use isbell_proto::state::MachineState;
 use serde_json::Value;
 use tokio::sync::{broadcast, mpsc, oneshot};
 
+pub use self::file::FileRead;
 use self::inbound::{read_loop, write_loop};
 use self::inflight::{Inflight, Target, disconnected};
 use self::link::Link;
