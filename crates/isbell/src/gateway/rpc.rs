@@ -24,6 +24,7 @@ pub const ALLOWED: &[&str] = &[
     "session.snapshot",
 ];
 pub const START_AGENT: &str = "isbell.agent.start";
+pub const TERMINAL: &str = "isbell.terminal";
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 const START_TIMEOUT: Duration = Duration::from_secs(35);
@@ -35,7 +36,7 @@ const MAX_NAME: usize = 28;
 pub fn methods() -> Vec<String> {
     ALLOWED
         .iter()
-        .chain([&START_AGENT])
+        .chain([&START_AGENT, &TERMINAL])
         .map(|m| (*m).to_owned())
         .collect()
 }
@@ -105,14 +106,7 @@ pub struct StartAgent {
 
 /// workspace.create → agent.start (retrying while the shell is busy) → optional prompt once ready.
 async fn start_agent(herdr: &Herdr, req: StartAgent) -> Result<Value, RpcError> {
-    let cwd = expand_home(&req.cwd)
-        .filter(|p| p.is_absolute() && p.is_dir())
-        .ok_or_else(|| {
-            RpcError::new(
-                "invalid_cwd",
-                format!("{} is not an existing absolute directory", req.cwd),
-            )
-        })?;
+    let cwd = resolve_cwd(&req.cwd)?;
     let name = match req.name {
         Some(name) => name,
         None => {
@@ -203,6 +197,18 @@ async fn wait_until_ready(herdr: &Herdr, pane_id: &str) -> Result<(), RpcError> 
         "agent_not_ready",
         "agent started but did not become ready for the prompt",
     ))
+}
+
+/// An existing absolute directory, with a leading `~` expanded on this machine.
+pub fn resolve_cwd(cwd: &str) -> Result<PathBuf, RpcError> {
+    expand_home(cwd)
+        .filter(|p| p.is_absolute() && p.is_dir())
+        .ok_or_else(|| {
+            RpcError::new(
+                "invalid_cwd",
+                format!("{cwd} is not an existing absolute directory"),
+            )
+        })
 }
 
 fn expand_home(path: &str) -> Option<PathBuf> {

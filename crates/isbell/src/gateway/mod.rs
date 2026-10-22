@@ -3,19 +3,22 @@
 pub mod herdr;
 pub mod rpc;
 pub mod state;
+pub mod terminal;
 
-use std::sync::{Arc, RwLock};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 
-use isbell_proto::frame::{Frame, Header, MachineInfo};
+use isbell_proto::frame::{DataKind, Frame, Header, MachineInfo, RpcError};
 use isbell_proto::identity::Identity;
 use isbell_proto::state::{Caps, HerdrState, MachineState};
-use serde_json::json;
+use serde_json::{Value, json};
 use tokio::sync::{mpsc, watch};
 use tokio::task::{JoinHandle, JoinSet};
 
 use self::herdr::Herdr;
 use self::state::{StateTracker, derive_agents, snapshot_agents};
+use self::terminal::{Input, Output};
 use crate::now_ms;
 use crate::relay::{self, FrameSink, FrameStream, RelayError};
 
@@ -182,7 +185,14 @@ struct Outbox {
 struct Calls {
     tasks: JoinSet<()>,
     responses: mpsc::UnboundedSender<Frame>,
+    /// Open terminal streams by (caller connection, call id), for routing client input.
+    streams: Streams,
 }
+
+type Streams = Arc<Mutex<HashMap<(String, u64), mpsc::Sender<Input>>>>;
+
+/// Queued client input per stream; keystrokes beyond this are dropped while the session lags.
+const STREAM_INPUT_BUFFER: usize = 256;
 
 async fn relay_loop(
     opts: &GatewayOptions,
@@ -195,6 +205,7 @@ async fn relay_loop(
     let mut calls = Calls {
         tasks: JoinSet::new(),
         responses,
+        streams: Arc::default(),
     };
     let mut attempt = 0;
     loop {
@@ -253,28 +264,7 @@ async fn serve(
     loop {
         while calls.tasks.try_join_next().is_some() {}
         tokio::select! {
-            frame = stream.next(RELAY_IDLE) => {
-                let Header::Call { id, m, p, from: Some(to), .. } = frame?.header else {
-                    tracing::debug!("ignoring unexpected frame from relay");
-                    continue;
-                };
-                let herdr = slot.read().expect("herdr slot poisoned").clone();
-                let (responses, refresh) = (calls.responses.clone(), refresh_tx.clone());
-                calls.tasks.spawn(async move {
-                    let result = rpc::handle(herdr, &m, p).await;
-                    if m == rpc::START_AGENT && refresh.try_send(()).is_err() {
-                        tracing::trace!("refresh already pending");
-                    }
-                    let (ok, r, e) = match result {
-                        Ok(r) => (true, Some(r), None),
-                        Err(e) => (false, None, Some(e)),
-                    };
-                    let res = Header::Res { id, ok, r, e, mid: None, to: Some(to) };
-                    if responses.send(Frame::new(res)).is_err() {
-                        tracing::debug!(id, "gateway stopped before the response");
-                    }
-                });
-            }
+            frame = stream.next(RELAY_IDLE) => dispatch(frame?, slot, refresh_tx, calls),
             Some(frame) = outbox.rx.recv() => send_or_keep(sink, frame, outbox).await?,
             changed = state_rx.changed() => {
                 if changed.is_err() {
@@ -286,6 +276,172 @@ async fn serve(
             }
         }
     }
+}
+
+/// Handles one frame from the relay: calls start tasks, stream frames feed open streams.
+fn dispatch(frame: Frame, slot: &HerdrSlot, refresh_tx: &mpsc::Sender<()>, calls: &mut Calls) {
+    match frame.header {
+        Header::Call {
+            id,
+            m,
+            p,
+            from: Some(to),
+            ..
+        } => {
+            let herdr = slot.read().expect("herdr slot poisoned").clone();
+            let responses = calls.responses.clone();
+            if m == rpc::TERMINAL {
+                let streams = Arc::clone(&calls.streams);
+                calls
+                    .tasks
+                    .spawn(terminal_stream(herdr, id, to, p, responses, streams));
+                return;
+            }
+            let refresh = refresh_tx.clone();
+            calls.tasks.spawn(async move {
+                let result = rpc::handle(herdr, &m, p).await;
+                if m == rpc::START_AGENT && refresh.try_send(()).is_err() {
+                    tracing::trace!("refresh already pending");
+                }
+                respond(&responses, id, to, result);
+            });
+        }
+        Header::Data {
+            id,
+            k,
+            cols,
+            rows,
+            from: Some(from),
+            ..
+        } => {
+            let input = match k {
+                DataKind::Input => Input::Bytes(frame.body.unwrap_or_default()),
+                DataKind::Resize => Input::Resize(cols.unwrap_or(0), rows.unwrap_or(0)),
+                DataKind::Ping => Input::Ping,
+                DataKind::Frame => return,
+            };
+            feed(&calls.streams, from, id, input);
+        }
+        Header::End {
+            id,
+            from: Some(from),
+            ..
+        } => feed(&calls.streams, from, id, Input::Close),
+        _ => tracing::debug!("ignoring unexpected frame from relay"),
+    }
+}
+
+fn respond(
+    responses: &mpsc::UnboundedSender<Frame>,
+    id: u64,
+    to: String,
+    result: Result<Value, RpcError>,
+) {
+    let (ok, r, e) = match result {
+        Ok(r) => (true, Some(r), None),
+        Err(e) => (false, None, Some(e)),
+    };
+    let res = Header::Res {
+        id,
+        ok,
+        r,
+        e,
+        mid: None,
+        to: Some(to),
+    };
+    if responses.send(Frame::new(res)).is_err() {
+        tracing::debug!(id, "gateway stopped before the response");
+    }
+}
+
+fn feed(streams: &Streams, from: String, id: u64, input: Input) {
+    let stream = streams
+        .lock()
+        .expect("streams poisoned")
+        .get(&(from, id))
+        .cloned();
+    match stream.map(|tx| tx.try_send(input)) {
+        Some(Ok(())) => {}
+        Some(Err(err)) => tracing::warn!(id, %err, "terminal input dropped"),
+        None => tracing::debug!(id, "input for an unknown stream"),
+    }
+}
+
+/// Opens a terminal session and streams it to the caller until either side ends it.
+async fn terminal_stream(
+    herdr: Option<Herdr>,
+    id: u64,
+    to: String,
+    p: Value,
+    responses: mpsc::UnboundedSender<Frame>,
+    streams: Streams,
+) {
+    let key = (to.clone(), id);
+    let (input_tx, input_rx) = mpsc::channel(STREAM_INPUT_BUFFER);
+    let opened = async {
+        let herdr = herdr
+            .ok_or_else(|| RpcError::new("herdr_unavailable", "herdr server is not available"))?;
+        let req = serde_json::from_value(p)
+            .map_err(|err| RpcError::new("bad_request", err.to_string()))?;
+        {
+            let mut open = streams.lock().expect("streams poisoned");
+            if open.len() >= terminal::MAX_TERMINALS {
+                return Err(RpcError::new(
+                    "too_many_terminals",
+                    "too many open terminals",
+                ));
+            }
+            // Registered before the response so input sent right after it is not lost.
+            open.insert(key.clone(), input_tx);
+        }
+        terminal::open(&herdr, req).await
+    };
+    let (session, r) = match opened.await {
+        Ok(opened) => opened,
+        Err(err) => {
+            streams.lock().expect("streams poisoned").remove(&key);
+            return respond(&responses, id, to, Err(err));
+        }
+    };
+    respond(&responses, id, to.clone(), Ok(r));
+    terminal::pump(session, input_rx, |out| {
+        let frame = match out {
+            Output::Frame {
+                body,
+                full,
+                cols,
+                rows,
+            } => {
+                let header = Header::Data {
+                    id,
+                    k: DataKind::Frame,
+                    z: None,
+                    full: Some(full),
+                    cols: Some(cols),
+                    rows: Some(rows),
+                    mid: None,
+                    from: None,
+                    to: Some(to.clone()),
+                };
+                Frame {
+                    header,
+                    body: Some(body),
+                }
+            }
+            Output::End(e) => Frame::new(Header::End {
+                id,
+                e,
+                mid: None,
+                from: None,
+                to: Some(to.clone()),
+            }),
+        };
+        if responses.send(frame).is_err() {
+            tracing::debug!(id, "gateway stopped while streaming");
+        }
+    })
+    .await;
+    streams.lock().expect("streams poisoned").remove(&key);
 }
 
 /// Sends a response, keeping it for the next connection if this one fails.

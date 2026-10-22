@@ -101,6 +101,8 @@ pub enum DataKind {
     Frame,
     Input,
     Resize,
+    /// Client keepalive for a stream; carries nothing.
+    Ping,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -291,6 +293,17 @@ mod tests {
             },
         ];
         let mut frames: Vec<Frame> = headers.into_iter().map(Frame::new).collect();
+        frames.push(Frame::new(Header::Data {
+            id: 5,
+            k: DataKind::Ping,
+            z: None,
+            full: None,
+            cols: None,
+            rows: None,
+            mid: Some("m".into()),
+            from: None,
+            to: None,
+        }));
         frames.push(Frame {
             header: Header::Data {
                 id: 4,

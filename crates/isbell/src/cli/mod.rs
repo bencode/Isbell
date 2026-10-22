@@ -5,6 +5,7 @@ mod machine;
 pub mod output;
 mod space;
 pub mod target;
+mod terminal;
 mod watch;
 
 use clap::{Parser, Subcommand};
@@ -49,6 +50,9 @@ enum Command {
     /// Agents on the space's machines.
     #[command(subcommand)]
     Agent(agent::AgentCmd),
+    /// Remote terminals: attach to a pane, or open a new shell.
+    #[command(subcommand)]
+    Terminal(terminal::TerminalCmd),
     /// Stream presence and agent status changes as NDJSON.
     Watch,
 }
@@ -101,6 +105,7 @@ pub async fn run(cli: Cli) -> Result<(), CliError> {
         Command::Gateway(GatewayCmd::Run) => run_gateway(ctx).await,
         Command::Machine(cmd) => machine::run(&ctx, cmd).await,
         Command::Agent(cmd) => agent::run(&ctx, cmd).await,
+        Command::Terminal(cmd) => terminal::run(&ctx, cmd).await,
         Command::Watch => watch::run(&ctx).await,
     }
 }

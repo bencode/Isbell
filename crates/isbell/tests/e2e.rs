@@ -6,7 +6,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use isbell::client::{Session, SessionEvent};
+use isbell::client::{Session, SessionEvent, Stream, StreamEvent};
 use isbell::gateway::{self, GatewayOptions};
 use isbell::relay::RelayError;
 use isbell_proto::frame::{MachineInfo, RpcError};
@@ -193,6 +193,96 @@ fn start_wait(session: &Arc<Session>, mid: &str) -> JoinHandle<Result<Value, Rpc
     })
 }
 
+const OPEN: Duration = Duration::from_secs(10);
+
+async fn next_frame(stream: &mut Stream) -> Vec<u8> {
+    let event = tokio::time::timeout(Duration::from_secs(10), stream.next())
+        .await
+        .expect("frame within 10s");
+    match event {
+        StreamEvent::Frame { body, .. } => body,
+        StreamEvent::End(err) => panic!("stream ended: {err:?}"),
+    }
+}
+
+/// Waits until the fake herdr's log has a line containing `needle`.
+async fn logged(log: &Path, needle: &str) {
+    let found = async {
+        while !std::fs::read_to_string(log)
+            .unwrap_or_default()
+            .contains(needle)
+        {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    };
+    tokio::time::timeout(Duration::from_secs(10), found)
+        .await
+        .unwrap_or_else(|_| panic!("{needle:?} not logged"));
+}
+
+/// Terminal streams against the fake herdr CLI.
+async fn check_terminals(session: &Session, mid: &str, log: &Path, calls: &Calls) {
+    // control: first frame, input echoed, resize forwarded, release on detach
+    let control = json!({"target": "w1:p1", "mode": "control", "cols": 80, "rows": 24});
+    let (_, mut stream) = session
+        .open_stream(mid, "isbell.terminal", control, OPEN)
+        .await
+        .unwrap();
+    assert_eq!(next_frame(&mut stream).await, b"hello");
+    stream.input(b"ls\r".to_vec());
+    assert_eq!(next_frame(&mut stream).await, b"ok");
+    logged(log, r#""bytes":"bHMN""#).await;
+    stream.resize(100, 30);
+    logged(log, r#""cols":100"#).await;
+    drop(stream);
+    logged(log, "terminal.release").await;
+
+    // new: a workspace is created first and its root pane is attached
+    let cwd = tempfile::tempdir().unwrap();
+    let new = json!({"new": {"cwd": cwd.path()}, "mode": "control", "cols": 80, "rows": 24});
+    let (r, mut stream) = session
+        .open_stream(mid, "isbell.terminal", new, OPEN)
+        .await
+        .unwrap();
+    assert_eq!(r["paneId"], "w9:p1");
+    assert_eq!(next_frame(&mut stream).await, b"hello");
+    logged(
+        log,
+        "args terminal session control w9:p1 --cols 80 --rows 24",
+    )
+    .await;
+    let created = calls.lock().unwrap().iter().any(|(m, p)| {
+        m == "workspace.create" && p["label"].as_str().is_some_and(|l| l.starts_with("shell-"))
+    });
+    assert!(created, "workspace.create for the shell");
+    drop(stream);
+
+    // observe: input is not forwarded
+    let observe = json!({"target": "w1:p1", "mode": "observe", "cols": 80, "rows": 24});
+    let (_, mut stream) = session
+        .open_stream(mid, "isbell.terminal", observe, OPEN)
+        .await
+        .unwrap();
+    assert_eq!(next_frame(&mut stream).await, b"hello");
+    let lines_before = std::fs::read_to_string(log).unwrap().lines().count();
+    stream.input(b"x".to_vec());
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(
+        std::fs::read_to_string(log).unwrap().lines().count(),
+        lines_before
+    );
+    drop(stream);
+
+    // neither target nor new
+    let bad = json!({"mode": "control", "cols": 80, "rows": 24});
+    let err = session
+        .open_stream(mid, "isbell.terminal", bad, OPEN)
+        .await
+        .err()
+        .expect("rejected");
+    assert_eq!(err.code, "bad_request");
+}
+
 async fn finished<T>(task: JoinHandle<T>) -> T {
     tokio::time::timeout(Duration::from_secs(10), task)
         .await
@@ -231,8 +321,16 @@ async fn gateway_serves_cli_through_relay() {
     let dir = tempfile::tempdir().unwrap();
     let socket = dir.path().join("herdr.sock");
     let herdr = fake_herdr(&socket);
-    // The only test in this binary, so the process-wide variable cannot race.
-    unsafe { std::env::set_var("ISBELL_HERDR_SOCKET", &socket) };
+    let terminal_log = dir.path().join("terminal.log");
+    // The only test in this binary, so these process-wide variables cannot race.
+    unsafe {
+        std::env::set_var("ISBELL_HERDR_SOCKET", &socket);
+        std::env::set_var(
+            "ISBELL_HERDR_BIN",
+            concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/fake-herdr.sh"),
+        );
+        std::env::set_var("FAKE_HERDR_LOG", &terminal_log);
+    }
 
     let id = Identity::generate();
     let mid = format!("{:016x}", rand::random::<u64>());
@@ -297,6 +395,8 @@ async fn gateway_serves_cli_through_relay() {
     assert!(create < start);
     assert_eq!(methods[start].1["args"][0], "--no-daemon");
     assert_eq!(methods[start].1["pane_id"], "w9:p1");
+
+    check_terminals(&session, &mid, &terminal_log, &herdr.calls).await;
 
     // 1. The gateway loses its network and reconnects while the relay still holds the old
     //    connection: the call in flight is answered over the new connection.

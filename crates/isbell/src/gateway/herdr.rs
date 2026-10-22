@@ -44,7 +44,16 @@ impl HerdrError {
 #[derive(Clone)]
 pub struct Herdr {
     socket: PathBuf,
+    /// The herdr executable, for commands only its CLI offers (status, terminal sessions).
+    bin: PathBuf,
     next_id: Arc<AtomicU64>,
+}
+
+/// `$ISBELL_HERDR_BIN`, else `herdr` from PATH.
+fn herdr_bin() -> PathBuf {
+    std::env::var_os("ISBELL_HERDR_BIN")
+        .filter(|b| !b.is_empty())
+        .map_or_else(|| PathBuf::from("herdr"), PathBuf::from)
 }
 
 #[derive(Deserialize)]
@@ -72,7 +81,7 @@ pub async fn discover() -> Result<(Herdr, HerdrState), HerdrState> {
         };
         return Ok((Herdr::new(socket.into()), state));
     }
-    let output = tokio::process::Command::new("herdr")
+    let output = tokio::process::Command::new(herdr_bin())
         .args(["status", "server", "--json"])
         .kill_on_drop(true)
         .output();
@@ -116,8 +125,14 @@ impl Herdr {
     pub fn new(socket: PathBuf) -> Self {
         Self {
             socket,
+            bin: herdr_bin(),
             next_id: Arc::default(),
         }
+    }
+
+    /// A herdr CLI command (e.g. `terminal session …`).
+    pub fn command(&self) -> tokio::process::Command {
+        tokio::process::Command::new(&self.bin)
     }
 
     /// One request on a fresh connection; `None` timeout waits as long as herdr does.

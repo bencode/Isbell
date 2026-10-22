@@ -36,6 +36,9 @@ cargo run -p isbell -- machine list
 cargo run -p isbell -- agent list
 cargo run -p isbell -- agent prompt <machine>/<agent> "..." --wait
 cargo run -p isbell -- watch                  # NDJSON presence and status changes
+cargo run -p isbell -- terminal new <machine> --cwd '~/work'           # new shell, ctrl+] detaches
+cargo run -p isbell -- terminal attach <machine>/<pane-or-agent>       # read-only
+cargo run -p isbell -- terminal attach <machine>/<pane-or-agent> --control
 ```
 
 | Variable | Purpose |
@@ -44,6 +47,7 @@ cargo run -p isbell -- watch                  # NDJSON presence and status chang
 | `ISBELL_KEY` | Space key, instead of this machine's key file |
 | `ISBELL_CONFIG_DIR` | Config directory (default `~/.config/isbell`); a second directory simulates a second machine |
 | `ISBELL_HERDR_SOCKET` | Use this herdr socket instead of discovering it with `herdr status` |
+| `ISBELL_HERDR_BIN` | herdr executable the gateway runs (default `herdr` on `PATH`) |
 
 Agents started through herdr inherit the herdr server's environment and the pane's login shell,
 so settings such as `http_proxy` belong in the shell profile (e.g. `~/.zshrc`).
