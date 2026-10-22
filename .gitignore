@@ -1,0 +1,10 @@
+# Dependencies and build output
+node_modules/
+dist/
+isbell/target/
+
+# Local, untracked design notes
+priv/
+
+.DS_Store
+*.log
