@@ -29,9 +29,7 @@ impl Encoded {
         if !body.is_empty() {
             return Ok(Encoded::Binary(payload));
         }
-        String::from_utf8(header.to_vec())
-            .map(Encoded::Text)
-            .map_err(|_| FrameError::NotUtf8)
+        String::from_utf8(header.to_vec()).map(Encoded::Text).map_err(|_| FrameError::NotUtf8)
     }
 }
 
@@ -39,9 +37,7 @@ impl Encoded {
 fn split_binary(msg: &[u8]) -> Result<(&[u8], &[u8]), FrameError> {
     let (len, rest) = msg.split_first_chunk::<4>().ok_or(FrameError::Truncated)?;
     let len = u32::from_be_bytes(*len) as usize;
-    (len <= rest.len())
-        .then(|| rest.split_at(len))
-        .ok_or(FrameError::Truncated)
+    (len <= rest.len()).then(|| rest.split_at(len)).ok_or(FrameError::Truncated)
 }
 
 /// A frame; an empty body is normalized to `None`.
@@ -58,10 +54,7 @@ impl Frame {
 
     /// The same frame with new routing fields (see [`Header::rerouted`]).
     pub fn rerouted(self, route: Route) -> Frame {
-        Frame {
-            header: self.header.rerouted(route),
-            body: self.body,
-        }
+        Frame { header: self.header.rerouted(route), body: self.body }
     }
 
     pub fn decode(msg: &[u8], binary: bool) -> Result<Frame, FrameError> {
@@ -86,12 +79,7 @@ impl Frame {
     pub fn encode_binary(&self) -> Vec<u8> {
         let header = self.header_json();
         let len = (header.len() as u32).to_be_bytes();
-        [
-            &len[..],
-            header.as_bytes(),
-            self.body.as_deref().unwrap_or_default(),
-        ]
-        .concat()
+        [&len[..], header.as_bytes(), self.body.as_deref().unwrap_or_default()].concat()
     }
 
     fn header_json(&self) -> String {
@@ -116,26 +104,15 @@ mod tests {
             version: "0.1.0".into(),
         };
         let headers = vec![
-            Header::Challenge {
-                nonce: "n".into(),
-                origin: "wss://isbell.upivot.io".into(),
-            },
+            Header::Challenge { nonce: "n".into(), origin: "wss://isbell.upivot.io".into() },
             Header::Auth {
                 role: Role::Gateway,
                 pk: "pk".into(),
                 sig: "sig".into(),
                 machine: Some(machine),
             },
-            Header::Auth {
-                role: Role::Client,
-                pk: "pk".into(),
-                sig: "sig".into(),
-                machine: None,
-            },
-            Header::AuthOk {
-                sid: "s".into(),
-                conn: "s.c".into(),
-            },
+            Header::Auth { role: Role::Client, pk: "pk".into(), sig: "sig".into(), machine: None },
+            Header::AuthOk { sid: "s".into(), conn: "s.c".into() },
             Header::Call {
                 id: 1,
                 m: "herdr".into(),
@@ -159,26 +136,10 @@ mod tests {
                 mid: Some("m".into()),
                 to: None,
             },
-            Header::End {
-                id: 3,
-                e: None,
-                mid: None,
-                from: Some("s.c".into()),
-                to: None,
-            },
-            Header::State {
-                state: json!({"machine": {"id": "0123456789abcdef"}}),
-            },
-            Header::Presence {
-                mid: "m".into(),
-                online: true,
-            },
-            Header::Snapshot {
-                machines: vec![SnapshotEntry {
-                    state: json!({}),
-                    online: false,
-                }],
-            },
+            Header::End { id: 3, e: None, mid: None, from: Some("s.c".into()), to: None },
+            Header::State { state: json!({"machine": {"id": "0123456789abcdef"}}) },
+            Header::Presence { mid: "m".into(), online: true },
+            Header::Snapshot { machines: vec![SnapshotEntry { state: json!({}), online: false }] },
         ];
         let ping = Frame::new(Header::Data {
             id: 5,
@@ -203,11 +164,7 @@ mod tests {
             },
             body: Some(vec![0, 1, 2, 255]),
         };
-        headers
-            .into_iter()
-            .map(Frame::new)
-            .chain([ping, with_body])
-            .collect()
+        headers.into_iter().map(Frame::new).chain([ping, with_body]).collect()
     }
 
     fn decode(encoded: Encoded) -> Frame {
@@ -234,9 +191,7 @@ mod tests {
             mid: Some("m".into()),
             from: None,
         });
-        let Encoded::Text(text) = call.encode() else {
-            panic!("expected text")
-        };
+        let Encoded::Text(text) = call.encode() else { panic!("expected text") };
         assert_eq!(
             serde_json::from_str::<Value>(&text).unwrap(),
             json!({"t": "call", "id": 7, "m": "x", "p": null, "mid": "m"})
@@ -245,42 +200,21 @@ mod tests {
 
     #[test]
     fn rejects_malformed_frames() {
-        assert!(matches!(
-            Frame::decode(&[0, 0], true),
-            Err(FrameError::Truncated)
-        ));
+        assert!(matches!(Frame::decode(&[0, 0], true), Err(FrameError::Truncated)));
         assert!(matches!(
             Frame::decode(&[0, 0, 0, 9, b'{', b'}'], true),
             Err(FrameError::Truncated)
         ));
-        assert!(matches!(
-            Frame::decode(br#"{"t":"nope"}"#, false),
-            Err(FrameError::Header(_))
-        ));
-        assert!(matches!(
-            Frame::decode(b"not json", false),
-            Err(FrameError::Header(_))
-        ));
+        assert!(matches!(Frame::decode(br#"{"t":"nope"}"#, false), Err(FrameError::Header(_))));
+        assert!(matches!(Frame::decode(b"not json", false), Err(FrameError::Header(_))));
     }
 
     #[test]
     fn binary_payloads_become_text_without_a_body() {
-        let text = Frame::new(Header::Presence {
-            mid: "m".into(),
-            online: true,
-        });
-        assert!(matches!(
-            Encoded::from_binary(text.encode_binary()),
-            Ok(Encoded::Text(_))
-        ));
+        let text = Frame::new(Header::Presence { mid: "m".into(), online: true });
+        assert!(matches!(Encoded::from_binary(text.encode_binary()), Ok(Encoded::Text(_))));
         let with_body = samples().pop().unwrap();
-        assert!(matches!(
-            Encoded::from_binary(with_body.encode_binary()),
-            Ok(Encoded::Binary(_))
-        ));
-        assert!(matches!(
-            Encoded::from_binary(vec![0, 0, 0, 9]),
-            Err(FrameError::Truncated)
-        ));
+        assert!(matches!(Encoded::from_binary(with_body.encode_binary()), Ok(Encoded::Binary(_))));
+        assert!(matches!(Encoded::from_binary(vec![0, 0, 0, 9]), Err(FrameError::Truncated)));
     }
 }

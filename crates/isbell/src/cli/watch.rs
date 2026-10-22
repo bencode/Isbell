@@ -21,17 +21,12 @@ pub async fn run(ctx: &Ctx) -> Result<(), CliError> {
         for agent in &state.agents {
             emit(agent_line(&state, agent, None));
         }
-        known.insert(
-            state.machine.id.clone(),
-            (state.machine.name.clone(), statuses(&state)),
-        );
+        known.insert(state.machine.id.clone(), (state.machine.name.clone(), statuses(&state)));
     }
     loop {
         match events.recv().await {
             Ok(SessionEvent::Presence { mid, online }) => {
-                let name = known
-                    .get(&mid)
-                    .map_or(mid.as_str(), |(name, _)| name.as_str());
+                let name = known.get(&mid).map_or(mid.as_str(), |(name, _)| name.as_str());
                 emit(json!({"at": now_ms(), "machine": name, "online": online}));
             }
             Ok(SessionEvent::State(state)) => {
@@ -58,11 +53,7 @@ pub async fn run(ctx: &Ctx) -> Result<(), CliError> {
 }
 
 fn statuses(state: &MachineState) -> HashMap<String, AgentStatus> {
-    state
-        .agents
-        .iter()
-        .map(|a| (a.pane_id.clone(), a.status))
-        .collect()
+    state.agents.iter().map(|a| (a.pane_id.clone(), a.status)).collect()
 }
 
 fn agent_line(state: &MachineState, agent: &Agent, prev: Option<AgentStatus>) -> Value {

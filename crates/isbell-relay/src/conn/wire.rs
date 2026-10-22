@@ -47,10 +47,7 @@ pub async fn ping(socket: &mut WebSocket) -> Result<()> {
 }
 
 pub async fn close(mut socket: WebSocket, code: u16, reason: &'static str) {
-    let frame = CloseFrame {
-        code,
-        reason: reason.into(),
-    };
+    let frame = CloseFrame { code, reason: reason.into() };
     if let Err(err) = socket.send(Message::Close(Some(frame))).await {
         tracing::debug!(%err, "close frame not delivered");
     }

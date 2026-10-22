@@ -63,10 +63,7 @@ pub async fn run(opts: GatewayOptions) -> Result<(), GatewayError> {
     let slot: HerdrSlot = Arc::default();
     let (state_tx, state_rx) = watch::channel(None);
     let (refresh_tx, refresh_rx) = mpsc::channel(1);
-    let caps = Caps {
-        methods: rpc::methods(),
-        agent_kinds: state::agent_kinds(),
-    };
+    let caps = Caps { methods: rpc::methods(), agent_kinds: state::agent_kinds() };
     let tracker = StateTracker::new(opts.machine.clone(), caps);
     let mut state_task = AbortOnDrop(tokio::spawn(state_loop(
         tracker,
@@ -137,20 +134,15 @@ async fn follow(
     let mut watcher: Option<(Vec<String>, AbortOnDrop<()>)> = None;
     let mut poll = tokio::time::interval(POLL_EVERY);
     loop {
-        let result = match herdr
-            .request("session.snapshot", json!({}), Some(SNAPSHOT_TIMEOUT))
-            .await
-        {
-            Ok(result) => result,
-            Err(err) => break err,
-        };
+        let result =
+            match herdr.request("session.snapshot", json!({}), Some(SNAPSHOT_TIMEOUT)).await {
+                Ok(result) => result,
+                Err(err) => break err,
+            };
         let infos = match snapshot_agents(&result) {
             Ok(infos) => infos,
             Err(err) => {
-                break herdr::HerdrError {
-                    code: "herdr_error".into(),
-                    message: err.to_string(),
-                };
+                break herdr::HerdrError { code: "herdr_error".into(), message: err.to_string() };
             }
         };
         let agents = derive_agents(infos, tracker.agents(), now_ms());
@@ -221,11 +213,7 @@ async fn relay_loop(
 ) -> Result<(), RelayError> {
     let (responses, rx) = mpsc::unbounded_channel();
     let mut outbox = Outbox { rx, retry: None };
-    let mut calls = Calls {
-        tasks: JoinSet::new(),
-        responses,
-        streams: Arc::default(),
-    };
+    let mut calls = Calls { tasks: JoinSet::new(), responses, streams: Arc::default() };
     let mut attempt = 0;
     loop {
         let result =
@@ -304,20 +292,12 @@ async fn serve(
 /// Handles one frame from the relay: calls start tasks, stream frames feed open streams.
 fn dispatch(frame: Frame, slot: &HerdrSlot, refresh_tx: &mpsc::Sender<()>, calls: &mut Calls) {
     match frame.header {
-        Header::Call {
-            id,
-            m,
-            p,
-            from: Some(to),
-            ..
-        } => {
+        Header::Call { id, m, p, from: Some(to), .. } => {
             let herdr = slot.read().expect("herdr slot poisoned").clone();
             let responses = calls.responses.clone();
             if m == rpc::TERMINAL {
                 let streams = Arc::clone(&calls.streams);
-                calls
-                    .tasks
-                    .spawn(terminal_stream(herdr, id, to, p, responses, streams));
+                calls.tasks.spawn(terminal_stream(herdr, id, to, p, responses, streams));
                 return;
             }
             let refresh = refresh_tx.clone();
@@ -329,14 +309,7 @@ fn dispatch(frame: Frame, slot: &HerdrSlot, refresh_tx: &mpsc::Sender<()>, calls
                 respond(&responses, id, to, result);
             });
         }
-        Header::Data {
-            id,
-            k,
-            cols,
-            rows,
-            from: Some(from),
-            ..
-        } => {
+        Header::Data { id, k, cols, rows, from: Some(from), .. } => {
             let input = match (k, cols, rows) {
                 (DataKind::Input, ..) => Input::Bytes(frame.body.unwrap_or_default()),
                 (DataKind::Resize, Some(cols @ 1..), Some(rows @ 1..)) => Input::Resize(cols, rows),
@@ -351,11 +324,7 @@ fn dispatch(frame: Frame, slot: &HerdrSlot, refresh_tx: &mpsc::Sender<()>, calls
             };
             feed(&calls.streams, from, id, input);
         }
-        Header::End {
-            id,
-            from: Some(from),
-            ..
-        } => feed(&calls.streams, from, id, Input::Close),
+        Header::End { id, from: Some(from), .. } => feed(&calls.streams, from, id, Input::Close),
         _ => tracing::debug!("ignoring unexpected frame from relay"),
     }
 }
@@ -370,25 +339,14 @@ fn respond(
         Ok(r) => (true, Some(r), None),
         Err(e) => (false, None, Some(e)),
     };
-    let res = Header::Res {
-        id,
-        ok,
-        r,
-        e,
-        mid: None,
-        to: Some(to),
-    };
+    let res = Header::Res { id, ok, r, e, mid: None, to: Some(to) };
     if responses.send(Frame::new(res)).is_err() {
         tracing::debug!(id, "gateway stopped before the response");
     }
 }
 
 fn feed(streams: &Streams, from: String, id: u64, input: Input) {
-    let stream = streams
-        .lock()
-        .expect("streams poisoned")
-        .get(&(from, id))
-        .cloned();
+    let stream = streams.lock().expect("streams poisoned").get(&(from, id)).cloned();
     match stream.map(|tx| tx.try_send(input)) {
         Some(Ok(())) => {}
         Some(Err(err)) => tracing::warn!(id, %err, "terminal input dropped"),
@@ -415,10 +373,7 @@ async fn terminal_stream(
         {
             let mut open = streams.lock().expect("streams poisoned");
             if open.len() >= terminal::MAX_TERMINALS {
-                return Err(RpcError::new(
-                    "too_many_terminals",
-                    "too many open terminals",
-                ));
+                return Err(RpcError::new("too_many_terminals", "too many open terminals"));
             }
             // Registered before the response so input sent right after it is not lost.
             open.insert(key.clone(), input_tx);
@@ -435,12 +390,7 @@ async fn terminal_stream(
     respond(&responses, id, to.clone(), Ok(r));
     terminal::pump(session, input_rx, |out| {
         let frame = match out {
-            Output::Frame {
-                body,
-                full,
-                cols,
-                rows,
-            } => {
+            Output::Frame { body, full, cols, rows } => {
                 let header = Header::Data {
                     id,
                     k: DataKind::Frame,
@@ -451,18 +401,11 @@ async fn terminal_stream(
                     from: None,
                     to: Some(to.clone()),
                 };
-                Frame {
-                    header,
-                    body: Some(body),
-                }
+                Frame { header, body: Some(body) }
             }
-            Output::End(e) => Frame::new(Header::End {
-                id,
-                e,
-                mid: None,
-                from: None,
-                to: Some(to.clone()),
-            }),
+            Output::End(e) => {
+                Frame::new(Header::End { id, e, mid: None, from: None, to: Some(to.clone()) })
+            }
         };
         if responses.send(frame).is_err() {
             tracing::debug!(id, "gateway stopped while streaming");

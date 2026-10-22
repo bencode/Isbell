@@ -22,17 +22,11 @@ pub async fn gateway(
         bus.publish(&conn_channel(&previous), KICK.to_vec()).await?;
     }
     let subs = vec![
-        bus.subscribe(&gateway_channel(sid, mid), inbox.clone())
-            .await?,
-        bus.subscribe(&conn_channel(&authed.conn), inbox.clone())
-            .await?,
+        bus.subscribe(&gateway_channel(sid, mid), inbox.clone()).await?,
+        bus.subscribe(&conn_channel(&authed.conn), inbox.clone()).await?,
     ];
-    let online = Header::Presence {
-        mid: mid.to_owned(),
-        online: true,
-    };
-    bus.publish(&clients_channel(sid), Frame::new(online).encode_binary())
-        .await?;
+    let online = Header::Presence { mid: mid.to_owned(), online: true };
+    bus.publish(&clients_channel(sid), Frame::new(online).encode_binary()).await?;
     ack(socket, authed).await?;
     Ok(subs)
 }
@@ -47,8 +41,7 @@ pub async fn client(
     let (bus, sid) = (&ctx.bus, authed.sid.as_str());
     let subs = vec![
         bus.subscribe(&clients_channel(sid), inbox.clone()).await?,
-        bus.subscribe(&conn_channel(&authed.conn), inbox.clone())
-            .await?,
+        bus.subscribe(&conn_channel(&authed.conn), inbox.clone()).await?,
     ];
     ack(socket, authed).await?;
     let machines = bus
@@ -69,9 +62,6 @@ pub async fn client(
 
 /// Sent only once the connection is routable, so a gateway that sees `auth_ok` can already receive calls.
 async fn ack(socket: &mut WebSocket, authed: &Authed) -> Result<()> {
-    let ok = Header::AuthOk {
-        sid: authed.sid.clone(),
-        conn: authed.conn.clone(),
-    };
+    let ok = Header::AuthOk { sid: authed.sid.clone(), conn: authed.conn.clone() };
     wire::send(socket, &Frame::new(ok)).await
 }

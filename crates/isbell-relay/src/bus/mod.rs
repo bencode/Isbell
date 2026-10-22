@@ -65,9 +65,7 @@ impl Bus {
     }
 
     pub async fn ping(&self) -> Result<()> {
-        let _pong: String = redis::cmd("PING")
-            .query_async(&mut self.cmd.clone())
-            .await?;
+        let _pong: String = redis::cmd("PING").query_async(&mut self.cmd.clone()).await?;
         Ok(())
     }
 }

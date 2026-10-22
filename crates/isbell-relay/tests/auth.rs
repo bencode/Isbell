@@ -32,17 +32,13 @@ async fn rejects_frames_not_allowed_for_the_role() {
     let relay = start(Limits::default()).await;
     let id = Identity::generate();
     let (mut client, _) = Peer::client(&relay, &id).await;
-    client
-        .send(Frame::new(Header::State { state: json!({}) }))
-        .await;
+    client.send(Frame::new(Header::State { state: json!({}) })).await;
     assert_eq!(client.closed_with().await, CLOSE_BAD_FRAME);
 
     let mid = random_mid();
     let mut gateway = Peer::gateway(&relay, &id, &mid).await;
     gateway
-        .send(Frame::new(Header::State {
-            state: json!({"machine": {"id": random_mid()}}),
-        }))
+        .send(Frame::new(Header::State { state: json!({"machine": {"id": random_mid()}}) }))
         .await;
     assert_eq!(gateway.closed_with().await, CLOSE_BAD_FRAME);
 }

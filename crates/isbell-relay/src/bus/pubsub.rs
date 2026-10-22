@@ -65,11 +65,7 @@ impl Bus {
             list.push((id, tx));
             list.len() == 1
         };
-        let subscription = Subscription {
-            bus: self.clone(),
-            channel: channel.to_owned(),
-            id,
-        };
+        let subscription = Subscription { bus: self.clone(), channel: channel.to_owned(), id };
         if first {
             self.sink.clone().subscribe(channel).await?;
         }

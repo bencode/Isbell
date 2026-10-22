@@ -118,13 +118,7 @@ impl Session {
             Arc::clone(&inflight),
             events.clone(),
         ));
-        Ok(Session {
-            shared,
-            inflight,
-            out,
-            events,
-            next_id: AtomicU64::new(1),
-        })
+        Ok(Session { shared, inflight, out, events, next_id: AtomicU64::new(1) })
     }
 
     /// Every known machine with its online flag, ordered by name.
@@ -133,12 +127,7 @@ impl Session {
         let mut machines: Vec<_> = shared
             .states
             .values()
-            .map(|s| {
-                (
-                    s.clone(),
-                    shared.online.get(&s.machine.id).copied().unwrap_or(false),
-                )
-            })
+            .map(|s| (s.clone(), shared.online.get(&s.machine.id).copied().unwrap_or(false)))
             .collect();
         machines.sort_by(|a, b| {
             (&a.0.machine.name, &a.0.machine.id).cmp(&(&b.0.machine.name, &b.0.machine.id))
@@ -172,10 +161,7 @@ impl Session {
     ) -> Result<(Value, Stream), RpcError> {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let (tx, rx) = mpsc::unbounded_channel();
-        let slot = StreamSlot {
-            target: self.target(mid),
-            tx,
-        };
+        let slot = StreamSlot { target: self.target(mid), tx };
         // Registered before the call so no data after the response is missed.
         self.inflight
             .lock()
@@ -197,17 +183,8 @@ impl Session {
     }
 
     fn target(&self, mid: &str) -> Target {
-        let boot = self
-            .shared
-            .lock()
-            .expect("session poisoned")
-            .states
-            .get(mid)
-            .map(|s| s.boot);
-        Target {
-            mid: mid.to_owned(),
-            boot,
-        }
+        let boot = self.shared.lock().expect("session poisoned").states.get(mid).map(|s| s.boot);
+        Target { mid: mid.to_owned(), boot }
     }
 
     async fn request(
@@ -219,10 +196,7 @@ impl Session {
         timeout: Option<Duration>,
     ) -> Result<Value, RpcError> {
         let (tx, rx) = oneshot::channel();
-        let waiter = Waiter {
-            target: self.target(mid),
-            tx,
-        };
+        let waiter = Waiter { target: self.target(mid), tx };
         self.inflight
             .lock()
             .expect("session poisoned")
@@ -230,13 +204,7 @@ impl Session {
             .ok_or_else(disconnected)?
             .calls
             .insert(id, waiter);
-        let call = Header::Call {
-            id,
-            m: m.into(),
-            p,
-            mid: Some(mid.into()),
-            from: None,
-        };
+        let call = Header::Call { id, m: m.into(), p, mid: Some(mid.into()), from: None };
         if self.out.send(Frame::new(call)).is_err() {
             self.forget_call(id);
             return Err(disconnected());
@@ -244,10 +212,7 @@ impl Session {
         let reply = match timeout {
             Some(limit) => tokio::time::timeout(limit, rx).await.map_err(|_| {
                 self.forget_call(id);
-                RpcError::new(
-                    "timeout",
-                    format!("no response within {}s", limit.as_secs()),
-                )
+                RpcError::new("timeout", format!("no response within {}s", limit.as_secs()))
             })?,
             None => rx.await,
         };
@@ -263,11 +228,7 @@ impl Session {
 
 impl Stream {
     pub async fn next(&mut self) -> StreamEvent {
-        let event = self
-            .rx
-            .recv()
-            .await
-            .unwrap_or_else(|| StreamEvent::End(Some(disconnected())));
+        let event = self.rx.recv().await.unwrap_or_else(|| StreamEvent::End(Some(disconnected())));
         self.ended |= matches!(event, StreamEvent::End(_));
         event
     }
@@ -362,20 +323,12 @@ async fn read_loop(
                 }
                 None
             }
-            Header::Data {
-                id,
-                k: DataKind::Frame,
-                full,
-                ..
-            } => {
+            Header::Data { id, k: DataKind::Frame, full, .. } => {
                 let body = frame.body.unwrap_or_default();
                 deliver(
                     &inflight,
                     id,
-                    StreamEvent::Frame {
-                        body,
-                        full: full.unwrap_or(false),
-                    },
+                    StreamEvent::Frame { body, full: full.unwrap_or(false) },
                     false,
                 );
                 None
@@ -395,9 +348,7 @@ async fn read_loop(
                         .get(&state.machine.id)
                         .is_none_or(|old| state.is_newer_than(old));
                     newer.then(|| {
-                        shared
-                            .states
-                            .insert(state.machine.id.clone(), state.clone());
+                        shared.states.insert(state.machine.id.clone(), state.clone());
                         SessionEvent::State(Box::new(state))
                     })
                 }
@@ -409,15 +360,9 @@ async fn read_loop(
             Header::Presence { mid, online } => {
                 if !online {
                     // The gateway is gone, and with it every call and stream it was serving.
-                    fail(&inflight, "machine went offline before answering", |t| {
-                        t.mid == mid
-                    });
+                    fail(&inflight, "machine went offline before answering", |t| t.mid == mid);
                 }
-                shared
-                    .lock()
-                    .expect("session poisoned")
-                    .online
-                    .insert(mid.clone(), online);
+                shared.lock().expect("session poisoned").online.insert(mid.clone(), online);
                 Some(SessionEvent::Presence { mid, online })
             }
             _ => None,
@@ -462,24 +407,16 @@ fn fail(inflight: &Mutex<Option<Inflight>>, reason: &str, lost: impl Fn(&Target)
         return;
     };
     let err = || RpcError::new("machine_offline", reason);
-    let calls: Vec<u64> = inflight
-        .calls
-        .iter()
-        .filter(|(_, w)| lost(&w.target))
-        .map(|(id, _)| *id)
-        .collect();
+    let calls: Vec<u64> =
+        inflight.calls.iter().filter(|(_, w)| lost(&w.target)).map(|(id, _)| *id).collect();
     for id in calls {
         let waiter = inflight.calls.remove(&id).expect("listed above");
         if waiter.tx.send(Err(err())).is_err() {
             tracing::debug!(id, "caller stopped waiting");
         }
     }
-    let streams: Vec<u64> = inflight
-        .streams
-        .iter()
-        .filter(|(_, s)| lost(&s.target))
-        .map(|(id, _)| *id)
-        .collect();
+    let streams: Vec<u64> =
+        inflight.streams.iter().filter(|(_, s)| lost(&s.target)).map(|(id, _)| *id).collect();
     for id in streams {
         let slot = inflight.streams.remove(&id).expect("listed above");
         if slot.tx.send(StreamEvent::End(Some(err()))).is_err() {

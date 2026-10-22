@@ -58,9 +58,7 @@ pub struct Peer {
 
 impl Peer {
     pub async fn open(relay: &RelayHandle) -> (WebSocketStream<MaybeTlsStream<TcpStream>>, String) {
-        let (mut ws, _) = connect_async(format!("ws://{}/v1/ws", relay.addr))
-            .await
-            .unwrap();
+        let (mut ws, _) = connect_async(format!("ws://{}/v1/ws", relay.addr)).await.unwrap();
         let Header::Challenge { nonce, origin } = recv_on(&mut ws).await.header else {
             panic!("expected challenge")
         };
@@ -70,11 +68,7 @@ impl Peer {
 
     pub async fn connect(relay: &RelayHandle, id: &Identity, machine: Option<MachineInfo>) -> Peer {
         let (mut ws, nonce) = Self::open(relay).await;
-        let role = if machine.is_some() {
-            Role::Gateway
-        } else {
-            Role::Client
-        };
+        let role = if machine.is_some() { Role::Gateway } else { Role::Client };
         let auth = Header::Auth {
             role,
             pk: id.public_key(),
@@ -99,10 +93,7 @@ impl Peer {
         let Header::Snapshot { machines } = peer.recv().await.header else {
             panic!("expected snapshot")
         };
-        (
-            peer,
-            machines.into_iter().map(|m| (m.state, m.online)).collect(),
-        )
+        (peer, machines.into_iter().map(|m| (m.state, m.online)).collect())
     }
 
     pub async fn send(&mut self, frame: Frame) {
@@ -170,12 +161,7 @@ pub fn call(id: u64, mid: &str) -> Frame {
 
 pub fn error_code(frame: &Frame) -> Option<&str> {
     match &frame.header {
-        Header::Res {
-            ok: false,
-            e: Some(e),
-            ..
-        }
-        | Header::End { e: Some(e), .. } => Some(&e.code),
+        Header::Res { ok: false, e: Some(e), .. } | Header::End { e: Some(e), .. } => Some(&e.code),
         _ => None,
     }
 }
@@ -191,8 +177,5 @@ pub fn data(id: u64, k: DataKind, mid: Option<&str>, to: Option<&str>, body: Vec
         from: None,
         to: to.map(str::to_owned),
     };
-    Frame {
-        header,
-        body: Some(body),
-    }
+    Frame { header, body: Some(body) }
 }

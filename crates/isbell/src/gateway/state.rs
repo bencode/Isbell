@@ -77,9 +77,8 @@ pub fn derive_agents(infos: Vec<AgentInfo>, prev: &[Agent], now: u64) -> Vec<Age
 
 /// Agent kinds whose executable is on this process's PATH.
 pub fn agent_kinds() -> Vec<String> {
-    let dirs: Vec<_> = std::env::var_os("PATH")
-        .map(|p| std::env::split_paths(&p).collect())
-        .unwrap_or_default();
+    let dirs: Vec<_> =
+        std::env::var_os("PATH").map(|p| std::env::split_paths(&p).collect()).unwrap_or_default();
     AGENT_KINDS
         .iter()
         .filter(|(_, exe)| dirs.iter().any(|d| d.join(exe).is_file()))
@@ -97,12 +96,7 @@ pub struct StateTracker {
 
 impl StateTracker {
     pub fn new(machine: MachineInfo, caps: Caps) -> Self {
-        Self {
-            machine,
-            caps,
-            boot: now_ms(),
-            current: None,
-        }
+        Self { machine, caps, boot: now_ms(), current: None }
     }
 
     pub fn agents(&self) -> &[Agent] {
@@ -111,10 +105,8 @@ impl StateTracker {
 
     /// The new state when it differs from the last one.
     pub fn update(&mut self, herdr: HerdrState, agents: Vec<Agent>) -> Option<&MachineState> {
-        let unchanged = self
-            .current
-            .as_ref()
-            .is_some_and(|s| s.herdr == herdr && s.agents == agents);
+        let unchanged =
+            self.current.as_ref().is_some_and(|s| s.herdr == herdr && s.agents == agents);
         if unchanged {
             return None;
         }
@@ -145,15 +137,8 @@ mod tests {
     #[test]
     fn derives_agents_with_fallbacks() {
         let agents = derive_agents(fixture(), &[], 100);
-        let reviewer = agents
-            .iter()
-            .find(|a| a.name.as_deref() == Some("reviewer"))
-            .unwrap();
-        assert_eq!(
-            reviewer.kind.as_deref(),
-            Some("Claude Code"),
-            "display_agent wins over agent"
-        );
+        let reviewer = agents.iter().find(|a| a.name.as_deref() == Some("reviewer")).unwrap();
+        assert_eq!(reviewer.kind.as_deref(), Some("Claude Code"), "display_agent wins over agent");
         assert_eq!(
             reviewer.cwd.as_deref(),
             Some("/Users/dev/work/isbell/crates"),
@@ -188,21 +173,11 @@ mod tests {
             os: "macos".into(),
             version: "0".into(),
         };
-        let ready = || HerdrState {
-            status: HerdrStatus::Ready,
-            version: None,
-            protocol: None,
-        };
+        let ready = || HerdrState { status: HerdrStatus::Ready, version: None, protocol: None };
         let mut tracker = StateTracker::new(machine, Caps::default());
         let agents = derive_agents(fixture(), &[], 1);
-        assert_eq!(
-            tracker.update(ready(), agents.clone()).map(|s| s.rev),
-            Some(0)
-        );
+        assert_eq!(tracker.update(ready(), agents.clone()).map(|s| s.rev), Some(0));
         assert!(tracker.update(ready(), agents.clone()).is_none());
-        assert_eq!(
-            tracker.update(ready(), agents[..1].to_vec()).map(|s| s.rev),
-            Some(1)
-        );
+        assert_eq!(tracker.update(ready(), agents[..1].to_vec()).map(|s| s.rev), Some(1));
     }
 }

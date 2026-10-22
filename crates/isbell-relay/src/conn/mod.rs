@@ -69,12 +69,8 @@ pub async fn handle_socket(mut socket: WebSocket, ctx: Arc<Ctx>) {
         machine: admitted.machine,
     };
     let mid = authed.machine.as_ref().map(|m| m.id.clone());
-    let span = tracing::info_span!(
-        "conn",
-        sid = &authed.sid[..6],
-        role = authed.role.as_str(),
-        mid
-    );
+    let span =
+        tracing::info_span!("conn", sid = &authed.sid[..6], role = authed.role.as_str(), mid);
     async move {
         tracing::info!(event = "auth");
         let code = match run(&mut socket, &ctx, &authed).await {
@@ -113,14 +109,8 @@ async fn release(ctx: &Ctx, authed: &Authed, mid: &str) {
     let sid = authed.sid.as_str();
     match ctx.bus.release_gateway(sid, mid, &authed.conn).await {
         Ok(true) => {
-            let offline = Frame::new(Header::Presence {
-                mid: mid.to_owned(),
-                online: false,
-            });
-            if let Err(err) = ctx
-                .bus
-                .publish(&clients_channel(sid), offline.encode_binary())
-                .await
+            let offline = Frame::new(Header::Presence { mid: mid.to_owned(), online: false });
+            if let Err(err) = ctx.bus.publish(&clients_channel(sid), offline.encode_binary()).await
             {
                 tracing::error!(%err, "cannot announce the machine offline");
             }

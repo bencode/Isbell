@@ -103,10 +103,7 @@ pub struct RpcError {
 
 impl RpcError {
     pub fn new(code: &str, msg: impl Into<String>) -> Self {
-        Self {
-            code: code.to_owned(),
-            msg: msg.into(),
-        }
+        Self { code: code.to_owned(), msg: msg.into() }
     }
 }
 
@@ -157,45 +154,12 @@ impl Header {
     pub fn rerouted(self, route: Route) -> Header {
         let Route { mid, from, to } = route;
         match self {
-            Header::Call { id, m, p, .. } => Header::Call {
-                id,
-                m,
-                p,
-                mid,
-                from,
-            },
-            Header::Res { id, ok, r, e, .. } => Header::Res {
-                id,
-                ok,
-                r,
-                e,
-                mid,
-                to,
-            },
-            Header::Data {
-                id,
-                k,
-                full,
-                cols,
-                rows,
-                ..
-            } => Header::Data {
-                id,
-                k,
-                full,
-                cols,
-                rows,
-                mid,
-                from,
-                to,
-            },
-            Header::End { id, e, .. } => Header::End {
-                id,
-                e,
-                mid,
-                from,
-                to,
-            },
+            Header::Call { id, m, p, .. } => Header::Call { id, m, p, mid, from },
+            Header::Res { id, ok, r, e, .. } => Header::Res { id, ok, r, e, mid, to },
+            Header::Data { id, k, full, cols, rows, .. } => {
+                Header::Data { id, k, full, cols, rows, mid, from, to }
+            }
+            Header::End { id, e, .. } => Header::End { id, e, mid, from, to },
             other => other,
         }
     }
@@ -221,37 +185,18 @@ mod tests {
 
     #[test]
     fn rerouting_replaces_only_the_routing_fields() {
-        let to_client = Route {
-            mid: Some("m".into()),
-            ..Route::default()
-        };
-        let header = data(Route {
-            from: Some("c".into()),
-            to: Some("x".into()),
-            ..Route::default()
-        })
-        .rerouted(to_client.clone());
+        let to_client = Route { mid: Some("m".into()), ..Route::default() };
+        let header =
+            data(Route { from: Some("c".into()), to: Some("x".into()), ..Route::default() })
+                .rerouted(to_client.clone());
         assert_eq!(header.route(), Some(to_client));
         assert_eq!(header.id(), Some(4));
-        assert!(matches!(
-            header,
-            Header::Data {
-                k: DataKind::Input,
-                ..
-            }
-        ));
+        assert!(matches!(header, Header::Data { k: DataKind::Input, .. }));
     }
 
     #[test]
     fn kinds_without_a_field_ignore_it() {
-        let res = Header::Res {
-            id: 1,
-            ok: true,
-            r: None,
-            e: None,
-            mid: None,
-            to: None,
-        };
+        let res = Header::Res { id: 1, ok: true, r: None, e: None, mid: None, to: None };
         let rerouted = res.rerouted(Route {
             mid: Some("m".into()),
             from: Some("ignored".into()),
@@ -259,19 +204,8 @@ mod tests {
         });
         assert_eq!(
             rerouted.route(),
-            Some(Route {
-                mid: Some("m".into()),
-                from: None,
-                to: Some("c".into())
-            })
+            Some(Route { mid: Some("m".into()), from: None, to: Some("c".into()) })
         );
-        assert_eq!(
-            Header::Presence {
-                mid: "m".into(),
-                online: true
-            }
-            .route(),
-            None
-        );
+        assert_eq!(Header::Presence { mid: "m".into(), online: true }.route(), None);
     }
 }

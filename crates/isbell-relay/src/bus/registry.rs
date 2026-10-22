@@ -44,18 +44,12 @@ pub(super) struct Scripts {
 
 impl Scripts {
     pub(super) fn new() -> Self {
-        Self {
-            refresh: Script::new(REFRESH),
-            release: Script::new(RELEASE),
-        }
+        Self { refresh: Script::new(REFRESH), release: Script::new(RELEASE) }
     }
 }
 
 fn now_ms() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("clock after epoch")
-        .as_millis() as u64
+    SystemTime::now().duration_since(UNIX_EPOCH).expect("clock after epoch").as_millis() as u64
 }
 
 impl Bus {
@@ -127,20 +121,13 @@ impl Bus {
             pipe
         });
         let rows: Vec<(Option<String>, bool)> = pipe.query_async(&mut cmd).await?;
-        Ok(rows
-            .into_iter()
-            .filter_map(|(state, online)| Some((state?, online)))
-            .collect())
+        Ok(rows.into_iter().filter_map(|(state, online)| Some((state?, online))).collect())
     }
 
     /// Forgets machines not seen for 15 minutes.
     async fn prune_machines(&self, sid: &str) -> Result<()> {
         let cutoff = now_ms().saturating_sub(STATE_TTL_SECS * 1000);
-        let _pruned: i64 = self
-            .cmd
-            .clone()
-            .zrembyscore(machines_key(sid), "-inf", cutoff)
-            .await?;
+        let _pruned: i64 = self.cmd.clone().zrembyscore(machines_key(sid), "-inf", cutoff).await?;
         Ok(())
     }
 }

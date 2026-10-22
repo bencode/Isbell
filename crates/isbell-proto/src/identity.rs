@@ -61,10 +61,7 @@ impl Identity {
     }
 
     pub fn parse(key: &str) -> Result<Self, IdentityError> {
-        let encoded = key
-            .trim()
-            .strip_prefix(KEY_PREFIX)
-            .ok_or(IdentityError::Prefix)?;
+        let encoded = key.trim().strip_prefix(KEY_PREFIX).ok_or(IdentityError::Prefix)?;
         let bytes = BASE32_NOPAD
             .decode(encoded.to_ascii_uppercase().as_bytes())
             .map_err(|_| IdentityError::Encoding)?;
@@ -83,22 +80,12 @@ impl Identity {
         Hkdf::<Sha256>::new(None, &secret)
             .expand(SEED_INFO, &mut seed)
             .expect("32 bytes is a valid HKDF-SHA256 output length");
-        Self {
-            secret,
-            signing: SigningKey::from_bytes(&seed),
-        }
+        Self { secret, signing: SigningKey::from_bytes(&seed) }
     }
 
     pub fn key_string(&self) -> String {
-        let bytes = [
-            &self.secret[..],
-            &Sha256::digest(self.secret)[..CHECKSUM_LEN],
-        ]
-        .concat();
-        format!(
-            "{KEY_PREFIX}{}",
-            BASE32_NOPAD.encode(&bytes).to_ascii_lowercase()
-        )
+        let bytes = [&self.secret[..], &Sha256::digest(self.secret)[..CHECKSUM_LEN]].concat();
+        format!("{KEY_PREFIX}{}", BASE32_NOPAD.encode(&bytes).to_ascii_lowercase())
     }
 
     pub fn public_key(&self) -> String {
@@ -117,22 +104,10 @@ impl Identity {
 
 /// Verifies a challenge signature; returns the space id on success.
 pub fn verify_auth(pk: &str, sig: &str, role: Role, origin: &str, nonce: &str) -> Option<String> {
-    let pk: [u8; 32] = BASE64URL_NOPAD
-        .decode(pk.as_bytes())
-        .ok()?
-        .try_into()
-        .ok()?;
-    let sig: [u8; 64] = BASE64URL_NOPAD
-        .decode(sig.as_bytes())
-        .ok()?
-        .try_into()
-        .ok()?;
+    let pk: [u8; 32] = BASE64URL_NOPAD.decode(pk.as_bytes()).ok()?.try_into().ok()?;
+    let sig: [u8; 64] = BASE64URL_NOPAD.decode(sig.as_bytes()).ok()?.try_into().ok()?;
     let key = VerifyingKey::from_bytes(&pk).ok()?;
-    key.verify(
-        &auth_message(role, origin, nonce),
-        &Signature::from_bytes(&sig),
-    )
-    .ok()?;
+    key.verify(&auth_message(role, origin, nonce), &Signature::from_bytes(&sig)).ok()?;
     Some(sid_of(&key))
 }
 
@@ -180,23 +155,12 @@ mod tests {
             Identity::parse(&key.replace("isbk1-", "isbk2-")).err(),
             Some(IdentityError::Prefix)
         );
-        assert_eq!(
-            Identity::parse(&key[..key.len() - 3]).err(),
-            Some(IdentityError::Encoding)
-        );
+        assert_eq!(Identity::parse(&key[..key.len() - 3]).err(), Some(IdentityError::Encoding));
         let last = key.chars().last().unwrap();
-        let flipped = format!(
-            "{}{}",
-            &key[..key.len() - 1],
-            if last == 'a' { 'b' } else { 'a' }
-        );
+        let flipped = format!("{}{}", &key[..key.len() - 1], if last == 'a' { 'b' } else { 'a' });
         assert!(Identity::parse(&flipped).is_err());
         let mut tampered = key.clone().into_bytes();
-        tampered[KEY_PREFIX.len()] = if tampered[KEY_PREFIX.len()] == b'a' {
-            b'b'
-        } else {
-            b'a'
-        };
+        tampered[KEY_PREFIX.len()] = if tampered[KEY_PREFIX.len()] == b'a' { b'b' } else { b'a' };
         assert_eq!(
             Identity::parse(&String::from_utf8(tampered).unwrap()).err(),
             Some(IdentityError::Checksum)
@@ -208,15 +172,9 @@ mod tests {
         let id = known();
         let sig = id.sign_auth(Role::Gateway, ORIGIN, NONCE);
         let pk = id.public_key();
-        assert_eq!(
-            verify_auth(&pk, &sig, Role::Gateway, ORIGIN, NONCE),
-            Some(id.sid())
-        );
+        assert_eq!(verify_auth(&pk, &sig, Role::Gateway, ORIGIN, NONCE), Some(id.sid()));
         assert_eq!(verify_auth(&pk, &sig, Role::Client, ORIGIN, NONCE), None);
-        assert_eq!(
-            verify_auth(&pk, &sig, Role::Gateway, "wss://evil.example", NONCE),
-            None
-        );
+        assert_eq!(verify_auth(&pk, &sig, Role::Gateway, "wss://evil.example", NONCE), None);
         assert_eq!(verify_auth(&pk, &sig, Role::Gateway, ORIGIN, "other"), None);
     }
 
@@ -224,14 +182,8 @@ mod tests {
     fn verify_rejects_malformed_input() {
         let id = known();
         let sig = id.sign_auth(Role::Client, ORIGIN, NONCE);
-        assert_eq!(
-            verify_auth("not base64!", &sig, Role::Client, ORIGIN, NONCE),
-            None
-        );
-        assert_eq!(
-            verify_auth(&id.public_key(), "AAAA", Role::Client, ORIGIN, NONCE),
-            None
-        );
+        assert_eq!(verify_auth("not base64!", &sig, Role::Client, ORIGIN, NONCE), None);
+        assert_eq!(verify_auth(&id.public_key(), "AAAA", Role::Client, ORIGIN, NONCE), None);
         assert_eq!(verify_auth("AAAA", &sig, Role::Client, ORIGIN, NONCE), None);
     }
 

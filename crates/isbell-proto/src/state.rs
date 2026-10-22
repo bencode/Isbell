@@ -134,10 +134,7 @@ mod tests {
             version: "v".into(),
         };
         assert!(valid.is_valid());
-        let upper = MachineInfo {
-            id: "0123456789ABCDEF".into(),
-            ..valid
-        };
+        let upper = MachineInfo { id: "0123456789ABCDEF".into(), ..valid };
         assert!(!upper.is_valid());
     }
 }

@@ -22,15 +22,10 @@ pub async fn serve(socket: &mut WebSocket, ctx: &Ctx, authed: &Authed, mid: &str
     let _subs = setup::gateway(socket, ctx, authed, mid, &inbox).await?;
     let limits = ctx.config.limits;
     // Gateways are limited per byte by slowing our reads: backpressure, never dropping.
-    let mut bucket = TokenBucket::new(
-        limits.gateway_bytes_per_sec,
-        limits.gateway_burst_bytes,
-        Instant::now(),
-    );
-    let (mut ping, mut refresh) = (
-        tokio::time::interval(PING_EVERY),
-        tokio::time::interval(REFRESH_EVERY),
-    );
+    let mut bucket =
+        TokenBucket::new(limits.gateway_bytes_per_sec, limits.gateway_burst_bytes, Instant::now());
+    let (mut ping, mut refresh) =
+        (tokio::time::interval(PING_EVERY), tokio::time::interval(REFRESH_EVERY));
     let mut last_seen = Instant::now();
     loop {
         tokio::select! {
@@ -78,14 +73,10 @@ async fn on_frame(
     match route::route_gateway(sid, mid, frame) {
         GatewayRoute::State { json, frame } => {
             ctx.bus.put_state(sid, mid, &json).await?;
-            ctx.bus
-                .publish(&clients_channel(sid), frame.encode_binary())
-                .await?;
+            ctx.bus.publish(&clients_channel(sid), frame.encode_binary()).await?;
         }
         GatewayRoute::ToClient { conn, frame } => {
-            ctx.bus
-                .publish(&conn_channel(&conn), frame.encode_binary())
-                .await?;
+            ctx.bus.publish(&conn_channel(&conn), frame.encode_binary()).await?;
         }
         GatewayRoute::Outside => tracing::warn!("dropped a frame addressed outside the space"),
         GatewayRoute::Reject => return Ok(Some(Exit::Close(CLOSE_BAD_FRAME, "frame not allowed"))),

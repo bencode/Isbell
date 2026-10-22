@@ -147,27 +147,18 @@ async fn herdr(
     params: Value,
     timeout: Option<Duration>,
 ) -> Result<Value, CliError> {
-    Ok(session
-        .call(
-            mid,
-            "herdr",
-            json!({"method": method, "params": params}),
-            timeout,
-        )
-        .await?)
+    Ok(session.call(mid, "herdr", json!({"method": method, "params": params}), timeout).await?)
 }
 
 fn find_agent<'s>(state: &'s MachineState, agent: &str) -> Result<&'s Agent, CliError> {
-    state
-        .agents
-        .iter()
-        .find(|a| a.pane_id == agent || a.name.as_deref() == Some(agent))
-        .ok_or_else(|| {
+    state.agents.iter().find(|a| a.pane_id == agent || a.name.as_deref() == Some(agent)).ok_or_else(
+        || {
             CliError::new(
                 "agent_not_found",
                 format!("no agent {agent:?} on {}", state.machine.name),
             )
-        })
+        },
+    )
 }
 
 /// Prints the agent of an `agent_prompted` / `agent_info` result as `label: status`, or the JSON.
@@ -176,10 +167,7 @@ fn print_agent_result(ctx: &Ctx, result: &Value) {
         return ctx.out.json(result);
     }
     let agent = &result["agent"];
-    let label = agent["name"]
-        .as_str()
-        .or(agent["pane_id"].as_str())
-        .unwrap_or("agent");
+    let label = agent["name"].as_str().or(agent["pane_id"].as_str()).unwrap_or("agent");
     println!("{label}: {}", value_str(&agent["agent_status"]));
 }
 
@@ -187,33 +175,15 @@ pub async fn run(ctx: &Ctx, cmd: AgentCmd) -> Result<(), CliError> {
     match cmd {
         AgentCmd::List { machine } => list(ctx, machine.as_deref()).await,
         AgentCmd::Get { target } => get(ctx, &target).await,
-        AgentCmd::Read {
-            target,
-            source,
-            lines,
-            ansi,
-        } => read(ctx, &target, source, lines, ansi).await,
-        AgentCmd::Prompt {
-            target,
-            text,
-            wait,
-            until,
-            timeout,
-        } => prompt(ctx, &target, &text, wait, &until, timeout).await,
-        AgentCmd::Wait {
-            target,
-            until,
-            timeout,
-        } => wait(ctx, &target, &until, timeout).await,
+        AgentCmd::Read { target, source, lines, ansi } => {
+            read(ctx, &target, source, lines, ansi).await
+        }
+        AgentCmd::Prompt { target, text, wait, until, timeout } => {
+            prompt(ctx, &target, &text, wait, &until, timeout).await
+        }
+        AgentCmd::Wait { target, until, timeout } => wait(ctx, &target, &until, timeout).await,
         AgentCmd::SendKeys { target, keys } => send_keys(ctx, &target, keys).await,
-        AgentCmd::Start {
-            machine,
-            cwd,
-            kind,
-            name,
-            prompt,
-            args,
-        } => {
+        AgentCmd::Start { machine, cwd, kind, name, prompt, args } => {
             start(
                 ctx,
                 &machine,
@@ -221,11 +191,9 @@ pub async fn run(ctx: &Ctx, cmd: AgentCmd) -> Result<(), CliError> {
             )
             .await
         }
-        AgentCmd::Rename {
-            target,
-            name,
-            clear,
-        } => rename(ctx, &target, if clear { None } else { name }).await,
+        AgentCmd::Rename { target, name, clear } => {
+            rename(ctx, &target, if clear { None } else { name }).await
+        }
         AgentCmd::Close { target } => close(ctx, &target).await,
     }
 }
@@ -260,14 +228,8 @@ async fn read(
         "target": agent, "source": source, "lines": lines,
         "format": if ansi { "ansi" } else { "text" }, "strip_ansi": !ansi,
     });
-    let result = herdr(
-        &session,
-        &state.machine.id,
-        "agent.read",
-        params,
-        Some(CALL_TIMEOUT),
-    )
-    .await?;
+    let result =
+        herdr(&session, &state.machine.id, "agent.read", params, Some(CALL_TIMEOUT)).await?;
     if ctx.out.json {
         ctx.out.json(&result);
     } else {
@@ -294,11 +256,7 @@ async fn prompt(
     if waiting {
         params["wait"] = wait_spec(until, timeout);
     }
-    let limit = if waiting {
-        wait_timeout(timeout)
-    } else {
-        Some(CALL_TIMEOUT)
-    };
+    let limit = if waiting { wait_timeout(timeout) } else { Some(CALL_TIMEOUT) };
     let result = herdr(&session, &state.machine.id, "agent.prompt", params, limit).await?;
     print_agent_result(ctx, &result);
     Ok(())
@@ -313,14 +271,8 @@ async fn wait(
     let (session, state, agent) = open(ctx, target).await?;
     let mut params = wait_spec(until, timeout);
     params["target"] = json!(agent);
-    let result = herdr(
-        &session,
-        &state.machine.id,
-        "agent.wait",
-        params,
-        wait_timeout(timeout),
-    )
-    .await?;
+    let result =
+        herdr(&session, &state.machine.id, "agent.wait", params, wait_timeout(timeout)).await?;
     print_agent_result(ctx, &result);
     Ok(())
 }
@@ -328,14 +280,8 @@ async fn wait(
 async fn send_keys(ctx: &Ctx, target: &str, keys: Vec<String>) -> Result<(), CliError> {
     let (session, state, agent) = open(ctx, target).await?;
     let params = json!({"target": agent, "keys": keys});
-    let result = herdr(
-        &session,
-        &state.machine.id,
-        "agent.send_keys",
-        params,
-        Some(CALL_TIMEOUT),
-    )
-    .await?;
+    let result =
+        herdr(&session, &state.machine.id, "agent.send_keys", params, Some(CALL_TIMEOUT)).await?;
     print_ok(ctx, &result);
     Ok(())
 }
@@ -344,14 +290,8 @@ async fn start(ctx: &Ctx, machine: &str, params: Value) -> Result<(), CliError> 
     let session = ctx.session().await?;
     let machines = session.machines();
     let (state, _) = resolve_machine(&machines, machine)?;
-    let result = session
-        .call(
-            &state.machine.id,
-            "isbell.agent.start",
-            params,
-            Some(START_TIMEOUT),
-        )
-        .await?;
+    let result =
+        session.call(&state.machine.id, "isbell.agent.start", params, Some(START_TIMEOUT)).await?;
     if ctx.out.json {
         ctx.out.json(&result);
     } else {
@@ -364,14 +304,8 @@ async fn start(ctx: &Ctx, machine: &str, params: Value) -> Result<(), CliError> 
 async fn rename(ctx: &Ctx, target: &str, name: Option<String>) -> Result<(), CliError> {
     let (session, state, agent) = open(ctx, target).await?;
     let params = json!({"target": agent, "name": name});
-    let result = herdr(
-        &session,
-        &state.machine.id,
-        "agent.rename",
-        params,
-        Some(CALL_TIMEOUT),
-    )
-    .await?;
+    let result =
+        herdr(&session, &state.machine.id, "agent.rename", params, Some(CALL_TIMEOUT)).await?;
     print_agent_result(ctx, &result);
     Ok(())
 }
@@ -428,9 +362,6 @@ async fn list(ctx: &Ctx, machine: Option<&str>) -> Result<(), CliError> {
             })
         })
         .collect();
-    ctx.out.table(
-        &["MACHINE", "AGENT", "KIND", "STATUS", "SINCE", "CWD"],
-        &rows,
-    );
+    ctx.out.table(&["MACHINE", "AGENT", "KIND", "STATUS", "SINCE", "CWD"], &rows);
     Ok(())
 }

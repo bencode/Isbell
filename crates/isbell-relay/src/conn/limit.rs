@@ -29,10 +29,7 @@ pub enum Admission {
 
 impl ClientLimiter {
     pub fn new(rate: f64, burst: f64, now: Instant) -> Self {
-        Self {
-            bucket: TokenBucket::new(rate, burst, now),
-            ended: HashSet::new(),
-        }
+        Self { bucket: TokenBucket::new(rate, burst, now), ended: HashSet::new() }
     }
 
     pub fn admit(self, id: u64, is_call: bool, now: Instant) -> (Self, Admission) {
@@ -64,13 +61,10 @@ mod tests {
         frames: &[(u64, bool)],
         now: Instant,
     ) -> (ClientLimiter, Vec<Admission>) {
-        frames.iter().fold(
-            (limiter, Vec::new()),
-            |(limiter, admitted), &(id, is_call)| {
-                let (limiter, admission) = limiter.admit(id, is_call, now);
-                (limiter, admitted.into_iter().chain([admission]).collect())
-            },
-        )
+        frames.iter().fold((limiter, Vec::new()), |(limiter, admitted), &(id, is_call)| {
+            let (limiter, admission) = limiter.admit(id, is_call, now);
+            (limiter, admitted.into_iter().chain([admission]).collect())
+        })
     }
 
     #[test]
@@ -79,34 +73,18 @@ mod tests {
         let limiter = ClientLimiter::new(0.0, 2.0, now);
         let (_, admitted) = admit_all(
             limiter,
-            &[
-                (1, true),
-                (2, false),
-                (3, true),
-                (2, false),
-                (4, false),
-                (4, false),
-            ],
+            &[(1, true), (2, false), (3, true), (2, false), (4, false), (4, false)],
             now,
         );
         use Admission::*;
-        assert_eq!(
-            admitted,
-            [Forward, Forward, RejectCall, EndStream, EndStream, Drop]
-        );
+        assert_eq!(admitted, [Forward, Forward, RejectCall, EndStream, EndStream, Drop]);
     }
 
     #[test]
     fn stops_tracking_ended_streams_at_the_cap() {
         let now = Instant::now();
         let ended = (0..MAX_ENDED_STREAMS as u64).collect();
-        let limiter = ClientLimiter {
-            bucket: TokenBucket::new(0.0, 0.0, now),
-            ended,
-        };
-        assert_eq!(
-            limiter.admit(u64::MAX, false, now).1,
-            Admission::DropUnnoticed
-        );
+        let limiter = ClientLimiter { bucket: TokenBucket::new(0.0, 0.0, now), ended };
+        assert_eq!(limiter.admit(u64::MAX, false, now).1, Admission::DropUnnoticed);
     }
 }

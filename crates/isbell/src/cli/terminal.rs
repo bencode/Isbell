@@ -49,11 +49,7 @@ pub async fn run(ctx: &Ctx, cmd: TerminalCmd) -> Result<(), CliError> {
     }
     let (cols, rows) = terminal_size()?;
     let (machine, control, params) = match cmd {
-        TerminalCmd::Attach {
-            target,
-            control,
-            takeover,
-        } => {
+        TerminalCmd::Attach { target, control, takeover } => {
             let target = parse_target(&target)?;
             let mode = if control { "control" } else { "observe" };
             let params = json!({"target": target.agent, "mode": mode, "cols": cols, "rows": rows, "takeover": takeover});
@@ -68,13 +64,10 @@ pub async fn run(ctx: &Ctx, cmd: TerminalCmd) -> Result<(), CliError> {
     let session = ctx.session().await?;
     let machines = session.machines();
     let (state, _) = resolve_machine(&machines, &machine)?;
-    let (opened, stream) = session
-        .open_stream(&state.machine.id, "isbell.terminal", params, OPEN_TIMEOUT)
-        .await?;
+    let (opened, stream) =
+        session.open_stream(&state.machine.id, "isbell.terminal", params, OPEN_TIMEOUT).await?;
     // A new shell outlives the detach; say how to come back to it.
-    let reattach = opened["paneId"]
-        .as_str()
-        .map(|pane| format!("{}/{pane}", state.machine.name));
+    let reattach = opened["paneId"].as_str().map(|pane| format!("{}/{pane}", state.machine.name));
 
     // Set up before the alternate screen so a warning here stays visible.
     let resized = signal(SignalKind::window_change())
@@ -102,11 +95,7 @@ pub async fn run(ctx: &Ctx, cmd: TerminalCmd) -> Result<(), CliError> {
 fn terminal_size() -> Result<(u16, u16), CliError> {
     let (cols, rows) = crossterm::terminal::size()
         .map_err(|err| CliError::new("not_a_terminal", err.to_string()))?;
-    Ok(if cols == 0 || rows == 0 {
-        (80, 24)
-    } else {
-        (cols, rows)
-    })
+    Ok(if cols == 0 || rows == 0 { (80, 24) } else { (cols, rows) })
 }
 
 enum Ended {

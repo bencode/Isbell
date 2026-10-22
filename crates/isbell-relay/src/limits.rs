@@ -28,11 +28,7 @@ pub struct IpPermit {
 
 impl IpGate {
     pub fn new(concurrent: usize, per_minute: u32) -> Arc<Self> {
-        Arc::new(Self {
-            concurrent,
-            per_minute,
-            ips: Mutex::default(),
-        })
+        Arc::new(Self { concurrent, per_minute, ips: Mutex::default() })
     }
 
     pub fn try_acquire(self: &Arc<Self>, ip: IpAddr) -> Option<IpPermit> {
@@ -41,10 +37,7 @@ impl IpGate {
         ips.retain(|_, s| s.active > 0 || now - s.window_start < WINDOW);
         let admitted = admit(ips.get(&ip).copied(), now, self.concurrent, self.per_minute)?;
         ips.insert(ip, admitted);
-        Some(IpPermit {
-            gate: Arc::clone(self),
-            ip,
-        })
+        Some(IpPermit { gate: Arc::clone(self), ip })
     }
 }
 
@@ -55,18 +48,10 @@ fn admit(
     concurrent: usize,
     per_minute: u32,
 ) -> Option<IpState> {
-    let fresh = IpState {
-        active: 0,
-        window_start: now,
-        opened: 0,
-    };
+    let fresh = IpState { active: 0, window_start: now, opened: 0 };
     let state = match state {
         Some(s) if now - s.window_start < WINDOW => s,
-        Some(s) => IpState {
-            window_start: now,
-            opened: 0,
-            ..s
-        },
+        Some(s) => IpState { window_start: now, opened: 0, ..s },
         None => fresh,
     };
     (state.active < concurrent && state.opened < per_minute).then_some(IpState {
@@ -78,13 +63,7 @@ fn admit(
 
 impl Drop for IpPermit {
     fn drop(&mut self) {
-        if let Some(state) = self
-            .gate
-            .ips
-            .lock()
-            .expect("ip gate poisoned")
-            .get_mut(&self.ip)
-        {
+        if let Some(state) = self.gate.ips.lock().expect("ip gate poisoned").get_mut(&self.ip) {
             state.active -= 1;
         }
     }
@@ -101,23 +80,14 @@ pub struct TokenBucket {
 
 impl TokenBucket {
     pub fn new(rate: f64, burst: f64, now: Instant) -> Self {
-        Self {
-            rate,
-            burst,
-            tokens: burst,
-            at: now,
-        }
+        Self { rate, burst, tokens: burst, at: now }
     }
 
     fn refilled(self, now: Instant) -> Self {
         let tokens = (self.tokens
             + now.saturating_duration_since(self.at).as_secs_f64() * self.rate)
             .min(self.burst);
-        Self {
-            tokens,
-            at: now,
-            ..self
-        }
+        Self { tokens, at: now, ..self }
     }
 
     /// Spends `cost` even into debt; returns how long to wait until the balance is back to zero.
@@ -138,13 +108,7 @@ impl TokenBucket {
         if bucket.tokens < cost {
             return (bucket, false);
         }
-        (
-            Self {
-                tokens: bucket.tokens - cost,
-                ..bucket
-            },
-            true,
-        )
+        (Self { tokens: bucket.tokens - cost, ..bucket }, true)
     }
 }
 
@@ -159,17 +123,10 @@ mod tests {
         assert_eq!((one.active, one.opened), (1, 1));
         let full = IpState { active: 2, ..one };
         assert_eq!(admit(Some(full), t0, 2, 3), None, "concurrency limit");
-        let spent = IpState {
-            active: 0,
-            opened: 3,
-            ..one
-        };
+        let spent = IpState { active: 0, opened: 3, ..one };
         assert_eq!(admit(Some(spent), t0, 2, 3), None, "per-minute limit");
         let next_window = admit(Some(spent), t0 + WINDOW, 2, 3).unwrap();
-        assert_eq!(
-            (next_window.opened, next_window.window_start),
-            (1, t0 + WINDOW)
-        );
+        assert_eq!((next_window.opened, next_window.window_start), (1, t0 + WINDOW));
     }
 
     #[test]
@@ -182,10 +139,7 @@ mod tests {
         drop(a);
         drop(gate.try_acquire(ip).unwrap());
         assert!(gate.try_acquire(ip).is_none(), "per-minute limit");
-        assert!(
-            gate.try_acquire("10.0.0.2".parse().unwrap()).is_some(),
-            "other IPs unaffected"
-        );
+        assert!(gate.try_acquire("10.0.0.2".parse().unwrap()).is_some(), "other IPs unaffected");
     }
 
     #[test]

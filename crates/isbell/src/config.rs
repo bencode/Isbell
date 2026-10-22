@@ -35,20 +35,11 @@ pub struct MachineConfig {
 impl MachineConfig {
     pub fn generate() -> Self {
         let hostname = hostname();
-        let name: String = hostname
-            .split('.')
-            .next()
-            .unwrap_or_default()
-            .chars()
-            .take(64)
-            .collect();
+        let name: String =
+            hostname.split('.').next().unwrap_or_default().chars().take(64).collect();
         Self {
             id: format!("{:016x}", rand::random::<u64>()),
-            name: if name.is_empty() {
-                "machine".into()
-            } else {
-                name
-            },
+            name: if name.is_empty() { "machine".into() } else { name },
         }
     }
 
@@ -73,11 +64,7 @@ pub struct Paths {
 
 impl Paths {
     pub fn resolve() -> Result<Paths> {
-        let env = |name| {
-            std::env::var_os(name)
-                .filter(|v| !v.is_empty())
-                .map(PathBuf::from)
-        };
+        let env = |name| std::env::var_os(name).filter(|v| !v.is_empty()).map(PathBuf::from);
         let dir = env("ISBELL_CONFIG_DIR")
             .or_else(|| env("XDG_CONFIG_HOME").map(|d| d.join("isbell")))
             .or_else(|| env("HOME").map(|h| h.join(".config").join("isbell")))
@@ -157,7 +144,5 @@ impl Paths {
 
 /// `--relay` / `$ISBELL_RELAY` (already merged by clap) > config.toml > default.
 pub fn resolve_relay(flag: Option<&str>, config: &Config) -> String {
-    flag.or(config.relay.as_deref())
-        .unwrap_or(DEFAULT_RELAY)
-        .to_owned()
+    flag.or(config.relay.as_deref()).unwrap_or(DEFAULT_RELAY).to_owned()
 }

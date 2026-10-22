@@ -25,11 +25,7 @@ pub async fn run(ctx: &Ctx, cmd: MachineCmd) -> Result<(), CliError> {
         .iter()
         .map(|(state, online)| {
             let herdr = match state.herdr.status {
-                HerdrStatus::Ready => state
-                    .herdr
-                    .version
-                    .clone()
-                    .unwrap_or_else(|| "ready".into()),
+                HerdrStatus::Ready => state.herdr.version.clone().unwrap_or_else(|| "ready".into()),
                 HerdrStatus::Unavailable => "unavailable".into(),
                 HerdrStatus::Incompatible => "incompatible".into(),
             };
@@ -42,7 +38,6 @@ pub async fn run(ctx: &Ctx, cmd: MachineCmd) -> Result<(), CliError> {
             ]
         })
         .collect();
-    ctx.out
-        .table(&["NAME", "ID", "STATUS", "HERDR", "AGENTS"], &rows);
+    ctx.out.table(&["NAME", "ID", "STATUS", "HERDR", "AGENTS"], &rows);
     Ok(())
 }

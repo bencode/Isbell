@@ -67,11 +67,7 @@ pub async fn serve(config: Config) -> Result<RelayHandle> {
     let listener = TcpListener::bind(config.bind).await?;
     let addr = listener.local_addr()?;
     let ip_gate = IpGate::new(config.limits.ip_concurrent, config.limits.ip_per_minute);
-    let ctx = Arc::new(Ctx {
-        config,
-        bus: bus.clone(),
-        ip_gate,
-    });
+    let ctx = Arc::new(Ctx { config, bus: bus.clone(), ip_gate });
     let app = Router::new()
         .route("/healthz", get(healthz))
         .route("/v1/ws", get(upgrade))
@@ -85,12 +81,7 @@ pub async fn serve(config: Config) -> Result<RelayHandle> {
         }
         stopped_tx.send_replace(true);
     });
-    Ok(RelayHandle {
-        addr,
-        bus,
-        task,
-        stopped,
-    })
+    Ok(RelayHandle { addr, bus, task, stopped })
 }
 
 async fn healthz(State(ctx): State<Arc<Ctx>>) -> StatusCode {
@@ -116,27 +107,17 @@ async fn upgrade(
     let Some(permit) = ctx.ip_gate.try_acquire(ip) else {
         return StatusCode::TOO_MANY_REQUESTS.into_response();
     };
-    ws.max_message_size(MAX_MESSAGE)
-        .on_upgrade(move |socket| async move {
-            conn::handle_socket(socket, ctx).await;
-            drop(permit);
-        })
+    ws.max_message_size(MAX_MESSAGE).on_upgrade(move |socket| async move {
+        conn::handle_socket(socket, ctx).await;
+        drop(permit);
+    })
 }
 
 /// The peer address, or behind a trusted proxy the hop that proxy appended to
 /// `X-Forwarded-For` (the last one; earlier hops come from the client and can be forged).
 fn client_ip(trust_proxy: bool, headers: &HeaderMap, peer: SocketAddr) -> IpAddr {
-    let forwarded = || {
-        headers
-            .get("x-forwarded-for")?
-            .to_str()
-            .ok()?
-            .rsplit(',')
-            .next()?
-            .trim()
-            .parse()
-            .ok()
-    };
+    let forwarded =
+        || headers.get("x-forwarded-for")?.to_str().ok()?.rsplit(',').next()?.trim().parse().ok();
     trust_proxy.then(forwarded).flatten().unwrap_or(peer.ip())
 }
 
@@ -147,9 +128,7 @@ mod tests {
     fn ip(trust_proxy: bool, forwarded: Option<&str>) -> IpAddr {
         let headers: HeaderMap = forwarded
             .map(|v| {
-                [("x-forwarded-for".parse().unwrap(), v.parse().unwrap())]
-                    .into_iter()
-                    .collect()
+                [("x-forwarded-for".parse().unwrap(), v.parse().unwrap())].into_iter().collect()
             })
             .unwrap_or_default();
         client_ip(trust_proxy, &headers, ([10, 0, 0, 9], 4000).into())
@@ -157,22 +136,13 @@ mod tests {
 
     #[test]
     fn takes_the_hop_added_by_the_trusted_proxy() {
-        assert_eq!(
-            ip(true, Some("203.0.113.7")),
-            "203.0.113.7".parse::<IpAddr>().unwrap()
-        );
+        assert_eq!(ip(true, Some("203.0.113.7")), "203.0.113.7".parse::<IpAddr>().unwrap());
         assert_eq!(
             ip(true, Some("1.2.3.4, 203.0.113.7")),
             "203.0.113.7".parse::<IpAddr>().unwrap()
         );
-        assert_eq!(
-            ip(true, Some("not-an-ip")),
-            "10.0.0.9".parse::<IpAddr>().unwrap()
-        );
-        assert_eq!(
-            ip(false, Some("203.0.113.7")),
-            "10.0.0.9".parse::<IpAddr>().unwrap()
-        );
+        assert_eq!(ip(true, Some("not-an-ip")), "10.0.0.9".parse::<IpAddr>().unwrap());
+        assert_eq!(ip(false, Some("203.0.113.7")), "10.0.0.9".parse::<IpAddr>().unwrap());
         assert_eq!(ip(true, None), "10.0.0.9".parse::<IpAddr>().unwrap());
     }
 }

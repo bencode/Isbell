@@ -17,11 +17,8 @@ use crate::bus::gateway_channel;
 pub async fn serve(socket: &mut WebSocket, ctx: &Ctx, authed: &Authed) -> Result<Exit> {
     let (inbox, mut rx) = mpsc::unbounded_channel();
     let _subs = setup::client(socket, ctx, authed, &inbox).await?;
-    let mut limiter = ClientLimiter::new(
-        ctx.config.limits.rate,
-        ctx.config.limits.burst,
-        Instant::now(),
-    );
+    let mut limiter =
+        ClientLimiter::new(ctx.config.limits.rate, ctx.config.limits.burst, Instant::now());
     let mut ping = tokio::time::interval(PING_EVERY);
     let mut last_seen = Instant::now();
     loop {
@@ -53,12 +50,7 @@ async fn on_frame(
     routed: ClientFrame,
     admission: Admission,
 ) -> Result<()> {
-    let ClientFrame {
-        id,
-        mid,
-        is_call,
-        frame,
-    } = routed;
+    let ClientFrame { id, mid, is_call, frame } = routed;
     match admission {
         Admission::Forward => {
             let to_gateway = gateway_channel(&authed.sid, &mid);
@@ -87,39 +79,12 @@ async fn end_stream(
     mid: String,
 ) -> Result<()> {
     let end = |e, route| {
-        Frame::new(Header::End {
-            id,
-            e,
-            mid: None,
-            from: None,
-            to: None,
-        })
-        .rerouted(route)
+        Frame::new(Header::End { id, e, mid: None, from: None, to: None }).rerouted(route)
     };
-    let to_gateway = end(
-        None,
-        Route {
-            from: Some(authed.conn.clone()),
-            ..Route::default()
-        },
-    );
-    ctx.bus
-        .publish(
-            &gateway_channel(&authed.sid, &mid),
-            to_gateway.encode_binary(),
-        )
-        .await?;
-    wire::send(
-        socket,
-        &end(
-            Some(rate_limited()),
-            Route {
-                mid: Some(mid),
-                ..Route::default()
-            },
-        ),
-    )
-    .await
+    let to_gateway = end(None, Route { from: Some(authed.conn.clone()), ..Route::default() });
+    ctx.bus.publish(&gateway_channel(&authed.sid, &mid), to_gateway.encode_binary()).await?;
+    wire::send(socket, &end(Some(rate_limited()), Route { mid: Some(mid), ..Route::default() }))
+        .await
 }
 
 fn rate_limited() -> RpcError {
@@ -127,12 +92,5 @@ fn rate_limited() -> RpcError {
 }
 
 fn error_res(id: u64, mid: String, err: RpcError) -> Frame {
-    Frame::new(Header::Res {
-        id,
-        ok: false,
-        r: None,
-        e: Some(err),
-        mid: Some(mid),
-        to: None,
-    })
+    Frame::new(Header::Res { id, ok: false, r: None, e: Some(err), mid: Some(mid), to: None })
 }

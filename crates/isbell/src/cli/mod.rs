@@ -18,11 +18,7 @@ use crate::relay::RelayError;
 use output::{CliError, Output};
 
 #[derive(Parser)]
-#[command(
-    name = "isbell",
-    version,
-    about = "Remote access to herdr agents across your machines"
-)]
+#[command(name = "isbell", version, about = "Remote access to herdr agents across your machines")]
 pub struct Cli {
     /// Relay WebSocket URL.
     #[arg(long, global = true, env = "ISBELL_RELAY")]
@@ -125,11 +121,7 @@ async fn run_gateway(mut ctx: Ctx) -> Result<(), CliError> {
         }
     };
     tracing::info!(machine = %machine.name, id = %machine.id, "starting gateway");
-    let opts = GatewayOptions {
-        relay: ctx.relay,
-        identity,
-        machine: machine.info(),
-    };
+    let opts = GatewayOptions { relay: ctx.relay, identity, machine: machine.info() };
     gateway::run(opts).await.map_err(|err| {
         let code = match err {
             GatewayError::Relay(RelayError::Replaced) => "gateway_replaced",

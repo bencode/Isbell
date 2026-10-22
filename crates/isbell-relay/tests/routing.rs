@@ -21,12 +21,7 @@ async fn routes_calls_and_responses() {
     let (mut client, _) = Peer::client(&relay, &id).await;
 
     client.send(call(7, &mid)).await;
-    let Header::Call {
-        id: 7,
-        mid: None,
-        from: Some(from),
-        ..
-    } = gateway.recv().await.header
+    let Header::Call { id: 7, mid: None, from: Some(from), .. } = gateway.recv().await.header
     else {
         panic!("expected routed call")
     };
@@ -42,14 +37,7 @@ async fn routes_calls_and_responses() {
             to: Some(from.clone()),
         }))
         .await;
-    let Header::Res {
-        id: 7,
-        ok: true,
-        r,
-        mid: Some(m),
-        to: None,
-        ..
-    } = client.recv().await.header
+    let Header::Res { id: 7, ok: true, r, mid: Some(m), to: None, .. } = client.recv().await.header
     else {
         panic!("expected res")
     };
@@ -65,24 +53,14 @@ async fn routes_stream_data_both_ways() {
     let (mut client, _) = Peer::client(&relay, &id).await;
 
     let output = vec![0u8, 1, 2, 3, 255];
-    gateway
-        .send(data(
-            7,
-            DataKind::Frame,
-            None,
-            Some(&client.conn),
-            output.clone(),
-        ))
-        .await;
+    gateway.send(data(7, DataKind::Frame, None, Some(&client.conn), output.clone())).await;
     let got = client.recv().await;
     assert!(
         matches!(got.header, Header::Data { id: 7, k: DataKind::Frame, mid: Some(ref m), .. } if *m == mid)
     );
     assert_eq!(got.body, Some(output));
 
-    client
-        .send(data(7, DataKind::Input, Some(&mid), None, b"ls\r".to_vec()))
-        .await;
+    client.send(data(7, DataKind::Input, Some(&mid), None, b"ls\r".to_vec())).await;
     let got = gateway.recv().await;
     assert!(
         matches!(got.header, Header::Data { k: DataKind::Input, from: Some(ref f), .. } if *f == client.conn)

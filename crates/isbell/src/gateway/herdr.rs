@@ -34,10 +34,7 @@ pub struct HerdrError {
 
 impl HerdrError {
     fn unavailable(err: impl std::fmt::Display) -> Self {
-        Self {
-            code: "herdr_unavailable".into(),
-            message: err.to_string(),
-        }
+        Self { code: "herdr_unavailable".into(), message: err.to_string() }
     }
 }
 
@@ -68,17 +65,10 @@ struct ServerStatus {
 
 /// Finds the local herdr server: `$ISBELL_HERDR_SOCKET`, else `herdr status server --json`.
 pub async fn discover() -> Result<(Herdr, HerdrState), HerdrState> {
-    let unavailable = |version| HerdrState {
-        status: HerdrStatus::Unavailable,
-        version,
-        protocol: None,
-    };
+    let unavailable =
+        |version| HerdrState { status: HerdrStatus::Unavailable, version, protocol: None };
     if let Some(socket) = std::env::var_os("ISBELL_HERDR_SOCKET").filter(|s| !s.is_empty()) {
-        let state = HerdrState {
-            status: HerdrStatus::Ready,
-            version: None,
-            protocol: None,
-        };
+        let state = HerdrState { status: HerdrStatus::Ready, version: None, protocol: None };
         return Ok((Herdr::new(socket.into()), state));
     }
     let output = tokio::process::Command::new(herdr_bin())
@@ -111,10 +101,7 @@ pub async fn discover() -> Result<(Herdr, HerdrState), HerdrState> {
     match status.socket {
         _ if !status.running => Err(unavailable(state.version)),
         _ if status.compatible != Some(true) || status.protocol != Some(PROTOCOL) => {
-            Err(HerdrState {
-                status: HerdrStatus::Incompatible,
-                ..state
-            })
+            Err(HerdrState { status: HerdrStatus::Incompatible, ..state })
         }
         Some(socket) => Ok((Herdr::new(socket), state)),
         None => Err(unavailable(state.version)),
@@ -123,11 +110,7 @@ pub async fn discover() -> Result<(Herdr, HerdrState), HerdrState> {
 
 impl Herdr {
     pub fn new(socket: PathBuf) -> Self {
-        Self {
-            socket,
-            bin: herdr_bin(),
-            next_id: Arc::default(),
-        }
+        Self { socket, bin: herdr_bin(), next_id: Arc::default() }
     }
 
     /// A herdr CLI command (e.g. `terminal session …`).
@@ -145,15 +128,10 @@ impl Herdr {
         let exchange = self.exchange(method, params);
         let response = match timeout {
             Some(limit) => {
-                tokio::time::timeout(limit, exchange)
-                    .await
-                    .map_err(|_| HerdrError {
-                        code: "timeout".into(),
-                        message: format!(
-                            "herdr did not answer {method} within {}s",
-                            limit.as_secs()
-                        ),
-                    })??
+                tokio::time::timeout(limit, exchange).await.map_err(|_| HerdrError {
+                    code: "timeout".into(),
+                    message: format!("herdr did not answer {method} within {}s", limit.as_secs()),
+                })??
             }
             None => exchange.await?,
         };
@@ -169,22 +147,15 @@ impl Herdr {
 
     async fn exchange(&self, method: &str, params: Value) -> Result<Value, HerdrError> {
         let id = format!("isbell:{}", self.next_id.fetch_add(1, Ordering::Relaxed));
-        let mut stream = UnixStream::connect(&self.socket)
-            .await
-            .map_err(HerdrError::unavailable)?;
-        write_line(
-            &mut stream,
-            &json!({"id": id, "method": method, "params": params}),
-        )
-        .await?;
+        let mut stream =
+            UnixStream::connect(&self.socket).await.map_err(HerdrError::unavailable)?;
+        write_line(&mut stream, &json!({"id": id, "method": method, "params": params})).await?;
         let mut reader = BufReader::new(stream).take(MAX_RESPONSE);
         let response = read_line(&mut reader)
             .await?
             .ok_or_else(|| HerdrError::unavailable("herdr closed the connection"))?;
         if response["id"] != id.as_str() {
-            return Err(HerdrError::unavailable(
-                "herdr answered a different request",
-            ));
+            return Err(HerdrError::unavailable("herdr answered a different request"));
         }
         Ok(response)
     }
@@ -196,19 +167,14 @@ impl Herdr {
         panes: &[String],
         refresh: &mpsc::Sender<()>,
     ) -> Result<(), HerdrError> {
-        let mut subscriptions: Vec<Value> = LIFECYCLE_EVENTS
-            .iter()
-            .map(|t| json!({"type": t}))
-            .collect();
+        let mut subscriptions: Vec<Value> =
+            LIFECYCLE_EVENTS.iter().map(|t| json!({"type": t})).collect();
         subscriptions.extend(
-            panes
-                .iter()
-                .map(|p| json!({"type": "pane.agent_status_changed", "pane_id": p})),
+            panes.iter().map(|p| json!({"type": "pane.agent_status_changed", "pane_id": p})),
         );
         let request = json!({"id": "isbell:events", "method": "events.subscribe", "params": {"subscriptions": subscriptions}});
-        let mut stream = UnixStream::connect(&self.socket)
-            .await
-            .map_err(HerdrError::unavailable)?;
+        let mut stream =
+            UnixStream::connect(&self.socket).await.map_err(HerdrError::unavailable)?;
         write_line(&mut stream, &request).await?;
         // herdr treats any further byte on a subscription socket as a disconnect: read only.
         let mut reader = BufReader::new(stream);
@@ -230,10 +196,7 @@ impl Herdr {
 async fn write_line(stream: &mut UnixStream, value: &Value) -> Result<(), HerdrError> {
     let mut line = value.to_string();
     line.push('\n');
-    stream
-        .write_all(line.as_bytes())
-        .await
-        .map_err(HerdrError::unavailable)
+    stream.write_all(line.as_bytes()).await.map_err(HerdrError::unavailable)
 }
 
 /// Next JSON line; `None` at EOF.
@@ -241,19 +204,12 @@ async fn read_line(
     reader: &mut (impl AsyncBufReadExt + Unpin),
 ) -> Result<Option<Value>, HerdrError> {
     let mut line = String::new();
-    let n = reader
-        .read_line(&mut line)
-        .await
-        .map_err(HerdrError::unavailable)?;
+    let n = reader.read_line(&mut line).await.map_err(HerdrError::unavailable)?;
     if n == 0 {
         return Ok(None);
     }
     if !line.ends_with('\n') {
-        return Err(HerdrError::unavailable(
-            "herdr response too large or truncated",
-        ));
+        return Err(HerdrError::unavailable("herdr response too large or truncated"));
     }
-    serde_json::from_str(&line)
-        .map(Some)
-        .map_err(HerdrError::unavailable)
+    serde_json::from_str(&line).map(Some).map_err(HerdrError::unavailable)
 }

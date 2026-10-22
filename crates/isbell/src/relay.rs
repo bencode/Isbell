@@ -68,16 +68,9 @@ pub async fn connect(
         return Err(RelayError::Protocol("expected challenge".into()));
     };
     if origin != expected {
-        return Err(RelayError::OriginMismatch {
-            expected,
-            got: origin,
-        });
+        return Err(RelayError::OriginMismatch { expected, got: origin });
     }
-    let role = if machine.is_some() {
-        Role::Gateway
-    } else {
-        Role::Client
-    };
+    let role = if machine.is_some() { Role::Gateway } else { Role::Client };
     let auth = Header::Auth {
         role,
         pk: id.public_key(),
@@ -87,15 +80,9 @@ pub async fn connect(
     sink.send(&Frame::new(auth)).await?;
 
     match stream.next(AUTH_TIMEOUT).await {
-        Ok(Frame {
-            header: Header::AuthOk { sid, conn },
-            ..
-        }) => Ok(RelayConn {
-            sid,
-            conn,
-            sink,
-            stream,
-        }),
+        Ok(Frame { header: Header::AuthOk { sid, conn }, .. }) => {
+            Ok(RelayConn { sid, conn, sink, stream })
+        }
         Ok(_) => Err(RelayError::Protocol("expected auth_ok".into())),
         Err(RelayError::Closed(Some(code))) if code != CLOSE_REPLACED => {
             Err(RelayError::Rejected(code))
@@ -163,10 +150,7 @@ mod tests {
             origin_of("ws://localhost:8787/v1/ws?x=1").as_deref(),
             Some("ws://localhost:8787")
         );
-        assert_eq!(
-            origin_of("WSS://Example.COM").as_deref(),
-            Some("wss://example.com")
-        );
+        assert_eq!(origin_of("WSS://Example.COM").as_deref(), Some("wss://example.com"));
         assert_eq!(origin_of("https://example.com/v1/ws"), None);
         assert_eq!(origin_of("ws:///v1/ws"), None);
     }

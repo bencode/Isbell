@@ -13,9 +13,7 @@ pub struct Output {
 
 impl Output {
     pub fn new(force_json: bool) -> Self {
-        Self {
-            json: force_json || !std::io::stdout().is_terminal(),
-        }
+        Self { json: force_json || !std::io::stdout().is_terminal() }
     }
 
     pub fn json(&self, value: &impl Serialize) {
@@ -38,11 +36,8 @@ impl Output {
             })
             .collect();
         let line = |cells: Vec<&str>| {
-            let padded: Vec<String> = cells
-                .iter()
-                .zip(&widths)
-                .map(|(c, w)| format!("{c:<w$}"))
-                .collect();
+            let padded: Vec<String> =
+                cells.iter().zip(&widths).map(|(c, w)| format!("{c:<w$}")).collect();
             println!("{}", padded.join("  ").trim_end());
         };
         line(headers.to_vec());
@@ -60,10 +55,7 @@ pub struct CliError {
 
 impl CliError {
     pub fn new(code: &str, message: impl Into<String>) -> Self {
-        Self {
-            code: code.into(),
-            message: message.into(),
-        }
+        Self { code: code.into(), message: message.into() }
     }
 
     pub fn exit(self) -> ! {
@@ -74,19 +66,13 @@ impl CliError {
 
 impl From<RpcError> for CliError {
     fn from(err: RpcError) -> Self {
-        Self {
-            code: err.code,
-            message: err.msg,
-        }
+        Self { code: err.code, message: err.msg }
     }
 }
 
 impl From<anyhow::Error> for CliError {
     fn from(err: anyhow::Error) -> Self {
-        Self {
-            code: "error".into(),
-            message: format!("{err:#}"),
-        }
+        Self { code: "error".into(), message: format!("{err:#}") }
     }
 }
 

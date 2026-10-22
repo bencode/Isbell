@@ -60,23 +60,13 @@ pub enum Input {
 
 /// What a stream sends to its client.
 pub enum Output {
-    Frame {
-        body: Vec<u8>,
-        full: bool,
-        cols: u16,
-        rows: u16,
-    },
+    Frame { body: Vec<u8>, full: bool, cols: u16, rows: u16 },
     End(Option<RpcError>),
 }
 
 #[derive(Debug, PartialEq)]
 enum Event {
-    Frame {
-        bytes: Vec<u8>,
-        full: bool,
-        cols: u16,
-        rows: u16,
-    },
+    Frame { bytes: Vec<u8>, full: bool, cols: u16, rows: u16 },
     Closed,
 }
 
@@ -105,20 +95,13 @@ pub async fn open(herdr: &Herdr, req: TerminalRequest) -> Result<(Session, Value
         (None, Some(new)) => Some(new_shell(herdr, &new.cwd).await?),
         _ => return Err(bad_request("give exactly one of target or new")),
     };
-    let target = created
-        .as_deref()
-        .or(req.target.as_deref())
-        .expect("target or new shell");
+    let target = created.as_deref().or(req.target.as_deref()).expect("target or new shell");
     match (start_session(herdr, target, &req).await, created) {
         (Ok(session), created) => Ok((session, json!({"paneId": created}))),
         (Err(err), Some(pane)) => {
             // Don't leave behind the shell workspace we just created.
             if let Err(close_err) = herdr
-                .request(
-                    "pane.close",
-                    json!({"pane_id": pane}),
-                    Some(Duration::from_secs(30)),
-                )
+                .request("pane.close", json!({"pane_id": pane}), Some(Duration::from_secs(30)))
                 .await
             {
                 tracing::warn!(%close_err, pane, "cannot close the new shell after a failed attach");
@@ -136,27 +119,13 @@ async fn start_session(
 ) -> Result<Session, RpcError> {
     let control = req.mode == Mode::Control;
     let mut cmd = herdr.command();
-    cmd.args([
-        "terminal",
-        "session",
-        if control { "control" } else { "observe" },
-        target,
-    ]);
-    cmd.args([
-        "--cols",
-        &req.cols.to_string(),
-        "--rows",
-        &req.rows.to_string(),
-    ]);
+    cmd.args(["terminal", "session", if control { "control" } else { "observe" }, target]);
+    cmd.args(["--cols", &req.cols.to_string(), "--rows", &req.rows.to_string()]);
     if control && req.takeover {
         cmd.arg("--takeover");
     }
     let mut child = cmd
-        .stdin(if control {
-            Stdio::piped()
-        } else {
-            Stdio::null()
-        })
+        .stdin(if control { Stdio::piped() } else { Stdio::null() })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true)
@@ -176,10 +145,7 @@ async fn start_session(
             return Err(RpcError::new("terminal_failed", message.trim().to_owned()));
         }
         Ok(Err(err)) => {
-            return Err(RpcError::new(
-                "herdr_error",
-                format!("cannot read herdr output: {err}"),
-            ));
+            return Err(RpcError::new("herdr_error", format!("cannot read herdr output: {err}")));
         }
         Err(_) => return Err(RpcError::new("timeout", "herdr sent no terminal frame")),
     };
@@ -189,24 +155,14 @@ async fn start_session(
             tracing::warn!(line, "herdr terminal session");
         }
     });
-    Ok(Session {
-        _child: child,
-        stdin,
-        stdout,
-        first,
-    })
+    Ok(Session { _child: child, stdin, stdout, first })
 }
 
 async fn new_shell(herdr: &Herdr, cwd: &str) -> Result<String, RpcError> {
     let cwd = resolve_cwd(cwd)?;
-    let dir = cwd
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default();
+    let dir = cwd.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
     let params = json!({"cwd": cwd, "label": format!("shell-{dir}"), "focus": false, "env": {}});
-    let created = herdr
-        .request("workspace.create", params, Some(Duration::from_secs(30)))
-        .await?;
+    let created = herdr.request("workspace.create", params, Some(Duration::from_secs(30))).await?;
     created["root_pane"]["pane_id"]
         .as_str()
         .map(str::to_owned)
@@ -316,15 +272,8 @@ fn parse_line(line: &str) -> Result<Event, String> {
     match serde_json::from_str::<Line>(line)
         .map_err(|err| format!("unexpected herdr output: {err}"))?
     {
-        Line::Frame {
-            bytes,
-            full,
-            width,
-            height,
-        } => Ok(Event::Frame {
-            bytes: BASE64
-                .decode(bytes)
-                .map_err(|err| format!("bad frame bytes: {err}"))?,
+        Line::Frame { bytes, full, width, height } => Ok(Event::Frame {
+            bytes: BASE64.decode(bytes).map_err(|err| format!("bad frame bytes: {err}"))?,
             full,
             cols: width,
             rows: height,
@@ -348,12 +297,7 @@ impl Coalescer {
     /// Adds an event; true when the session closed (pending output already flushed).
     fn push(&mut self, event: Event, emit: &mut impl FnMut(Output)) -> bool {
         match event {
-            Event::Frame {
-                bytes,
-                full,
-                cols,
-                rows,
-            } => {
+            Event::Frame { bytes, full, cols, rows } => {
                 self.bytes.extend_from_slice(&bytes);
                 self.full |= full;
                 self.size = (cols, rows);
@@ -382,11 +326,8 @@ impl Coalescer {
             return;
         }
         self.sent_size = Some(self.size);
-        let chunks: Vec<&[u8]> = if bytes.is_empty() {
-            vec![&[]]
-        } else {
-            bytes.chunks(MAX_CHUNK).collect()
-        };
+        let chunks: Vec<&[u8]> =
+            if bytes.is_empty() { vec![&[]] } else { bytes.chunks(MAX_CHUNK).collect() };
         chunks
             .into_iter()
             .enumerate()
@@ -409,17 +350,9 @@ mod tests {
         let line = r#"{"type":"terminal.frame","seq":3,"encoding":"ansi","width":80,"height":24,"full":true,"bytes":"aGk="}"#;
         assert_eq!(
             parse_line(line),
-            Ok(Event::Frame {
-                bytes: b"hi".to_vec(),
-                full: true,
-                cols: 80,
-                rows: 24
-            })
+            Ok(Event::Frame { bytes: b"hi".to_vec(), full: true, cols: 80, rows: 24 })
         );
-        assert_eq!(
-            parse_line(r#"{"type":"terminal.closed","reason":"exit"}"#),
-            Ok(Event::Closed)
-        );
+        assert_eq!(parse_line(r#"{"type":"terminal.closed","reason":"exit"}"#), Ok(Event::Closed));
         assert!(parse_line(r#"{"type":"terminal.other"}"#).is_err());
         assert!(
             parse_line(r#"{"type":"terminal.frame","width":1,"height":1,"bytes":"!"}"#).is_err()
@@ -430,22 +363,11 @@ mod tests {
     fn repaints_and_resizes_are_sent_even_without_bytes() {
         let mut sent = Vec::new();
         let mut emit = |o: Output| {
-            if let Output::Frame {
-                body,
-                full,
-                cols,
-                rows,
-            } = o
-            {
+            if let Output::Frame { body, full, cols, rows } = o {
                 sent.push((body.len(), full, cols, rows));
             }
         };
-        let frame = |full, cols| Event::Frame {
-            bytes: Vec::new(),
-            full,
-            cols,
-            rows: 24,
-        };
+        let frame = |full, cols| Event::Frame { bytes: Vec::new(), full, cols, rows: 24 };
         let mut out = Coalescer::default();
         out.push(frame(false, 80), &mut emit);
         out.flush(&mut emit); // first size
@@ -455,10 +377,7 @@ mod tests {
         out.flush(&mut emit); // repaint
         out.push(frame(false, 100), &mut emit);
         out.flush(&mut emit); // resize
-        assert_eq!(
-            sent,
-            [(0, false, 80, 24), (0, true, 80, 24), (0, false, 100, 24)]
-        );
+        assert_eq!(sent, [(0, false, 80, 24), (0, true, 80, 24), (0, false, 100, 24)]);
     }
 
     #[test]
@@ -471,26 +390,14 @@ mod tests {
         };
         let mut out = Coalescer::default();
         let big = vec![7u8; MAX_CHUNK * 2 + 10];
-        assert!(!out.push(
-            Event::Frame {
-                bytes: big.clone(),
-                full: true,
-                cols: 80,
-                rows: 24
-            },
-            &mut emit
-        ));
+        assert!(
+            !out.push(
+                Event::Frame { bytes: big.clone(), full: true, cols: 80, rows: 24 },
+                &mut emit
+            )
+        );
         assert!(frames.iter().all(|(body, _)| body.len() <= MAX_CHUNK));
-        assert_eq!(
-            frames.iter().map(|(_, full)| *full).collect::<Vec<_>>(),
-            [true, false, false]
-        );
-        assert_eq!(
-            frames
-                .iter()
-                .flat_map(|(body, _)| body.clone())
-                .collect::<Vec<u8>>(),
-            big
-        );
+        assert_eq!(frames.iter().map(|(_, full)| *full).collect::<Vec<_>>(), [true, false, false]);
+        assert_eq!(frames.iter().flat_map(|(body, _)| body.clone()).collect::<Vec<u8>>(), big);
     }
 }

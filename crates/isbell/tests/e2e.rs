@@ -30,10 +30,7 @@ struct FakeHerdr {
 /// Answers one request per connection like herdr; subscriptions and `agent.wait` stay open.
 fn fake_herdr(socket: &Path) -> FakeHerdr {
     let listener = UnixListener::bind(socket).unwrap();
-    let herdr = FakeHerdr {
-        calls: Arc::default(),
-        release_wait: Arc::default(),
-    };
+    let herdr = FakeHerdr { calls: Arc::default(), release_wait: Arc::default() };
     let (calls, release) = (Arc::clone(&herdr.calls), Arc::clone(&herdr.release_wait));
     let snapshot: Value = serde_json::from_str(include_str!("fixtures/snapshot.json")).unwrap();
     tokio::spawn(async move {
@@ -49,10 +46,7 @@ fn fake_herdr(socket: &Path) -> FakeHerdr {
                 };
                 let req: Value = serde_json::from_str(&line).unwrap();
                 let method = req["method"].as_str().unwrap().to_owned();
-                calls
-                    .lock()
-                    .unwrap()
-                    .push((method.clone(), req["params"].clone()));
+                calls.lock().unwrap().push((method.clone(), req["params"].clone()));
                 let result = match method.as_str() {
                     "session.snapshot" => Some(snapshot),
                     "events.subscribe" => Some(json!({"type": "subscription_started"})),
@@ -83,10 +77,7 @@ fn fake_herdr(socket: &Path) -> FakeHerdr {
                     }
                 };
                 // The gateway may already have given up on this request.
-                let sent = write
-                    .write_all(format!("{reply}\n").as_bytes())
-                    .await
-                    .is_ok();
+                let sent = write.write_all(format!("{reply}\n").as_bytes()).await.is_ok();
                 if sent && method == "events.subscribe" {
                     while lines.next_line().await.ok().flatten().is_some() {}
                 }
@@ -112,9 +103,7 @@ impl Forwarder {
         tokio::spawn(async move {
             loop {
                 let (down, _) = listener.accept().await.unwrap();
-                let up = TcpStream::connect(("127.0.0.1", upstream_port))
-                    .await
-                    .unwrap();
+                let up = TcpStream::connect(("127.0.0.1", upstream_port)).await.unwrap();
                 let cut = Arc::new(Notify::new());
                 registry.lock().unwrap().push(Arc::clone(&cut));
                 tokio::spawn(async move {
@@ -142,11 +131,7 @@ impl Forwarder {
 }
 
 fn free_port() -> u16 {
-    std::net::TcpListener::bind("127.0.0.1:0")
-        .unwrap()
-        .local_addr()
-        .unwrap()
-        .port()
+    std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port()
 }
 
 async fn next_event(events: &mut broadcast::Receiver<SessionEvent>) -> SessionEvent {
@@ -174,14 +159,7 @@ async fn wait_for_presence(
 /// Waits until herdr has received `n` calls of `method`.
 async fn wait_for_calls(calls: &Calls, method: &str, n: usize) {
     let arrived = async {
-        while calls
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|(m, _)| m == method)
-            .count()
-            < n
-        {
+        while calls.lock().unwrap().iter().filter(|(m, _)| m == method).count() < n {
             tokio::time::sleep(Duration::from_millis(20)).await;
         }
     };
@@ -214,10 +192,7 @@ async fn next_frame(stream: &mut Stream) -> Vec<u8> {
 /// Waits until the fake herdr's log has a line containing `needle`.
 async fn logged(log: &Path, needle: &str) {
     let found = async {
-        while !std::fs::read_to_string(log)
-            .unwrap_or_default()
-            .contains(needle)
-        {
+        while !std::fs::read_to_string(log).unwrap_or_default().contains(needle) {
             tokio::time::sleep(Duration::from_millis(20)).await;
         }
     };
@@ -230,10 +205,7 @@ async fn logged(log: &Path, needle: &str) {
 async fn check_terminals(session: &Session, mid: &str, log: &Path, calls: &Calls) {
     // control: first frame, input echoed, resize forwarded, release on detach
     let control = json!({"target": "w1:p1", "mode": "control", "cols": 80, "rows": 24});
-    let (_, mut stream) = session
-        .open_stream(mid, "isbell.terminal", control, OPEN)
-        .await
-        .unwrap();
+    let (_, mut stream) = session.open_stream(mid, "isbell.terminal", control, OPEN).await.unwrap();
     assert_eq!(next_frame(&mut stream).await, b"hello");
     stream.input(b"ls\r".to_vec());
     assert_eq!(next_frame(&mut stream).await, b"ok");
@@ -246,17 +218,10 @@ async fn check_terminals(session: &Session, mid: &str, log: &Path, calls: &Calls
     // new: a workspace is created first and its root pane is attached
     let cwd = tempfile::tempdir().unwrap();
     let new = json!({"new": {"cwd": cwd.path()}, "mode": "control", "cols": 80, "rows": 24});
-    let (r, mut stream) = session
-        .open_stream(mid, "isbell.terminal", new, OPEN)
-        .await
-        .unwrap();
+    let (r, mut stream) = session.open_stream(mid, "isbell.terminal", new, OPEN).await.unwrap();
     assert_eq!(r["paneId"], "w9:p1");
     assert_eq!(next_frame(&mut stream).await, b"hello");
-    logged(
-        log,
-        "args terminal session control w9:p1 --cols 80 --rows 24",
-    )
-    .await;
+    logged(log, "args terminal session control w9:p1 --cols 80 --rows 24").await;
     let created = calls.lock().unwrap().iter().any(|(m, p)| {
         m == "workspace.create" && p["label"].as_str().is_some_and(|l| l.starts_with("shell-"))
     });
@@ -265,35 +230,22 @@ async fn check_terminals(session: &Session, mid: &str, log: &Path, calls: &Calls
 
     // observe: input is not forwarded
     let observe = json!({"target": "w1:p1", "mode": "observe", "cols": 80, "rows": 24});
-    let (_, mut stream) = session
-        .open_stream(mid, "isbell.terminal", observe, OPEN)
-        .await
-        .unwrap();
+    let (_, mut stream) = session.open_stream(mid, "isbell.terminal", observe, OPEN).await.unwrap();
     assert_eq!(next_frame(&mut stream).await, b"hello");
     let lines_before = std::fs::read_to_string(log).unwrap().lines().count();
     stream.input(b"x".to_vec());
     tokio::time::sleep(Duration::from_millis(300)).await;
-    assert_eq!(
-        std::fs::read_to_string(log).unwrap().lines().count(),
-        lines_before
-    );
+    assert_eq!(std::fs::read_to_string(log).unwrap().lines().count(), lines_before);
     drop(stream);
 
     // neither target nor new
     let bad = json!({"mode": "control", "cols": 80, "rows": 24});
-    let err = session
-        .open_stream(mid, "isbell.terminal", bad, OPEN)
-        .await
-        .err()
-        .expect("rejected");
+    let err = session.open_stream(mid, "isbell.terminal", bad, OPEN).await.err().expect("rejected");
     assert_eq!(err.code, "bad_request");
 }
 
 async fn finished<T>(task: JoinHandle<T>) -> T {
-    tokio::time::timeout(Duration::from_secs(10), task)
-        .await
-        .expect("finished within 10s")
-        .unwrap()
+    tokio::time::timeout(Duration::from_secs(10), task).await.expect("finished within 10s").unwrap()
 }
 
 fn spawn_gateway(
@@ -360,12 +312,7 @@ async fn gateway_serves_cli_through_relay() {
             break;
         }
     }
-    assert!(
-        session
-            .machines()
-            .iter()
-            .any(|(s, online)| s.machine.id == mid && *online)
-    );
+    assert!(session.machines().iter().any(|(s, online)| s.machine.id == mid && *online));
 
     let read =
         json!({"method": "agent.read", "params": {"target": "reviewer", "source": "recent"}});
@@ -379,25 +326,15 @@ async fn gateway_serves_cli_through_relay() {
     let cwd = tempfile::tempdir().unwrap();
     let start = json!({"cwd": cwd.path(), "kind": "codex"});
     let started = session
-        .call(
-            &mid,
-            "isbell.agent.start",
-            start,
-            Some(Duration::from_secs(30)),
-        )
+        .call(&mid, "isbell.agent.start", start, Some(Duration::from_secs(30)))
         .await
         .unwrap();
     assert_eq!(started["paneId"], "w9:p1");
     assert!(started["name"].as_str().unwrap().starts_with("codex-"));
     let methods: Vec<(String, Value)> = herdr.calls.lock().unwrap().clone();
-    let create = methods
-        .iter()
-        .position(|(m, _)| m == "workspace.create")
-        .expect("workspace.create sent");
-    let start = methods
-        .iter()
-        .position(|(m, _)| m == "agent.start")
-        .expect("agent.start sent");
+    let create =
+        methods.iter().position(|(m, _)| m == "workspace.create").expect("workspace.create sent");
+    let start = methods.iter().position(|(m, _)| m == "agent.start").expect("agent.start sent");
     assert!(create < start);
     assert_eq!(methods[start].1["args"][0], "--no-daemon");
     assert_eq!(methods[start].1["pane_id"], "w9:p1");
@@ -411,9 +348,7 @@ async fn gateway_serves_cli_through_relay() {
     forwarder.cut(1);
     wait_for_presence(&mut events, &mid, true).await; // reconnected (link 2), never seen offline
     herdr.release_wait.notify_one();
-    let answered = finished(waiting)
-        .await
-        .expect("response delivered after reconnect");
+    let answered = finished(waiting).await.expect("response delivered after reconnect");
     assert_eq!(answered["type"], "agent_info");
 
     // 2. A new gateway process takes over the machine: calls sent to the old one fail.

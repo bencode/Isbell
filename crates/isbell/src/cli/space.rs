@@ -76,8 +76,7 @@ fn show(ctx: &Ctx, id: &Identity) {
     let key = id.key_string();
     let join = format!("isbell space join {key}");
     if ctx.out.json {
-        ctx.out
-            .json(&json!({"key": key, "sid": id.sid(), "join": join}));
+        ctx.out.json(&json!({"key": key, "sid": id.sid(), "join": join}));
     } else {
         println!("Space key (keep it secret; it controls every machine in the space):\n  {key}\n");
         println!("Add another machine:\n  {join}\n  isbell gateway run");

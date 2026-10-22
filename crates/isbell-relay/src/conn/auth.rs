@@ -32,10 +32,7 @@ pub enum AuthReject {
 
 pub async fn authenticate(socket: &mut WebSocket, origin: &str) -> Result<Admitted, Exit> {
     let nonce = BASE64URL_NOPAD.encode(&rand::random::<[u8; 16]>());
-    let challenge = Header::Challenge {
-        nonce: nonce.clone(),
-        origin: origin.to_owned(),
-    };
+    let challenge = Header::Challenge { nonce: nonce.clone(), origin: origin.to_owned() };
     if let Err(err) = wire::send(socket, &Frame::new(challenge)).await {
         tracing::debug!(%err, "challenge not delivered");
         return Err(Exit::Closed);
@@ -59,16 +56,8 @@ pub fn check_auth(
     if data.len() > MAX_AUTH_FRAME {
         return Err(AuthReject::TooLarge);
     }
-    let Ok(Frame {
-        header:
-            Header::Auth {
-                role,
-                pk,
-                sig,
-                machine,
-            },
-        ..
-    }) = Frame::decode(data, binary)
+    let Ok(Frame { header: Header::Auth { role, pk, sig, machine }, .. }) =
+        Frame::decode(data, binary)
     else {
         return Err(AuthReject::NotAuth);
     };
@@ -77,9 +66,7 @@ pub fn check_auth(
         Role::Gateway => machine.as_ref().is_some_and(MachineInfo::is_valid),
         Role::Client => machine.is_none(),
     };
-    machine_ok
-        .then_some(Admitted { sid, role, machine })
-        .ok_or(AuthReject::BadMachine)
+    machine_ok.then_some(Admitted { sid, role, machine }).ok_or(AuthReject::BadMachine)
 }
 
 #[cfg(test)]
@@ -114,21 +101,12 @@ mod tests {
     #[test]
     fn admits_signed_gateways_and_clients() {
         let id = Identity::generate();
-        let gateway = check_auth(
-            &auth(&id, Role::Gateway, NONCE, Some(machine())),
-            true,
-            ORIGIN,
-            NONCE,
-        )
-        .unwrap();
+        let gateway =
+            check_auth(&auth(&id, Role::Gateway, NONCE, Some(machine())), true, ORIGIN, NONCE)
+                .unwrap();
+        assert_eq!((gateway.sid.as_str(), gateway.role), (id.sid().as_str(), Role::Gateway));
         assert_eq!(
-            (gateway.sid.as_str(), gateway.role),
-            (id.sid().as_str(), Role::Gateway)
-        );
-        assert_eq!(
-            check_auth(&auth(&id, Role::Client, NONCE, None), true, ORIGIN, NONCE)
-                .unwrap()
-                .role,
+            check_auth(&auth(&id, Role::Client, NONCE, None), true, ORIGIN, NONCE).unwrap().role,
             Role::Client
         );
     }
@@ -139,26 +117,11 @@ mod tests {
         let check = |data: Vec<u8>| check_auth(&data, true, ORIGIN, NONCE).unwrap_err();
         assert_eq!(check(vec![0; MAX_AUTH_FRAME + 1]), AuthReject::TooLarge);
         assert_eq!(
-            check(
-                Frame::new(Header::Presence {
-                    mid: "m".into(),
-                    online: true
-                })
-                .encode_binary()
-            ),
+            check(Frame::new(Header::Presence { mid: "m".into(), online: true }).encode_binary()),
             AuthReject::NotAuth
         );
-        assert_eq!(
-            check(auth(&id, Role::Client, "other nonce", None)),
-            AuthReject::BadSignature
-        );
-        assert_eq!(
-            check(auth(&id, Role::Gateway, NONCE, None)),
-            AuthReject::BadMachine
-        );
-        assert_eq!(
-            check(auth(&id, Role::Client, NONCE, Some(machine()))),
-            AuthReject::BadMachine
-        );
+        assert_eq!(check(auth(&id, Role::Client, "other nonce", None)), AuthReject::BadSignature);
+        assert_eq!(check(auth(&id, Role::Gateway, NONCE, None)), AuthReject::BadMachine);
+        assert_eq!(check(auth(&id, Role::Client, NONCE, Some(machine()))), AuthReject::BadMachine);
     }
 }

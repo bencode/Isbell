@@ -69,9 +69,7 @@ where
     T::Err: std::error::Error + Send + Sync + 'static,
 {
     match std::env::var(name) {
-        Ok(value) => Ok(Some(
-            value.parse().with_context(|| format!("invalid {name}"))?,
-        )),
+        Ok(value) => Ok(Some(value.parse().with_context(|| format!("invalid {name}"))?)),
         Err(std::env::VarError::NotPresent) => Ok(None),
         Err(err) => Err(err).with_context(|| format!("invalid {name}")),
     }
