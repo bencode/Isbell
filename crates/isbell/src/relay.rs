@@ -154,4 +154,11 @@ mod tests {
         assert_eq!(origin_of("https://example.com/v1/ws"), None);
         assert_eq!(origin_of("ws:///v1/ws"), None);
     }
+
+    /// wss:// needs rustls to pick its crypto backend by itself, which it only does when exactly
+    /// one is enabled; with two (e.g. webrtc's and another) every connection panics.
+    #[test]
+    fn tls_has_exactly_one_crypto_backend() {
+        let _ = rustls::ClientConfig::builder();
+    }
 }
