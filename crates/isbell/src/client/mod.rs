@@ -1,6 +1,8 @@
 //! Client connection to the relay: the space snapshot, live state / presence, and calls and
-//! streams to machines.
+//! streams to machines. Streams use a machine's direct link once one is open (`Session::direct`);
+//! calls always use the relay.
 
+mod direct;
 mod file;
 mod inbound;
 mod inflight;
@@ -8,6 +10,7 @@ mod link;
 mod space;
 mod stream;
 
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -33,12 +36,16 @@ pub enum SessionEvent {
     Closed,
 }
 
+/// Direct links by machine id: at most one per machine.
+type PeerLinks = Mutex<HashMap<String, Link>>;
+
 /// A client connection to the relay: the space snapshot, live updates, and calls to machines.
 pub struct Session {
     space: Arc<Mutex<Space>>,
     inflight: Inflight,
     /// Frames for the relay connection, whatever machine they are for.
     to_relay: mpsc::UnboundedSender<Frame>,
+    peers: Arc<PeerLinks>,
     events: broadcast::Sender<SessionEvent>,
     next_id: AtomicU64,
 }
@@ -56,7 +63,8 @@ impl Session {
         tokio::spawn(write_loop(conn.sink, relay_rx));
         let read = read_loop(conn.stream, Arc::clone(&space), inflight.clone(), events.clone());
         tokio::spawn(read);
-        Ok(Session { space, inflight, to_relay, events, next_id: AtomicU64::new(1) })
+        let peers = Arc::default();
+        Ok(Session { space, inflight, to_relay, peers, events, next_id: AtomicU64::new(1) })
     }
 
     /// Every known machine with its online flag, ordered by name.
@@ -76,7 +84,7 @@ impl Session {
         p: Value,
         timeout: Option<Duration>,
     ) -> Result<Value, RpcError> {
-        self.request(self.next_id(), mid, m, p, timeout).await
+        self.request(self.next_id(), &self.relay_link(mid), mid, m, p, timeout).await
     }
 
     /// Opens a stream: a call whose response is followed by `data` until either side ends it.
@@ -89,15 +97,21 @@ impl Session {
     ) -> Result<(Value, Stream), RpcError> {
         let id = self.next_id();
         let (tx, rx) = mpsc::unbounded_channel();
+        let link = self.stream_link(mid);
         // Registered before the call so no data after the response is missed.
-        self.inflight.add_stream(id, self.target(mid), tx)?;
-        let stream = Stream::new(id, self.link(mid), rx, self.inflight.clone());
-        let r = self.request(id, mid, m, p, Some(timeout)).await?;
+        self.inflight.add_stream(id, self.target(mid, link.is_direct()), tx)?;
+        let stream = Stream::new(id, link.clone(), rx, self.inflight.clone());
+        let r = self.request(id, &link, mid, m, p, Some(timeout)).await?;
         Ok((r, stream))
     }
 
-    /// The way to machine `mid`: the relay connection.
-    fn link(&self, mid: &str) -> Link {
+    /// The way streams reach machine `mid`: its direct link when one is open, else the relay.
+    fn stream_link(&self, mid: &str) -> Link {
+        let direct = self.peers.lock().expect("session poisoned").get(mid).cloned();
+        direct.unwrap_or_else(|| self.relay_link(mid))
+    }
+
+    fn relay_link(&self, mid: &str) -> Link {
         Link::relay(self.to_relay.clone(), mid)
     }
 
@@ -105,23 +119,24 @@ impl Session {
         self.next_id.fetch_add(1, Ordering::Relaxed)
     }
 
-    fn target(&self, mid: &str) -> Target {
+    fn target(&self, mid: &str, direct: bool) -> Target {
         let boot = self.space.lock().expect("session poisoned").boot(mid);
-        Target { mid: mid.to_owned(), boot }
+        Target { mid: mid.to_owned(), boot, direct }
     }
 
     async fn request(
         &self,
         id: u64,
+        link: &Link,
         mid: &str,
         m: &str,
         p: Value,
         timeout: Option<Duration>,
     ) -> Result<Value, RpcError> {
         let (tx, rx) = oneshot::channel();
-        self.inflight.add_call(id, self.target(mid), tx)?;
+        self.inflight.add_call(id, self.target(mid, link.is_direct()), tx)?;
         let call = Header::Call { id, m: m.into(), p, mid: None, from: None };
-        if let Err(err) = self.link(mid).send(Frame::new(call)) {
+        if let Err(err) = link.send(Frame::new(call)) {
             self.inflight.forget_call(id);
             return Err(err);
         }

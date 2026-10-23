@@ -41,6 +41,11 @@ impl Stream {
         Stream { id, link, rx, inflight, ended: false, closed: false }
     }
 
+    /// Whether the stream rides a direct link rather than the relay.
+    pub fn is_direct(&self) -> bool {
+        self.link.is_direct()
+    }
+
     pub async fn next(&mut self) -> StreamEvent {
         let event = self.rx.recv().await.unwrap_or_else(|| StreamEvent::End(Some(disconnected())));
         self.ended |= matches!(event, StreamEvent::End(_));

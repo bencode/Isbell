@@ -40,6 +40,7 @@ async fn get(ctx: &Ctx, source: String, dest: Option<String>) -> Result<(), CliE
     let session = ctx.session().await?;
     let machines = session.machines();
     let (state, _) = resolve_machine(&machines, remote.machine)?;
+    let via = ctx.reach(&session, &state.machine.id).await?;
     let read = session.read_file(&state.machine.id, remote.path).await?;
     let size = read.size;
     if dest.as_deref() == Some("-") {
@@ -55,8 +56,12 @@ async fn get(ctx: &Ctx, source: String, dest: Option<String>) -> Result<(), CliE
     }
     written?;
     match ctx.out.json {
-        true => ctx.out.json(&json!({"path": source, "local": local, "size": size})),
-        false => println!("fetched {source} → {} ({size} bytes)", local.display()),
+        true => {
+            ctx.out.json(&json!({"path": source, "local": local, "size": size, "via": via.name()}))
+        }
+        false => {
+            println!("fetched {source} → {} ({size} bytes, via {})", local.display(), via.name())
+        }
     }
     Ok(())
 }
@@ -73,6 +78,7 @@ async fn put(ctx: &Ctx, source: String, dest: String) -> Result<(), CliError> {
     let session = ctx.session().await?;
     let machines = session.machines();
     let (state, _) = resolve_machine(&machines, remote.machine)?;
+    let via = ctx.reach(&session, &state.machine.id).await?;
     let write = session.write_file(&state.machine.id, remote.path, size).await?;
     tokio::select! {
         sent = send_all(write, local, size) => sent?,
@@ -83,8 +89,10 @@ async fn put(ctx: &Ctx, source: String, dest: String) -> Result<(), CliError> {
         }
     }
     match ctx.out.json {
-        true => ctx.out.json(&json!({"local": source, "path": dest, "size": size})),
-        false => println!("sent {source} → {dest} ({size} bytes)"),
+        true => {
+            ctx.out.json(&json!({"local": source, "path": dest, "size": size, "via": via.name()}))
+        }
+        false => println!("sent {source} → {dest} ({size} bytes, via {})", via.name()),
     }
     Ok(())
 }

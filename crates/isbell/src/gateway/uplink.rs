@@ -8,7 +8,7 @@ use isbell_proto::state::MachineState;
 use tokio::sync::{mpsc, watch};
 
 use super::GatewayOptions;
-use super::calls::Calls;
+use super::calls::ToCalls;
 use super::link::Link;
 use crate::relay::{self, RELAY_IDLE, RelayConn, RelayError};
 
@@ -33,7 +33,7 @@ impl Outbox {
 /// Runs until the relay refuses this gateway for good (taken over, unusable URL or origin).
 pub async fn run(
     opts: &GatewayOptions,
-    mut calls: Calls,
+    calls: mpsc::UnboundedSender<ToCalls>,
     states: watch::Receiver<Option<MachineState>>,
 ) -> Result<(), RelayError> {
     // Every relay link's replies go to `out`, drained by whichever relay connection is current.
@@ -46,7 +46,7 @@ pub async fn run(
                 Ok(conn) => {
                     tracing::info!(relay = %opts.relay, "connected to relay");
                     attempt = 0;
-                    serve(conn, &mut calls, &out, &mut outbox, states.clone()).await
+                    serve(conn, &calls, &out, &mut outbox, states.clone()).await
                 }
                 Err(err) => Err(err),
             };
@@ -81,7 +81,7 @@ fn from_relay(frame: Frame, out: &mpsc::UnboundedSender<Frame>) -> Option<(Link,
 /// Serves one relay connection until it fails.
 async fn serve(
     conn: RelayConn,
-    calls: &mut Calls,
+    calls: &mpsc::UnboundedSender<ToCalls>,
     out: &mpsc::UnboundedSender<Frame>,
     outbox: &mut Outbox,
     mut states: watch::Receiver<Option<MachineState>>,
@@ -90,11 +90,12 @@ async fn serve(
     // Every new connection starts with the current state.
     states.mark_changed();
     loop {
-        calls.reap();
         tokio::select! {
             frame = stream.next(RELAY_IDLE) => {
-                if let Some((link, frame)) = from_relay(frame?, out) {
-                    calls.handle(link, frame);
+                if let Some((link, frame)) = from_relay(frame?, out)
+                    && calls.send(ToCalls::Frame(link, Box::new(frame))).is_err()
+                {
+                    tracing::error!("the calls stopped; dropping a relayed frame");
                 }
             }
             Some(frame) = outbox.next() => {

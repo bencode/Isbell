@@ -1,0 +1,111 @@
+//! Open streams by caller and call id, so a caller's input reaches its stream; and the task that
+//! serves one stream.
+
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+use isbell_proto::frame::RpcError;
+use serde_json::Value;
+use tokio::sync::mpsc;
+
+use super::route::{output_frame, response_frame};
+use crate::gateway::link::Link;
+use crate::gateway::stream::{Input, Output};
+
+/// Open terminals and files together.
+const MAX_STREAMS: usize = 8;
+/// Queued caller input per stream; input beyond this is dropped while the stream lags.
+const STREAM_INPUT_BUFFER: usize = 256;
+
+/// A stream by its caller (the link's key) and call id.
+type StreamKey = (String, u64);
+
+/// Open streams, for routing caller input to them.
+pub type Streams = Arc<Mutex<HashMap<StreamKey, mpsc::Sender<Input>>>>;
+
+/// Delivers a stream's output to its caller.
+type Emit = Box<dyn FnMut(Output) + Send>;
+
+/// Registers the stream, opens it, answers the call, then runs the stream until either side ends
+/// it. Registered before the answer so input sent right after it is not lost.
+pub async fn serve_stream<S, R: Future<Output = ()>>(
+    link: Link,
+    id: u64,
+    streams: Streams,
+    open: impl Future<Output = Result<(S, Value), RpcError>>,
+    run: impl FnOnce(S, mpsc::Receiver<Input>, Emit) -> R,
+) {
+    let opened = async {
+        let (registered, input) = register(&streams, (link.key().to_owned(), id))?;
+        let (stream, r) = open.await?;
+        Ok::<_, RpcError>((registered, input, stream, r))
+    };
+    match opened.await {
+        Err(err) => link.send(response_frame(id, Err(err))),
+        Ok((_registered, input, stream, r)) => {
+            link.send(response_frame(id, Ok(r)));
+            let caller = link.clone();
+            run(stream, input, Box::new(move |output| caller.send(output_frame(id, output)))).await;
+        }
+    }
+}
+
+/// A stream's entry in the registry, removed when dropped.
+struct Registered {
+    streams: Streams,
+    key: StreamKey,
+}
+
+impl Drop for Registered {
+    fn drop(&mut self) {
+        self.streams.lock().expect("streams poisoned").remove(&self.key);
+    }
+}
+
+fn register(
+    streams: &Streams,
+    key: StreamKey,
+) -> Result<(Registered, mpsc::Receiver<Input>), RpcError> {
+    let mut open = streams.lock().expect("streams poisoned");
+    if open.len() >= MAX_STREAMS {
+        return Err(RpcError::new("too_many_streams", "too many open streams"));
+    }
+    let (tx, rx) = mpsc::channel(STREAM_INPUT_BUFFER);
+    open.insert(key.clone(), tx);
+    Ok((Registered { streams: Arc::clone(streams), key }, rx))
+}
+
+pub fn feed(streams: &Streams, key: StreamKey, input: Input) {
+    let id = key.1;
+    let stream = streams.lock().expect("streams poisoned").get(&key).cloned();
+    match stream.map(|tx| tx.try_send(input)) {
+        Some(Ok(())) => {}
+        Some(Err(err)) => tracing::warn!(id, %err, "stream input dropped"),
+        None => tracing::debug!(id, "input for an unknown stream"),
+    }
+}
+
+/// Closes every stream of the caller whose link is `key`: its link is gone.
+pub fn close_caller(streams: &Streams, key: &str) {
+    let open = streams.lock().expect("streams poisoned");
+    for ((caller, id), tx) in open.iter().filter(|((caller, _), _)| caller == key) {
+        if tx.try_send(Input::Close).is_err() {
+            tracing::debug!(caller, id, "stream already closing");
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn closing_a_caller_closes_only_its_streams() {
+        let streams = Streams::default();
+        let (_mine, mut mine) = register(&streams, ("peer-1".into(), 1)).unwrap();
+        let (_theirs, mut theirs) = register(&streams, ("c1".into(), 1)).unwrap();
+        close_caller(&streams, "peer-1");
+        assert_eq!(mine.try_recv().unwrap(), Input::Close);
+        assert!(theirs.try_recv().is_err(), "another caller's stream stays open");
+    }
+}

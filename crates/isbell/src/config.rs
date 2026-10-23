@@ -3,7 +3,8 @@
 //! ```text
 //! dir         = $ISBELL_CONFIG_DIR | $XDG_CONFIG_HOME/isbell | $HOME/.config/isbell
 //! key         : the space key string (0600)
-//! config.toml : relay = "…"; [machine] id, name   (machine is created by the first `gateway run`)
+//! config.toml : relay = "…"; stun = ["stun:host:port", …]; [machine] id, name
+//!               (machine is created by the first `gateway run`)
 //! ```
 
 use std::fs;
@@ -17,13 +18,25 @@ use isbell_proto::state::MachineInfo;
 use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_RELAY: &str = "wss://isbell.upivot.io/v1/ws";
+/// Public STUN servers: they tell each end of a direct link its public address.
+const DEFAULT_STUN: [&str; 2] = ["stun:stun.l.google.com:19302", "stun:stun.cloudflare.com:3478"];
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub relay: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stun: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub machine: Option<MachineConfig>,
+}
+
+impl Config {
+    /// STUN servers for direct links; an empty list means local candidates only.
+    pub fn stun(&self) -> Vec<String> {
+        let default = || DEFAULT_STUN.map(str::to_owned).to_vec();
+        self.stun.clone().unwrap_or_else(default)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

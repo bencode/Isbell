@@ -8,8 +8,10 @@
 //! receiver ─▶ credit(n)               once it consumed n ≥ WINDOW / 2 more bytes
 //! ```
 
-/// Largest data body: frames also fit a WebRTC DataChannel message.
-pub const MAX_CHUNK: usize = 64 * 1024;
+/// Largest message every link carries: one WebRTC DataChannel message.
+pub const MAX_MESSAGE: usize = 64 * 1024;
+/// Largest data body; the rest of `MAX_MESSAGE` is room for the frame header.
+pub const MAX_CHUNK: usize = 63 * 1024;
 /// Bytes a receiver lets in before it must grant more.
 pub const WINDOW: u64 = 1 << 20;
 
@@ -49,6 +51,7 @@ impl Grants {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::frame::{DataKind, Frame, Header};
 
     #[test]
     fn credit_never_goes_negative_or_overflows() {
@@ -60,7 +63,7 @@ mod tests {
 
     #[test]
     fn grants_what_was_consumed_every_half_window() {
-        let chunk = MAX_CHUNK as u64;
+        let chunk = WINDOW / 16;
         let seven = (0..7)
             .try_fold(Grants::default(), |grants, _| match grants.consumed(chunk) {
                 (grants, None) => Some(grants),
@@ -68,5 +71,22 @@ mod tests {
             })
             .expect("seven chunks are less than half a window");
         assert_eq!(seven.consumed(chunk), (Grants::default(), Some(WINDOW / 2)));
+    }
+
+    #[test]
+    fn the_largest_data_frame_fits_one_message() {
+        let long = Some("x".repeat(64));
+        let header = Header::Data {
+            id: u64::MAX,
+            k: DataKind::Frame,
+            full: Some(false),
+            cols: Some(u16::MAX),
+            rows: Some(u16::MAX),
+            mid: long.clone(),
+            from: long.clone(),
+            to: long,
+        };
+        let frame = Frame { header, body: Some(vec![0; MAX_CHUNK]) };
+        assert!(frame.encode_binary().len() <= MAX_MESSAGE);
     }
 }

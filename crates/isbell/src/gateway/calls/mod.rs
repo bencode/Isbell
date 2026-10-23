@@ -1,12 +1,13 @@
 //! Calls in flight and the streams they open: each call runs as a task that replies through its
 //! caller's link, and each open stream is registered so the caller's input reaches it. Calls belong
-//! to the gateway process, not to a relay connection, so a result finished after a reconnect still
-//! reaches its caller.
+//! to the gateway process, not to a relay connection or a direct link, so a result finished after a
+//! reconnect still reaches its caller. One task owns them; relayed and direct frames both reach it
+//! through its inbox.
 
 mod route;
+mod streams;
 
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use isbell_proto::frame::{Frame, RpcError};
 use serde_json::Value;
@@ -14,27 +15,33 @@ use tokio::sync::mpsc;
 use tokio::task::JoinSet;
 
 pub use self::route::methods;
-use self::route::{Inbound, Method, output_frame, response_frame, route};
-use super::file;
+pub(super) use self::route::response_frame;
+use self::route::{Inbound, Method, route};
+use self::streams::{Streams, close_caller, feed, serve_stream};
 use super::link::Link;
-use super::stream::{Input, Output};
 use super::terminal::{self, TerminalRequest};
-use super::{HerdrSlot, nudge, rpc};
-
-/// Open terminals and files together.
-const MAX_STREAMS: usize = 8;
-/// Queued caller input per stream; input beyond this is dropped while the stream lags.
-const STREAM_INPUT_BUFFER: usize = 256;
+use super::{HerdrSlot, direct, file, nudge, rpc};
 
 fn unavailable() -> RpcError {
     RpcError::new("herdr_unavailable", "herdr server is not available")
 }
 
-/// A stream by its caller (the link's key) and call id.
-type StreamKey = (String, u64);
+/// What reaches the calls: a frame from a caller, or the end of a direct caller's link.
+pub enum ToCalls {
+    Frame(Link, Box<Frame>),
+    Gone(String),
+}
 
-/// Open streams, for routing client input to them.
-type Streams = Arc<Mutex<HashMap<StreamKey, mpsc::Sender<Input>>>>;
+/// Owns the calls: acts on each message and collects finished tasks.
+pub async fn run(mut calls: Calls, mut inbox: mpsc::UnboundedReceiver<ToCalls>) {
+    while let Some(message) = inbox.recv().await {
+        calls.reap();
+        match message {
+            ToCalls::Frame(link, frame) => calls.handle(link, *frame),
+            ToCalls::Gone(key) => close_caller(&calls.streams, &key),
+        }
+    }
+}
 
 /// Calls in flight; they outlive relay connections, since each replies through its caller's link.
 pub struct Calls {
@@ -42,15 +49,24 @@ pub struct Calls {
     streams: Streams,
     slot: HerdrSlot,
     refresh: mpsc::Sender<()>,
+    /// STUN servers for direct links.
+    ice: Vec<String>,
+    /// The calls' own inbox, for the frames of direct links.
+    inbox: mpsc::UnboundedSender<ToCalls>,
 }
 
 impl Calls {
-    pub fn new(slot: HerdrSlot, refresh: mpsc::Sender<()>) -> Calls {
-        Calls { tasks: JoinSet::new(), streams: Arc::default(), slot, refresh }
+    pub fn new(
+        slot: HerdrSlot,
+        refresh: mpsc::Sender<()>,
+        ice: Vec<String>,
+        inbox: mpsc::UnboundedSender<ToCalls>,
+    ) -> Calls {
+        Calls { tasks: JoinSet::new(), streams: Arc::default(), slot, refresh, ice, inbox }
     }
 
     /// Acts on one frame from `link`'s caller: a call starts a task, stream input feeds its stream.
-    pub fn handle(&mut self, link: Link, frame: Frame) {
+    fn handle(&mut self, link: Link, frame: Frame) {
         match route(frame) {
             Inbound::Call { id, method: Ok(method), p } => self.start(link, id, method, p),
             Inbound::Call { id, method: Err(m), .. } => {
@@ -63,7 +79,7 @@ impl Calls {
     }
 
     /// Collects finished calls, logging any that panicked.
-    pub fn reap(&mut self) {
+    fn reap(&mut self) {
         while let Some(joined) = self.tasks.try_join_next() {
             if let Err(err) = joined {
                 tracing::error!(%err, "request task failed");
@@ -73,6 +89,7 @@ impl Calls {
 
     fn start(&mut self, link: Link, id: u64, method: Method, p: Value) {
         let herdr = self.slot.read().expect("herdr slot poisoned").clone().ok_or_else(unavailable);
+        let streams = Arc::clone(&self.streams);
         match method {
             Method::Herdr => self.tasks.spawn(async move {
                 let result = async { rpc::passthrough(&herdr?, p).await }.await;
@@ -93,17 +110,19 @@ impl Calls {
                     terminal::open(&herdr, req).await
                 };
                 let run = |session, input, emit| terminal::pump(session, input, emit);
-                self.tasks.spawn(serve_stream(link, id, Arc::clone(&self.streams), open, run))
+                self.tasks.spawn(serve_stream(link, id, streams, open, run))
             }
             Method::FileRead => {
                 let run = |file, input, emit| file::pump_read(file, input, emit);
-                let streams = Arc::clone(&self.streams);
                 self.tasks.spawn(serve_stream(link, id, streams, file::open_read(p), run))
             }
             Method::FileWrite => {
                 let run = |target, input, emit| file::pump_write(target, input, emit);
-                let streams = Arc::clone(&self.streams);
                 self.tasks.spawn(serve_stream(link, id, streams, file::open_write(p), run))
+            }
+            Method::RtcOffer => {
+                let (ice, inbox) = (self.ice.clone(), self.inbox.clone());
+                self.tasks.spawn(direct::serve(link, id, p, ice, inbox))
             }
         };
     }
@@ -111,66 +130,4 @@ impl Calls {
 
 fn bad_request(err: serde_json::Error) -> RpcError {
     RpcError::new("bad_request", err.to_string())
-}
-
-/// Delivers a stream's output to its caller.
-type Emit = Box<dyn FnMut(Output) + Send>;
-
-/// Registers the stream, opens it, answers the call, then runs the stream until either side ends
-/// it. Registered before the answer so input sent right after it is not lost.
-async fn serve_stream<S, R: Future<Output = ()>>(
-    link: Link,
-    id: u64,
-    streams: Streams,
-    open: impl Future<Output = Result<(S, Value), RpcError>>,
-    run: impl FnOnce(S, mpsc::Receiver<Input>, Emit) -> R,
-) {
-    let opened = async {
-        let (registered, input) = register(&streams, (link.key().to_owned(), id))?;
-        let (stream, r) = open.await?;
-        Ok::<_, RpcError>((registered, input, stream, r))
-    };
-    match opened.await {
-        Err(err) => link.send(response_frame(id, Err(err))),
-        Ok((_registered, input, stream, r)) => {
-            link.send(response_frame(id, Ok(r)));
-            let caller = link.clone();
-            run(stream, input, Box::new(move |output| caller.send(output_frame(id, output)))).await;
-        }
-    }
-}
-
-/// A stream's entry in the registry, removed when dropped.
-struct Registered {
-    streams: Streams,
-    key: StreamKey,
-}
-
-impl Drop for Registered {
-    fn drop(&mut self) {
-        self.streams.lock().expect("streams poisoned").remove(&self.key);
-    }
-}
-
-fn register(
-    streams: &Streams,
-    key: StreamKey,
-) -> Result<(Registered, mpsc::Receiver<Input>), RpcError> {
-    let mut open = streams.lock().expect("streams poisoned");
-    if open.len() >= MAX_STREAMS {
-        return Err(RpcError::new("too_many_streams", "too many open streams"));
-    }
-    let (tx, rx) = mpsc::channel(STREAM_INPUT_BUFFER);
-    open.insert(key.clone(), tx);
-    Ok((Registered { streams: Arc::clone(streams), key }, rx))
-}
-
-fn feed(streams: &Streams, key: StreamKey, input: Input) {
-    let id = key.1;
-    let stream = streams.lock().expect("streams poisoned").get(&key).cloned();
-    match stream.map(|tx| tx.try_send(input)) {
-        Some(Ok(())) => {}
-        Some(Err(err)) => tracing::warn!(id, %err, "stream input dropped"),
-        None => tracing::debug!(id, "input for an unknown stream"),
-    }
 }

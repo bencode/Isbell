@@ -73,6 +73,8 @@ impl Harness {
             relay: self.url.clone(),
             identity: Identity::parse(&self.id.key_string()).unwrap(),
             machine: self.machine.clone(),
+            // Host candidates only: everything runs on this machine.
+            ice: vec![],
         }))
     }
 }

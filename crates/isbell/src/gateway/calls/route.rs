@@ -16,11 +16,18 @@ pub enum Method {
     Terminal,
     FileRead,
     FileWrite,
+    RtcOffer,
 }
 
 impl Method {
-    const ALL: [Method; 5] =
-        [Method::Herdr, Method::StartAgent, Method::Terminal, Method::FileRead, Method::FileWrite];
+    const ALL: [Method; 6] = [
+        Method::Herdr,
+        Method::StartAgent,
+        Method::Terminal,
+        Method::FileRead,
+        Method::FileWrite,
+        Method::RtcOffer,
+    ];
 
     pub fn name(self) -> &'static str {
         match self {
@@ -29,6 +36,7 @@ impl Method {
             Method::Terminal => "isbell.terminal",
             Method::FileRead => "isbell.file.read",
             Method::FileWrite => "isbell.file.write",
+            Method::RtcOffer => "isbell.rtc.offer",
         }
     }
 
@@ -151,6 +159,7 @@ mod tests {
         };
         assert_eq!(routed("isbell.terminal"), Ok(Method::Terminal));
         assert_eq!(routed("herdr"), Ok(Method::Herdr));
+        assert_eq!(routed("isbell.rtc.offer"), Ok(Method::RtcOffer));
         assert_eq!(
             routed("agent.list"),
             Err("agent.list".into()),
@@ -216,6 +225,7 @@ mod tests {
         let methods = methods();
         assert!(methods.iter().any(|m| m == "agent.list"));
         assert!(methods.iter().any(|m| m == "isbell.terminal"));
+        assert!(methods.iter().any(|m| m == "isbell.rtc.offer"), "clients look for direct links");
         assert!(!methods.iter().any(|m| m == "herdr"));
     }
 }

@@ -1,6 +1,7 @@
 //! `isbell gateway run`: keeps this machine's herdr state reported to the relay and serves requests.
 
 mod calls;
+mod direct;
 mod file;
 mod herdr;
 mod link;
@@ -17,31 +18,23 @@ use std::sync::{Arc, RwLock};
 use isbell_proto::identity::Identity;
 use isbell_proto::state::{Caps, MachineInfo};
 use tokio::sync::{mpsc, watch};
-use tokio::task::JoinHandle;
 
 use self::calls::Calls;
 use self::herdr::Herdr;
 use self::state::Reporter;
-use crate::now_ms;
 use crate::relay::RelayError;
+use crate::{AbortOnDrop, now_ms};
 
 pub struct GatewayOptions {
     pub relay: String,
     pub identity: Identity,
     pub machine: MachineInfo,
+    /// STUN servers for direct links.
+    pub ice: Vec<String>,
 }
 
 /// Shared between the monitor (which discovers herdr) and the calls.
 type HerdrSlot = Arc<RwLock<Option<Herdr>>>;
-
-/// Ties a spawned task to its owner: dropping (or cancelling) the owner stops the task.
-struct AbortOnDrop<T>(JoinHandle<T>);
-
-impl<T> Drop for AbortOnDrop<T> {
-    fn drop(&mut self) {
-        self.0.abort();
-    }
-}
 
 #[derive(Debug, thiserror::Error)]
 pub enum GatewayError {
@@ -63,9 +56,11 @@ pub async fn run(opts: GatewayOptions) -> Result<(), GatewayError> {
     let reporter = Reporter { machine: opts.machine.clone(), caps, boot: now_ms() };
     let monitor = monitor::run(reporter, Arc::clone(&slot), states, refresh.clone(), refresh_rx);
     let mut monitor = AbortOnDrop(tokio::spawn(monitor));
-    let calls = Calls::new(slot, refresh);
+    let (inbox, inbox_rx) = mpsc::unbounded_channel();
+    let calls = Calls::new(slot, refresh, opts.ice.clone(), inbox.clone());
+    let _calls = AbortOnDrop(tokio::spawn(calls::run(calls, inbox_rx)));
     tokio::select! {
-        result = uplink::run(&opts, calls, states_rx) => Ok(result?),
+        result = uplink::run(&opts, inbox, states_rx) => Ok(result?),
         joined = &mut monitor.0 => {
             if let Err(err) = joined {
                 tracing::error!(%err, "herdr monitor failed");

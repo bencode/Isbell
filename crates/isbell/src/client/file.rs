@@ -1,11 +1,12 @@
 //! A machine's files as streams. Reading: chunks arrive, and credit is granted as the caller takes
-//! them. Writing: chunks go out as the machine grants credit, paced for the relay.
+//! them. Writing: chunks go out as the machine grants credit, paced when they go through the relay.
 
 use std::time::Duration;
 
 use isbell_proto::flow::{Credit, Grants, MAX_CHUNK, WINDOW};
 use isbell_proto::frame::RpcError;
 use serde_json::json;
+use tokio::time::{Interval, MissedTickBehavior};
 
 use super::{Session, Stream, StreamEvent};
 
@@ -75,7 +76,8 @@ impl FileRead {
 pub struct FileWrite {
     stream: Stream,
     credit: Credit,
-    pace: tokio::time::Interval,
+    /// Only over the relay; a direct link takes chunks as fast as credit allows.
+    pace: Option<Interval>,
 }
 
 impl Session {
@@ -88,8 +90,11 @@ impl Session {
     ) -> Result<FileWrite, RpcError> {
         let params = json!({"path": path, "size": size});
         let (_, stream) = self.open_stream(mid, "isbell.file.write", params, OPEN_TIMEOUT).await?;
-        let mut pace = tokio::time::interval(CHUNK_EVERY);
-        pace.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+        let pace = (!stream.is_direct()).then(|| {
+            let mut pace = tokio::time::interval(CHUNK_EVERY);
+            pace.set_missed_tick_behavior(MissedTickBehavior::Delay);
+            pace
+        });
         Ok(FileWrite { stream, credit: Credit::default(), pace })
     }
 }
@@ -105,7 +110,7 @@ impl FileWrite {
             tokio::select! {
                 biased;
                 event = self.stream.next() => self.credit = granted(self.credit, event)?,
-                _ = self.pace.tick(), if self.credit.available() >= len => break,
+                _ = paced(&mut self.pace), if self.credit.available() >= len => break,
             }
         }
         self.credit = self.credit.spent(len);
@@ -122,6 +127,12 @@ impl FileWrite {
                 event => self.credit = granted(self.credit, event)?,
             }
         }
+    }
+}
+
+async fn paced(pace: &mut Option<Interval>) {
+    if let Some(pace) = pace {
+        pace.tick().await;
     }
 }
 

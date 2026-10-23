@@ -30,6 +30,9 @@ pub struct Cli {
     /// Print JSON even on a terminal.
     #[arg(long, global = true)]
     json: bool,
+    /// How terminals and files reach a machine.
+    #[arg(long, global = true, value_enum, default_value_t = Transport::Auto)]
+    transport: Transport,
     #[command(subcommand)]
     command: Command,
 }
@@ -64,6 +67,32 @@ enum GatewayCmd {
     Run,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+enum Transport {
+    /// A direct link when one can be opened, else the relay.
+    Auto,
+    /// A direct link, or fail.
+    Direct,
+    /// Always the relay.
+    Relay,
+}
+
+/// The way a command's terminal or file went.
+#[derive(Clone, Copy)]
+pub enum Via {
+    Direct,
+    Relay,
+}
+
+impl Via {
+    pub fn name(self) -> &'static str {
+        match self {
+            Via::Direct => "direct",
+            Via::Relay => "relay",
+        }
+    }
+}
+
 /// Shared state for one command invocation.
 pub struct Ctx {
     out: Output,
@@ -71,6 +100,7 @@ pub struct Ctx {
     config: Config,
     relay: String,
     key: Option<String>,
+    transport: Transport,
 }
 
 impl Ctx {
@@ -91,6 +121,21 @@ impl Ctx {
             .await
             .map_err(|err| CliError::new("relay_error", err.to_string()))
     }
+
+    /// Opens a direct link to machine `mid` as `--transport` asks; the way streams to it go.
+    async fn reach(&self, session: &Session, mid: &str) -> Result<Via, CliError> {
+        if self.transport == Transport::Relay {
+            return Ok(Via::Relay);
+        }
+        match session.direct(mid, &self.config.stun()).await {
+            Ok(()) => Ok(Via::Direct),
+            Err(err) if self.transport == Transport::Auto => {
+                tracing::warn!("direct link failed ({}: {}); using the relay", err.code, err.msg);
+                Ok(Via::Relay)
+            }
+            Err(err) => Err(err.into()),
+        }
+    }
 }
 
 pub async fn run(cli: Cli) -> Result<(), CliError> {
@@ -102,6 +147,7 @@ pub async fn run(cli: Cli) -> Result<(), CliError> {
         paths,
         config,
         key: cli.key,
+        transport: cli.transport,
     };
     match cli.command {
         Command::Space(cmd) => space::run(&ctx, cmd),
@@ -126,7 +172,12 @@ async fn run_gateway(mut ctx: Ctx) -> Result<(), CliError> {
         }
     };
     tracing::info!(machine = %machine.name, id = %machine.id, "starting gateway");
-    let opts = GatewayOptions { relay: ctx.relay, identity, machine: machine.info() };
+    let opts = GatewayOptions {
+        relay: ctx.relay,
+        identity,
+        machine: machine.info(),
+        ice: ctx.config.stun(),
+    };
     gateway::run(opts).await.map_err(|err| {
         let code = match err {
             GatewayError::Relay(RelayError::Replaced) => "gateway_replaced",

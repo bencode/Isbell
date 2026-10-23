@@ -1,5 +1,6 @@
 //! Calls awaiting a response and open streams, by id. A machine that goes offline or restarts takes
-//! its calls and streams with it; losing the relay connection ends them all.
+//! its calls and streams with it, and so does a direct link that is lost; losing the relay
+//! connection ends them all.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -12,10 +13,12 @@ use super::stream::StreamEvent;
 
 pub type Reply = Result<Value, RpcError>;
 
-/// Where a call or stream went: the machine, and its gateway process (`boot`) when known.
+/// Where a call or stream went: the machine, its gateway process (`boot`) when known, and whether
+/// it went over the direct link.
 pub struct Target {
     pub mid: String,
     pub boot: Option<u64>,
+    pub direct: bool,
 }
 
 struct Waiter {
@@ -97,18 +100,18 @@ impl Inflight {
         }
     }
 
-    /// Fails the calls and ends the streams matching `lost` with `machine_offline`. A gateway that
-    /// reconnects keeps serving them; only one that went offline or restarted loses them.
-    pub fn fail(&self, reason: &str, lost: impl Fn(&Target) -> bool) {
-        let err = || RpcError::new("machine_offline", reason);
+    /// Fails the calls and ends the streams matching `lost` with `err`. A gateway that reconnects
+    /// to the relay keeps serving them; only one that went offline or restarted loses them, or a
+    /// direct link that is gone.
+    pub fn fail(&self, err: RpcError, lost: impl Fn(&Target) -> bool) {
         self.with(|e| {
             for (id, waiter) in e.calls.extract_if(|_, w| lost(&w.target)) {
-                if waiter.tx.send(Err(err())).is_err() {
+                if waiter.tx.send(Err(err.clone())).is_err() {
                     tracing::debug!(id, "caller stopped waiting");
                 }
             }
             for (id, slot) in e.streams.extract_if(|_, s| lost(&s.target)) {
-                if slot.tx.send(StreamEvent::End(Some(err()))).is_err() {
+                if slot.tx.send(StreamEvent::End(Some(err.clone()))).is_err() {
                     tracing::debug!(id, "stream reader is gone");
                 }
             }
@@ -136,8 +139,8 @@ pub fn disconnected() -> RpcError {
 mod tests {
     use super::*;
 
-    fn target(mid: &str) -> Target {
-        Target { mid: mid.into(), boot: Some(1) }
+    fn target(mid: &str, direct: bool) -> Target {
+        Target { mid: mid.into(), boot: Some(1), direct }
     }
 
     #[test]
@@ -149,20 +152,20 @@ mod tests {
     }
 
     #[test]
-    fn failing_a_machine_ends_only_its_calls_and_streams() {
+    fn failing_ends_only_the_matching_calls_and_streams() {
         let inflight = Inflight::new();
         let (lost_tx, mut lost_rx) = oneshot::channel();
         let (kept_tx, mut kept_rx) = oneshot::channel();
         let (stream_tx, mut stream_rx) = mpsc::unbounded_channel();
-        inflight.add_call(1, target("a"), lost_tx).unwrap();
-        inflight.add_call(2, target("b"), kept_tx).unwrap();
-        inflight.add_stream(3, target("a"), stream_tx).unwrap();
+        inflight.add_call(1, target("a", true), lost_tx).unwrap();
+        inflight.add_call(2, target("a", false), kept_tx).unwrap();
+        inflight.add_stream(3, target("a", true), stream_tx).unwrap();
 
-        inflight.fail("gone", |t| t.mid == "a");
-        assert_eq!(lost_rx.try_recv().unwrap().unwrap_err().code, "machine_offline");
-        assert!(kept_rx.try_recv().is_err(), "b's call still waits");
+        inflight.fail(RpcError::new("disconnected", "gone"), |t| t.mid == "a" && t.direct);
+        assert_eq!(lost_rx.try_recv().unwrap().unwrap_err().code, "disconnected");
+        assert!(kept_rx.try_recv().is_err(), "the relayed call still waits");
         assert!(
-            matches!(stream_rx.try_recv(), Ok(StreamEvent::End(Some(e))) if e.code == "machine_offline")
+            matches!(stream_rx.try_recv(), Ok(StreamEvent::End(Some(e))) if e.code == "disconnected")
         );
 
         inflight.resolve(2, Ok(Value::Null));
@@ -173,10 +176,10 @@ mod tests {
     fn closing_ends_everything_and_refuses_new_calls() {
         let inflight = Inflight::new();
         let (tx, mut rx) = oneshot::channel();
-        inflight.add_call(1, target("a"), tx).unwrap();
+        inflight.add_call(1, target("a", false), tx).unwrap();
         inflight.close();
         assert!(matches!(rx.try_recv(), Err(oneshot::error::TryRecvError::Closed)));
         let (tx, _) = oneshot::channel();
-        assert_eq!(inflight.add_call(2, target("a"), tx).unwrap_err().code, "disconnected");
+        assert_eq!(inflight.add_call(2, target("a", false), tx).unwrap_err().code, "disconnected");
     }
 }

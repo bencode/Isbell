@@ -52,6 +52,7 @@ pub async fn run(ctx: &Ctx, cmd: TerminalCmd) -> Result<(), CliError> {
     let session = ctx.session().await?;
     let machines = session.machines();
     let (state, _) = resolve_machine(&machines, &machine)?;
+    ctx.reach(&session, &state.machine.id).await?;
     let (opened, stream) =
         session.open_stream(&state.machine.id, "isbell.terminal", params, OPEN_TIMEOUT).await?;
     // A new shell outlives the detach; say how to come back to it.

@@ -1,5 +1,6 @@
 //! What the client does with its relay connection: frames from the relay update the space and
-//! answer the calls in flight; frames from callers go out in order.
+//! answer the calls in flight; frames from callers go out in order. A direct link only answers
+//! calls in flight (`to_inflight`).
 
 use std::sync::{Arc, Mutex};
 
@@ -103,14 +104,14 @@ fn apply(inbound: Inbound, space: &Mutex<Space>, inflight: &Inflight) -> Option<
         Inbound::State(state) => {
             let mid = &state.machine.id;
             let lost = |t: &Target| t.mid == *mid && restarted(t.boot, state.boot);
-            inflight.fail("machine restarted before answering", lost);
+            inflight.fail(offline("machine restarted before answering"), lost);
             let recorded = space.lock().expect("session poisoned").record((*state).clone());
             recorded.then_some(SessionEvent::State(state))
         }
         Inbound::Presence { mid, online } => {
             if !online {
                 // The gateway is gone, and with it every call and stream it was serving.
-                inflight.fail("machine went offline before answering", |t| t.mid == mid);
+                inflight.fail(offline("machine went offline before answering"), |t| t.mid == mid);
             }
             space.lock().expect("session poisoned").set_online(mid.clone(), online);
             Some(SessionEvent::Presence { mid, online })
@@ -121,6 +122,19 @@ fn apply(inbound: Inbound, space: &Mutex<Space>, inflight: &Inflight) -> Option<
         }
         Inbound::Ignore => None,
     }
+}
+
+/// Hands a frame from a direct link to the call or stream waiting for it.
+pub fn to_inflight(frame: Frame, inflight: &Inflight) {
+    match inbound(frame) {
+        Inbound::Reply { id, reply } => inflight.resolve(id, reply),
+        Inbound::Stream { id, event, last } => inflight.deliver(id, event, last),
+        other => tracing::debug!(?other, "ignoring a frame a direct link does not carry"),
+    }
+}
+
+fn offline(reason: &str) -> RpcError {
+    RpcError::new("machine_offline", reason)
 }
 
 fn publish(events: &broadcast::Sender<SessionEvent>, event: SessionEvent) {
