@@ -17,8 +17,9 @@ use tokio::task::JoinSet;
 pub use self::route::methods;
 pub(super) use self::route::response_frame;
 use self::route::{Inbound, Method, route};
-use self::streams::{Streams, close_caller, feed, serve_stream};
+use self::streams::{Emit, Streams, close_caller, feed, register, serve_stream};
 use super::link::Link;
+use super::stream::Input;
 use super::terminal::{self, TerminalRequest};
 use super::{HerdrSlot, direct, file, nudge, rpc};
 
@@ -89,19 +90,20 @@ impl Calls {
 
     fn start(&mut self, link: Link, id: u64, method: Method, p: Value) {
         let herdr = self.slot.read().expect("herdr slot poisoned").clone().ok_or_else(unavailable);
-        let streams = Arc::clone(&self.streams);
         match method {
-            Method::Herdr => self.tasks.spawn(async move {
-                let result = async { rpc::passthrough(&herdr?, p).await }.await;
-                link.send(response_frame(id, result));
-            }),
+            Method::Herdr => {
+                self.tasks.spawn(async move {
+                    let result = async { rpc::passthrough(&herdr?, p).await }.await;
+                    link.send(response_frame(id, result));
+                });
+            }
             Method::StartAgent => {
                 let refresh = self.refresh.clone();
                 self.tasks.spawn(async move {
                     let result = async { rpc::start_agent(&herdr?, p).await }.await;
                     nudge(&refresh);
                     link.send(response_frame(id, result));
-                })
+                });
             }
             Method::Terminal => {
                 let open = async move {
@@ -109,25 +111,79 @@ impl Calls {
                     let req: TerminalRequest = serde_json::from_value(p).map_err(bad_request)?;
                     terminal::open(&herdr, req).await
                 };
-                let run = |session, input, emit| terminal::pump(session, input, emit);
-                self.tasks.spawn(serve_stream(link, id, streams, open, run))
+                self.stream(link, id, open, terminal::pump);
             }
-            Method::FileRead => {
-                let run = |file, input, emit| file::pump_read(file, input, emit);
-                self.tasks.spawn(serve_stream(link, id, streams, file::open_read(p), run))
-            }
-            Method::FileWrite => {
-                let run = |target, input, emit| file::pump_write(target, input, emit);
-                self.tasks.spawn(serve_stream(link, id, streams, file::open_write(p), run))
-            }
+            Method::FileRead => self.stream(link, id, file::open_read(p), file::pump_read),
+            Method::FileWrite => self.stream(link, id, file::open_write(p), file::pump_write),
             Method::RtcOffer => {
                 let (ice, inbox) = (self.ice.clone(), self.inbox.clone());
-                self.tasks.spawn(direct::serve(link, id, p, ice, inbox))
+                self.tasks.spawn(direct::serve(link, id, p, ice, inbox));
             }
-        };
+        }
+    }
+
+    /// Registers the stream now, in order with its caller's other frames, so the caller's `Gone`
+    /// always finds it; then opens and runs it in a task.
+    fn stream<S, R>(
+        &mut self,
+        link: Link,
+        id: u64,
+        open: impl Future<Output = Result<(S, Value), RpcError>> + Send + 'static,
+        run: impl FnOnce(S, mpsc::Receiver<Input>, Emit) -> R + Send + 'static,
+    ) where
+        S: Send + 'static,
+        R: Future<Output = ()> + Send + 'static,
+    {
+        match register(&self.streams, (link.key().to_owned(), id)) {
+            Ok(slot) => {
+                self.tasks.spawn(serve_stream(link, id, slot, open, run));
+            }
+            Err(err) => link.send(response_frame(id, Err(err))),
+        }
     }
 }
 
 fn bad_request(err: serde_json::Error) -> RpcError {
     RpcError::new("bad_request", err.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use isbell_proto::frame::Header;
+    use serde_json::json;
+
+    use super::*;
+
+    /// A caller's last stream opens just before its direct link ends: the link's end still closes
+    /// it, rather than leaving it to its idle timeout.
+    #[tokio::test]
+    async fn a_gone_caller_loses_even_the_stream_it_just_opened() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("notes.md");
+        std::fs::write(&path, b"# notes").unwrap();
+        let (inbox, inbox_rx) = mpsc::unbounded_channel();
+        let (refresh, _refresh_rx) = mpsc::channel(1);
+        let calls = Calls::new(HerdrSlot::default(), refresh, vec![], inbox.clone());
+        let streams = Arc::clone(&calls.streams);
+        let _calls = crate::AbortOnDrop(tokio::spawn(run(calls, inbox_rx)));
+
+        let (out, mut out_rx) = mpsc::unbounded_channel();
+        let link = Link::peer("peer-1".into(), out);
+        let p = json!({"path": path});
+        let call = Header::Call { id: 1, m: "isbell.file.read".into(), p, mid: None, from: None };
+        inbox.send(ToCalls::Frame(link, Box::new(Frame::new(call)))).unwrap();
+        inbox.send(ToCalls::Gone("peer-1".into())).unwrap();
+
+        let answered = tokio::time::timeout(Duration::from_secs(2), out_rx.recv()).await;
+        let answer = answered.expect("the call is answered").unwrap().header;
+        assert!(matches!(answer, Header::Res { id: 1, ok: true, .. }), "the stream opened");
+        let closed = async {
+            while !streams.lock().expect("streams poisoned").is_empty() {
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        };
+        tokio::time::timeout(Duration::from_secs(2), closed).await.expect("the stream closes");
+    }
 }

@@ -24,30 +24,32 @@ type StreamKey = (String, u64);
 pub type Streams = Arc<Mutex<HashMap<StreamKey, mpsc::Sender<Input>>>>;
 
 /// Delivers a stream's output to its caller.
-type Emit = Box<dyn FnMut(Output) + Send>;
+pub type Emit = Box<dyn FnMut(Output) + Send>;
 
-/// Registers the stream, opens it, answers the call, then runs the stream until either side ends
-/// it. Registered before the answer so input sent right after it is not lost.
+/// Opens a registered stream, answers the call, then runs the stream until either side ends it.
+/// The stream is registered before the answer, so input sent right after it is not lost.
 pub async fn serve_stream<S, R: Future<Output = ()>>(
     link: Link,
     id: u64,
-    streams: Streams,
+    slot: Slot,
     open: impl Future<Output = Result<(S, Value), RpcError>>,
     run: impl FnOnce(S, mpsc::Receiver<Input>, Emit) -> R,
 ) {
-    let opened = async {
-        let (registered, input) = register(&streams, (link.key().to_owned(), id))?;
-        let (stream, r) = open.await?;
-        Ok::<_, RpcError>((registered, input, stream, r))
-    };
-    match opened.await {
+    let Slot { registered: _registered, input } = slot;
+    match open.await {
         Err(err) => link.send(response_frame(id, Err(err))),
-        Ok((_registered, input, stream, r)) => {
+        Ok((stream, r)) => {
             link.send(response_frame(id, Ok(r)));
             let caller = link.clone();
             run(stream, input, Box::new(move |output| caller.send(output_frame(id, output)))).await;
         }
     }
+}
+
+/// A stream's place in the registry and its input; it leaves the registry when dropped.
+pub struct Slot {
+    registered: Registered,
+    input: mpsc::Receiver<Input>,
 }
 
 /// A stream's entry in the registry, removed when dropped.
@@ -62,17 +64,15 @@ impl Drop for Registered {
     }
 }
 
-fn register(
-    streams: &Streams,
-    key: StreamKey,
-) -> Result<(Registered, mpsc::Receiver<Input>), RpcError> {
+/// Takes a place for the stream `key`, unless too many streams are open.
+pub fn register(streams: &Streams, key: StreamKey) -> Result<Slot, RpcError> {
     let mut open = streams.lock().expect("streams poisoned");
     if open.len() >= MAX_STREAMS {
         return Err(RpcError::new("too_many_streams", "too many open streams"));
     }
     let (tx, rx) = mpsc::channel(STREAM_INPUT_BUFFER);
     open.insert(key.clone(), tx);
-    Ok((Registered { streams: Arc::clone(streams), key }, rx))
+    Ok(Slot { registered: Registered { streams: Arc::clone(streams), key }, input: rx })
 }
 
 pub fn feed(streams: &Streams, key: StreamKey, input: Input) {
@@ -102,10 +102,10 @@ mod tests {
     #[test]
     fn closing_a_caller_closes_only_its_streams() {
         let streams = Streams::default();
-        let (_mine, mut mine) = register(&streams, ("peer-1".into(), 1)).unwrap();
-        let (_theirs, mut theirs) = register(&streams, ("c1".into(), 1)).unwrap();
+        let mut mine = register(&streams, ("peer-1".into(), 1)).unwrap();
+        let mut theirs = register(&streams, ("c1".into(), 1)).unwrap();
         close_caller(&streams, "peer-1");
-        assert_eq!(mine.try_recv().unwrap(), Input::Close);
-        assert!(theirs.try_recv().is_err(), "another caller's stream stays open");
+        assert_eq!(mine.input.try_recv().unwrap(), Input::Close);
+        assert!(theirs.input.try_recv().is_err(), "another caller's stream stays open");
     }
 }

@@ -46,6 +46,8 @@ pub struct Session {
     /// Frames for the relay connection, whatever machine they are for.
     to_relay: mpsc::UnboundedSender<Frame>,
     peers: Arc<PeerLinks>,
+    /// One direct link is set up at a time, so a machine never gets two.
+    opening: tokio::sync::Mutex<()>,
     events: broadcast::Sender<SessionEvent>,
     next_id: AtomicU64,
 }
@@ -63,8 +65,15 @@ impl Session {
         tokio::spawn(write_loop(conn.sink, relay_rx));
         let read = read_loop(conn.stream, Arc::clone(&space), inflight.clone(), events.clone());
         tokio::spawn(read);
-        let peers = Arc::default();
-        Ok(Session { space, inflight, to_relay, peers, events, next_id: AtomicU64::new(1) })
+        Ok(Session {
+            space,
+            inflight,
+            to_relay,
+            peers: Arc::default(),
+            opening: tokio::sync::Mutex::default(),
+            events,
+            next_id: AtomicU64::new(1),
+        })
     }
 
     /// Every known machine with its online flag, ordered by name.

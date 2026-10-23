@@ -23,6 +23,7 @@ impl Session {
     /// failure streams keep using the relay; the error says why (`direct_failed`, or the
     /// machine's own answer).
     pub async fn direct(&self, mid: &str, ice: &[String]) -> Result<(), RpcError> {
+        let _opening = self.opening.lock().await;
         if self.peers.lock().expect("session poisoned").contains_key(mid) {
             return Ok(());
         }
@@ -61,7 +62,9 @@ impl Session {
 }
 
 /// Answers the calls and streams on the link until it ends, then fails those still waiting. Holds
-/// the session's links weakly, so dropping the session ends the link.
+/// the session's links weakly, so dropping the session ends the link. The link leaves the session
+/// only after its calls and streams failed: until then no other link to `mid` can exist, so the
+/// failing never reaches one.
 async fn serve(
     mut peer: Peer,
     channel: Arc<dyn DataChannel>,
@@ -71,12 +74,12 @@ async fn serve(
     peers: Weak<PeerLinks>,
 ) {
     rtc::carry(&mut peer, channel, out, |frame| to_inflight(frame, &inflight)).await;
-    peer.close().await;
+    let lost = RpcError::new("disconnected", "lost the direct link to the machine");
+    inflight.fail(lost, |t| t.mid == mid && t.direct);
     if let Some(peers) = peers.upgrade() {
         peers.lock().expect("session poisoned").retain(|_, link| !link.is_closed());
     }
-    let lost = RpcError::new("disconnected", "lost the direct link to the machine");
-    inflight.fail(lost, |t| t.mid == mid && t.direct);
+    peer.close().await;
 }
 
 fn failed(err: RtcError) -> RpcError {

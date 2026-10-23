@@ -159,6 +159,9 @@ pub async fn opened(channel: &Arc<dyn DataChannel>) -> Result<(), RtcError> {
         match channel.poll().await {
             Some(DataChannelEvent::OnOpen) => return Ok(()),
             Some(DataChannelEvent::OnClose) | None => return Err(RtcError::Closed),
+            Some(DataChannelEvent::OnMessage(_)) => {
+                tracing::warn!("a message arrived before the channel opened; dropped")
+            }
             Some(_) => {}
         }
     }
