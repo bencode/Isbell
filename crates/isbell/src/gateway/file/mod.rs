@@ -17,16 +17,12 @@ pub use self::write::{open_write, pump_write};
 /// the relay the gateway is not told when a caller disconnects.
 const STALLED_FOR: Duration = Duration::from_secs(5 * 60);
 
-fn bad_request(message: impl Into<String>) -> RpcError {
-    RpcError::new("bad_request", message)
-}
-
 /// `path` when it is absolute; the methods take no relative paths.
 fn absolute_path(path: &str) -> Result<&Path, RpcError> {
     let path = Path::new(path);
     match path.is_absolute() {
         true => Ok(path),
-        false => Err(bad_request(format!("{} is not an absolute path", path.display()))),
+        false => Err(RpcError::bad_request(format!("{} is not an absolute path", path.display()))),
     }
 }
 

@@ -9,7 +9,7 @@ use tokio::io::AsyncReadExt;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::TryRecvError;
 
-use super::{STALLED_FOR, absolute_path, bad_request, io_error};
+use super::{STALLED_FOR, absolute_path, io_error};
 use crate::gateway::stream::{Input, Output};
 
 #[derive(Deserialize)]
@@ -19,12 +19,14 @@ struct ReadRequest {
 
 /// Opens the regular file at the absolute `path`; answers with its size.
 pub async fn open_read(p: Value) -> Result<(File, Value), RpcError> {
-    let req: ReadRequest = serde_json::from_value(p).map_err(|err| bad_request(err.to_string()))?;
-    let file = File::open(absolute_path(&req.path)?).await.map_err(io_error)?;
-    let meta = file.metadata().await.map_err(io_error)?;
+    let req: ReadRequest = serde_json::from_value(p).map_err(RpcError::bad_request)?;
+    let path = absolute_path(&req.path)?;
+    // Checked before opening, which would wait for a writer on a FIFO.
+    let meta = tokio::fs::metadata(path).await.map_err(io_error)?;
     if !meta.is_file() {
         return Err(RpcError::new("not_a_file", format!("{} is not a regular file", req.path)));
     }
+    let file = File::open(path).await.map_err(io_error)?;
     Ok((file, json!({"size": meta.len()})))
 }
 
@@ -114,6 +116,10 @@ mod tests {
         assert_eq!(code(json!({"path": "/nonexistent/isbell/f"})).await, "not_found");
         let dir = tempfile::tempdir().unwrap();
         assert_eq!(code(json!({"path": dir.path()})).await, "not_a_file");
+        let fifo = dir.path().join("pipe");
+        assert!(std::process::Command::new("mkfifo").arg(&fifo).status().unwrap().success());
+        let refused = tokio::time::timeout(Duration::from_secs(2), code(json!({"path": fifo})));
+        assert_eq!(refused.await.expect("refused without waiting for a writer"), "not_a_file");
     }
 
     #[tokio::test]

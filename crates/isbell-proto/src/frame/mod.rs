@@ -1,4 +1,4 @@
-//! Frames shared by every transport (relay WebSocket and, later, WebRTC DataChannel).
+//! Frames shared by every transport: the relay WebSocket and WebRTC DataChannels.
 //!
 //! Routing fields are only present on relay hops:
 //! client → relay carries `mid`; relay → gateway carries `from`;

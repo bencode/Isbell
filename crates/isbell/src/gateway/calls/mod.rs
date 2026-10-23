@@ -18,14 +18,11 @@ pub use self::route::methods;
 pub(super) use self::route::response_frame;
 use self::route::{Inbound, Method, route};
 use self::streams::{Emit, Streams, close_caller, feed, register, serve_stream};
+use super::herdr::HerdrError;
 use super::link::Link;
 use super::stream::Input;
-use super::terminal::{self, TerminalRequest};
+use super::terminal;
 use super::{HerdrSlot, direct, file, nudge, rpc};
-
-fn unavailable() -> RpcError {
-    RpcError::new("herdr_unavailable", "herdr server is not available")
-}
 
 /// What reaches the calls: a frame from a caller, or the end of a direct caller's link.
 pub enum ToCalls {
@@ -89,7 +86,10 @@ impl Calls {
     }
 
     fn start(&mut self, link: Link, id: u64, method: Method, p: Value) {
-        let herdr = self.slot.read().expect("herdr slot poisoned").clone().ok_or_else(unavailable);
+        let herdr = self.slot.read().expect("herdr slot poisoned").clone();
+        let herdr = herdr.ok_or_else(|| {
+            RpcError::from(HerdrError::unavailable("herdr server is not available"))
+        });
         match method {
             Method::Herdr => {
                 self.tasks.spawn(async move {
@@ -106,11 +106,7 @@ impl Calls {
                 });
             }
             Method::Terminal => {
-                let open = async move {
-                    let herdr = herdr?;
-                    let req: TerminalRequest = serde_json::from_value(p).map_err(bad_request)?;
-                    terminal::open(&herdr, req).await
-                };
+                let open = async move { terminal::open(&herdr?, p).await };
                 self.stream(link, id, open, terminal::pump);
             }
             Method::FileRead => self.stream(link, id, file::open_read(p), file::pump_read),
@@ -141,10 +137,6 @@ impl Calls {
             Err(err) => link.send(response_frame(id, Err(err))),
         }
     }
-}
-
-fn bad_request(err: serde_json::Error) -> RpcError {
-    RpcError::new("bad_request", err.to_string())
 }
 
 #[cfg(test)]

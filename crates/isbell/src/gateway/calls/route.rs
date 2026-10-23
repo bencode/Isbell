@@ -100,35 +100,19 @@ pub fn response_frame(id: u64, result: Result<Value, RpcError>) -> Frame {
 pub fn output_frame(id: u64, output: Output) -> Frame {
     match output {
         Output::Frame { body, full, cols, rows } => {
-            let (full, cols, rows) = (Some(full), Some(cols), Some(rows));
-            let header = Header::Data {
-                id,
-                k: DataKind::Frame,
-                full,
-                cols,
-                rows,
-                mid: None,
-                from: None,
-                to: None,
-            };
-            Frame { header, body: Some(body) }
+            data(id, DataKind::Frame, Some((full, cols, rows)), body)
         }
-        Output::Chunk(body) => {
-            let header = Header::Data {
-                id,
-                k: DataKind::Chunk,
-                full: None,
-                cols: None,
-                rows: None,
-                mid: None,
-                from: None,
-                to: None,
-            };
-            Frame { header, body: Some(body) }
-        }
+        Output::Chunk(body) => data(id, DataKind::Chunk, None, body),
         Output::Credit(n) => Frame::new(Header::Credit { id, n, mid: None, from: None, to: None }),
         Output::End(e) => Frame::new(Header::End { id, e, mid: None, from: None, to: None }),
     }
+}
+
+/// A data frame; a terminal frame also says whether it repaints and the screen size.
+fn data(id: u64, k: DataKind, screen: Option<(bool, u16, u16)>, body: Vec<u8>) -> Frame {
+    let (full, cols, rows) = (screen.map(|s| s.0), screen.map(|s| s.1), screen.map(|s| s.2));
+    let header = Header::Data { id, k, full, cols, rows, mid: None, from: None, to: None };
+    Frame { header, body: Some(body) }
 }
 
 #[cfg(test)]

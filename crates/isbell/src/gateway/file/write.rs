@@ -13,7 +13,7 @@ use tokio::fs::{File, OpenOptions};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc;
 
-use super::{STALLED_FOR, absolute_path, bad_request, io_error};
+use super::{STALLED_FOR, absolute_path, io_error};
 use crate::gateway::stream::{Input, Output};
 
 #[derive(Deserialize)]
@@ -66,8 +66,7 @@ impl Received {
 /// Validates the absolute `path` (not a directory) and creates the temporary file next to it;
 /// its directory must exist.
 pub async fn open_write(p: Value) -> Result<(Target, Value), RpcError> {
-    let req: WriteRequest =
-        serde_json::from_value(p).map_err(|err| bad_request(err.to_string()))?;
+    let req: WriteRequest = serde_json::from_value(p).map_err(RpcError::bad_request)?;
     let path = real_path(absolute_path(&req.path)?).await?;
     if tokio::fs::metadata(&path).await.is_ok_and(|meta| meta.is_dir()) {
         return Err(RpcError::new("not_a_file", format!("{} is a directory", path.display())));

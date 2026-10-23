@@ -10,7 +10,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 
 use super::Ctx;
 use super::output::CliError;
-use super::target::{parse_remote_path, resolve_machine};
+use super::target::parse_remote_path;
 use crate::client::{FileRead, FileWrite};
 
 #[derive(Subcommand)]
@@ -32,12 +32,10 @@ pub async fn run(ctx: &Ctx, cmd: FileCmd) -> Result<(), CliError> {
 
 async fn get(ctx: &Ctx, source: String, dest: Option<String>) -> Result<(), CliError> {
     let remote = parse_remote_path(&source)?;
-    let session = ctx.session().await?;
-    let machines = session.machines();
-    let (state, _) = resolve_machine(&machines, remote.machine)?;
-    let via = ctx.reach(&session, &state.machine.id).await?;
+    let (session, state) = ctx.machine(remote.machine).await?;
+    ctx.reach(&session, &state.machine.id).await?;
     let read = session.read_file(&state.machine.id, remote.path).await?;
-    let size = read.size;
+    let (size, via) = (read.size, via_of(read.is_direct()));
     if dest.as_deref() == Some("-") {
         let written = to_stdout(read).await;
         session.close().await;
@@ -55,11 +53,9 @@ async fn get(ctx: &Ctx, source: String, dest: Option<String>) -> Result<(), CliE
     }
     written?;
     match ctx.out.json {
-        true => {
-            ctx.out.json(&json!({"path": source, "local": local, "size": size, "via": via.name()}))
-        }
+        true => ctx.out.json(&json!({"path": source, "local": local, "size": size, "via": via})),
         false => {
-            println!("fetched {source} → {} ({size} bytes, via {})", local.display(), via.name())
+            println!("fetched {source} → {} ({size} bytes, via {via})", local.display())
         }
     }
     Ok(())
@@ -74,11 +70,10 @@ async fn put(ctx: &Ctx, source: String, dest: String) -> Result<(), CliError> {
         return Err(CliError::new("local_io_error", message));
     }
     let size = meta.len();
-    let session = ctx.session().await?;
-    let machines = session.machines();
-    let (state, _) = resolve_machine(&machines, remote.machine)?;
-    let via = ctx.reach(&session, &state.machine.id).await?;
+    let (session, state) = ctx.machine(remote.machine).await?;
+    ctx.reach(&session, &state.machine.id).await?;
     let write = session.write_file(&state.machine.id, remote.path, size).await?;
+    let via = via_of(write.is_direct());
     let sent = tokio::select! {
         sent = send_all(write, local, size) => sent,
         _ = tokio::signal::ctrl_c() => Err(CliError::new("interrupted", "interrupted")),
@@ -87,12 +82,15 @@ async fn put(ctx: &Ctx, source: String, dest: String) -> Result<(), CliError> {
     session.close().await;
     sent?;
     match ctx.out.json {
-        true => {
-            ctx.out.json(&json!({"local": source, "path": dest, "size": size, "via": via.name()}))
-        }
-        false => println!("sent {source} → {dest} ({size} bytes, via {})", via.name()),
+        true => ctx.out.json(&json!({"local": source, "path": dest, "size": size, "via": via})),
+        false => println!("sent {source} → {dest} ({size} bytes, via {via})"),
     }
     Ok(())
+}
+
+/// The way a file went, as reported.
+fn via_of(direct: bool) -> &'static str {
+    if direct { "direct" } else { "relay" }
 }
 
 /// Sends exactly `size` bytes of `source`, then waits until the machine stored them.

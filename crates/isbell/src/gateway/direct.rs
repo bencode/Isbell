@@ -11,7 +11,7 @@ use tokio::sync::mpsc;
 
 use super::calls::{ToCalls, response_frame};
 use super::link::Link;
-use crate::rtc::{self, Description, Peer, RtcError};
+use crate::rtc::{self, Description, Peer};
 
 /// After answering, how long the caller has to open the channel.
 const OPEN_WITHIN: Duration = Duration::from_secs(10);
@@ -61,14 +61,13 @@ pub async fn serve(
 }
 
 async fn answer(p: Value, ice: &[String]) -> Result<(Peer, Description), RpcError> {
-    let OfferRequest { offer } =
-        serde_json::from_value(p).map_err(|err| RpcError::new("bad_request", err.to_string()))?;
-    let mut peer = Peer::answerer(ice).await.map_err(failed)?;
+    let OfferRequest { offer } = serde_json::from_value(p).map_err(RpcError::bad_request)?;
+    let mut peer = Peer::answerer(ice).await?;
     match peer.answer(offer).await {
         Ok(answer) => Ok((peer, answer)),
         Err(err) => {
             peer.close().await;
-            Err(failed(err))
+            Err(err.into())
         }
     }
 }
@@ -76,8 +75,4 @@ async fn answer(p: Value, ice: &[String]) -> Result<(Peer, Description), RpcErro
 async fn close(peer: Peer, why: &str) {
     tracing::info!(why, "direct link closed");
     peer.close().await;
-}
-
-fn failed(err: RtcError) -> RpcError {
-    RpcError::new("direct_failed", err.to_string())
 }

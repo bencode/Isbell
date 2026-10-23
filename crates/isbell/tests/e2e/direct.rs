@@ -34,12 +34,12 @@ pub async fn serves_streams(harness: &Harness) {
     unpaced_upload(&session, mid).await;
 }
 
-/// A file written whole over the direct link. Over the relay, 3 MiB in chunks paced 25ms apart
-/// take 1.2s; a direct link takes them as fast as credit allows.
+/// A file written whole over the direct link. Over the relay, 10 MiB in chunks paced 25ms apart
+/// take 4s; a direct link takes them as fast as credit allows, well within half of that.
 async fn unpaced_upload(session: &Session, mid: &str) {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("fast.bin");
-    let content = vec![7u8; 3 * WINDOW as usize];
+    let content = vec![7u8; 10 * WINDOW as usize];
     let started = Instant::now();
     let mut write =
         session.write_file(mid, path.to_str().unwrap(), content.len() as u64).await.unwrap();
@@ -47,6 +47,6 @@ async fn unpaced_upload(session: &Session, mid: &str) {
         write.send(chunk.to_vec()).await.unwrap();
     }
     write.finish().await.unwrap();
-    assert!(started.elapsed() < Duration::from_secs(1), "took {:?}", started.elapsed());
+    assert!(started.elapsed() < Duration::from_secs(2), "took {:?}", started.elapsed());
     assert!(std::fs::read(&path).unwrap() == content);
 }

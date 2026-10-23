@@ -135,10 +135,8 @@ async fn get(ctx: &Ctx, target: &str) -> Result<(), CliError> {
 /// Connects and resolves `<machine>/<agent>` to (session, machine state, herdr target).
 async fn open(ctx: &Ctx, target: &str) -> Result<(Session, MachineState, String), CliError> {
     let target = parse_target(target)?;
-    let session = ctx.session().await?;
-    let machines = session.machines();
-    let (state, _) = resolve_machine(&machines, target.machine)?;
-    Ok((session, state.clone(), target.agent.to_owned()))
+    let (session, state) = ctx.machine(target.machine).await?;
+    Ok((session, state, target.agent.to_owned()))
 }
 
 /// Resolves the target, then sends the herdr request `build` makes for its machine and agent.
@@ -153,9 +151,7 @@ async fn call_agent(
 }
 
 async fn start(ctx: &Ctx, machine: &str, params: Value) -> Result<(), CliError> {
-    let session = ctx.session().await?;
-    let machines = session.machines();
-    let (state, _) = resolve_machine(&machines, machine)?;
+    let (session, state) = ctx.machine(machine).await?;
     let mid = &state.machine.id;
     let result = session.call(mid, "isbell.agent.start", params, Some(START_TIMEOUT)).await?;
     if ctx.out.json {

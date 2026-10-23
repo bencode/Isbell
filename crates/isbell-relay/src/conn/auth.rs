@@ -16,8 +16,23 @@ const MAX_AUTH_FRAME: usize = 4096;
 #[derive(Debug, PartialEq)]
 pub struct Admitted {
     pub sid: String,
-    pub role: Role,
-    pub machine: Option<MachineInfo>,
+    pub peer: Peer,
+}
+
+/// Who authenticated: the gateway of one machine, or a client.
+#[derive(Debug, PartialEq)]
+pub enum Peer {
+    Gateway(MachineInfo),
+    Client,
+}
+
+impl Peer {
+    pub fn role(&self) -> Role {
+        match self {
+            Peer::Gateway(_) => Role::Gateway,
+            Peer::Client => Role::Client,
+        }
+    }
 }
 
 /// Why authentication failed; logged, while the peer only sees "auth failed".
@@ -62,11 +77,12 @@ pub fn check_auth(
         return Err(AuthReject::NotAuth);
     };
     let sid = verify_auth(&pk, &sig, role, origin, nonce).ok_or(AuthReject::BadSignature)?;
-    let machine_ok = match role {
-        Role::Gateway => machine.as_ref().is_some_and(MachineInfo::is_valid),
-        Role::Client => machine.is_none(),
+    let peer = match (role, machine) {
+        (Role::Gateway, Some(machine)) if machine.is_valid() => Peer::Gateway(machine),
+        (Role::Client, None) => Peer::Client,
+        _ => return Err(AuthReject::BadMachine),
     };
-    machine_ok.then_some(Admitted { sid, role, machine }).ok_or(AuthReject::BadMachine)
+    Ok(Admitted { sid, peer })
 }
 
 #[cfg(test)]
@@ -104,10 +120,10 @@ mod tests {
         let gateway =
             check_auth(&auth(&id, Role::Gateway, NONCE, Some(machine())), true, ORIGIN, NONCE)
                 .unwrap();
-        assert_eq!((gateway.sid.as_str(), gateway.role), (id.sid().as_str(), Role::Gateway));
+        assert_eq!((gateway.sid, gateway.peer), (id.sid(), Peer::Gateway(machine())));
         assert_eq!(
-            check_auth(&auth(&id, Role::Client, NONCE, None), true, ORIGIN, NONCE).unwrap().role,
-            Role::Client
+            check_auth(&auth(&id, Role::Client, NONCE, None), true, ORIGIN, NONCE).unwrap().peer,
+            Peer::Client
         );
     }
 

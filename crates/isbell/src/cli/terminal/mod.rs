@@ -15,7 +15,7 @@ use tokio::signal::unix::Signal;
 use self::local::{Screen, read_stdin, recv_resize, terminal_size, watch_resizes};
 use super::Ctx;
 use super::output::CliError;
-use super::target::{parse_target, resolve_machine};
+use super::target::parse_target;
 use crate::client::{Stream, StreamEvent};
 
 const DETACH: u8 = 0x1d; // ctrl+]
@@ -50,9 +50,7 @@ pub async fn run(ctx: &Ctx, cmd: TerminalCmd) -> Result<(), CliError> {
     }
     let (cols, rows) = terminal_size()?;
     let (machine, control, params) = open_params(cmd, cols, rows)?;
-    let session = ctx.session().await?;
-    let machines = session.machines();
-    let (state, _) = resolve_machine(&machines, &machine)?;
+    let (session, state) = ctx.machine(&machine).await?;
     ctx.reach(&session, &state.machine.id).await?;
     let (opened, stream) =
         session.open_stream(&state.machine.id, "isbell.terminal", params, OPEN_TIMEOUT).await?;

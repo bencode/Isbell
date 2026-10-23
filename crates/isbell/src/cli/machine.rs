@@ -6,7 +6,6 @@ use serde_json::json;
 
 use super::Ctx;
 use super::output::{CliError, short_id};
-use super::target::resolve_machine;
 
 #[derive(Subcommand)]
 pub enum MachineCmd {
@@ -25,9 +24,7 @@ pub async fn run(ctx: &Ctx, cmd: MachineCmd) -> Result<(), CliError> {
 
 /// Reports the outcome either way: a failed direct link is a finding, not an error.
 async fn probe(ctx: &Ctx, machine: &str) -> Result<(), CliError> {
-    let session = ctx.session().await?;
-    let machines = session.machines();
-    let (state, _) = resolve_machine(&machines, machine)?;
+    let (session, state) = ctx.machine(machine).await?;
     let started = Instant::now();
     let direct = session.direct(&state.machine.id, &ctx.config.stun()).await;
     let elapsed = started.elapsed();

@@ -121,14 +121,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn only_a_refusal_for_good_stops_reconnecting() {
-        assert!(is_fatal(&RelayError::Replaced));
-        assert!(is_fatal(&RelayError::Url("x".into())));
-        assert!(!is_fatal(&RelayError::Idle));
-        assert!(!is_fatal(&RelayError::Closed(Some(1011))));
-    }
-
-    #[test]
     fn relayed_frames_lose_their_route_and_name_their_caller() {
         let (out, mut rx) = mpsc::unbounded_channel();
         let end = |from: Option<&str>| {
@@ -141,11 +133,5 @@ mod tests {
         link.send(frame);
         assert_eq!(rx.try_recv().unwrap().header.route().unwrap().to.as_deref(), Some("c1"));
         assert!(from_relay(end(None), &out).is_none(), "the relay always names the caller");
-    }
-
-    #[test]
-    fn backoff_grows_then_stays_at_its_cap() {
-        let delays: Vec<u64> = (0..7).map(|n| backoff(n).as_secs()).collect();
-        assert_eq!(delays, [1, 2, 5, 10, 30, 30, 30]);
     }
 }

@@ -21,7 +21,7 @@ pub async fn reconnect(session: &Arc<Session>, events: &mut Events, harness: &Ha
     let waiting = start_wait(session, mid);
     wait_for_calls(&harness.herdr.calls, "agent.wait", 1).await;
     harness.forwarder.cut(1);
-    wait_for_presence(events, mid, true).await; // reconnected (link 2), never seen offline
+    wait_for_presence(events, mid, true).await; // reconnected, never seen offline
     harness.herdr.release_wait.notify_one();
     let answered = finished(waiting).await.expect("response delivered after reconnect");
     assert_eq!(answered["type"], "agent_info");
@@ -38,7 +38,7 @@ pub async fn takeover(
     let waiting = start_wait(session, mid);
     wait_for_calls(&harness.herdr.calls, "agent.wait", 2).await;
     tokio::time::sleep(Duration::from_millis(5)).await; // a later boot timestamp
-    let new = harness.spawn_gateway(); // link 3
+    let new = harness.spawn_gateway();
     let lost = finished(waiting).await.unwrap_err();
     assert_eq!(lost.code, "machine_offline");
     assert!(matches!(finished(old).await, Err(GatewayError::Relay(RelayError::Replaced))));

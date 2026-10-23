@@ -9,9 +9,10 @@ use std::time::Duration;
 use isbell_proto::state::{HerdrState, HerdrStatus};
 use serde::Deserialize;
 
-use super::{Herdr, env_path, herdr_bin};
+use super::{Herdr, herdr_bin};
+use crate::env_path;
 
-pub const PROTOCOL: u32 = 22;
+const PROTOCOL: u32 = 22;
 const STATUS_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Deserialize)]

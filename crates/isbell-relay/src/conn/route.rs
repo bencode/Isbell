@@ -37,9 +37,6 @@ pub fn route_gateway(sid: &str, mid: &str, frame: Frame) -> GatewayRoute {
     let Some(Route { from: None, to: Some(to), .. }) = frame.header.route() else {
         return GatewayRoute::Reject;
     };
-    if matches!(frame.header, Header::Call { .. }) {
-        return GatewayRoute::Reject;
-    }
     if !in_space(&to, sid) {
         return GatewayRoute::Outside;
     }

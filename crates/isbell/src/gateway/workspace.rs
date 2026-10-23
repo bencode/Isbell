@@ -1,14 +1,12 @@
 //! Workspaces the gateway creates in herdr for new agents and shells, and the cwd rules they share.
 
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
 use isbell_proto::frame::RpcError;
 use serde_json::json;
 
-use super::herdr::Herdr;
-
-const TIMEOUT: Duration = Duration::from_secs(30);
+use super::herdr::{Herdr, REQUEST_TIMEOUT};
+use crate::env_path;
 
 /// An existing absolute directory, with a leading `~` expanded on this machine.
 pub fn resolve_cwd(cwd: &str) -> Result<PathBuf, RpcError> {
@@ -18,7 +16,7 @@ pub fn resolve_cwd(cwd: &str) -> Result<PathBuf, RpcError> {
 }
 
 fn expand_home(path: &str) -> Option<PathBuf> {
-    let home = || std::env::var_os("HOME").map(PathBuf::from);
+    let home = || env_path("HOME");
     match path.strip_prefix('~') {
         Some("") => home(),
         Some(rest) => rest.strip_prefix('/').and_then(|rest| home().map(|h| h.join(rest))),
@@ -34,7 +32,7 @@ pub fn dir_name(cwd: &Path) -> String {
 /// Creates a background workspace in `cwd`; returns its root pane.
 pub async fn create(herdr: &Herdr, cwd: &Path, label: &str) -> Result<String, RpcError> {
     let params = json!({"cwd": cwd, "label": label, "focus": false, "env": {}});
-    let created = herdr.request("workspace.create", params, Some(TIMEOUT)).await?;
+    let created = herdr.request("workspace.create", params, Some(REQUEST_TIMEOUT)).await?;
     created["root_pane"]["pane_id"]
         .as_str()
         .map(str::to_owned)
@@ -43,7 +41,9 @@ pub async fn create(herdr: &Herdr, cwd: &Path, label: &str) -> Result<String, Rp
 
 /// Closes a pane created for a request that then failed, so it is not left behind.
 pub async fn close_pane(herdr: &Herdr, pane: &str, failed: &str) {
-    if let Err(err) = herdr.request("pane.close", json!({"pane_id": pane}), Some(TIMEOUT)).await {
+    if let Err(err) =
+        herdr.request("pane.close", json!({"pane_id": pane}), Some(REQUEST_TIMEOUT)).await
+    {
         tracing::warn!(%err, pane, failed, "cannot close the pane created for a failed request");
     }
 }

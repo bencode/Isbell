@@ -12,10 +12,12 @@ mod watch;
 
 use clap::{Parser, Subcommand};
 use isbell_proto::identity::Identity;
+use isbell_proto::state::MachineState;
 
 use crate::client::Session;
 use crate::config::{Config, Paths, resolve_relay};
 use output::{CliError, Output};
+use target::resolve_machine;
 
 #[derive(Parser)]
 #[command(name = "isbell", version, about = "Remote access to herdr agents across your machines")]
@@ -70,22 +72,6 @@ enum Transport {
     Relay,
 }
 
-/// The way a command's terminal or file went.
-#[derive(Clone, Copy)]
-pub enum Via {
-    Direct,
-    Relay,
-}
-
-impl Via {
-    pub fn name(self) -> &'static str {
-        match self {
-            Via::Direct => "direct",
-            Via::Relay => "relay",
-        }
-    }
-}
-
 /// Shared state for one command invocation.
 pub struct Ctx {
     out: Output,
@@ -115,16 +101,23 @@ impl Ctx {
             .map_err(|err| CliError::new("relay_error", err.to_string()))
     }
 
-    /// Opens a direct link to machine `mid` as `--transport` asks; the way streams to it go.
-    async fn reach(&self, session: &Session, mid: &str) -> Result<Via, CliError> {
+    /// Connects, then finds machine `query` by name or id prefix.
+    async fn machine(&self, query: &str) -> Result<(Session, MachineState), CliError> {
+        let session = self.session().await?;
+        let state = resolve_machine(&session.machines(), query)?.0.clone();
+        Ok((session, state))
+    }
+
+    /// Opens a direct link to machine `mid` as `--transport` asks; streams to it use the link.
+    async fn reach(&self, session: &Session, mid: &str) -> Result<(), CliError> {
         if self.transport == Transport::Relay {
-            return Ok(Via::Relay);
+            return Ok(());
         }
         match session.direct(mid, &self.config.stun()).await {
-            Ok(_) => Ok(Via::Direct),
+            Ok(_) => Ok(()),
             Err(err) if self.transport == Transport::Auto => {
                 tracing::warn!("direct link failed ({}: {}); using the relay", err.code, err.msg);
-                Ok(Via::Relay)
+                Ok(())
             }
             Err(err) => Err(err.into()),
         }

@@ -70,6 +70,10 @@ pub fn register(streams: &Streams, key: StreamKey) -> Result<Slot, RpcError> {
     if open.len() >= MAX_STREAMS {
         return Err(RpcError::new("too_many_streams", "too many open streams"));
     }
+    // Taking the place would leave the open stream unreachable, and its end would free ours.
+    if open.contains_key(&key) {
+        return Err(RpcError::bad_request("a stream with this id is open"));
+    }
     let (tx, rx) = mpsc::channel(STREAM_INPUT_BUFFER);
     open.insert(key.clone(), tx);
     Ok(Slot { registered: Registered { streams: Arc::clone(streams), key }, input: rx })
@@ -90,7 +94,7 @@ pub fn close_caller(streams: &Streams, key: &str) {
     let open = streams.lock().expect("streams poisoned");
     for ((caller, id), tx) in open.iter().filter(|((caller, _), _)| caller == key) {
         if tx.try_send(Input::Close).is_err() {
-            tracing::debug!(caller, id, "stream already closing");
+            tracing::warn!(caller, id, "stream input full; it ends on its idle timeout");
         }
     }
 }
@@ -107,5 +111,14 @@ mod tests {
         close_caller(&streams, "peer-1");
         assert_eq!(mine.input.try_recv().unwrap(), Input::Close);
         assert!(theirs.input.try_recv().is_err(), "another caller's stream stays open");
+    }
+
+    #[test]
+    fn an_open_stream_keeps_its_id() {
+        let streams = Streams::default();
+        let _open = register(&streams, ("c1".into(), 7)).unwrap();
+        let again = register(&streams, ("c1".into(), 7)).err().expect("refused");
+        assert_eq!(again.code, "bad_request");
+        assert!(streams.lock().unwrap().contains_key(&("c1".into(), 7)), "the first stays");
     }
 }

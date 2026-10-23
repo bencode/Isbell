@@ -17,7 +17,9 @@ use isbell_proto::identity::Identity;
 use isbell_proto::state::MachineInfo;
 use serde::{Deserialize, Serialize};
 
-pub const DEFAULT_RELAY: &str = "wss://isbell.fmap.dev/v1/ws";
+use crate::env_path;
+
+const DEFAULT_RELAY: &str = "wss://isbell.fmap.dev/v1/ws";
 /// Public STUN servers: they tell each end of a direct link its public address.
 const DEFAULT_STUN: [&str; 2] = ["stun:stun.l.google.com:19302", "stun:stun.cloudflare.com:3478"];
 
@@ -77,10 +79,9 @@ pub struct Paths {
 
 impl Paths {
     pub fn resolve() -> Result<Paths> {
-        let env = |name| std::env::var_os(name).filter(|v| !v.is_empty()).map(PathBuf::from);
-        let dir = env("ISBELL_CONFIG_DIR")
-            .or_else(|| env("XDG_CONFIG_HOME").map(|d| d.join("isbell")))
-            .or_else(|| env("HOME").map(|h| h.join(".config").join("isbell")))
+        let dir = env_path("ISBELL_CONFIG_DIR")
+            .or_else(|| env_path("XDG_CONFIG_HOME").map(|d| d.join("isbell")))
+            .or_else(|| env_path("HOME").map(|h| h.join(".config").join("isbell")))
             .context("cannot locate the config directory: set HOME or ISBELL_CONFIG_DIR")?;
         Ok(Paths { dir })
     }

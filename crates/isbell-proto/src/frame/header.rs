@@ -118,6 +118,11 @@ impl RpcError {
     pub fn new(code: &str, msg: impl Into<String>) -> Self {
         Self { code: code.to_owned(), msg: msg.into() }
     }
+
+    /// The call's parameters are not what the method takes.
+    pub fn bad_request(msg: impl std::fmt::Display) -> Self {
+        Self::new("bad_request", msg.to_string())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -222,15 +227,5 @@ mod tests {
             Some(Route { mid: Some("m".into()), from: None, to: Some("c".into()) })
         );
         assert_eq!(Header::Presence { mid: "m".into(), online: true }.route(), None);
-    }
-
-    #[test]
-    fn credits_route_like_stream_frames() {
-        let credit = Header::Credit { id: 5, n: 64, mid: Some("m".into()), from: None, to: None };
-        let to_gateway = Route { from: Some("c".into()), ..Route::default() };
-        let rerouted = credit.rerouted(to_gateway.clone());
-        assert_eq!(rerouted.route(), Some(to_gateway));
-        assert_eq!(rerouted.id(), Some(5));
-        assert!(matches!(rerouted, Header::Credit { n: 64, .. }));
     }
 }

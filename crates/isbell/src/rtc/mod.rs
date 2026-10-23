@@ -14,6 +14,7 @@ mod path;
 use std::sync::Arc;
 use std::time::Duration;
 
+use isbell_proto::frame::RpcError;
 use tokio::sync::{mpsc, watch};
 use webrtc::data_channel::{DataChannel, DataChannelEvent};
 use webrtc::peer_connection::{
@@ -41,6 +42,13 @@ pub enum RtcError {
     Webrtc(String),
     #[error("the peer connection closed")]
     Closed,
+}
+
+/// A direct link that could not be set up; the caller keeps the relay.
+impl From<RtcError> for RpcError {
+    fn from(err: RtcError) -> Self {
+        RpcError::new("direct_failed", err.to_string())
+    }
 }
 
 fn webrtc_error(err: impl std::fmt::Display) -> RtcError {

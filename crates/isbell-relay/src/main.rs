@@ -14,7 +14,7 @@ async fn main() -> Result<()> {
     tracing::info!(addr = %relay.addr, "relay listening");
     tokio::select! {
         signal = tokio::signal::ctrl_c() => signal?,
-        () = relay.failed() => anyhow::bail!("redis pub/sub connection lost; exiting so a supervisor can restart the relay"),
+        () = relay.failed() => anyhow::bail!("the relay can no longer serve (redis pub/sub lost or server stopped); exiting so a supervisor restarts it"),
     }
     relay.shutdown();
     Ok(())

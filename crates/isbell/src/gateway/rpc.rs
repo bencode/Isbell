@@ -8,7 +8,7 @@ use isbell_proto::frame::RpcError;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use super::herdr::{Herdr, HerdrError};
+use super::herdr::{Herdr, HerdrError, REQUEST_TIMEOUT};
 use super::workspace;
 
 pub const ALLOWED: &[&str] = &[
@@ -24,16 +24,11 @@ pub const ALLOWED: &[&str] = &[
     "workspace.list",
     "session.snapshot",
 ];
-const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 const START_TIMEOUT: Duration = Duration::from_secs(35);
 const BUSY_RETRY_FOR: Duration = Duration::from_secs(10);
 const READY_WAIT_FOR: Duration = Duration::from_secs(30);
 const POLL_EVERY: Duration = Duration::from_millis(500);
 const MAX_NAME: usize = 28;
-
-fn bad_request(err: impl std::fmt::Display) -> RpcError {
-    RpcError::new("bad_request", err.to_string())
-}
 
 /// An allowlisted herdr method, called as is.
 pub async fn passthrough(herdr: &Herdr, p: Value) -> Result<Value, RpcError> {
@@ -43,7 +38,7 @@ pub async fn passthrough(herdr: &Herdr, p: Value) -> Result<Value, RpcError> {
         #[serde(default)]
         params: Value,
     }
-    let call: Passthrough = serde_json::from_value(p).map_err(bad_request)?;
+    let call: Passthrough = serde_json::from_value(p).map_err(RpcError::bad_request)?;
     if !ALLOWED.contains(&call.method.as_str()) {
         let msg = format!("{} is not allowed remotely", call.method);
         return Err(RpcError::new("method_not_allowed", msg));
@@ -55,7 +50,7 @@ pub async fn passthrough(herdr: &Herdr, p: Value) -> Result<Value, RpcError> {
 /// Waiting calls run as long as herdr's own `timeout_ms` (or indefinitely); others get a default.
 fn timeout_for(method: &str, params: &Value) -> Option<Duration> {
     let waits = method == "agent.wait" || (method == "agent.prompt" && !params["wait"].is_null());
-    (!waits).then_some(DEFAULT_TIMEOUT)
+    (!waits).then_some(REQUEST_TIMEOUT)
 }
 
 #[derive(Deserialize)]
@@ -72,7 +67,7 @@ struct StartAgent {
 /// The agent runs once it started: a prompt that could not be sent comes back as `promptError`
 /// beside it, not as the call's error, so the caller does not start it again.
 pub async fn start_agent(herdr: &Herdr, p: Value) -> Result<Value, RpcError> {
-    let req: StartAgent = serde_json::from_value(p).map_err(bad_request)?;
+    let req: StartAgent = serde_json::from_value(p).map_err(RpcError::bad_request)?;
     let cwd = workspace::resolve_cwd(&req.cwd)?;
     let name = match req.name {
         Some(name) => name,
@@ -102,7 +97,7 @@ pub async fn start_agent(herdr: &Herdr, p: Value) -> Result<Value, RpcError> {
 async fn prompt_when_ready(herdr: &Herdr, pane_id: &str, text: String) -> Result<(), RpcError> {
     wait_until_ready(herdr, pane_id).await?;
     let prompt = json!({"target": pane_id, "text": text});
-    herdr.request("agent.prompt", prompt, Some(DEFAULT_TIMEOUT)).await?;
+    herdr.request("agent.prompt", prompt, Some(REQUEST_TIMEOUT)).await?;
     Ok(())
 }
 
@@ -128,7 +123,7 @@ async fn wait_until_ready(herdr: &Herdr, pane_id: &str) -> Result<(), RpcError> 
     let deadline = Instant::now() + READY_WAIT_FOR;
     while Instant::now() < deadline {
         let info =
-            herdr.request("agent.get", json!({"target": pane_id}), Some(DEFAULT_TIMEOUT)).await?;
+            herdr.request("agent.get", json!({"target": pane_id}), Some(REQUEST_TIMEOUT)).await?;
         let agent = &info["agent"];
         let settled = matches!(agent["agent_status"].as_str(), Some("idle" | "done"));
         if settled && agent["interactive_ready"] == true {
@@ -156,7 +151,7 @@ fn default_name(kind: &str, dir: &str) -> String {
 }
 
 async fn agent_names(herdr: &Herdr) -> Result<Vec<String>, RpcError> {
-    let list = herdr.request("agent.list", json!({}), Some(DEFAULT_TIMEOUT)).await?;
+    let list = herdr.request("agent.list", json!({}), Some(REQUEST_TIMEOUT)).await?;
     let agents = list["agents"].as_array().into_iter().flatten();
     Ok(agents.filter_map(|a| a["name"].as_str()).map(str::to_owned).collect())
 }
@@ -190,8 +185,8 @@ mod tests {
     fn only_waiting_calls_skip_the_default_timeout() {
         assert_eq!(timeout_for("agent.wait", &json!({})), None);
         assert_eq!(timeout_for("agent.prompt", &json!({"wait": {}})), None);
-        assert_eq!(timeout_for("agent.prompt", &json!({})), Some(DEFAULT_TIMEOUT));
-        assert_eq!(timeout_for("agent.read", &json!({})), Some(DEFAULT_TIMEOUT));
+        assert_eq!(timeout_for("agent.prompt", &json!({})), Some(REQUEST_TIMEOUT));
+        assert_eq!(timeout_for("agent.read", &json!({})), Some(REQUEST_TIMEOUT));
     }
 
     #[test]

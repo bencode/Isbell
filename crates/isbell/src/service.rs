@@ -9,7 +9,9 @@ use std::process::{Command, Output};
 use anyhow::{Context, Result, bail};
 use serde::Serialize;
 
-pub const LABEL: &str = "dev.fmap.isbell.gateway";
+use crate::env_path;
+
+const LABEL: &str = "dev.fmap.isbell.gateway";
 
 #[derive(Debug, Serialize)]
 pub struct Files {
@@ -109,8 +111,7 @@ fn files(home: &Path) -> Files {
 }
 
 fn home() -> Result<PathBuf> {
-    let home = std::env::var_os("HOME").filter(|home| !home.is_empty());
-    home.map(PathBuf::from).context("HOME is not set")
+    env_path("HOME").context("HOME is not set")
 }
 
 /// This user's login session, where user agents run.

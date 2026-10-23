@@ -9,11 +9,11 @@ use serde_json::json;
 use tokio::sync::mpsc;
 use webrtc::data_channel::DataChannel;
 
-use super::inbound::to_inflight;
 use super::inflight::Inflight;
 use super::link::Link;
+use super::relay_io::to_inflight;
 use super::{PeerLinks, Session};
-use crate::rtc::{self, Description, Path, Peer, RtcError};
+use crate::rtc::{self, Description, Path, Peer};
 
 /// Offer, answer and the channel opening together.
 const DIRECT_WITHIN: Duration = Duration::from_secs(5);
@@ -27,7 +27,7 @@ impl Session {
         if self.peers.lock().expect("session poisoned").contains_key(mid) {
             return Ok(None);
         }
-        let (mut peer, channel) = Peer::offerer(ice).await.map_err(failed)?;
+        let (mut peer, channel) = Peer::offerer(ice).await?;
         let opened = tokio::time::timeout(DIRECT_WITHIN, self.open(mid, &mut peer, &channel)).await;
         let opened = opened.unwrap_or_else(|_| {
             let message = format!("no direct link within {}s", DIRECT_WITHIN.as_secs());
@@ -52,13 +52,13 @@ impl Session {
         peer: &mut Peer,
         channel: &Arc<dyn DataChannel>,
     ) -> Result<(), RpcError> {
-        let offer = peer.offer().await.map_err(failed)?;
+        let offer = peer.offer().await?;
         let p = json!({"offer": offer});
         let mut r = self.call(mid, "isbell.rtc.offer", p, Some(DIRECT_WITHIN)).await?;
         let answer: Description = serde_json::from_value(r["answer"].take())
             .map_err(|err| RpcError::new("protocol_error", format!("rtc.offer answer: {err}")))?;
-        peer.accept(answer).await.map_err(failed)?;
-        rtc::opened(channel).await.map_err(failed)
+        peer.accept(answer).await?;
+        Ok(rtc::opened(channel).await?)
     }
 }
 
@@ -81,8 +81,4 @@ async fn serve(
         peers.lock().expect("session poisoned").retain(|_, link| !link.is_closed());
     }
     peer.close().await;
-}
-
-fn failed(err: RtcError) -> RpcError {
-    RpcError::new("direct_failed", err.to_string())
 }

@@ -25,10 +25,9 @@ use isbell_proto::frame::{
     CLOSE_AUTH_FAILED, CLOSE_AUTH_TIMEOUT, CLOSE_BAD_FRAME, CLOSE_REPLACED, CLOSE_TOO_SLOW, Frame,
     Header,
 };
-use isbell_proto::identity::Role;
-use isbell_proto::state::MachineInfo;
 use tracing::Instrument;
 
+use self::auth::Peer;
 use crate::Ctx;
 use crate::bus::clients_channel;
 
@@ -53,8 +52,7 @@ pub enum Exit {
 struct Authed {
     sid: String,
     conn: String,
-    role: Role,
-    machine: Option<MachineInfo>,
+    peer: Peer,
 }
 
 pub async fn handle_socket(mut socket: WebSocket, ctx: Arc<Ctx>) {
@@ -66,12 +64,14 @@ pub async fn handle_socket(mut socket: WebSocket, ctx: Arc<Ctx>) {
     let authed = Authed {
         conn: route::conn_id(&admitted.sid, uuid::Uuid::new_v4()),
         sid: admitted.sid,
-        role: admitted.role,
-        machine: admitted.machine,
+        peer: admitted.peer,
     };
-    let mid = authed.machine.as_ref().map(|m| m.id.clone());
-    let span =
-        tracing::info_span!("conn", sid = &authed.sid[..6], role = authed.role.as_str(), mid);
+    let mid = match &authed.peer {
+        Peer::Gateway(machine) => Some(machine.id.clone()),
+        Peer::Client => None,
+    };
+    let role = authed.peer.role().as_str();
+    let span = tracing::info_span!("conn", sid = &authed.sid[..6], role, mid);
     async move {
         tracing::info!(event = "auth");
         let code = match run(&mut socket, &ctx, &authed).await {
@@ -91,16 +91,16 @@ pub async fn handle_socket(mut socket: WebSocket, ctx: Arc<Ctx>) {
 /// Serves the connection, then always cleans up: a gateway that was not replaced releases its
 /// machine, and announces it offline when nobody else owns it.
 async fn run(socket: &mut WebSocket, ctx: &Ctx, authed: &Authed) -> Exit {
-    let served = match &authed.machine {
-        Some(machine) => gateway::serve(socket, ctx, authed, &machine.id).await,
-        None => client::serve(socket, ctx, authed).await,
+    let served = match &authed.peer {
+        Peer::Gateway(machine) => gateway::serve(socket, ctx, authed, &machine.id).await,
+        Peer::Client => client::serve(socket, ctx, authed).await,
     };
     let exit = served.unwrap_or_else(|err| {
         tracing::error!(%err, "connection failed");
         Exit::Close(CLOSE_INTERNAL, "internal error")
     });
     let replaced = matches!(exit, Exit::Close(CLOSE_REPLACED, _));
-    if let (Some(machine), false) = (&authed.machine, replaced) {
+    if let (Peer::Gateway(machine), false) = (&authed.peer, replaced) {
         release(ctx, authed, &machine.id).await;
     }
     exit

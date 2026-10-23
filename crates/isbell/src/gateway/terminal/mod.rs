@@ -15,7 +15,7 @@ use tokio::process::{Child, ChildStderr, ChildStdin, ChildStdout};
 
 use self::frames::{Event, parse_line};
 pub use self::pump::pump;
-use super::herdr::Herdr;
+use super::herdr::{Herdr, HerdrError};
 use super::workspace;
 
 const FIRST_FRAME_WITHIN: Duration = Duration::from_secs(10);
@@ -28,7 +28,7 @@ pub enum Mode {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct TerminalRequest {
+struct TerminalRequest {
     target: Option<String>,
     new: Option<NewShell>,
     mode: Mode,
@@ -50,27 +50,24 @@ pub struct Session {
     first: Event,
 }
 
-fn bad_request(msg: impl Into<String>) -> RpcError {
-    RpcError::new("bad_request", msg)
-}
-
 fn herdr_error(msg: impl Into<String>) -> RpcError {
     RpcError::new("herdr_error", msg)
 }
 
 /// Starts the session (creating a shell workspace first for `new`) and waits for its first frame,
 /// so a bad target fails the open instead of a stream that ends at once.
-pub async fn open(herdr: &Herdr, req: TerminalRequest) -> Result<(Session, Value), RpcError> {
+pub async fn open(herdr: &Herdr, p: Value) -> Result<(Session, Value), RpcError> {
+    let req: TerminalRequest = serde_json::from_value(p).map_err(RpcError::bad_request)?;
     if req.cols == 0 || req.rows == 0 {
-        return Err(bad_request("cols and rows must be positive"));
+        return Err(RpcError::bad_request("cols and rows must be positive"));
     }
     let created = match (&req.target, &req.new) {
         (Some(_), None) => None,
         (None, Some(_)) if req.mode == Mode::Observe => {
-            return Err(bad_request("a new shell needs control mode"));
+            return Err(RpcError::bad_request("a new shell needs control mode"));
         }
         (None, Some(new)) => Some(new_shell(herdr, &new.cwd).await?),
-        _ => return Err(bad_request("give exactly one of target or new")),
+        _ => return Err(RpcError::bad_request("give exactly one of target or new")),
     };
     let target = created.as_deref().or(req.target.as_deref()).expect("target or new shell");
     let started = start_session(herdr, target, &req).await;
@@ -92,7 +89,7 @@ async fn start_session(
 ) -> Result<Session, RpcError> {
     let mut child = session_command(herdr, target, req)
         .spawn()
-        .map_err(|err| RpcError::new("herdr_unavailable", format!("cannot run herdr: {err}")))?;
+        .map_err(|err| HerdrError::unavailable(format!("cannot run herdr: {err}")))?;
     let stdin = child.stdin.take();
     let mut stdout = BufReader::new(child.stdout.take().expect("piped")).lines();
     let mut stderr = child.stderr.take().expect("piped");
@@ -125,16 +122,21 @@ async fn first_event(
     stdout: &mut Lines<BufReader<ChildStdout>>,
     stderr: &mut ChildStderr,
 ) -> Result<Event, RpcError> {
-    match tokio::time::timeout(FIRST_FRAME_WITHIN, stdout.next_line()).await {
-        Ok(Ok(Some(line))) => parse_line(&line).map_err(herdr_error),
-        Ok(Ok(None)) => {
-            let mut message = String::new();
-            if let Err(err) = stderr.read_to_string(&mut message).await {
-                tracing::debug!(%err, "cannot read herdr stderr");
+    // Reading why herdr failed counts too: it may close stdout but keep stderr open.
+    let first = async {
+        match stdout.next_line().await {
+            Ok(Some(line)) => parse_line(&line).map_err(herdr_error),
+            Ok(None) => {
+                let mut message = String::new();
+                if let Err(err) = stderr.read_to_string(&mut message).await {
+                    tracing::debug!(%err, "cannot read herdr stderr");
+                }
+                Err(RpcError::new("terminal_failed", message.trim()))
             }
-            Err(RpcError::new("terminal_failed", message.trim()))
+            Err(err) => Err(herdr_error(format!("cannot read herdr output: {err}"))),
         }
-        Ok(Err(err)) => Err(herdr_error(format!("cannot read herdr output: {err}"))),
-        Err(_) => Err(RpcError::new("timeout", "herdr sent no terminal frame")),
-    }
+    };
+    tokio::time::timeout(FIRST_FRAME_WITHIN, first)
+        .await
+        .unwrap_or_else(|_| Err(RpcError::new("timeout", "herdr sent no terminal frame")))
 }

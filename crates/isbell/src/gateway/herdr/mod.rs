@@ -15,6 +15,8 @@ use tokio::net::UnixStream;
 
 pub use self::discover::discover;
 
+/// How long a herdr request may take unless the caller says otherwise.
+pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_RESPONSE: u64 = 4 << 20;
 const LIFECYCLE_EVENTS: &[&str] = &[
     "pane.created",
@@ -34,7 +36,7 @@ pub struct HerdrError {
 }
 
 impl HerdrError {
-    fn unavailable(err: impl std::fmt::Display) -> Self {
+    pub fn unavailable(err: impl std::fmt::Display) -> Self {
         Self { code: "herdr_unavailable".into(), message: err.to_string() }
     }
 
@@ -66,14 +68,9 @@ pub struct Herdr {
     next_id: Arc<AtomicU64>,
 }
 
-/// `$name` when set and not empty.
-fn env_path(name: &str) -> Option<PathBuf> {
-    std::env::var_os(name).filter(|v| !v.is_empty()).map(PathBuf::from)
-}
-
 /// `$ISBELL_HERDR_BIN`, else `herdr` from PATH.
 fn herdr_bin() -> PathBuf {
-    env_path("ISBELL_HERDR_BIN").unwrap_or_else(|| PathBuf::from("herdr"))
+    crate::env_path("ISBELL_HERDR_BIN").unwrap_or_else(|| PathBuf::from("herdr"))
 }
 
 /// The `events.subscribe` list: pane lifecycle events, and status changes of `panes`.
@@ -113,7 +110,7 @@ impl Herdr {
         match (response.get("result"), response.get("error")) {
             (Some(result), _) => Ok(result.clone()),
             (None, Some(error)) => Err(HerdrError::from_error(error)),
-            _ => Err(HerdrError::unavailable("malformed herdr response")),
+            _ => Err(HerdrError::protocol("malformed herdr response")),
         }
     }
 
@@ -127,7 +124,7 @@ impl Herdr {
             .await?
             .ok_or_else(|| HerdrError::unavailable("herdr closed the connection"))?;
         if response["id"] != id.as_str() {
-            return Err(HerdrError::unavailable("herdr answered a different request"));
+            return Err(HerdrError::protocol("herdr answered a different request"));
         }
         Ok(response)
     }
@@ -173,9 +170,9 @@ async fn read_line(
         return Ok(None);
     }
     if !line.ends_with('\n') {
-        return Err(HerdrError::unavailable("herdr response too large or truncated"));
+        return Err(HerdrError::protocol("herdr response too large or truncated"));
     }
-    serde_json::from_str(&line).map(Some).map_err(HerdrError::unavailable)
+    serde_json::from_str(&line).map(Some).map_err(HerdrError::protocol)
 }
 
 #[cfg(test)]
@@ -189,5 +186,21 @@ mod tests {
         assert_eq!(subs.len(), LIFECYCLE_EVENTS.len() + 2);
         assert!(subs.contains(&json!({"type": "pane.created"})));
         assert!(subs.contains(&json!({"type": "pane.agent_status_changed", "pane_id": "p2"})));
+    }
+
+    /// An answer it cannot make sense of is herdr's fault, not herdr being away.
+    #[tokio::test]
+    async fn an_answer_to_another_request_is_a_herdr_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let socket = dir.path().join("herdr.sock");
+        let listener = tokio::net::UnixListener::bind(&socket).unwrap();
+        tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut line = String::new();
+            BufReader::new(&mut stream).read_line(&mut line).await.unwrap();
+            stream.write_all(b"{\"id\":\"another\",\"result\":{}}\n").await.unwrap();
+        });
+        let err = Herdr::new(socket).request("agent.list", json!({}), None).await.unwrap_err();
+        assert_eq!(err.code, "herdr_error");
     }
 }

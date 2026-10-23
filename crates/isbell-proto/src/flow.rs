@@ -9,9 +9,10 @@
 //! receiver ─▶ credit(n)               once it consumed n ≥ WINDOW / 2 more bytes
 //! ```
 
-/// Largest message every link carries: one WebRTC DataChannel message.
-pub const MAX_MESSAGE: usize = 64 * 1024;
-/// Largest data body; the rest of `MAX_MESSAGE` is room for the frame header.
+/// Largest data frame, so every link carries it as one message (a WebRTC DataChannel message).
+/// Other frames may be larger: the relay link takes state and snapshots up to 1 MiB.
+pub const MAX_DATA_MESSAGE: usize = 64 * 1024;
+/// Largest data body; the rest of `MAX_DATA_MESSAGE` is room for the frame header.
 pub const MAX_CHUNK: usize = 63 * 1024;
 /// Bytes a receiver lets in before it must grant more.
 pub const WINDOW: u64 = 1 << 20;
@@ -88,6 +89,6 @@ mod tests {
             to: long,
         };
         let frame = Frame { header, body: Some(vec![0; MAX_CHUNK]) };
-        assert!(frame.encode_binary().len() <= MAX_MESSAGE);
+        assert!(frame.encode_binary().len() <= MAX_DATA_MESSAGE);
     }
 }

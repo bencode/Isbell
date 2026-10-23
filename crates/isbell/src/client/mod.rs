@@ -4,9 +4,9 @@
 
 mod direct;
 mod file;
-mod inbound;
 mod inflight;
 mod link;
+mod relay_io;
 mod space;
 mod stream;
 
@@ -23,9 +23,9 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use tokio::task::JoinHandle;
 
 pub use self::file::{FileRead, FileWrite};
-use self::inbound::{read_loop, write_loop};
 use self::inflight::{Inflight, Target, disconnected};
 use self::link::Link;
+use self::relay_io::{read_loop, write_loop};
 use self::space::Space;
 pub use self::stream::{Stream, StreamEvent};
 use crate::AbortOnDrop;

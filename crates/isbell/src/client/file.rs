@@ -38,6 +38,11 @@ impl Session {
 }
 
 impl FileRead {
+    /// Whether the file comes over a direct link rather than the relay.
+    pub fn is_direct(&self) -> bool {
+        self.stream.is_direct()
+    }
+
     /// The next chunk; `None` once the whole file arrived (and after an error). Taking it counts
     /// the previous one as consumed, so the sender never gets ahead of the caller by more than a
     /// window.
@@ -89,6 +94,11 @@ impl Session {
 }
 
 impl FileWrite {
+    /// Whether the file goes over a direct link rather than the relay.
+    pub fn is_direct(&self) -> bool {
+        self.stream.is_direct()
+    }
+
     /// Sends one chunk (at most `MAX_CHUNK` bytes) once the machine's credit and the pace allow.
     /// Fails as soon as the machine ended the write (e.g. its disk is full).
     pub async fn send(&mut self, chunk: Vec<u8>) -> Result<(), RpcError> {

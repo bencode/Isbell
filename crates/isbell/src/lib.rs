@@ -9,9 +9,15 @@ pub mod relay;
 mod rtc;
 mod service;
 
+use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use tokio::task::JoinHandle;
+
+/// `$name` as a path, when set and not empty.
+pub(crate) fn env_path(name: &str) -> Option<PathBuf> {
+    std::env::var_os(name).filter(|v| !v.is_empty()).map(PathBuf::from)
+}
 
 /// Wall-clock milliseconds, the unit of every timestamp on the wire.
 pub fn now_ms() -> u64 {
