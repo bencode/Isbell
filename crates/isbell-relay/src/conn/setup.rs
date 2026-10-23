@@ -3,11 +3,10 @@
 use anyhow::Result;
 use axum::extract::ws::WebSocket;
 use isbell_proto::frame::{Frame, Header, SnapshotEntry};
-use tokio::sync::mpsc::UnboundedSender;
 
 use super::{Authed, KICK, wire};
 use crate::Ctx;
-use crate::bus::{Subscription, clients_channel, conn_channel, gateway_channel};
+use crate::bus::{Inbox, Subscription, clients_channel, conn_channel, gateway_channel};
 
 /// Claims the machine (kicking a previous owner), subscribes, announces presence, then acks auth.
 pub async fn gateway(
@@ -15,7 +14,7 @@ pub async fn gateway(
     ctx: &Ctx,
     authed: &Authed,
     mid: &str,
-    inbox: &UnboundedSender<Vec<u8>>,
+    inbox: &Inbox,
 ) -> Result<Vec<Subscription>> {
     let (bus, sid) = (&ctx.bus, authed.sid.as_str());
     if let Some(previous) = bus.claim_gateway(sid, mid, &authed.conn).await? {
@@ -36,7 +35,7 @@ pub async fn client(
     socket: &mut WebSocket,
     ctx: &Ctx,
     authed: &Authed,
-    inbox: &UnboundedSender<Vec<u8>>,
+    inbox: &Inbox,
 ) -> Result<Vec<Subscription>> {
     let (bus, sid) = (&ctx.bus, authed.sid.as_str());
     let subs = vec![

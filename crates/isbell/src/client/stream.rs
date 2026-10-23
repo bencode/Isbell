@@ -1,6 +1,7 @@
 //! A stream opened with [`Session::open_stream`](super::Session::open_stream): the events it
 //! delivers, and the input, resizes and pings a caller sends into it.
 
+use isbell_proto::flow::Grants;
 use isbell_proto::frame::{DataKind, Frame, Header, RpcError};
 use tokio::sync::mpsc;
 
@@ -29,6 +30,9 @@ pub struct Stream {
     ended: bool,
     /// This side ended it; the machine's end may still follow.
     closed: bool,
+    grants: Grants,
+    /// Bytes of the frame or chunk handed out last; consumed once the caller asks for more.
+    taken: u64,
 }
 
 impl Stream {
@@ -38,7 +42,8 @@ impl Stream {
         rx: mpsc::UnboundedReceiver<StreamEvent>,
         inflight: Inflight,
     ) -> Stream {
-        Stream { id, link, rx, inflight, ended: false, closed: false }
+        let (grants, taken) = (Grants::default(), 0);
+        Stream { id, link, rx, inflight, ended: false, closed: false, grants, taken }
     }
 
     /// Whether the stream rides a direct link rather than the relay.
@@ -46,8 +51,19 @@ impl Stream {
         self.link.is_direct()
     }
 
+    /// The next event. Asking for it counts the frame or chunk handed out before as consumed, and
+    /// grants the machine credit for it, so it never gets more than a window ahead of the caller.
     pub async fn next(&mut self) -> StreamEvent {
+        let (grants, grant) = self.grants.consumed(std::mem::take(&mut self.taken));
+        self.grants = grants;
+        if let Some(n) = grant {
+            self.credit(n);
+        }
         let event = self.rx.recv().await.unwrap_or_else(|| StreamEvent::End(Some(disconnected())));
+        self.taken = match &event {
+            StreamEvent::Frame { body, .. } | StreamEvent::Chunk(body) => body.len() as u64,
+            StreamEvent::Credit(_) | StreamEvent::End(_) => 0,
+        };
         self.ended |= matches!(event, StreamEvent::End(_));
         event
     }

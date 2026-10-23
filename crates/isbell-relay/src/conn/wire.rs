@@ -1,8 +1,10 @@
 //! The WebSocket edge: frames in and out of one socket.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use axum::extract::ws::{CloseFrame, Message, WebSocket};
 use isbell_proto::frame::{Encoded, Frame};
+
+use super::WRITE_WITHIN;
 
 pub enum Incoming {
     /// A text (`false`) or binary (`true`) message.
@@ -34,23 +36,29 @@ pub async fn recv_data(socket: &mut WebSocket) -> Option<(Vec<u8>, bool)> {
 }
 
 pub async fn send(socket: &mut WebSocket, frame: &Frame) -> Result<()> {
-    Ok(socket.send(message(frame.encode())).await?)
+    write(socket, message(frame.encode())).await
 }
 
 /// Sends a pub/sub payload (always binary-framed) on as text or binary.
 pub async fn forward(socket: &mut WebSocket, payload: Vec<u8>) -> Result<()> {
-    Ok(socket.send(message(Encoded::from_binary(payload)?)).await?)
+    write(socket, message(Encoded::from_binary(payload)?)).await
 }
 
 pub async fn ping(socket: &mut WebSocket) -> Result<()> {
-    Ok(socket.send(Message::Ping(Default::default())).await?)
+    write(socket, Message::Ping(Default::default())).await
 }
 
 pub async fn close(mut socket: WebSocket, code: u16, reason: &'static str) {
     let frame = CloseFrame { code, reason: reason.into() };
-    if let Err(err) = socket.send(Message::Close(Some(frame))).await {
+    if let Err(err) = write(&mut socket, Message::Close(Some(frame))).await {
         tracing::debug!(%err, "close frame not delivered");
     }
+}
+
+/// Every write, so a peer that stops reading cannot stall its connection (and its heartbeat).
+async fn write(socket: &mut WebSocket, msg: Message) -> Result<()> {
+    let written = tokio::time::timeout(WRITE_WITHIN, socket.send(msg)).await;
+    Ok(written.context("the peer took nothing for too long")??)
 }
 
 fn message(encoded: Encoded) -> Message {

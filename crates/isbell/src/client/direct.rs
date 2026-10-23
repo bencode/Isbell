@@ -41,7 +41,7 @@ impl Session {
         let (out, out_rx) = mpsc::unbounded_channel();
         self.peers.lock().expect("session poisoned").insert(mid.to_owned(), Link::peer(out));
         let (inflight, peers) = (self.inflight.clone(), Arc::downgrade(&self.peers));
-        tokio::spawn(serve(peer, channel, out_rx, mid.to_owned(), inflight, peers));
+        self.spawn(serve(peer, channel, out_rx, mid.to_owned(), inflight, peers));
         Ok(path)
     }
 

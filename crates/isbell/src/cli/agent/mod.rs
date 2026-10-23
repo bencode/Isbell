@@ -163,6 +163,10 @@ async fn start(ctx: &Ctx, machine: &str, params: Value) -> Result<(), CliError> 
     } else {
         let (name, pane) = (value_str(&result["name"]), value_str(&result["paneId"]));
         println!("started {}/{name} ({pane})", state.machine.name);
+        if let Some(err) = result.get("promptError") {
+            let (code, msg) = (value_str(&err["code"]), value_str(&err["msg"]));
+            tracing::warn!("the agent runs, but its prompt was not sent ({code}: {msg})");
+        }
     }
     Ok(())
 }

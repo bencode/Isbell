@@ -30,6 +30,7 @@ async fn gateway_serves_cli_through_relay() {
     checks::terminal_control(&session, mid, log).await;
     checks::terminal_new(&session, mid, log, calls).await;
     checks::terminal_observe(&session, mid, log).await;
+    checks::closing_ends_streams(&harness.url, &harness.id, mid, log).await;
     files::read(&session, mid).await;
     files::write(&session, mid).await;
     direct::serves_streams(&harness).await;

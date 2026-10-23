@@ -8,7 +8,7 @@ pub struct Config {
     pub redis_url: String,
     /// Signed into every auth challenge so signatures cannot be replayed against another relay.
     pub public_origin: String,
-    /// Take the client IP from the first `x-forwarded-for` hop.
+    /// Take the client IP from the last `x-forwarded-for` hop: the one the trusted proxy appended.
     pub trust_proxy: bool,
     pub limits: Limits,
 }
@@ -25,6 +25,9 @@ pub struct Limits {
     /// Gateway bytes per second (and burst); beyond it the relay slows its reads, never drops.
     pub gateway_bytes_per_sec: f64,
     pub gateway_burst_bytes: f64,
+    /// Messages waiting for one connection's socket; a connection that falls further behind is
+    /// closed as too slow.
+    pub inbox_frames: usize,
 }
 
 impl Default for Limits {
@@ -36,6 +39,7 @@ impl Default for Limits {
             burst: 100.0,
             gateway_bytes_per_sec: 8.0 * MIB,
             gateway_burst_bytes: 16.0 * MIB,
+            inbox_frames: 1024,
         }
     }
 }
@@ -58,6 +62,7 @@ impl Config {
                     .unwrap_or(defaults.gateway_bytes_per_sec),
                 gateway_burst_bytes: var("LIMIT_GATEWAY_BURST_BYTES")?
                     .unwrap_or(defaults.gateway_burst_bytes),
+                inbox_frames: var("LIMIT_INBOX_FRAMES")?.unwrap_or(defaults.inbox_frames),
             },
         })
     }

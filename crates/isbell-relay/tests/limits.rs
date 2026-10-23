@@ -1,8 +1,9 @@
-//! Client rate limits and gateway backpressure.
+//! Client rate limits, gateway backpressure, and connections too slow to keep.
 
 mod common;
 
 use common::*;
+use isbell_proto::frame::CLOSE_TOO_SLOW;
 
 #[tokio::test]
 async fn rate_limits_clients() {
@@ -69,4 +70,29 @@ async fn rate_limited_streams_end_on_both_sides() {
     // Later frames of the ended stream go nowhere.
     client.send(data(7, DataKind::Input, Some(&mid), None, b"c".to_vec())).await;
     assert!(gateway.recv_quiet().await.is_none());
+}
+
+#[tokio::test]
+async fn a_client_that_falls_behind_is_closed_not_buffered_for() {
+    let relay = start(Limits {
+        inbox_frames: 8,
+        gateway_bytes_per_sec: 1e9,
+        gateway_burst_bytes: 1e9,
+        ..Limits::default()
+    })
+    .await;
+    let id = Identity::generate();
+    let mid = random_mid();
+    let mut gateway = Peer::gateway(&relay, &id, &mid).await;
+    let (mut slow, _) = Peer::client(&relay, &id).await;
+    let (mut other, _) = Peer::client(&relay, &id).await;
+
+    // Far more than the socket buffers between the relay and the client hold, unread.
+    for n in 0..600u64 {
+        gateway.send(data(n, DataKind::Frame, None, Some(&slow.conn), vec![0; 60 * 1024])).await;
+    }
+    assert_eq!(slow.closed_with().await, CLOSE_TOO_SLOW);
+
+    gateway.send(data(1, DataKind::Frame, None, Some(&other.conn), b"hi".to_vec())).await;
+    assert!(matches!(other.recv().await.header, Header::Data { id: 1, .. }));
 }

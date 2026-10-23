@@ -5,17 +5,16 @@ use std::time::Instant;
 use anyhow::Result;
 use axum::extract::ws::WebSocket;
 use isbell_proto::frame::{Frame, Header, Route, RpcError};
-use tokio::sync::mpsc;
 
 use super::limit::{Admission, ClientLimiter};
 use super::route::{self, ClientFrame};
 use super::wire::{self, Incoming};
-use super::{Authed, CLOSE_BAD_FRAME, Exit, PING_EVERY, heartbeat, setup};
+use super::{Authed, CLOSE_BAD_FRAME, Exit, PING_EVERY, heartbeat, setup, too_slow};
 use crate::Ctx;
-use crate::bus::gateway_channel;
+use crate::bus::{Overflowed, gateway_channel, inbox};
 
 pub async fn serve(socket: &mut WebSocket, ctx: &Ctx, authed: &Authed) -> Result<Exit> {
-    let (inbox, mut rx) = mpsc::unbounded_channel();
+    let (inbox, mut inbox_rx) = inbox(ctx.config.limits.inbox_frames);
     let _subs = setup::client(socket, ctx, authed, &inbox).await?;
     let mut limiter =
         ClientLimiter::new(ctx.config.limits.rate, ctx.config.limits.burst, Instant::now());
@@ -37,7 +36,10 @@ pub async fn serve(socket: &mut WebSocket, ctx: &Ctx, authed: &Authed) -> Result
                 limiter = next;
                 on_frame(socket, ctx, authed, routed, admission).await?;
             }
-            Some(payload) = rx.recv() => wire::forward(socket, payload).await?,
+            payload = inbox_rx.next() => match payload {
+                Ok(payload) => wire::forward(socket, payload).await?,
+                Err(Overflowed) => return Ok(too_slow()),
+            },
             _ = ping.tick() => if let Some(exit) = heartbeat(socket, last_seen).await? { return Ok(exit) },
         }
     }

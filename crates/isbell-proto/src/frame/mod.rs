@@ -15,4 +15,5 @@ pub use header::{DataKind, Header, Route, RpcError, SnapshotEntry};
 pub const CLOSE_REPLACED: u16 = 4001;
 pub const CLOSE_AUTH_FAILED: u16 = 4003;
 pub const CLOSE_AUTH_TIMEOUT: u16 = 4004;
+pub const CLOSE_TOO_SLOW: u16 = 4008;
 pub const CLOSE_BAD_FRAME: u16 = 4400;

@@ -56,8 +56,9 @@ impl Inflight {
         id: u64,
         target: Target,
         tx: oneshot::Sender<Reply>,
-    ) -> Result<(), RpcError> {
-        self.with(|e| e.calls.insert(id, Waiter { target, tx })).map(drop).ok_or_else(disconnected)
+    ) -> Result<PendingCall, RpcError> {
+        self.with(|e| e.calls.insert(id, Waiter { target, tx })).ok_or_else(disconnected)?;
+        Ok(PendingCall { inflight: self.clone(), id })
     }
 
     pub fn add_stream(
@@ -68,10 +69,6 @@ impl Inflight {
     ) -> Result<(), RpcError> {
         let slot = StreamSlot { target, tx };
         self.with(|e| e.streams.insert(id, slot)).map(drop).ok_or_else(disconnected)
-    }
-
-    pub fn forget_call(&self, id: u64) {
-        self.with(|e| e.calls.remove(&id));
     }
 
     pub fn forget_stream(&self, id: u64) {
@@ -135,6 +132,19 @@ pub fn disconnected() -> RpcError {
     RpcError::new("disconnected", "lost the relay connection")
 }
 
+/// A call's entry, removed once its caller stops waiting for it, however that happens (answer,
+/// timeout, or the caller dropping its future); removing an answered call does nothing.
+pub struct PendingCall {
+    inflight: Inflight,
+    id: u64,
+}
+
+impl Drop for PendingCall {
+    fn drop(&mut self) {
+        self.inflight.with(|e| e.calls.remove(&self.id));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -157,8 +167,8 @@ mod tests {
         let (lost_tx, mut lost_rx) = oneshot::channel();
         let (kept_tx, mut kept_rx) = oneshot::channel();
         let (stream_tx, mut stream_rx) = mpsc::unbounded_channel();
-        inflight.add_call(1, target("a", true), lost_tx).unwrap();
-        inflight.add_call(2, target("a", false), kept_tx).unwrap();
+        let _lost = inflight.add_call(1, target("a", true), lost_tx).unwrap();
+        let _kept = inflight.add_call(2, target("a", false), kept_tx).unwrap();
         inflight.add_stream(3, target("a", true), stream_tx).unwrap();
 
         inflight.fail(RpcError::new("disconnected", "gone"), |t| t.mid == "a" && t.direct);
@@ -176,10 +186,11 @@ mod tests {
     fn closing_ends_everything_and_refuses_new_calls() {
         let inflight = Inflight::new();
         let (tx, mut rx) = oneshot::channel();
-        inflight.add_call(1, target("a", false), tx).unwrap();
+        let _call = inflight.add_call(1, target("a", false), tx).unwrap();
         inflight.close();
         assert!(matches!(rx.try_recv(), Err(oneshot::error::TryRecvError::Closed)));
         let (tx, _) = oneshot::channel();
-        assert_eq!(inflight.add_call(2, target("a", false), tx).unwrap_err().code, "disconnected");
+        let refused = inflight.add_call(2, target("a", false), tx).err().expect("refused");
+        assert_eq!(refused.code, "disconnected");
     }
 }

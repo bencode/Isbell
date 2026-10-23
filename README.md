@@ -55,6 +55,7 @@ Relay configuration (environment variables):
 | `LIMIT_IP_CONCURRENT` / `LIMIT_IP_PER_MINUTE` | `20` / `30` |
 | `LIMIT_RATE` / `LIMIT_BURST` | `50` / `100` messages per client connection; beyond it clients get `rate_limited` |
 | `LIMIT_GATEWAY_BYTES_PER_SEC` / `LIMIT_GATEWAY_BURST_BYTES` | 8 MiB / 16 MiB per gateway connection; beyond it the relay reads more slowly (frames are never dropped) |
+| `LIMIT_INBOX_FRAMES` | `1024` messages waiting for one connection; a connection further behind is closed as too slow (code 4008) |
 
 Try the gateway and CLI against a local relay and this machine's herdr server:
 

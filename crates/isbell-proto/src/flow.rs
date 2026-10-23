@@ -1,6 +1,7 @@
-//! Flow control for streams. A stream's receiver grants its sender credit in bytes, so a fast sender
-//! never gets more than a window ahead of a slow receiver, whichever transport is in between (the
-//! relay neither buffers for nor slows down a sender on behalf of a slow receiver).
+//! Flow control for streams (terminals and files alike). A stream's receiver grants its sender
+//! credit in bytes, so a fast sender never gets more than a window ahead of a slow receiver,
+//! whichever transport is in between. The relay does not do this for them: it only bounds what
+//! waits for each connection, and closes a connection that falls further behind.
 //!
 //! ```text
 //! receiver ─▶ credit(WINDOW)          after opening the stream

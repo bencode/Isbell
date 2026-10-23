@@ -15,6 +15,8 @@ type Ws = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 /// The relay pings every 15s; a connection silent for three pings is gone.
 pub const RELAY_IDLE: Duration = Duration::from_secs(45);
+/// A relay that takes no frame for this long is as gone as a silent one.
+const WRITE_WITHIN: Duration = Duration::from_secs(30);
 const AUTH_TIMEOUT: Duration = Duration::from_secs(15);
 
 #[derive(Debug, thiserror::Error)]
@@ -35,6 +37,8 @@ pub enum RelayError {
     Closed(Option<u16>),
     #[error("relay connection idle for too long")]
     Idle,
+    #[error("relay took no frame for too long")]
+    Stalled,
 }
 
 impl From<FrameError> for RelayError {
@@ -97,7 +101,8 @@ impl FrameSink {
             Encoded::Text(text) => Message::Text(text.into()),
             Encoded::Binary(bytes) => Message::Binary(bytes.into()),
         };
-        Ok(self.0.send(msg).await?)
+        let sent = tokio::time::timeout(WRITE_WITHIN, self.0.send(msg)).await;
+        Ok(sent.map_err(|_| RelayError::Stalled)??)
     }
 }
 

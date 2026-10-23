@@ -1,5 +1,5 @@
-//! A running session: herdr's output coalesced into the stream, client input written back, until
-//! either side ends it or the client goes silent.
+//! A running session: herdr's output coalesced into the stream as the client grants credit, client
+//! input written back, until either side ends it or the client goes silent or too far behind.
 
 use std::time::Duration;
 
@@ -47,6 +47,7 @@ pub async fn pump(
                         return end(out, Some(herdr_error(err.to_string())), &mut emit);
                     },
                     Command::Release => return release(session).await,
+                    Command::Grant(n) => out = out.grant(n),
                     Command::Nothing => {}
                 }
             }
@@ -71,9 +72,9 @@ fn on_herdr(
             return None;
         }
     };
-    let (next, output, closed) = out.push(event, Instant::now());
-    output.into_iter().chain(closed.then_some(Output::End(None))).for_each(emit);
-    (!closed).then_some(next)
+    let (next, output, ended) = out.push(event, Instant::now());
+    output.into_iter().for_each(emit);
+    (!ended).then_some(next)
 }
 
 /// Sends pending output, then ends the stream.

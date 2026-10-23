@@ -3,7 +3,7 @@
 
 use std::time::Duration;
 
-use isbell_proto::flow::{Credit, Grants, MAX_CHUNK, WINDOW};
+use isbell_proto::flow::{Credit, MAX_CHUNK, WINDOW};
 use isbell_proto::frame::RpcError;
 use serde_json::json;
 use tokio::time::{Interval, MissedTickBehavior};
@@ -20,9 +20,6 @@ const CHUNK_EVERY: Duration = Duration::from_millis(25);
 pub struct FileRead {
     pub size: u64,
     stream: Stream,
-    grants: Grants,
-    /// The chunk handed out last; it counts as consumed once the caller asks for the next one.
-    last: u64,
     /// The stream ended, with or without an error; there is nothing more to read.
     done: bool,
 }
@@ -36,7 +33,7 @@ impl Session {
             .as_u64()
             .ok_or_else(|| RpcError::new("protocol_error", "file.read answered without a size"))?;
         stream.credit(WINDOW);
-        Ok(FileRead { size, stream, grants: Grants::default(), last: 0, done: false })
+        Ok(FileRead { size, stream, done: false })
     }
 }
 
@@ -48,17 +45,9 @@ impl FileRead {
         if self.done {
             return None;
         }
-        let (grants, grant) = self.grants.consumed(std::mem::take(&mut self.last));
-        self.grants = grants;
-        if let Some(n) = grant {
-            self.stream.credit(n);
-        }
         loop {
             match self.stream.next().await {
-                StreamEvent::Chunk(chunk) => {
-                    self.last = chunk.len() as u64;
-                    return Some(Ok(chunk));
-                }
+                StreamEvent::Chunk(chunk) => return Some(Ok(chunk)),
                 StreamEvent::End(end) => {
                     self.done = true;
                     return end.map(Err);

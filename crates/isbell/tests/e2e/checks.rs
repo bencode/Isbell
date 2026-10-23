@@ -4,6 +4,8 @@ use std::path::Path;
 use std::time::Duration;
 
 use isbell::client::{Session, SessionEvent, Stream, StreamEvent};
+use isbell_proto::flow::WINDOW;
+use isbell_proto::identity::Identity;
 use serde_json::{Value, json};
 use tokio::sync::broadcast;
 
@@ -53,6 +55,16 @@ pub async fn agent_start(session: &Session, mid: &str, calls: &Calls) {
     assert!(create < start);
     assert_eq!(methods[start].1["args"][0], "--no-daemon");
     assert_eq!(methods[start].1["pane_id"], "w9:p1");
+
+    // Started is started: a prompt that cannot be sent (the fake has no `agent.get`) is reported
+    // beside the agent, so the caller does not start it again.
+    let prompted = json!({"cwd": cwd.path(), "kind": "codex", "prompt": "hi"});
+    let started = session
+        .call(mid, "isbell.agent.start", prompted, Some(Duration::from_secs(30)))
+        .await
+        .unwrap();
+    assert_eq!(started["paneId"], "w9:p1");
+    assert_eq!(started["promptError"]["code"], "unknown_method");
 }
 
 const OPEN: Duration = Duration::from_secs(10);
@@ -60,7 +72,7 @@ const OPEN: Duration = Duration::from_secs(10);
 /// control: first frame, input echoed, resize forwarded, release on detach.
 pub async fn terminal_control(session: &Session, mid: &str, log: &Path) {
     let control = json!({"target": "w1:p1", "mode": "control", "cols": 80, "rows": 24});
-    let (_, mut stream) = session.open_stream(mid, "isbell.terminal", control, OPEN).await.unwrap();
+    let (_, mut stream) = open_terminal(session, mid, control).await;
     assert_eq!(next_frame(&mut stream).await, b"hello");
     stream.input(b"ls\r".to_vec());
     assert_eq!(next_frame(&mut stream).await, b"ok");
@@ -75,7 +87,7 @@ pub async fn terminal_control(session: &Session, mid: &str, log: &Path) {
 pub async fn terminal_new(session: &Session, mid: &str, log: &Path, calls: &Calls) {
     let cwd = tempfile::tempdir().unwrap();
     let new = json!({"new": {"cwd": cwd.path()}, "mode": "control", "cols": 80, "rows": 24});
-    let (r, mut stream) = session.open_stream(mid, "isbell.terminal", new, OPEN).await.unwrap();
+    let (r, mut stream) = open_terminal(session, mid, new).await;
     assert_eq!(r["paneId"], "w9:p1");
     assert_eq!(next_frame(&mut stream).await, b"hello");
     logged(log, "args terminal session control w9:p1 --cols 80 --rows 24").await;
@@ -88,7 +100,7 @@ pub async fn terminal_new(session: &Session, mid: &str, log: &Path, calls: &Call
 /// observe: input is not forwarded; a request with neither target nor new is refused.
 pub async fn terminal_observe(session: &Session, mid: &str, log: &Path) {
     let observe = json!({"target": "w1:p1", "mode": "observe", "cols": 80, "rows": 24});
-    let (_, mut stream) = session.open_stream(mid, "isbell.terminal", observe, OPEN).await.unwrap();
+    let (_, mut stream) = open_terminal(session, mid, observe).await;
     assert_eq!(next_frame(&mut stream).await, b"hello");
     let lines_before = std::fs::read_to_string(log).unwrap().lines().count();
     stream.input(b"x".to_vec());
@@ -101,11 +113,46 @@ pub async fn terminal_observe(session: &Session, mid: &str, log: &Path) {
     assert_eq!(err.code, "bad_request");
 }
 
+/// A closed session has sent the ends of its streams, even when the command's runtime ends right
+/// after: the pane is released at once, not after the machine notices the client went silent.
+/// Merely dropping the session would leave the ends to tasks the runtime takes down with it.
+pub async fn closing_ends_streams(url: &str, id: &Identity, mid: &str, log: &Path) {
+    let releases = || std::fs::read_to_string(log).unwrap().matches("terminal.release").count();
+    let released = releases();
+    let (url, key, mid) = (url.to_owned(), id.key_string(), mid.to_owned());
+    tokio::task::spawn_blocking(move || {
+        let command = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        command.block_on(async {
+            let session = Session::connect(&url, &Identity::parse(&key).unwrap()).await.unwrap();
+            let control = json!({"target": "w1:p1", "mode": "control", "cols": 80, "rows": 24});
+            let (_, mut stream) = open_terminal(&session, &mid, control).await;
+            assert_eq!(next_frame(&mut stream).await, b"hello");
+            drop(stream);
+            session.close().await;
+        });
+    })
+    .await
+    .unwrap();
+    let found = async {
+        while releases() == released {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    };
+    tokio::time::timeout(Duration::from_secs(10), found).await.expect("pane released");
+}
+
 pub async fn next_event(events: &mut Events) -> SessionEvent {
     tokio::time::timeout(Duration::from_secs(10), events.recv())
         .await
         .expect("event within 10s")
         .unwrap()
+}
+
+/// Opens a terminal stream with a full window of credit, as the CLI does.
+async fn open_terminal(session: &Session, mid: &str, params: Value) -> (Value, Stream) {
+    let (r, stream) = session.open_stream(mid, "isbell.terminal", params, OPEN).await.unwrap();
+    stream.credit(WINDOW);
+    (r, stream)
 }
 
 async fn next_frame(stream: &mut Stream) -> Vec<u8> {

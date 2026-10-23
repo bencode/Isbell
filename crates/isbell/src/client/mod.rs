@@ -20,6 +20,7 @@ use isbell_proto::identity::Identity;
 use isbell_proto::state::MachineState;
 use serde_json::Value;
 use tokio::sync::{broadcast, mpsc, oneshot};
+use tokio::task::JoinHandle;
 
 pub use self::file::{FileRead, FileWrite};
 use self::inbound::{read_loop, write_loop};
@@ -27,8 +28,12 @@ use self::inflight::{Inflight, Target, disconnected};
 use self::link::Link;
 use self::space::Space;
 pub use self::stream::{Stream, StreamEvent};
+use crate::AbortOnDrop;
 use crate::relay::{self, RELAY_IDLE, RelayError};
 pub use crate::rtc::Path;
+
+/// How long `Session::close` waits for queued frames to leave.
+const CLOSE_WITHIN: Duration = Duration::from_secs(2);
 
 #[derive(Debug, Clone)]
 pub enum SessionEvent {
@@ -51,6 +56,10 @@ pub struct Session {
     opening: tokio::sync::Mutex<()>,
     events: broadcast::Sender<SessionEvent>,
     next_id: AtomicU64,
+    /// The relay writer and the direct links. They end by themselves once the session's senders
+    /// are gone, sending what is queued and closing the links; `close` waits for that.
+    tasks: Mutex<Vec<JoinHandle<()>>>,
+    _read: AbortOnDrop<()>,
 }
 
 impl Session {
@@ -63,9 +72,8 @@ impl Session {
         let inflight = Inflight::new();
         let (events, _) = broadcast::channel(256);
         let (to_relay, relay_rx) = mpsc::unbounded_channel();
-        tokio::spawn(write_loop(conn.sink, relay_rx));
+        let writer = tokio::spawn(write_loop(conn.sink, relay_rx));
         let read = read_loop(conn.stream, Arc::clone(&space), inflight.clone(), events.clone());
-        tokio::spawn(read);
         Ok(Session {
             space,
             inflight,
@@ -74,7 +82,29 @@ impl Session {
             opening: tokio::sync::Mutex::default(),
             events,
             next_id: AtomicU64::new(1),
+            tasks: Mutex::new(vec![writer]),
+            _read: AbortOnDrop(tokio::spawn(read)),
         })
+    }
+
+    /// Sends what is queued (the ends of dropped streams, above all) and closes the direct links,
+    /// waiting until that is done. Dropping the session does the same in the background, which a
+    /// command about to exit cannot rely on, so commands close it last.
+    pub async fn close(self) {
+        let Session { to_relay, peers, tasks, .. } = self;
+        drop(to_relay);
+        peers.lock().expect("session poisoned").clear();
+        let tasks = tasks.into_inner().expect("session poisoned");
+        let finished = async {
+            for task in tasks {
+                if let Err(err) = task.await {
+                    tracing::error!(%err, "session task failed");
+                }
+            }
+        };
+        if tokio::time::timeout(CLOSE_WITHIN, finished).await.is_err() {
+            tracing::debug!("session still sending at close; giving up");
+        }
     }
 
     /// Every known machine with its online flag, ordered by name.
@@ -125,6 +155,13 @@ impl Session {
         Link::relay(self.to_relay.clone(), mid)
     }
 
+    /// Runs a task `close` waits for, forgetting those that finished.
+    fn spawn(&self, task: impl Future<Output = ()> + Send + 'static) {
+        let mut tasks = self.tasks.lock().expect("session poisoned");
+        tasks.retain(|task| !task.is_finished());
+        tasks.push(tokio::spawn(task));
+    }
+
     fn next_id(&self) -> u64 {
         self.next_id.fetch_add(1, Ordering::Relaxed)
     }
@@ -144,15 +181,10 @@ impl Session {
         timeout: Option<Duration>,
     ) -> Result<Value, RpcError> {
         let (tx, rx) = oneshot::channel();
-        self.inflight.add_call(id, self.target(mid, link.is_direct()), tx)?;
-        let call = Header::Call { id, m: m.into(), p, mid: None, from: None };
-        if let Err(err) = link.send(Frame::new(call)) {
-            self.inflight.forget_call(id);
-            return Err(err);
-        }
+        let _pending = self.inflight.add_call(id, self.target(mid, link.is_direct()), tx)?;
+        link.send(Frame::new(Header::Call { id, m: m.into(), p, mid: None, from: None }))?;
         let reply = match timeout {
             Some(limit) => tokio::time::timeout(limit, rx).await.map_err(|_| {
-                self.inflight.forget_call(id);
                 RpcError::new("timeout", format!("no response within {}s", limit.as_secs()))
             })?,
             None => rx.await,

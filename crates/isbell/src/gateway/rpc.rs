@@ -69,6 +69,8 @@ struct StartAgent {
 }
 
 /// workspace.create → agent.start (retrying while the shell is busy) → optional prompt once ready.
+/// The agent runs once it started: a prompt that could not be sent comes back as `promptError`
+/// beside it, not as the call's error, so the caller does not start it again.
 pub async fn start_agent(herdr: &Herdr, p: Value) -> Result<Value, RpcError> {
     let req: StartAgent = serde_json::from_value(p).map_err(bad_request)?;
     let cwd = workspace::resolve_cwd(&req.cwd)?;
@@ -86,12 +88,22 @@ pub async fn start_agent(herdr: &Herdr, p: Value) -> Result<Value, RpcError> {
         workspace::close_pane(herdr, &pane_id, "agent start").await;
         return Err(err.into());
     }
-    if let Some(text) = req.prompt {
-        wait_until_ready(herdr, &pane_id).await?;
-        let prompt = json!({"target": pane_id, "text": text});
-        herdr.request("agent.prompt", prompt, Some(DEFAULT_TIMEOUT)).await?;
+    let unsent = match req.prompt {
+        Some(text) => prompt_when_ready(herdr, &pane_id, text).await.err(),
+        None => None,
+    };
+    let mut started = json!({"name": name, "paneId": pane_id});
+    if let Some(err) = unsent {
+        started["promptError"] = json!(err);
     }
-    Ok(json!({"name": name, "paneId": pane_id}))
+    Ok(started)
+}
+
+async fn prompt_when_ready(herdr: &Herdr, pane_id: &str, text: String) -> Result<(), RpcError> {
+    wait_until_ready(herdr, pane_id).await?;
+    let prompt = json!({"target": pane_id, "text": text});
+    herdr.request("agent.prompt", prompt, Some(DEFAULT_TIMEOUT)).await?;
+    Ok(())
 }
 
 /// Codex hooks only run inside the pane without its background daemon.

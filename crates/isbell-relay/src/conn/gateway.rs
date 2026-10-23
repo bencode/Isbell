@@ -5,20 +5,19 @@ use std::time::Instant;
 use anyhow::Result;
 use axum::extract::ws::WebSocket;
 use isbell_proto::frame::Frame;
-use tokio::sync::mpsc;
 
 use super::route::{self, GatewayRoute};
 use super::wire::{self, Incoming};
 use super::{
     Authed, CLOSE_BAD_FRAME, CLOSE_REPLACED, Exit, KICK, PING_EVERY, REFRESH_EVERY, heartbeat,
-    setup,
+    setup, too_slow,
 };
 use crate::Ctx;
-use crate::bus::{clients_channel, conn_channel};
+use crate::bus::{Overflowed, clients_channel, conn_channel, inbox};
 use crate::limits::TokenBucket;
 
 pub async fn serve(socket: &mut WebSocket, ctx: &Ctx, authed: &Authed, mid: &str) -> Result<Exit> {
-    let (inbox, mut rx) = mpsc::unbounded_channel();
+    let (inbox, mut inbox_rx) = inbox(ctx.config.limits.inbox_frames);
     let _subs = setup::gateway(socket, ctx, authed, mid, &inbox).await?;
     let limits = ctx.config.limits;
     // Gateways are limited per byte by slowing our reads: backpressure, never dropping.
@@ -43,12 +42,13 @@ pub async fn serve(socket: &mut WebSocket, ctx: &Ctx, authed: &Authed, mid: &str
                     return Ok(exit);
                 }
             }
-            Some(payload) = rx.recv() => {
-                if payload == KICK {
+            payload = inbox_rx.next() => match payload {
+                Ok(payload) if payload == KICK => {
                     return Ok(Exit::Close(CLOSE_REPLACED, "replaced by another gateway"));
                 }
-                wire::forward(socket, payload).await?;
-            }
+                Ok(payload) => wire::forward(socket, payload).await?,
+                Err(Overflowed) => return Ok(too_slow()),
+            },
             _ = ping.tick() => if let Some(exit) = heartbeat(socket, last_seen).await? { return Ok(exit) },
             _ = refresh.tick() => {
                 if !ctx.bus.refresh_gateway(&authed.sid, mid, &authed.conn).await? {

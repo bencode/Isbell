@@ -1,11 +1,12 @@
 //! herdr's terminal session protocol (NDJSON on the child's stdio) and how its frames are coalesced
-//! into stream output.
+//! into stream output, as the client's credit allows.
 
 use std::time::Duration;
 
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
-use isbell_proto::flow::MAX_CHUNK;
+use isbell_proto::flow::{Credit, MAX_CHUNK, WINDOW};
+use isbell_proto::frame::RpcError;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio::time::Instant;
@@ -14,6 +15,8 @@ use crate::gateway::stream::{Input, Output};
 
 const COALESCE_FOR: Duration = Duration::from_millis(50);
 const COALESCE_BYTES: usize = 32 * 1024;
+/// Output held for a client that granted no credit; a client further behind is too slow to keep.
+const BACKLOG: usize = WINDOW as usize;
 
 /// What herdr reports on the session's stdout.
 #[derive(Debug, PartialEq)]
@@ -29,6 +32,8 @@ pub enum Command {
     Write(Value),
     /// Give control back to herdr and end the session.
     Release,
+    /// The client can take `n` more bytes.
+    Grant(u64),
     Nothing,
 }
 
@@ -40,7 +45,8 @@ pub fn command(input: Input) -> Command {
         Input::Resize(cols, rows) => {
             Command::Write(json!({"type": "terminal.resize", "cols": cols, "rows": rows}))
         }
-        Input::Ping | Input::Chunk(_) | Input::Credit(_) => Command::Nothing,
+        Input::Credit(n) => Command::Grant(n),
+        Input::Ping | Input::Chunk(_) => Command::Nothing,
         Input::Close => Command::Release,
     }
 }
@@ -86,7 +92,8 @@ pub fn parse_line(line: &str) -> Result<Event, String> {
     }
 }
 
-/// Coalesces frames for up to 50ms or 32KiB and outputs them in chunks of at most 64KiB.
+/// Coalesces frames for up to 50ms or 32KiB and outputs them in chunks of at most 64KiB, while the
+/// client has credit; without it, output waits, up to `BACKLOG`.
 #[derive(Default)]
 pub struct Coalescer {
     bytes: Vec<u8>,
@@ -95,10 +102,12 @@ pub struct Coalescer {
     /// The size last sent to the client.
     sent_size: Option<(u16, u16)>,
     deadline: Option<Instant>,
+    credit: Credit,
 }
 
 impl Coalescer {
-    /// Adds an event seen at `now`: the output due at once, and whether the session closed.
+    /// Adds an event seen at `now`: the output due at once, and whether the stream ended (its end
+    /// is the last output).
     pub fn push(self, event: Event, now: Instant) -> (Self, Vec<Output>, bool) {
         match event {
             Event::Frame { bytes, full, cols, rows } => {
@@ -111,20 +120,31 @@ impl Coalescer {
                     deadline: self.deadline.or(Some(now + COALESCE_FOR)),
                     ..self
                 };
-                if next.bytes.len() < COALESCE_BYTES {
+                let waiting = next.credit.available() == 0;
+                if waiting && next.bytes.len() > BACKLOG {
+                    let slow = RpcError::new("slow_client", "the client fell too far behind");
+                    return (next, vec![Output::End(Some(slow))], true);
+                }
+                if waiting || next.bytes.len() < COALESCE_BYTES {
                     return (next, Vec::new(), false);
                 }
                 let (next, output) = next.flush();
                 (next, output, false)
             }
             Event::Closed => {
-                let (next, output) = self.flush();
+                let (next, mut output) = self.flush();
+                output.push(Output::End(None));
                 (next, output, true)
             }
         }
     }
 
-    /// Pending output; a repaint or resize goes out even with no bytes.
+    pub fn grant(self, n: u64) -> Self {
+        Coalescer { credit: self.credit.granted(n), ..self }
+    }
+
+    /// Pending output, whatever the credit (it spends what there is); a repaint or resize goes out
+    /// even with no bytes.
     pub fn flush(self) -> (Self, Vec<Output>) {
         let (cols, rows) = self.size;
         let changed = !self.bytes.is_empty() || self.full || self.sent_size != Some(self.size);
@@ -143,12 +163,18 @@ impl Coalescer {
                 rows,
             })
             .collect();
-        (Coalescer { size: self.size, sent_size: Some(self.size), ..Coalescer::default() }, output)
+        let next = Coalescer {
+            size: self.size,
+            sent_size: Some(self.size),
+            credit: self.credit.spent(self.bytes.len() as u64),
+            ..Coalescer::default()
+        };
+        (next, output)
     }
 
-    /// When pending output is due.
+    /// When pending output is due; never while the client has no credit for it.
     pub fn deadline(&self) -> Option<Instant> {
-        self.deadline
+        self.deadline.filter(|_| self.credit.available() > 0)
     }
 }
 
@@ -158,6 +184,10 @@ mod tests {
 
     fn frame(bytes: Vec<u8>, full: bool, cols: u16) -> Event {
         Event::Frame { bytes, full, cols, rows: 24 }
+    }
+
+    fn credited() -> Coalescer {
+        Coalescer::default().grant(WINDOW)
     }
 
     /// (body length, full, cols) of each output frame.
@@ -186,7 +216,7 @@ mod tests {
     #[test]
     fn small_frames_wait_for_the_deadline() {
         let now = Instant::now();
-        let (out, output, closed) = Coalescer::default().push(frame(vec![1; 10], false, 80), now);
+        let (out, output, closed) = credited().push(frame(vec![1; 10], false, 80), now);
         assert!(output.is_empty() && !closed);
         assert_eq!(out.deadline(), Some(now + COALESCE_FOR));
         let (out, output, _) = out.push(frame(vec![2; 10], false, 80), now + COALESCE_FOR / 2);
@@ -204,7 +234,7 @@ mod tests {
             let (pushed, _, _) = out.push(frame(Vec::new(), full, cols), now);
             pushed.flush()
         };
-        let (out, first_size) = step(Coalescer::default(), false, 80);
+        let (out, first_size) = step(credited(), false, 80);
         let (out, nothing_new) = step(out, false, 80);
         let (out, repaint) = step(out, true, 80);
         let (_, resize) = step(out, false, 100);
@@ -217,8 +247,7 @@ mod tests {
     #[test]
     fn large_output_goes_out_at_once_in_bounded_chunks() {
         let big = vec![7u8; MAX_CHUNK * 2 + 10];
-        let (out, output, closed) =
-            Coalescer::default().push(frame(big.clone(), true, 80), Instant::now());
+        let (out, output, closed) = credited().push(frame(big.clone(), true, 80), Instant::now());
         assert!(!closed && out.deadline().is_none());
         assert_eq!(
             shapes(&output).iter().map(|(len, full, _)| (*len, *full)).collect::<Vec<_>>(),
@@ -232,12 +261,42 @@ mod tests {
     }
 
     #[test]
-    fn close_flushes_pending_output() {
+    fn close_flushes_pending_output_then_ends() {
         let now = Instant::now();
-        let (out, _, _) = Coalescer::default().push(frame(vec![1; 5], false, 80), now);
+        let (out, _, _) = credited().push(frame(vec![1; 5], false, 80), now);
         let (_, output, closed) = out.push(Event::Closed, now);
         assert!(closed);
         assert_eq!(shapes(&output), [(5, false, 80)]);
+        assert!(matches!(output.last(), Some(Output::End(None))));
+    }
+
+    #[test]
+    fn output_waits_for_credit() {
+        let now = Instant::now();
+        let (out, output, _) =
+            Coalescer::default().push(frame(vec![1; COALESCE_BYTES * 2], false, 80), now);
+        assert!(output.is_empty(), "no credit, nothing sent");
+        assert_eq!(out.deadline(), None, "nothing to wake up for");
+        let out = out.grant(100);
+        assert_eq!(out.deadline(), Some(now + COALESCE_FOR));
+        let (out, output) = out.flush();
+        let sent: usize = shapes(&output).iter().map(|(len, ..)| len).sum();
+        assert_eq!(sent, COALESCE_BYTES * 2, "all of it, even past the credit");
+        let (out, output, _) = out.push(frame(vec![2; 10], false, 80), now);
+        assert!(output.is_empty() && out.deadline().is_none(), "the flush spent the credit");
+    }
+
+    #[test]
+    fn a_client_too_far_behind_ends_the_stream() {
+        let now = Instant::now();
+        let (out, _, ended) = Coalescer::default().push(frame(vec![1; BACKLOG], false, 80), now);
+        assert!(!ended, "up to the backlog is held");
+        let (_, output, ended) = out.push(frame(vec![1], false, 80), now);
+        assert!(ended);
+        assert!(matches!(&output[..], [Output::End(Some(e))] if e.code == "slow_client"));
+        let big = frame(vec![1; BACKLOG * 2], false, 80);
+        let (_, _, ended) = credited().push(big, now);
+        assert!(!ended, "a client with credit takes even a large frame");
     }
 
     #[test]
@@ -250,6 +309,7 @@ mod tests {
             command(Input::Resize(100, 30)),
             Command::Write(json!({"type": "terminal.resize", "cols": 100, "rows": 30}))
         );
+        assert_eq!(command(Input::Credit(5)), Command::Grant(5));
         assert_eq!(command(Input::Ping), Command::Nothing);
         assert_eq!(command(Input::Close), Command::Release);
     }

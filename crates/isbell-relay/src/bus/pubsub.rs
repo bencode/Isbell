@@ -8,12 +8,60 @@ use anyhow::Result;
 use futures_util::StreamExt;
 use redis::AsyncCommands;
 use redis::aio::PubSubStream;
-use tokio::sync::mpsc::UnboundedSender;
-use tokio::sync::watch;
+use tokio::sync::mpsc::error::TrySendError;
+use tokio::sync::{Notify, mpsc, watch};
 
 use super::Bus;
 
-pub(super) type Subscribers = HashMap<String, Vec<(u64, UnboundedSender<Vec<u8>>)>>;
+pub(super) type Subscribers = HashMap<String, Vec<(u64, Inbox)>>;
+
+/// Where pub/sub messages for one connection wait to be written to its socket. It is bounded: a
+/// connection that lets it fill up reads too slowly to keep, so it is told to close rather than
+/// have the relay buffer for it. Dropping messages instead would silently break its streams.
+#[derive(Clone)]
+pub struct Inbox {
+    tx: mpsc::Sender<Vec<u8>>,
+    overflow: Arc<Notify>,
+}
+
+pub struct InboxRx {
+    rx: mpsc::Receiver<Vec<u8>>,
+    overflow: Arc<Notify>,
+}
+
+/// The connection fell `capacity` messages behind.
+#[derive(Debug)]
+pub struct Overflowed;
+
+pub fn inbox(capacity: usize) -> (Inbox, InboxRx) {
+    let (tx, rx) = mpsc::channel(capacity);
+    let overflow = Arc::new(Notify::new());
+    (Inbox { tx, overflow: Arc::clone(&overflow) }, InboxRx { rx, overflow })
+}
+
+impl Inbox {
+    /// Never waits: one slow connection must not hold up the others.
+    pub fn deliver(&self, payload: Vec<u8>) {
+        match self.tx.try_send(payload) {
+            Ok(()) => {}
+            Err(TrySendError::Full(_)) => self.overflow.notify_one(),
+            // Its connection is shutting down; the subscription guard cleans up.
+            Err(TrySendError::Closed(_)) => tracing::trace!("subscriber already gone"),
+        }
+    }
+}
+
+impl InboxRx {
+    /// The next message, or `Overflowed` once a message did not fit. The sender lives as long as
+    /// the connection's subscriptions, so the queue never ends while it is read.
+    pub async fn next(&mut self) -> Result<Vec<u8>, Overflowed> {
+        tokio::select! {
+            biased;
+            () = self.overflow.notified() => Err(Overflowed),
+            Some(payload) = self.rx.recv() => Ok(payload),
+        }
+    }
+}
 
 /// Local subscription; dropping it stops delivery and unsubscribes from Redis when it was the last one.
 pub struct Subscription {
@@ -33,11 +81,8 @@ pub(super) fn fan_out(
     tokio::spawn(async move {
         while let Some(msg) = stream.next().await {
             let subs = fanout.lock().expect("subscribers poisoned");
-            for (id, tx) in subs.get(msg.get_channel_name()).into_iter().flatten() {
-                if tx.send(msg.get_payload_bytes().to_vec()).is_err() {
-                    // Its connection is shutting down; the subscription guard cleans up.
-                    tracing::trace!(id, "subscriber already gone");
-                }
+            for (_, inbox) in subs.get(msg.get_channel_name()).into_iter().flatten() {
+                inbox.deliver(msg.get_payload_bytes().to_vec());
             }
         }
         tracing::error!("redis pub/sub stream ended");
@@ -52,17 +97,13 @@ impl Bus {
         Ok(self.cmd.clone().publish(channel, payload).await?)
     }
 
-    pub async fn subscribe(
-        &self,
-        channel: &str,
-        tx: UnboundedSender<Vec<u8>>,
-    ) -> Result<Subscription> {
+    pub async fn subscribe(&self, channel: &str, inbox: Inbox) -> Result<Subscription> {
         let _ops = self.sub_ops.lock().await;
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let first = {
             let mut subs = self.subscribers.lock().expect("subscribers poisoned");
             let list = subs.entry(channel.to_owned()).or_default();
-            list.push((id, tx));
+            list.push((id, inbox));
             list.len() == 1
         };
         let subscription = Subscription { bus: self.clone(), channel: channel.to_owned(), id };

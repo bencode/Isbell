@@ -22,7 +22,8 @@ use std::time::{Duration, Instant};
 use anyhow::Result;
 use axum::extract::ws::WebSocket;
 use isbell_proto::frame::{
-    CLOSE_AUTH_FAILED, CLOSE_AUTH_TIMEOUT, CLOSE_BAD_FRAME, CLOSE_REPLACED, Frame, Header,
+    CLOSE_AUTH_FAILED, CLOSE_AUTH_TIMEOUT, CLOSE_BAD_FRAME, CLOSE_REPLACED, CLOSE_TOO_SLOW, Frame,
+    Header,
 };
 use isbell_proto::identity::Role;
 use isbell_proto::state::MachineInfo;
@@ -33,6 +34,8 @@ use crate::bus::clients_channel;
 
 const PING_EVERY: Duration = Duration::from_secs(15);
 const PONG_TIMEOUT: Duration = Duration::from_secs(30);
+/// A peer that takes no message for this long is as gone as one that sends no pong.
+const WRITE_WITHIN: Duration = PONG_TIMEOUT;
 const REFRESH_EVERY: Duration = Duration::from_secs(10);
 
 const CLOSE_INTERNAL: u16 = 1011;
@@ -118,6 +121,12 @@ async fn release(ctx: &Ctx, authed: &Authed, mid: &str) {
         }
         Err(err) => tracing::error!(%err, "cannot release the machine"),
     }
+}
+
+/// The connection fell too far behind its inbox (see `bus::Inbox`).
+pub(super) fn too_slow() -> Exit {
+    tracing::warn!("connection too slow to keep up; closing it");
+    Exit::Close(CLOSE_TOO_SLOW, "too slow")
 }
 
 /// Pings the peer, or reports it dead when nothing has arrived for too long.

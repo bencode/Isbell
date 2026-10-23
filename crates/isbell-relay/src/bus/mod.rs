@@ -19,7 +19,7 @@ use anyhow::Result;
 use redis::aio::{ConnectionManager, PubSubSink};
 use tokio::sync::watch;
 
-pub use pubsub::Subscription;
+pub use pubsub::{Inbox, InboxRx, Overflowed, Subscription, inbox};
 
 #[derive(Clone)]
 pub struct Bus {

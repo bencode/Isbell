@@ -2,7 +2,6 @@
 //! only once all of it arrived; until then it is a temporary file next to it.
 
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 
 use clap::Subcommand;
 use isbell_proto::flow::MAX_CHUNK;
@@ -13,10 +12,6 @@ use super::Ctx;
 use super::output::CliError;
 use super::target::{parse_remote_path, resolve_machine};
 use crate::client::{FileRead, FileWrite};
-
-/// How long an interrupted upload waits for its end to reach the relay, so the machine drops the
-/// partial file at once rather than after its idle timeout.
-const ABANDON_GRACE: Duration = Duration::from_millis(300);
 
 #[derive(Subcommand)]
 pub enum FileCmd {
@@ -44,13 +39,17 @@ async fn get(ctx: &Ctx, source: String, dest: Option<String>) -> Result<(), CliE
     let read = session.read_file(&state.machine.id, remote.path).await?;
     let size = read.size;
     if dest.as_deref() == Some("-") {
-        return to_stdout(read).await;
+        let written = to_stdout(read).await;
+        session.close().await;
+        return written;
     }
     let local = local_path(remote.path, dest.as_deref());
     let written = tokio::select! {
         written = to_file(read, &local) => written,
         _ = tokio::signal::ctrl_c() => Err(CliError::new("interrupted", "interrupted")),
     };
+    // An interrupted read ends its stream; the end leaves before the command does.
+    session.close().await;
     if written.is_err() {
         remove_temp(&local).await;
     }
@@ -80,14 +79,13 @@ async fn put(ctx: &Ctx, source: String, dest: String) -> Result<(), CliError> {
     let (state, _) = resolve_machine(&machines, remote.machine)?;
     let via = ctx.reach(&session, &state.machine.id).await?;
     let write = session.write_file(&state.machine.id, remote.path, size).await?;
-    tokio::select! {
-        sent = send_all(write, local, size) => sent?,
-        _ = tokio::signal::ctrl_c() => {
-            // The dropped upload ends its stream; give that end a moment to leave.
-            tokio::time::sleep(ABANDON_GRACE).await;
-            return Err(CliError::new("interrupted", "interrupted"));
-        }
-    }
+    let sent = tokio::select! {
+        sent = send_all(write, local, size) => sent,
+        _ = tokio::signal::ctrl_c() => Err(CliError::new("interrupted", "interrupted")),
+    };
+    // The end of an interrupted upload reaches the machine, which drops the partial file at once.
+    session.close().await;
+    sent?;
     match ctx.out.json {
         true => {
             ctx.out.json(&json!({"local": source, "path": dest, "size": size, "via": via.name()}))

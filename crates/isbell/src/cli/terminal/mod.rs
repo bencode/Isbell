@@ -7,6 +7,7 @@ use std::io::{IsTerminal, Write};
 use std::time::Duration;
 
 use clap::Subcommand;
+use isbell_proto::flow::WINDOW;
 use isbell_proto::frame::RpcError;
 use serde_json::{Value, json};
 use tokio::signal::unix::Signal;
@@ -55,6 +56,7 @@ pub async fn run(ctx: &Ctx, cmd: TerminalCmd) -> Result<(), CliError> {
     ctx.reach(&session, &state.machine.id).await?;
     let (opened, stream) =
         session.open_stream(&state.machine.id, "isbell.terminal", params, OPEN_TIMEOUT).await?;
+    stream.credit(WINDOW);
     // A new shell outlives the detach; say how to come back to it.
     let reattach = opened["paneId"].as_str().map(|pane| format!("{}/{pane}", state.machine.name));
 
@@ -64,6 +66,8 @@ pub async fn run(ctx: &Ctx, cmd: TerminalCmd) -> Result<(), CliError> {
         let _screen = Screen::enter()?;
         attached(stream, control, resized).await
     };
+    // The stream's end reaches the machine before the command exits, freeing the pane at once.
+    session.close().await;
     println!("{}", outcome(ended, reattach)?);
     Ok(())
 }
