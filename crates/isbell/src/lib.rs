@@ -7,6 +7,7 @@ mod config;
 pub mod gateway;
 pub mod relay;
 mod rtc;
+mod service;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 

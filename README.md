@@ -4,6 +4,35 @@ Remote access to [herdr](https://github.com/herdrdev/herdr) agents across your m
 
 Status: early development.
 
+## Use
+
+```bash
+isbell space init                  # first machine: creates the space, prints the join command
+isbell space join <key>            # every other machine
+isbell gateway install             # each machine whose agents you want to reach (macOS)
+isbell machine list
+isbell machine probe <machine>     # tries a direct link and shows the way it goes
+isbell terminal attach <machine>/<pane-or-agent> --control
+```
+
+`gateway install` runs `isbell gateway run` as a launchd user agent: started at login, restarted
+after a failure, logging to `~/Library/Logs/isbell/gateway.log`. It keeps the `PATH` of the shell
+it ran in, so herdr and the agents are found; run it again after changing `PATH` or moving the
+binary. The gateway starts the herdr server when it is not running, and never stops it.
+`gateway status` and `gateway uninstall` check and remove the service.
+
+## Deploying the relay
+
+`deploy/compose.yml` runs the public relay with its own Redis. On the host, from the repository
+root:
+
+```bash
+docker compose -f deploy/compose.yml up -d --build
+```
+
+It listens on `172.17.0.1:5800` for the host's TLS reverse proxy, which serves it as
+`wss://isbell.fmap.dev/v1/ws`.
+
 ## Development
 
 Requirements: Rust (stable), Docker.
@@ -44,7 +73,7 @@ cargo run -p isbell -- terminal attach <machine>/<pane-or-agent> --control
 
 | Variable | Purpose |
 |---|---|
-| `ISBELL_RELAY` | Relay URL (default `wss://isbell.upivot.io/v1/ws`) |
+| `ISBELL_RELAY` | Relay URL (default `wss://isbell.fmap.dev/v1/ws`) |
 | `ISBELL_KEY` | Space key, instead of this machine's key file |
 | `ISBELL_CONFIG_DIR` | Config directory (default `~/.config/isbell`); a second directory simulates a second machine |
 | `ISBELL_HERDR_SOCKET` | Use this herdr socket instead of discovering it with `herdr status` |

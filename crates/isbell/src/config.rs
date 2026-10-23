@@ -17,7 +17,7 @@ use isbell_proto::identity::Identity;
 use isbell_proto::state::MachineInfo;
 use serde::{Deserialize, Serialize};
 
-pub const DEFAULT_RELAY: &str = "wss://isbell.upivot.io/v1/ws";
+pub const DEFAULT_RELAY: &str = "wss://isbell.fmap.dev/v1/ws";
 /// Public STUN servers: they tell each end of a direct link its public address.
 const DEFAULT_STUN: [&str; 2] = ["stun:stun.l.google.com:19302", "stun:stun.cloudflare.com:3478"];
 

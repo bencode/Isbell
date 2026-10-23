@@ -1,7 +1,9 @@
 //! Finding the local herdr server: `$ISBELL_HERDR_SOCKET`, else what `herdr status server --json`
-//! reports, accepted only when it speaks the protocol this gateway was built for.
+//! reports, accepted only when it speaks the protocol this gateway was built for. A server that is
+//! not running is started, and found by a later discovery.
 
 use std::path::PathBuf;
+use std::process::Stdio;
 use std::time::Duration;
 
 use isbell_proto::state::{HerdrState, HerdrStatus};
@@ -29,6 +31,9 @@ pub async fn discover() -> Result<(Herdr, HerdrState), HerdrState> {
         return Ok((Herdr::new(socket), state));
     }
     let status = server_status().await.ok_or_else(|| unavailable(None))?;
+    if !status.running {
+        start_server();
+    }
     classify(status).map(|(socket, state)| (Herdr::new(socket), state))
 }
 
@@ -56,6 +61,22 @@ async fn server_status() -> Option<ServerStatus> {
             tracing::warn!(%err, status = %output.status, stderr, "unexpected herdr status output");
         })
         .ok()
+}
+
+/// Starts `herdr server` in its own process group, so it outlives this gateway; nothing here ever
+/// stops it. Dropping the child leaves it running.
+fn start_server() {
+    let started = tokio::process::Command::new(herdr_bin())
+        .arg("server")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .process_group(0)
+        .spawn();
+    match started {
+        Ok(child) => tracing::info!(pid = child.id(), "started the herdr server"),
+        Err(err) => tracing::warn!(%err, "cannot start the herdr server"),
+    }
 }
 
 /// Where a running, compatible server listens, else the state to report instead.

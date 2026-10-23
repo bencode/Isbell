@@ -2,6 +2,7 @@
 
 mod agent;
 mod file;
+mod gateway;
 mod machine;
 mod output;
 mod space;
@@ -13,9 +14,7 @@ use clap::{Parser, Subcommand};
 use isbell_proto::identity::Identity;
 
 use crate::client::Session;
-use crate::config::{Config, MachineConfig, Paths, resolve_relay};
-use crate::gateway::{self, GatewayError, GatewayOptions};
-use crate::relay::RelayError;
+use crate::config::{Config, Paths, resolve_relay};
 use output::{CliError, Output};
 
 #[derive(Parser)]
@@ -42,9 +41,9 @@ enum Command {
     /// The space this machine belongs to.
     #[command(subcommand)]
     Space(space::SpaceCmd),
-    /// Run this machine's gateway.
+    /// This machine's gateway: run it, or run it as a service.
     #[command(subcommand)]
-    Gateway(GatewayCmd),
+    Gateway(gateway::GatewayCmd),
     /// Machines in the space.
     #[command(subcommand)]
     Machine(machine::MachineCmd),
@@ -59,12 +58,6 @@ enum Command {
     Terminal(terminal::TerminalCmd),
     /// Stream presence and agent status changes as NDJSON.
     Watch,
-}
-
-#[derive(Subcommand)]
-enum GatewayCmd {
-    /// Run the gateway in the foreground.
-    Run,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
@@ -128,7 +121,7 @@ impl Ctx {
             return Ok(Via::Relay);
         }
         match session.direct(mid, &self.config.stun()).await {
-            Ok(()) => Ok(Via::Direct),
+            Ok(_) => Ok(Via::Direct),
             Err(err) if self.transport == Transport::Auto => {
                 tracing::warn!("direct link failed ({}: {}); using the relay", err.code, err.msg);
                 Ok(Via::Relay)
@@ -151,39 +144,11 @@ pub async fn run(cli: Cli) -> Result<(), CliError> {
     };
     match cli.command {
         Command::Space(cmd) => space::run(&ctx, cmd),
-        Command::Gateway(GatewayCmd::Run) => run_gateway(ctx).await,
+        Command::Gateway(cmd) => gateway::run(ctx, cmd).await,
         Command::Machine(cmd) => machine::run(&ctx, cmd).await,
         Command::Agent(cmd) => agent::run(&ctx, cmd).await,
         Command::File(cmd) => file::run(&ctx, cmd).await,
         Command::Terminal(cmd) => terminal::run(&ctx, cmd).await,
         Command::Watch => watch::run(&ctx).await,
     }
-}
-
-async fn run_gateway(mut ctx: Ctx) -> Result<(), CliError> {
-    let identity = ctx.identity()?;
-    let machine = match ctx.config.machine.clone() {
-        Some(machine) => machine,
-        None => {
-            let machine = MachineConfig::generate();
-            ctx.config.machine = Some(machine.clone());
-            ctx.paths.save(&ctx.config)?;
-            machine
-        }
-    };
-    tracing::info!(machine = %machine.name, id = %machine.id, "starting gateway");
-    let opts = GatewayOptions {
-        relay: ctx.relay,
-        identity,
-        machine: machine.info(),
-        ice: ctx.config.stun(),
-    };
-    gateway::run(opts).await.map_err(|err| {
-        let code = match err {
-            GatewayError::Relay(RelayError::Replaced) => "gateway_replaced",
-            GatewayError::Relay(_) => "relay_error",
-            GatewayError::MonitorStopped => "gateway_failed",
-        };
-        CliError::new(code, err.to_string())
-    })
 }

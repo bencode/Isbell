@@ -16,7 +16,9 @@ clap.workspace = true
 crossterm.workspace = true
 futures-util.workspace = true
 gethostname.workspace = true
+plist.workspace = true
 rand.workspace = true
+rustix.workspace = true
 # Gives tokio-tungstenite's rustls a crypto backend for wss://.
 rustls.workspace = true
 serde.workspace = true

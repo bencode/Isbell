@@ -17,7 +17,9 @@ const OPEN: Duration = Duration::from_secs(10);
 pub async fn serves_streams(harness: &Harness) {
     let mid = &harness.machine.id;
     let session = Session::connect(&harness.url, &harness.id).await.unwrap();
-    session.direct(mid, &[]).await.unwrap();
+    let path = session.direct(mid, &[]).await.unwrap().expect("the way the new link goes");
+    // Without STUN servers both ends only have their local addresses.
+    assert!(path.local.starts_with("host ") && path.remote.starts_with("host "), "{path}");
 
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("small.md");

@@ -28,6 +28,7 @@ use self::link::Link;
 use self::space::Space;
 pub use self::stream::{Stream, StreamEvent};
 use crate::relay::{self, RELAY_IDLE, RelayError};
+pub use crate::rtc::Path;
 
 #[derive(Debug, Clone)]
 pub enum SessionEvent {

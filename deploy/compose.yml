@@ -1,0 +1,23 @@
+# The public relay at wss://isbell.fmap.dev/v1/ws, behind the host's TLS reverse proxy, which
+# reaches it on 172.17.0.1:5800. Run from the repository root:
+#   docker compose -f deploy/compose.yml up -d --build
+name: isbell
+services:
+  relay:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    environment:
+      REDIS_URL: redis://redis:6379
+      PUBLIC_ORIGIN: wss://isbell.fmap.dev
+      TRUST_PROXY: "1"
+    ports:
+      - "172.17.0.1:5800:8787"
+    depends_on:
+      - redis
+    # The relay exits when it loses Redis pub/sub; this brings it back.
+    restart: unless-stopped
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    restart: unless-stopped

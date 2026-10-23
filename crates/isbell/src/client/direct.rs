@@ -13,19 +13,19 @@ use super::inbound::to_inflight;
 use super::inflight::Inflight;
 use super::link::Link;
 use super::{PeerLinks, Session};
-use crate::rtc::{self, Description, Peer, RtcError};
+use crate::rtc::{self, Description, Path, Peer, RtcError};
 
 /// Offer, answer and the channel opening together.
 const DIRECT_WITHIN: Duration = Duration::from_secs(5);
 
 impl Session {
-    /// Opens a direct link to machine `mid`, unless one is open already. `ice`: STUN URLs. On
-    /// failure streams keep using the relay; the error says why (`direct_failed`, or the
-    /// machine's own answer).
-    pub async fn direct(&self, mid: &str, ice: &[String]) -> Result<(), RpcError> {
+    /// Opens a direct link to machine `mid`, unless one is open already; returns the way it goes
+    /// when this call opened it. `ice`: STUN URLs. On failure streams keep using the relay; the
+    /// error says why (`direct_failed`, or the machine's own answer).
+    pub async fn direct(&self, mid: &str, ice: &[String]) -> Result<Option<Path>, RpcError> {
         let _opening = self.opening.lock().await;
         if self.peers.lock().expect("session poisoned").contains_key(mid) {
-            return Ok(());
+            return Ok(None);
         }
         let (mut peer, channel) = Peer::offerer(ice).await.map_err(failed)?;
         let opened = tokio::time::timeout(DIRECT_WITHIN, self.open(mid, &mut peer, &channel)).await;
@@ -37,11 +37,12 @@ impl Session {
             peer.close().await;
             return Err(err);
         }
+        let path = peer.path().await;
         let (out, out_rx) = mpsc::unbounded_channel();
         self.peers.lock().expect("session poisoned").insert(mid.to_owned(), Link::peer(out));
         let (inflight, peers) = (self.inflight.clone(), Arc::downgrade(&self.peers));
         tokio::spawn(serve(peer, channel, out_rx, mid.to_owned(), inflight, peers));
-        Ok(())
+        Ok(path)
     }
 
     /// Offers through the relay, takes the machine's answer, and waits for the channel to open.

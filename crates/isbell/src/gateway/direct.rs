@@ -44,7 +44,8 @@ pub async fn serve(
         Err(_) => return close(peer, "the caller never opened the channel").await,
     };
     let key = format!("peer-{}", NEXT_LINK.fetch_add(1, Ordering::Relaxed));
-    tracing::info!(caller = key, "direct link open");
+    let path = peer.path().await.map(|path| path.to_string());
+    tracing::info!(caller = key, path, "direct link open");
     let (out, out_rx) = mpsc::unbounded_channel();
     let direct = Link::peer(key.clone(), out);
     rtc::carry(&mut peer, channel, out_rx, |frame| {

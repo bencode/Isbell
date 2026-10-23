@@ -9,6 +9,7 @@
 //! ```
 
 mod channel;
+mod path;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -22,6 +23,7 @@ use webrtc::peer_connection::{
 };
 
 pub use self::channel::carry;
+pub use self::path::Path;
 
 /// An offer or answer; serializes as `{"type", "sdp"}`, like a browser's.
 pub type Description = webrtc::peer_connection::RTCSessionDescription;

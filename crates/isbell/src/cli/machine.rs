@@ -33,14 +33,18 @@ async fn probe(ctx: &Ctx, machine: &str) -> Result<(), CliError> {
     let elapsed = started.elapsed();
     let name = &state.machine.name;
     match (ctx.out.json, direct) {
-        (true, Ok(())) => {
-            ctx.out.json(&json!({"machine": name, "direct": true, "ms": elapsed.as_millis()}))
-        }
+        (true, Ok(path)) => ctx.out.json(
+            &json!({"machine": name, "direct": true, "ms": elapsed.as_millis(), "path": path}),
+        ),
         (true, Err(err)) => {
             let error = json!({"code": err.code, "message": err.msg});
             ctx.out.json(&json!({"machine": name, "direct": false, "error": error}))
         }
-        (false, Ok(())) => println!("{name}: direct link ok in {:.2}s", elapsed.as_secs_f64()),
+        (false, Ok(path)) => {
+            let secs = elapsed.as_secs_f64();
+            let path = path.map_or_else(|| "path unknown".to_owned(), |path| path.to_string());
+            println!("{name}: direct link ok in {secs:.2}s ({path})")
+        }
         (false, Err(err)) => println!("{name}: direct link failed: {} ({})", err.msg, err.code),
     }
     Ok(())
