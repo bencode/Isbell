@@ -50,6 +50,8 @@ export function connect(url: string, id: Identity, on: ConnectionEvents): Connec
   const pending = new Map<number, Pending>()
   let nextId = 1
   let socket: WebSocket | undefined
+  // The relay closes a connection whose first frame is not `auth`, so calls wait for the snapshot.
+  let ready = false
   let attempt = 0
   let retry: ReturnType<typeof setTimeout> | undefined
   let closed = false
@@ -67,6 +69,7 @@ export function connect(url: string, id: Identity, on: ConnectionEvents): Connec
 
   const open = () => {
     retry = undefined
+    ready = false
     on.status(attempt === 0 ? 'connecting' : 'reconnecting')
     const ws = new WebSocket(url)
     ws.binaryType = 'arraybuffer'
@@ -103,6 +106,7 @@ export function connect(url: string, id: Identity, on: ConnectionEvents): Connec
       })
     } else if (h.t === 'snapshot') {
       attempt = 0
+      ready = true
       on.snapshot(h.machines)
       on.status('open')
     } else if (h.t === 'state') {
@@ -125,7 +129,7 @@ export function connect(url: string, id: Identity, on: ConnectionEvents): Connec
   const request = (mid: string, m: string, p: unknown, timeoutMs: number) => {
     const callId = nextId++
     const done = new Promise<unknown>((resolve, reject) => {
-      if (socket?.readyState !== WebSocket.OPEN) {
+      if (!ready || socket?.readyState !== WebSocket.OPEN) {
         reject(new CallError('disconnected', 'not connected to the relay'))
         return
       }

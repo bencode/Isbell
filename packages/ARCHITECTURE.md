@@ -2,10 +2,10 @@
 
 ## Packages
 
-| Package | Role | Depends on |
-|---|---|---|
-| `@isbell/core` | The relay protocol from a browser: frames, the space key and auth signature, the reconnecting client connection, the space store, herdr calls, and the project model. No React. | `@noble/*`, `@scure/base` |
-| `@isbell/desk` | The desktop workbench. | `@isbell/core`, React, Base UI |
+| Package        | Role                                                                                                                                                                            | Depends on                     |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| `@isbell/core` | The relay protocol from a browser: frames, the space key and auth signature, the reconnecting client connection, the space store, herdr calls, and the project model. No React. | `@noble/*`, `@scure/base`      |
+| `@isbell/desk` | The desktop workbench.                                                                                                                                                          | `@isbell/core`, React, Base UI |
 
 `@isbell/core` and the Rust crates share no code; `crates/isbell-proto/tests/vectors.json` keeps
 their encoding and signing identical, and both test suites read it.
@@ -41,10 +41,10 @@ shell ──▶ features ──▶ core ──▶ @isbell/core
 - Files are named for what they are: `*-page.tsx`, `*-dialog.tsx`, `*-panel.tsx`. Tests sit next
   to the code they test.
 
-| New code | Goes in |
-|---|---|
+| New code                                               | Goes in               |
+| ------------------------------------------------------ | --------------------- |
 | A route's page, or a dialog or panel that does one job | `features/<feature>/` |
-| Something every page needs from the running app | `core/` |
-| A pure function or a hook with no app state | `utils/` |
-| A presentational piece used by more than one feature | `components/<name>/` |
-| Routing, layout, wiring features together | `shell/` |
+| Something every page needs from the running app        | `core/`               |
+| A pure function or a hook with no app state            | `utils/`              |
+| A presentational piece used by more than one feature   | `components/<name>/`  |
+| Routing, layout, wiring features together              | `shell/`              |

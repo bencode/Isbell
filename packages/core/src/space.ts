@@ -92,6 +92,7 @@ export function createSpace(url: string, id: Identity): Space {
         const state = readState(entry.state)
         if (state) machines.set(state.machine.id, { state, online: entry.online })
       }
+      for (const mid of shells.keys()) if (!machines.get(mid)?.online) shells.delete(mid)
       loaded = true
       changed()
       void refreshShells()
