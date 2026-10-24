@@ -3,7 +3,6 @@ import { Plus } from 'lucide-react'
 import { Link } from 'react-router'
 import { useI18n } from '../core/i18n'
 import { projectHref } from '../utils/hrefs'
-import { useOpen } from './board-shell'
 
 const ITEM =
   'flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-text no-underline hover:bg-raised'
@@ -38,13 +37,14 @@ export function Sidebar({
   projects,
   focused,
   machines,
+  onAddProject,
 }: {
   projects: Project[]
   focused: Project | undefined
   machines: MachineEntry[]
+  onAddProject: () => void
 }) {
   const t = useI18n()
-  const open = useOpen()
   const total = needs(projects).length
   return (
     <nav
@@ -64,7 +64,7 @@ export function Sidebar({
         <span className="text-xs font-semibold text-faint">{t('side.projects')}</span>
         <button
           type="button"
-          onClick={() => open('add')}
+          onClick={onAddProject}
           aria-label={t('side.add')}
           title={`${t('side.add')} (a)`}
           className="inline-flex size-[26px] cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-muted hover:bg-raised-2 hover:text-text"

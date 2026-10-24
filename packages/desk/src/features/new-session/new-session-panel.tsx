@@ -105,6 +105,10 @@ function Form({ onOpenChange, focusedKey, onAddProject }: Omit<Props, 'open'>) {
     }
   }
 
+  // What was asked for is already starting on the machine; the panel stays until it is.
+  const close = (open: boolean) => {
+    if (!busy) onOpenChange(open)
+  }
   const machines = [...new Set(startable.map(p => p.machine))]
   const [go, going] = chat ? (['ns.start', 'ns.starting'] as const) : (['ns.open', 'ns.opening'] as const)
   const summary = (agent: string, p: Project) => {
@@ -125,7 +129,7 @@ function Form({ onOpenChange, focusedKey, onAddProject }: Omit<Props, 'open'>) {
   return (
     <SidePanel
       open
-      onOpenChange={onOpenChange}
+      onOpenChange={close}
       title={t('ns.title')}
       closeLabel={t('close')}
       footer={
@@ -139,7 +143,7 @@ function Form({ onOpenChange, focusedKey, onAddProject }: Omit<Props, 'open'>) {
               t('ns.chooseProject')
             )}
           </span>
-          <Button variant="quiet" onClick={() => onOpenChange(false)}>
+          <Button variant="quiet" onClick={() => close(false)} disabled={busy}>
             {t('cancel')}
           </Button>
           <Button variant="primary" onClick={start} disabled={!project || !kind || busy}>

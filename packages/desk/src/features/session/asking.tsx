@@ -27,12 +27,18 @@ export function Asking({
   const t = useI18n()
   const space = useSpace()
   const [error, setError] = useState<string>()
+  // One key at a time: a second press while the first is on its way would answer twice.
+  const [busy, setBusy] = useState(false)
   const tail = screen.trimEnd().split('\n').slice(-14).join('\n')
-  const press = (key: string) =>
-    sendKeys(space.call, mid, paneId, [key]).then(
-      () => setError(undefined),
-      err => setError(errorText(t, err)),
-    )
+  const press = (key: string) => {
+    setBusy(true)
+    return sendKeys(space.call, mid, paneId, [key])
+      .then(
+        () => setError(undefined),
+        err => setError(errorText(t, err)),
+      )
+      .finally(() => setBusy(false))
+  }
   return (
     <section className="flex flex-col gap-3 rounded-xl border border-ask-line bg-ask p-4">
       <h2 className="m-0 text-[15px] font-semibold">{t('ask.title', { name })}</h2>
@@ -41,7 +47,12 @@ export function Asking({
       </pre>
       <div className="flex flex-wrap items-center gap-2">
         {KEYS.map(([label, key]) => (
-          <Button key={key} onClick={() => void press(key)} className="min-w-11 justify-center font-mono">
+          <Button
+            key={key}
+            onClick={() => void press(key)}
+            disabled={busy}
+            className="min-w-11 justify-center font-mono"
+          >
             {label}
           </Button>
         ))}

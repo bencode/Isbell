@@ -61,7 +61,9 @@ function Focused({ project }: { project: Project }) {
   const counts = FILTERS.map(
     status => [status, project.sessions.filter(s => s.status === status).length] as const,
   )
-  const shown = project.sessions.filter(s => !filter || s.status === filter)
+  // A status whose last session left shows nothing; fall back to all.
+  const active = filter && counts.some(([status, n]) => status === filter && n > 0) ? filter : null
+  const shown = project.sessions.filter(s => !active || s.status === active)
   const chip = (on: boolean) =>
     `inline-flex h-[30px] cursor-pointer items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium capitalize ${on ? 'border-line-strong bg-raised-2 text-text' : 'border-line bg-transparent text-muted'}`
 
@@ -84,7 +86,7 @@ function Focused({ project }: { project: Project }) {
         {project.sessions.length ? (
           <>
             <div className="flex flex-wrap gap-1.5">
-              <button type="button" className={chip(filter === null)} onClick={() => setFilter(null)}>
+              <button type="button" className={chip(active === null)} onClick={() => setFilter(null)}>
                 {t('project.all')} <span className="text-xs text-faint">{project.sessions.length}</span>
               </button>
               {counts
@@ -93,7 +95,7 @@ function Focused({ project }: { project: Project }) {
                   <button
                     key={status}
                     type="button"
-                    className={chip(filter === status)}
+                    className={chip(active === status)}
                     onClick={() => setFilter(status)}
                   >
                     {t(`status.${status}`)} <span className="text-xs text-faint">{n}</span>

@@ -1,9 +1,9 @@
 // One session: what its agent shows (screen text until the conversation view arrives with
 // isbell-ext), a way to answer or add to it, and the facts needed to reach it by hand.
 
-import { paneKey, readScreen } from '@isbell/core'
+import { type Project, paneKey, readScreen, type Session } from '@isbell/core'
 import { ChevronLeft, Square, SquareTerminal } from 'lucide-react'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { Button, buttonClass } from '../../components/button'
 import { StatusChip } from '../../components/chip'
@@ -22,32 +22,41 @@ import { EndSession } from './end-session'
 const READ_EVERY_MS = 2_000
 
 /**
- * The pane's output, re-read while the page is visible. herdr captures a full-screen agent's
- * scrollback only while it is known to be idle; otherwise the screen alone is read.
+ * The pane's output, read again 2s after each read returns while the page is visible. herdr
+ * captures a full-screen agent's scrollback only while it is known to be idle; otherwise the
+ * screen alone is read.
  */
 function useScreen(mid: string, paneId: string, scrollback: boolean) {
   const space = useSpace()
   const [screen, setScreen] = useState<string | null>(null)
   const [error, setError] = useState<unknown>()
-  const read = useCallback(
-    () =>
-      readScreen(space.call, mid, paneId, scrollback ? 'recent' : 'visible').then(
-        text => {
-          setScreen(text)
-          setError(undefined)
-        },
-        err => setError(err),
-      ),
-    [space, mid, paneId, scrollback],
-  )
+  // Bumped to read at once; the chain then starts over.
+  const [round, setRound] = useState(0)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `round` is how reread starts a new chain.
   useEffect(() => {
-    void read()
-    const timer = setInterval(() => {
-      if (document.visibilityState === 'visible') void read()
-    }, READ_EVERY_MS)
-    return () => clearInterval(timer)
-  }, [read])
-  return { screen, error, read }
+    // One read at a time; once the effect is over, its chain stops and a late answer is dropped.
+    let live = true
+    const tick = async () => {
+      if (!live) return
+      if (document.visibilityState === 'visible')
+        await readScreen(space.call, mid, paneId, scrollback ? 'recent' : 'visible').then(
+          text => {
+            if (!live) return
+            setScreen(text)
+            setError(undefined)
+          },
+          err => {
+            if (live) setError(err)
+          },
+        )
+      if (live) setTimeout(tick, READ_EVERY_MS)
+    }
+    void tick()
+    return () => {
+      live = false
+    }
+  }, [space, mid, paneId, scrollback, round])
+  return { screen, error, reread: () => setRound(n => n + 1) }
 }
 
 export function SessionPage() {
@@ -57,20 +66,47 @@ export function SessionPage() {
   const paneId = params.pane ?? ''
   const view = useSpaceView()
   const projects = useProjects()
+  const project = projects.find(p => p.mid === mid && p.sessions.some(s => s.paneId === paneId))
+  const session = project?.sessions.find(s => s.paneId === paneId)
+
+  if (!view.loaded) return <p className="m-6 text-muted">{t('board.loading')}</p>
+  if (!project || !session)
+    return (
+      <div className="m-6 flex flex-col items-start gap-3">
+        <p className="m-0 text-muted">{t('session.gone')}</p>
+        <Link to="/">{t('project.back')}</Link>
+      </div>
+    )
+  // Keyed, so moving to another session starts its page over instead of showing this one's screen.
+  return (
+    <SessionView key={paneKey(mid, paneId)} mid={mid} paneId={paneId} project={project} session={session} />
+  )
+}
+
+function SessionView({
+  mid,
+  paneId,
+  project,
+  session,
+}: {
+  mid: string
+  paneId: string
+  project: Project
+  session: Session
+}) {
+  const t = useI18n()
+  const view = useSpaceView()
   const navigate = useNavigate()
   const now = useNow()
   const promptError = (useLocation().state as { promptError?: { msg: string } } | null)?.promptError
   const [ending, setEnding] = useState(false)
   const info = useLocal().layout.info
-
-  const project = projects.find(p => p.mid === mid && p.sessions.some(s => s.paneId === paneId))
-  const session = project?.sessions.find(s => s.paneId === paneId)
-  const settled = session?.status === 'idle' || session?.status === 'done'
-  const { screen, error, read } = useScreen(mid, paneId, settled)
+  const settled = session.status === 'idle' || session.status === 'done'
+  const { screen, error, reread } = useScreen(mid, paneId, settled)
 
   // Looking at a finished session marks it read.
   useEffect(() => {
-    if (session?.status !== 'done') return
+    if (session.status !== 'done') return
     const key = paneKey(mid, paneId)
     if ((getLocal().seen[key] ?? 0) >= session.statusSince) return
     updateLocal(l => ({ seen: { ...l.seen, [key]: session.statusSince } }))
@@ -82,16 +118,7 @@ export function SessionPage() {
     if (screen !== null && pre.current && pinned.current) pre.current.scrollTop = pre.current.scrollHeight
   }, [screen])
 
-  const back = project ? projectHref(project.key) : '/'
-  if (!view.loaded) return <p className="m-6 text-muted">{t('board.loading')}</p>
-  if (!project || !session)
-    return (
-      <div className="m-6 flex flex-col items-start gap-3">
-        <p className="m-0 text-muted">{t('session.gone')}</p>
-        <Link to="/">{t('project.back')}</Link>
-      </div>
-    )
-
+  const back = projectHref(project.key)
   const attach = `isbell terminal attach --control ${shellArg(`${project.machine}/${session.name}`)}`
   return (
     <div className="flex h-full flex-col">
@@ -136,7 +163,7 @@ export function SessionPage() {
             {screen ?? t('session.reading')}
           </pre>
           {error ? <p className="m-0 text-[13px] text-danger">{errorText(t, error)}</p> : null}
-          <Composer mid={mid} paneId={paneId} onSent={() => void read()} />
+          <Composer mid={mid} paneId={paneId} onSent={reread} />
         </div>
         {info ? (
           <InfoPanel

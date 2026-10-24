@@ -1,7 +1,7 @@
 // Add a project: open a shell in a directory. The project is then whatever the machine shows;
 // nothing is stored anywhere else.
 
-import { judgeAdd, openShell } from '@isbell/core'
+import { judgeAdd, openShell, projectKey } from '@isbell/core'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Button } from '../../components/button'
@@ -65,7 +65,7 @@ function Form({ onDone }: { onDone: () => void }) {
       await space.refreshShells(mid)
       onDone()
       const shell = space.getSnapshot().shells.find(s => s.mid === mid && s.paneId === paneId)
-      navigate(shell ? projectHref(`${mid}:${shell.cwd}`) : '/')
+      navigate(shell ? projectHref(projectKey(mid, shell.cwd)) : '/')
     } catch (err) {
       setError(errorText(t, err))
       setBusy(false)

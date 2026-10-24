@@ -2,7 +2,7 @@
 // (new session, add project, settings) that any part of it can open.
 
 import { Ellipsis, Plus, SquareTerminal } from 'lucide-react'
-import { createContext, type ReactNode, useContext, useMemo, useState } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 import { Outlet, useNavigate } from 'react-router'
 import { Button } from '../components/button'
 import { DropdownMenu } from '../components/menu'
@@ -16,11 +16,7 @@ import { projectHref } from '../utils/hrefs'
 import { useShortcuts } from '../utils/shortcuts'
 import { Sidebar } from './sidebar'
 
-export type Overlay = 'session' | 'add' | 'settings' | 'leave'
-
-const OverlayContext = createContext<(overlay: Overlay) => void>(() => undefined)
-
-export const useOpen = () => useContext(OverlayContext)
+type Overlay = 'session' | 'add' | 'settings' | 'leave'
 
 function Kbd({ children }: { children: ReactNode }) {
   return (
@@ -98,7 +94,7 @@ export function BoardLayout() {
   )
 
   return (
-    <OverlayContext.Provider value={setOverlay}>
+    <>
       <div className="flex h-full flex-col">
         <header className="flex h-[52px] flex-none items-center gap-1 border-b border-line px-3">
           <span className="mr-2 flex h-7 items-center gap-2 border-r border-line pr-3 pl-1 font-bold">
@@ -128,7 +124,12 @@ export function BoardLayout() {
           </div>
         ) : null}
         <div className="flex min-h-0 flex-1">
-          <Sidebar projects={projects} focused={focused} machines={view.machines} />
+          <Sidebar
+            projects={projects}
+            focused={focused}
+            machines={view.machines}
+            onAddProject={() => setOverlay('add')}
+          />
           <div className="flex min-w-0 flex-1 flex-col">
             <main className="flex min-h-0 flex-1 flex-col gap-6 overflow-auto px-6 py-5">
               <Outlet />
@@ -152,6 +153,6 @@ export function BoardLayout() {
       <AddProject open={overlay === 'add'} onOpenChange={close} />
       <Settings open={overlay === 'settings'} onOpenChange={close} onLeave={() => setOverlay('leave')} />
       <LeaveSpace open={overlay === 'leave'} onOpenChange={close} />
-    </OverlayContext.Provider>
+    </>
   )
 }

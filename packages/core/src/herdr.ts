@@ -34,7 +34,8 @@ export async function shells(call: Caller, mid: string): Promise<Shell[]> {
 
 /**
  * The pane's output as plain text: `recent` includes scrollback, `visible` is the screen alone.
- * herdr cannot capture a full-screen agent's scrollback while it is working; read `visible` then.
+ * herdr captures a full-screen agent's scrollback only while the agent is idle or done; read
+ * `visible` otherwise.
  */
 export async function readScreen(
   call: Caller,
