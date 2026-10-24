@@ -1,5 +1,5 @@
 export { type Connection, type ConnStatus, connect } from './connection'
-export { type DirectLink, type LinkStats, openDirect, type Path } from './direct'
+export { type DirectLink, type LinkStats, openDirect } from './direct'
 export { decode, encode, type Frame, FrameError, type Header, type RpcError } from './frame'
 export {
   type Caller,
@@ -14,6 +14,7 @@ export {
   startAgent,
 } from './herdr'
 export { authMessage, type Identity, KeyError, originOf, parseKey, signAuth } from './identity'
+export { type Endpoint, type Path, pathOf } from './path'
 export {
   type AddJudgement,
   deriveProjects,

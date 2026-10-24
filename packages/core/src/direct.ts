@@ -3,18 +3,20 @@
 
 import { decode, encode } from './frame'
 import type { Caller } from './herdr'
+import { type Endpoint, type Path, pathOf } from './path'
 import { CallError, createRouter, type Opened, type StreamEvents } from './streams'
 
-/** Whether the link stays on the local network or crosses the internet. */
-export type Path = 'lan' | 'internet'
+// DirectLink names the path it took, so its type travels with it.
+export type { Path }
 
 /** The candidate pair ICE chose, as the browser last measured it. */
 export type LinkStats = {
   /** Round trip in milliseconds, once ICE has measured one. */
   rttMs: number | undefined
-  /** Each end's candidate type: 'host' (its own address), 'srflx' (as its NAT shows it), and so on. */
-  local: string
-  remote: string
+  /** This browser's end; browsers usually keep its address to themselves. */
+  local: Endpoint
+  /** The machine's end. */
+  remote: Endpoint
   /** 'udp' or 'tcp'. */
   protocol: string
 }
@@ -44,7 +46,7 @@ export async function openDirect(call: Caller, mid: string): Promise<DirectLink>
   channel.binaryType = 'arraybuffer'
   try {
     await connect(pc, channel, call, mid, Date.now() + DIRECT_MS)
-    return carry(pc, channel, await pathOf(pc))
+    return carry(pc, channel, await pathOfLink(pc))
   } catch (err) {
     pc.close()
     throw new CallError('direct_failed', err instanceof Error ? err.message : String(err))
@@ -96,15 +98,19 @@ const gathered = (pc: RTCPeerConnection) =>
     if (pc.iceGatheringState === 'complete') done()
   })
 
-/**
- * 'lan' when the chosen pair reaches the machine at one of its own addresses; 'internet' when it
- * goes through the machine's NAT. The browser hides its own addresses, so only the far end tells.
- */
-async function pathOf(pc: RTCPeerConnection): Promise<Path> {
-  return chosenPair(await pc.getStats())?.remote.candidateType === 'host' ? 'lan' : 'internet'
+/** The browser hides its own addresses, so only the machine's end tells. */
+async function pathOfLink(pc: RTCPeerConnection): Promise<Path> {
+  const remote = chosenPair(await pc.getStats())?.remote
+  return remote ? pathOf(endpoint(remote)) : 'internet'
 }
 
-type Candidate = { candidateType: string; protocol: string }
+/** A candidate as the stats report it; older browsers name the address `ip`. */
+type Candidate = { candidateType: string; protocol: string; address?: string; ip?: string }
+
+const endpoint = ({ candidateType, address, ip }: Candidate): Endpoint => {
+  const at = address ?? ip
+  return at ? { type: candidateType, address: at } : { type: candidateType }
+}
 
 /** The pair ICE nominated, with the candidate at each end. */
 function chosenPair(stats: RTCStatsReport) {
@@ -124,8 +130,8 @@ async function statsOf(pc: RTCPeerConnection): Promise<LinkStats | undefined> {
   const { rtt, local, remote } = chosen
   return {
     rttMs: rtt === undefined ? undefined : Math.round(rtt * 1000),
-    local: local.candidateType,
-    remote: remote.candidateType,
+    local: endpoint(local),
+    remote: endpoint(remote),
     protocol: local.protocol,
   }
 }

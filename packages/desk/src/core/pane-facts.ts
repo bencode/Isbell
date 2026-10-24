@@ -1,7 +1,16 @@
 // What the info panel beside a session or a terminal says about its pane and how it is reached,
 // in the current language.
 
-import type { ConnStatus, DirectStatus, LinkStats, Project, Session, Shell, Via } from '@isbell/core'
+import type {
+  ConnStatus,
+  DirectStatus,
+  Endpoint,
+  LinkStats,
+  Project,
+  Session,
+  Shell,
+  Via,
+} from '@isbell/core'
 import { shellArg } from '../utils/shell'
 import { since } from '../utils/time'
 import { errorText, type T } from './i18n'
@@ -91,10 +100,20 @@ export function connectionFacts(t: T, c: Connection): FactGroup {
       : [
           path,
           { label: t('conn.rtt'), value: stats?.rttMs === undefined ? '—' : `${stats.rttMs} ms` },
-          { label: t('conn.addresses'), value: stats ? `${stats.local} → ${stats.remote}` : '—', mono: true },
+          { label: t('conn.machineEnd'), value: stats ? endText(t, stats.remote) : '—' },
+          { label: t('conn.browserEnd'), value: stats ? endText(t, stats.local, t('conn.end.hidden')) : '—' },
           { label: t('conn.protocol'), value: stats ? stats.protocol.toUpperCase() : '—' },
         ]
   return { title: t('info.connection'), rows }
+}
+
+/** An end of the pair: its address, or `hidden` where there is none (an mDNS name only stands in
+ * for one), then what kind of address that is. */
+const endText = (t: T, end: Endpoint, hidden?: string) => {
+  const key = `conn.end.${end.type}`
+  const kind = t.has(key) ? t(key) : end.type
+  const shown = end.address && !end.address.endsWith('.local') ? end.address : hidden
+  return shown ? `${shown} · ${kind}` : kind
 }
 
 const directText = (t: T, direct: DirectStatus) =>
