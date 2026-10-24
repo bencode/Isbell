@@ -95,6 +95,7 @@ cargo fmt --all --check
 
 Requirements: Node 24, pnpm 10. `packages/core` holds the protocol, the space connection and the
 project model; `packages/desk` is the desktop workbench (React, Vite, Tailwind, Base UI).
+How the packages and an app's source are layered: [packages/ARCHITECTURE.md](packages/ARCHITECTURE.md).
 
 ```bash
 pnpm install
