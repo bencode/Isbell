@@ -19,21 +19,24 @@ import { EndSession } from './end-session'
 
 const READ_EVERY_MS = 2_000
 
-/** The pane's output, re-read while the page is visible. */
-function useScreen(mid: string, paneId: string, working: boolean) {
+/**
+ * The pane's output, re-read while the page is visible. herdr captures a full-screen agent's
+ * scrollback only while it is known to be idle; otherwise the screen alone is read.
+ */
+function useScreen(mid: string, paneId: string, scrollback: boolean) {
   const space = useSpace()
   const [screen, setScreen] = useState<string | null>(null)
   const [error, setError] = useState<unknown>()
   const read = useCallback(
     () =>
-      readScreen(space.call, mid, paneId, working ? 'visible' : 'recent').then(
+      readScreen(space.call, mid, paneId, scrollback ? 'recent' : 'visible').then(
         text => {
           setScreen(text)
           setError(undefined)
         },
         err => setError(err),
       ),
-    [space, mid, paneId, working],
+    [space, mid, paneId, scrollback],
   )
   useEffect(() => {
     void read()
@@ -59,7 +62,8 @@ export function SessionPage() {
 
   const project = projects.find(p => p.mid === mid && p.sessions.some(s => s.paneId === paneId))
   const session = project?.sessions.find(s => s.paneId === paneId)
-  const { screen, error, read } = useScreen(mid, paneId, session?.status === 'working')
+  const settled = session?.status === 'idle' || session?.status === 'done'
+  const { screen, error, read } = useScreen(mid, paneId, settled)
 
   // Looking at a finished session marks it read.
   useEffect(() => {
