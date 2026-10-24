@@ -1,0 +1,17 @@
+{
+  "name": "@isbell/core",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@noble/ed25519": "3.2.0",
+    "@noble/hashes": "2.4.0",
+    "@scure/base": "2.4.0"
+  }
+}

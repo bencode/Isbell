@@ -1,0 +1,180 @@
+{
+  "_comment": "Shared by crates/isbell-proto/tests/vectors.rs and packages/core/test/vectors.test.ts. Both must agree with these bytes.",
+  "identity": {
+    "key": "isbk1-aaaqeayeaudaocajbifqydiob67ek",
+    "pk": "YOEwttMk7-tHb28Otm_aioL8puHqgQDQ-xJtOdRcgmY",
+    "sid": "pejdvpwc5znsf34o",
+    "role": "client",
+    "origin": "wss://isbell.upivot.io",
+    "nonce": "bm9uY2UtZm9yLXRlc3Rz",
+    "authMessage": "isbell-auth-v1\nclient\nwss://isbell.upivot.io\nbm9uY2UtZm9yLXRlc3Rz",
+    "sig": "oz9VvjxNbYBp8Ap-RCnLkC4hh5Po78ln8F5LPVZLwL7e8gmNdZDhH_vizs-p77H5eIbf8JV3UksTayWAP7xqCA"
+  },
+  "badKeys": [
+    {
+      "key": "isbk2-aaaqeayeaudaocajbifqydiob67ek",
+      "error": "prefix"
+    },
+    {
+      "key": "isbk1-aaaqeayeaudaocajbifqydiob6",
+      "error": "encoding"
+    },
+    {
+      "key": "isbk1-baaqeayeaudaocajbifqydiob67ek",
+      "error": "checksum"
+    }
+  ],
+  "frames": [
+    {
+      "header": {
+        "t": "challenge",
+        "nonce": "n",
+        "origin": "wss://isbell.upivot.io"
+      },
+      "text": "{\"t\":\"challenge\",\"nonce\":\"n\",\"origin\":\"wss://isbell.upivot.io\"}"
+    },
+    {
+      "header": {
+        "t": "auth",
+        "role": "client",
+        "pk": "pk",
+        "sig": "sig"
+      },
+      "text": "{\"t\":\"auth\",\"role\":\"client\",\"pk\":\"pk\",\"sig\":\"sig\"}"
+    },
+    {
+      "header": {
+        "t": "auth_ok",
+        "sid": "s",
+        "conn": "s.c"
+      },
+      "text": "{\"t\":\"auth_ok\",\"sid\":\"s\",\"conn\":\"s.c\"}"
+    },
+    {
+      "header": {
+        "t": "call",
+        "id": 1,
+        "m": "herdr",
+        "p": {
+          "method": "agent.list"
+        },
+        "mid": "0123456789abcdef"
+      },
+      "text": "{\"t\":\"call\",\"id\":1,\"m\":\"herdr\",\"p\":{\"method\":\"agent.list\"},\"mid\":\"0123456789abcdef\"}"
+    },
+    {
+      "header": {
+        "t": "res",
+        "id": 1,
+        "ok": true,
+        "r": [],
+        "mid": "0123456789abcdef"
+      },
+      "text": "{\"t\":\"res\",\"id\":1,\"ok\":true,\"r\":[],\"mid\":\"0123456789abcdef\"}"
+    },
+    {
+      "header": {
+        "t": "res",
+        "id": 2,
+        "ok": false,
+        "e": {
+          "code": "machine_offline",
+          "msg": "offline"
+        },
+        "mid": "0123456789abcdef"
+      },
+      "text": "{\"t\":\"res\",\"id\":2,\"ok\":false,\"e\":{\"code\":\"machine_offline\",\"msg\":\"offline\"},\"mid\":\"0123456789abcdef\"}"
+    },
+    {
+      "header": {
+        "t": "end",
+        "id": 3,
+        "mid": "0123456789abcdef"
+      },
+      "text": "{\"t\":\"end\",\"id\":3,\"mid\":\"0123456789abcdef\"}"
+    },
+    {
+      "header": {
+        "t": "credit",
+        "id": 5,
+        "n": 1048576,
+        "mid": "0123456789abcdef"
+      },
+      "text": "{\"t\":\"credit\",\"id\":5,\"n\":1048576,\"mid\":\"0123456789abcdef\"}"
+    },
+    {
+      "header": {
+        "t": "state",
+        "state": {
+          "machine": {
+            "id": "0123456789abcdef"
+          }
+        }
+      },
+      "text": "{\"t\":\"state\",\"state\":{\"machine\":{\"id\":\"0123456789abcdef\"}}}"
+    },
+    {
+      "header": {
+        "t": "presence",
+        "mid": "0123456789abcdef",
+        "online": true
+      },
+      "text": "{\"t\":\"presence\",\"mid\":\"0123456789abcdef\",\"online\":true}"
+    },
+    {
+      "header": {
+        "t": "snapshot",
+        "machines": [
+          {
+            "state": {},
+            "online": false
+          }
+        ]
+      },
+      "text": "{\"t\":\"snapshot\",\"machines\":[{\"state\":{},\"online\":false}]}"
+    },
+    {
+      "header": {
+        "t": "data",
+        "id": 5,
+        "k": "ping",
+        "mid": "0123456789abcdef"
+      },
+      "text": "{\"t\":\"data\",\"id\":5,\"k\":\"ping\",\"mid\":\"0123456789abcdef\"}"
+    },
+    {
+      "header": {
+        "t": "data",
+        "id": 4,
+        "k": "frame",
+        "full": true,
+        "cols": 80,
+        "rows": 24,
+        "mid": "0123456789abcdef"
+      },
+      "bodyHex": "000102ff",
+      "binaryHex": "000000587b2274223a2264617461222c226964223a342c226b223a226672616d65222c2266756c6c223a747275652c22636f6c73223a38302c22726f7773223a32342c226d6964223a2230313233343536373839616263646566227d000102ff"
+    },
+    {
+      "header": {
+        "t": "data",
+        "id": 6,
+        "k": "input",
+        "mid": "0123456789abcdef"
+      },
+      "bodyHex": "6c730d",
+      "binaryHex": "000000387b2274223a2264617461222c226964223a362c226b223a22696e707574222c226d6964223a2230313233343536373839616263646566227d6c730d"
+    },
+    {
+      "header": {
+        "t": "data",
+        "id": 7,
+        "k": "resize",
+        "cols": 120,
+        "rows": 40,
+        "mid": "0123456789abcdef"
+      },
+      "text": "{\"t\":\"data\",\"id\":7,\"k\":\"resize\",\"cols\":120,\"rows\":40,\"mid\":\"0123456789abcdef\"}"
+    }
+  ]
+}

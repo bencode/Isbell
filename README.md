@@ -90,3 +90,22 @@ cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all --check
 ```
+
+### Web
+
+Requirements: Node 24, pnpm 10. `packages/core` holds the protocol, the space connection and the
+project model; `packages/desk` is the desktop workbench (React, Vite, Tailwind, Base UI).
+
+```bash
+pnpm install
+pnpm dev                                               # workbench on http://localhost:5173
+VITE_RELAY_URL=ws://localhost:8787/v1/ws pnpm dev      # against a local relay
+```
+
+The browser keeps the space key, settings and read marks in its own storage; nothing is stored on
+the relay. `crates/isbell-proto/tests/vectors.json` is shared by the Rust and TypeScript tests so
+both ends encode frames and sign identically.
+
+```bash
+pnpm typecheck && pnpm test && pnpm lint && pnpm build
+```
