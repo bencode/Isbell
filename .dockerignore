@@ -2,3 +2,5 @@ target/
 priv/
 .git/
 .claude/
+**/node_modules/
+**/dist/

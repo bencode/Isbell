@@ -21,17 +21,21 @@ it ran in, so herdr and the agents are found; run it again after changing `PATH`
 binary. The gateway starts the herdr server when it is not running, and never stops it.
 `gateway status` and `gateway uninstall` check and remove the service.
 
-## Deploying the relay
+## Deploying
 
-`deploy/compose.yml` runs the public relay with its own Redis. On the host, from the repository
-root:
+`deploy/compose.yml` runs the public relay with its own Redis, and the web app as static files.
+On the host, from the repository root:
 
 ```bash
 docker compose -f deploy/compose.yml up -d --build
 ```
 
-It listens on `172.17.0.1:5800` for the host's TLS reverse proxy, which serves it as
-`wss://isbell.fmap.dev/v1/ws`.
+The host's TLS reverse proxy serves both at `isbell.fmap.dev`, by path:
+
+| Path | Upstream |
+|---|---|
+| `/v1/*`, `/healthz` | relay on `172.17.0.1:5800` |
+| everything else | web app on `172.17.0.1:5801` |
 
 ## Development
 
@@ -104,7 +108,8 @@ VITE_RELAY_URL=ws://localhost:8787/v1/ws pnpm dev      # against a local relay
 ```
 
 The browser keeps the space key, settings and read marks in its own storage; nothing is stored on
-the relay. `crates/isbell-proto/tests/vectors.json` is shared by the Rust and TypeScript tests so
+the relay. Terminals open in the page: over a WebRTC direct link to the machine when one can be
+opened (the gateway's `isbell.rtc.offer`, as the CLI uses it), otherwise over the relay. `crates/isbell-proto/tests/vectors.json` is shared by the Rust and TypeScript tests so
 both ends encode frames and sign identically.
 
 ```bash
