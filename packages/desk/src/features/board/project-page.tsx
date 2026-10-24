@@ -1,10 +1,9 @@
-import { type AgentStatus, needs, openShell, type Project } from '@isbell/core'
+import { type AgentStatus, needs, type Project } from '@isbell/core'
 import { SquareTerminal } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
-import { Button } from '../../components/button'
-import { errorText, useT } from '../../core/i18n'
-import { useProjects, useSpace, useSpaceView } from '../../core/space'
+import { Link, useParams } from 'react-router'
+import { useT } from '../../core/i18n'
+import { useProjects, useSpaceView } from '../../core/space'
 import { terminalHref } from '../../utils/hrefs'
 import { useNow } from '../../utils/time'
 import { NeedsSection, SessionCard } from './session-card'
@@ -34,36 +33,6 @@ export function Shells({ project }: { project: Project }) {
         </Link>
       ))}
     </div>
-  )
-}
-
-/** Opens a shell in the project's directory and goes to it. */
-function NewTerminal({ project }: { project: Project }) {
-  const t = useT()
-  const space = useSpace()
-  const navigate = useNavigate()
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string>()
-  const open = async () => {
-    setBusy(true)
-    setError(undefined)
-    try {
-      const paneId = await openShell(space.openThenEnd, project.mid, project.path)
-      await space.refreshShells(project.mid)
-      navigate(terminalHref(project.mid, paneId))
-    } catch (err) {
-      setError(errorText(t, err))
-      setBusy(false)
-    }
-  }
-  return (
-    <>
-      {error ? <span className="text-[13px] text-danger">{error}</span> : null}
-      <Button onClick={() => void open()} disabled={busy}>
-        <SquareTerminal size={15} />
-        {busy ? t('project.terminalOpening') : t('project.terminal')}
-      </Button>
-    </>
   )
 }
 
@@ -105,8 +74,6 @@ function Focused({ project }: { project: Project }) {
         {project.online ? null : (
           <span className="rounded-full border border-line px-2 text-xs text-muted">{t('side.offline')}</span>
         )}
-        <span className="flex-1" />
-        {project.online && project.path ? <NewTerminal project={project} /> : null}
       </div>
       <NeedsSection rows={needs([project]).map(session => ({ session }))} />
       <section className="flex flex-col gap-3">

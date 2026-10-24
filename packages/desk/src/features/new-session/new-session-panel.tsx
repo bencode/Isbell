@@ -1,16 +1,18 @@
-// New session: a panel with room for a real task. Replying to a running session happens on its page.
+// New: an agent to chat with, given a real task, or a terminal, with an agent in it or a plain
+// shell. Replying to a running session happens on its page.
 
-import { startAgent } from '@isbell/core'
+import { openShell, type Project, type Space, type Started, startAgent } from '@isbell/core'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Button } from '../../components/button'
 import { SidePanel } from '../../components/panel'
+import { Segmented } from '../../components/segmented'
 import { SelectBox } from '../../components/select'
 import { errorText, useT } from '../../core/i18n'
 import { getLocal, updateLocal } from '../../core/prefs'
 import { useProjects, useSpace, useSpaceView } from '../../core/space'
-import { sessionHref } from '../../utils/hrefs'
+import { sessionHref, terminalHref } from '../../utils/hrefs'
 import { onSubmitKey } from '../../utils/shortcuts'
 
 type Props = {
@@ -23,6 +25,34 @@ type Props = {
 export function NewSession({ open, ...props }: Props) {
   // Mounted only while open, so each opening starts from the focused project.
   return open ? <Form {...props} /> : null
+}
+
+type Mode = 'chat' | 'terminal'
+/** The agent choice that starts no agent: a plain shell. Agent kinds never contain ':'. */
+const SHELL = ':shell'
+
+/** Starts what the form describes and says where to go next. */
+async function launch(
+  space: Space,
+  project: Project,
+  mode: Mode,
+  kind: string,
+  prompt: string,
+): Promise<{ href: string; state?: { promptError?: Started['promptError'] } }> {
+  const { mid, path } = project
+  if (kind === SHELL) {
+    const paneId = await openShell(space.openThenEnd, mid, path)
+    await space.refreshShells(mid)
+    return { href: terminalHref(mid, paneId) }
+  }
+  const started = await startAgent(space.call, mid, {
+    cwd: path,
+    kind,
+    ...(mode === 'chat' && prompt ? { prompt } : {}),
+  })
+  return mode === 'chat'
+    ? { href: sessionHref(mid, started.paneId), state: { promptError: started.promptError } }
+    : { href: terminalHref(mid, started.paneId) }
 }
 
 function agentsFor(kinds: string[], recent: string[]) {
@@ -45,9 +75,13 @@ function Form({ onOpenChange, focusedKey, onAddProject }: Omit<Props, 'open'>) {
         getLocal().recentAgents,
       )
     : []
+  const [mode, setMode] = useState<Mode>('chat')
+  const chat = mode === 'chat'
   const [chosen, setChosen] = useState<string | null>(null)
   const last = project ? getLocal().lastAgent[project.key] : undefined
-  const kind = [chosen, last, kinds[0]].find(k => k && kinds.includes(k)) ?? null
+  // A chat falls back to the agent used last; a terminal opens a plain shell unless an agent is picked.
+  const pickable = chat ? kinds : [...kinds, SHELL]
+  const kind = [chosen, ...(chat ? [last, kinds[0]] : [SHELL])].find(k => k && pickable.includes(k)) ?? null
   const [task, setTask] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
@@ -57,18 +91,14 @@ function Form({ onOpenChange, focusedKey, onAddProject }: Omit<Props, 'open'>) {
     setBusy(true)
     setError(undefined)
     try {
-      const prompt = task.trim()
-      const started = await startAgent(space.call, project.mid, {
-        cwd: project.path,
-        kind,
-        ...(prompt ? { prompt } : {}),
-      })
-      updateLocal(l => ({
-        lastAgent: { ...l.lastAgent, [project.key]: kind },
-        recentAgents: [kind, ...l.recentAgents.filter(k => k !== kind)],
-      }))
+      const next = await launch(space, project, mode, kind, task.trim())
+      if (kind !== SHELL)
+        updateLocal(l => ({
+          lastAgent: { ...l.lastAgent, [project.key]: kind },
+          recentAgents: [kind, ...l.recentAgents.filter(k => k !== kind)],
+        }))
       onOpenChange(false)
-      navigate(sessionHref(project.mid, started.paneId), { state: { promptError: started.promptError } })
+      navigate(next.href, { state: next.state })
     } catch (err) {
       setError(errorText(t, err))
       setBusy(false)
@@ -76,6 +106,22 @@ function Form({ onOpenChange, focusedKey, onAddProject }: Omit<Props, 'open'>) {
   }
 
   const machines = [...new Set(startable.map(p => p.machine))]
+  const [go, going] = chat ? (['ns.start', 'ns.starting'] as const) : (['ns.open', 'ns.opening'] as const)
+  const summary = (agent: string, p: Project) => {
+    const at = { path: p.display, machine: p.machine }
+    if (chat) return t('ns.starts', { agent, ...at })
+    return agent === SHELL ? t('ns.opensShell', at) : t('ns.startsTerminal', { agent, ...at })
+  }
+  const installed = project
+    ? [
+        {
+          label: t('ns.installed', { machine: project.machine }),
+          options: kinds.map(k => ({ value: k, label: k })),
+        },
+      ]
+    : []
+  const plain =
+    project && !chat ? [{ label: t('ns.plain'), options: [{ value: SHELL, label: t('ns.shell') }] }] : []
   return (
     <SidePanel
       open
@@ -88,7 +134,7 @@ function Form({ onOpenChange, focusedKey, onAddProject }: Omit<Props, 'open'>) {
             {error ? (
               <span className="text-danger">{error}</span>
             ) : project && kind ? (
-              t('ns.starts', { agent: kind, path: project.display, machine: project.machine })
+              summary(kind, project)
             ) : (
               t('ns.chooseProject')
             )}
@@ -97,12 +143,27 @@ function Form({ onOpenChange, focusedKey, onAddProject }: Omit<Props, 'open'>) {
             {t('cancel')}
           </Button>
           <Button variant="primary" onClick={start} disabled={!project || !kind || busy}>
-            {busy ? t('ns.starting') : t('ns.start')}
-            <span className="font-mono text-[11px] opacity-70">⌘↵</span>
+            {t(busy ? going : go)}
+            {chat ? <span className="font-mono text-[11px] opacity-70">⌘↵</span> : null}
           </Button>
         </>
       }
     >
+      {/* A block wrapper, so the switch keeps its own width in the panel's column. */}
+      <div>
+        <Segmented
+          value={mode}
+          onChange={m => {
+            setMode(m)
+            setChosen(null)
+          }}
+          label={t('ns.mode')}
+          segments={[
+            { value: 'chat', label: t('ns.chat') },
+            { value: 'terminal', label: t('ns.terminal') },
+          ]}
+        />
+      </div>
       <div className="grid grid-cols-[1fr_180px] gap-3">
         <label className="flex flex-col gap-1.5" htmlFor="ns-project">
           <span className="text-[13px] font-semibold">{t('ns.project')}</span>
@@ -140,31 +201,24 @@ function Form({ onOpenChange, focusedKey, onAddProject }: Omit<Props, 'open'>) {
             onChange={setChosen}
             disabled={!project}
             placeholder={project ? t('ns.noAgents', { machine: project.machine }) : '—'}
-            groups={
-              project
-                ? [
-                    {
-                      label: t('ns.installed', { machine: project.machine }),
-                      options: kinds.map(k => ({ value: k, label: k })),
-                    },
-                  ]
-                : []
-            }
+            groups={[...installed, ...plain]}
           />
         </label>
       </div>
-      <label className="flex flex-col gap-1.5">
-        <span className="text-[13px] font-semibold">{t('ns.task')}</span>
-        <textarea
-          // biome-ignore lint/a11y/noAutofocus: the panel opens to write the task.
-          autoFocus={Boolean(project)}
-          value={task}
-          onChange={e => setTask(e.target.value)}
-          onKeyDown={onSubmitKey(() => void start())}
-          placeholder={t('ns.placeholder')}
-          className="min-h-[260px] resize-y rounded-lg border border-line bg-bg px-3.5 py-3 text-sm leading-relaxed text-text outline-none focus:outline-2 focus:outline-accent"
-        />
-      </label>
+      {chat ? (
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[13px] font-semibold">{t('ns.task')}</span>
+          <textarea
+            // biome-ignore lint/a11y/noAutofocus: the panel opens to write the task.
+            autoFocus={Boolean(project)}
+            value={task}
+            onChange={e => setTask(e.target.value)}
+            onKeyDown={onSubmitKey(() => void start())}
+            placeholder={t('ns.placeholder')}
+            className="min-h-[260px] resize-y rounded-lg border border-line bg-bg px-3.5 py-3 text-sm leading-relaxed text-text outline-none focus:outline-2 focus:outline-accent"
+          />
+        </label>
+      ) : null}
     </SidePanel>
   )
 }
