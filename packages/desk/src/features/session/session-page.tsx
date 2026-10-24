@@ -7,11 +7,11 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { Button, buttonClass } from '../../components/button'
 import { StatusChip } from '../../components/chip'
-import { CommandModal, shellArg } from '../../components/command'
-import { errorText, uiLabels, useT } from '../../core/i18n'
+import { shellArg } from '../../components/command'
+import { errorText, useT } from '../../core/i18n'
 import { getLocal, updateLocal } from '../../core/prefs'
 import { useProjects, useSpace, useSpaceView } from '../../core/space'
-import { projectHref } from '../../utils/hrefs'
+import { projectHref, terminalHref } from '../../utils/hrefs'
 import { since, useNow } from '../../utils/time'
 import { Asking } from './asking'
 import { Composer } from './composer'
@@ -56,7 +56,6 @@ export function SessionPage() {
   const now = useNow()
   const promptError = (useLocation().state as { promptError?: { msg: string } } | null)?.promptError
   const [ending, setEnding] = useState(false)
-  const [command, setCommand] = useState<string | null>(null)
 
   const project = projects.find(p => p.mid === mid && p.sessions.some(s => s.paneId === paneId))
   const session = project?.sessions.find(s => s.paneId === paneId)
@@ -99,7 +98,7 @@ export function SessionPage() {
           {project.machine} · {project.display}
         </span>
         <span className="flex-1" />
-        <Button onClick={() => setCommand(attach)}>
+        <Button onClick={() => navigate(terminalHref(mid, paneId))}>
           <SquareTerminal size={15} />
           {t('session.terminal')}
         </Button>
@@ -155,13 +154,6 @@ export function SessionPage() {
           </code>
         </aside>
       </div>
-      <CommandModal
-        title={t('terminal.title')}
-        body={t('terminal.body')}
-        command={command}
-        onClose={() => setCommand(null)}
-        labels={uiLabels(t)}
-      />
       <EndSession
         open={ending}
         onOpenChange={setEnding}

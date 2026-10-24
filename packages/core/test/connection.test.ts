@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import vectors from '../../../crates/isbell-proto/tests/vectors.json'
-import { CallError, connect } from '../src/connection'
+import { connect } from '../src/connection'
 import { decode, encode, type Header } from '../src/frame'
 import { parseKey } from '../src/identity'
+import { CallError } from '../src/streams'
 
 const URL = 'wss://relay.test/v1/ws'
 
@@ -50,7 +51,7 @@ test('no call reaches the relay before the connection is authenticated', async (
   ws.receive({ t: 'snapshot', machines: [] })
   const result = conn.call('m1', 'herdr', {}, 1000)
   expect(ws.sent.map(h => h.t)).toEqual(['auth', 'call'])
-  ws.receive({ t: 'res', id: 2, ok: true, r: 'done' })
+  ws.receive({ t: 'res', id: 1, ok: true, r: 'done' })
   await expect(result).resolves.toBe('done')
   conn.close()
 })

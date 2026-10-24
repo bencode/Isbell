@@ -6,8 +6,12 @@ import { type ConnStatus, connect } from './connection'
 import { type Caller, shells as fetchShells, type Shell } from './herdr'
 import type { Identity } from './identity'
 import { isNewer, type MachineState, readState } from './state'
+import type { Opened, StreamEvents } from './streams'
 
 export type MachineEntry = { state: MachineState; online: boolean }
+
+/** How a stream reaches its machine. */
+export type Via = 'relay'
 
 export type SpaceView = {
   status: ConnStatus
@@ -23,6 +27,14 @@ export type Space = {
   getSnapshot: () => SpaceView
   call: Caller
   openThenEnd: Caller
+  /** Opens a stream on machine `mid`. */
+  openStream: (
+    mid: string,
+    m: string,
+    p: unknown,
+    timeoutMs: number,
+    events: StreamEvents,
+  ) => Promise<Opened & { via: Via }>
   /** Pulls the shells of one machine, or of every online machine. */
   refreshShells: (mid?: string) => Promise<void>
   reconnectNow: () => void
@@ -126,6 +138,10 @@ export function createSpace(url: string, id: Identity): Space {
     getSnapshot: () => view,
     call: conn.call,
     openThenEnd: conn.openThenEnd,
+    openStream: async (mid, m, p, timeoutMs, events) => ({
+      ...(await conn.open(mid, m, p, timeoutMs, events)),
+      via: 'relay',
+    }),
     refreshShells,
     reconnectNow: conn.reconnectNow,
     close: conn.close,

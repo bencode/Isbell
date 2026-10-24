@@ -6,6 +6,7 @@ import { AllProjects } from '../features/board/all-page'
 import { ProjectView } from '../features/board/project-page'
 import { Join, takeKeyFromLink } from '../features/join/join-page'
 import { SessionPage } from '../features/session/session-page'
+import { TerminalPage } from '../features/terminal/terminal-page'
 import { BoardLayout } from './board-shell'
 import { useNotifications } from './notify'
 
@@ -53,6 +54,7 @@ function Connected({ onRejected }: { onRejected: () => void }) {
         <Route path="p/:key" element={<ProjectView />} />
       </Route>
       <Route path="s/:mid/:pane" element={<SessionPage />} />
+      <Route path="t/:mid/:pane" element={<TerminalPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

@@ -1,11 +1,11 @@
-import { type AgentStatus, needs, type Project } from '@isbell/core'
+import { type AgentStatus, needs, openShell, type Project } from '@isbell/core'
 import { SquareTerminal } from 'lucide-react'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 import { Button } from '../../components/button'
-import { CommandModal, shellArg } from '../../components/command'
-import { uiLabels, useT } from '../../core/i18n'
-import { useProjects, useSpaceView } from '../../core/space'
+import { errorText, useT } from '../../core/i18n'
+import { useProjects, useSpace, useSpaceView } from '../../core/space'
+import { terminalHref } from '../../utils/hrefs'
 import { useNow } from '../../utils/time'
 import { NeedsSection, SessionCard } from './session-card'
 
@@ -17,35 +17,53 @@ export function useFocused(projects: Project[]): Project | undefined {
   return key ? projects.find(p => p.key === key) : undefined
 }
 
-/** The plain shells running in a project. */
+/** The plain shells running in a project; each opens in a terminal. */
 export function Shells({ project }: { project: Project }) {
-  const t = useT()
-  const [command, setCommand] = useState<string | null>(null)
   if (!project.shells.length) return null
   return (
     <div className="flex flex-wrap gap-2">
       {project.shells.map(s => (
-        <button
+        <Link
           key={s.paneId}
-          type="button"
-          onClick={() =>
-            setCommand(`isbell terminal attach --control ${shellArg(`${project.machine}/${s.paneId}`)}`)
-          }
-          className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-lg border border-line bg-raised px-3 font-mono text-[12.5px] text-muted hover:text-text"
+          to={terminalHref(s.mid, s.paneId)}
+          className="inline-flex h-8 items-center gap-2 rounded-lg border border-line bg-raised px-3 font-mono text-[12.5px] text-muted no-underline hover:text-text"
         >
           <SquareTerminal size={13} />
           {s.paneId}
           {s.title ? ` · ${s.title}` : ''}
-        </button>
+        </Link>
       ))}
-      <CommandModal
-        title={t('terminal.title')}
-        body={t('terminal.body')}
-        command={command}
-        onClose={() => setCommand(null)}
-        labels={uiLabels(t)}
-      />
     </div>
+  )
+}
+
+/** Opens a shell in the project's directory and goes to it. */
+function NewTerminal({ project }: { project: Project }) {
+  const t = useT()
+  const space = useSpace()
+  const navigate = useNavigate()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string>()
+  const open = async () => {
+    setBusy(true)
+    setError(undefined)
+    try {
+      const paneId = await openShell(space.openThenEnd, project.mid, project.path)
+      await space.refreshShells(project.mid)
+      navigate(terminalHref(project.mid, paneId))
+    } catch (err) {
+      setError(errorText(t, err))
+      setBusy(false)
+    }
+  }
+  return (
+    <>
+      {error ? <span className="text-[13px] text-danger">{error}</span> : null}
+      <Button onClick={() => void open()} disabled={busy}>
+        <SquareTerminal size={15} />
+        {busy ? t('project.terminalOpening') : t('project.terminal')}
+      </Button>
+    </>
   )
 }
 
@@ -71,7 +89,6 @@ function Focused({ project }: { project: Project }) {
   const t = useT()
   const now = useNow()
   const [filter, setFilter] = useState<AgentStatus | null>(null)
-  const [command, setCommand] = useState<string | null>(null)
   const counts = FILTERS.map(
     status => [status, project.sessions.filter(s => s.status === status).length] as const,
   )
@@ -89,16 +106,7 @@ function Focused({ project }: { project: Project }) {
           <span className="rounded-full border border-line px-2 text-xs text-muted">{t('side.offline')}</span>
         )}
         <span className="flex-1" />
-        {project.online && project.path ? (
-          <Button
-            onClick={() =>
-              setCommand(`isbell terminal new ${shellArg(project.machine)} --cwd ${shellArg(project.path)}`)
-            }
-          >
-            <SquareTerminal size={15} />
-            {t('project.terminal')}
-          </Button>
-        ) : null}
+        {project.online && project.path ? <NewTerminal project={project} /> : null}
       </div>
       <NeedsSection rows={needs([project]).map(session => ({ session }))} />
       <section className="flex flex-col gap-3">
@@ -136,13 +144,6 @@ function Focused({ project }: { project: Project }) {
         )}
         <Shells project={project} />
       </section>
-      <CommandModal
-        title={t('project.terminal')}
-        body={t('terminal.body')}
-        command={command}
-        onClose={() => setCommand(null)}
-        labels={uiLabels(t)}
-      />
     </>
   )
 }

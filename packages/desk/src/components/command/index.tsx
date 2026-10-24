@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Button } from '../button'
-import { Modal } from '../dialog'
 
 export type CopyLabels = { copy: string; copied: string }
 
@@ -23,32 +22,5 @@ export function Command({ text, labels }: { text: string; labels: CopyLabels }) 
         {copied ? labels.copied : labels.copy}
       </Button>
     </div>
-  )
-}
-
-/** A dialog showing one command to run elsewhere; open while `command` is set. */
-export function CommandModal({
-  title,
-  body,
-  command,
-  onClose,
-  labels,
-}: {
-  title: string
-  body: string
-  command: string | null
-  onClose: () => void
-  labels: CopyLabels & { close: string }
-}) {
-  return (
-    <Modal
-      open={command !== null}
-      onOpenChange={open => !open && onClose()}
-      title={title}
-      closeLabel={labels.close}
-    >
-      <p className="m-0 text-muted">{body}</p>
-      {command ? <Command text={command} labels={labels} /> : null}
-    </Modal>
   )
 }
