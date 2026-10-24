@@ -17,6 +17,17 @@ export type Via = 'relay' | Path
 /** After a direct link fails, streams to that machine use the relay this long before trying again. */
 const DIRECT_RETRY_MS = 5 * 60_000
 
+/** Where this client stands with a machine's direct link. */
+export type DirectStatus =
+  /** Not tried yet, or the last failure is old enough to try again. */
+  | { state: 'none' }
+  /** The machine is offline, or its gateway cannot open one. */
+  | { state: 'unsupported' }
+  | { state: 'opening' }
+  | { state: 'open'; link: DirectLink }
+  /** `retryInMs` counts from when this status was read. */
+  | { state: 'failed'; error: unknown; retryInMs: number }
+
 export type SpaceView = {
   status: ConnStatus
   /** False until the first snapshot arrives. */
@@ -40,6 +51,8 @@ export type Space = {
     events: StreamEvents,
     transport?: 'auto' | 'relay',
   ) => Promise<Opened & { via: Via }>
+  /** Read on demand; it is not part of the view, so it notifies no one. */
+  directStatus: (mid: string) => DirectStatus
   /** Pulls the shells of one machine, or of every online machine. */
   refreshShells: (mid?: string) => Promise<void>
   reconnectNow: () => void
@@ -55,7 +68,7 @@ export function createSpace(url: string, id: Identity): Space {
   // Per machine: the link being opened or open (undefined once an attempt failed), and the open one.
   const links = new Map<string, Promise<DirectLink | undefined>>()
   const direct = new Map<string, DirectLink>()
-  const failedAt = new Map<string, number>()
+  const failures = new Map<string, { at: number; error: unknown }>()
   let status: ConnStatus = 'connecting'
   let loaded = false
   let view = build()
@@ -83,13 +96,21 @@ export function createSpace(url: string, id: Identity): Space {
     return m?.online === true && m.state.herdr.status === 'ready'
   }
 
+  const directable = (mid: string) => {
+    const m = machines.get(mid)
+    return m?.online === true && m.state.caps.methods.includes('isbell.rtc.offer')
+  }
+
+  /** The last failure, while it still keeps streams on the relay. */
+  const recentFailure = (mid: string) => {
+    const failure = failures.get(mid)
+    return failure && Date.now() - failure.at < DIRECT_RETRY_MS ? failure : undefined
+  }
+
   const directTo = (mid: string): Promise<DirectLink | undefined> => {
     const known = links.get(mid)
     if (known) return known
-    const m = machines.get(mid)
-    const recent = Date.now() - (failedAt.get(mid) ?? 0) < DIRECT_RETRY_MS
-    if (!m?.online || !m.state.caps.methods.includes('isbell.rtc.offer') || recent)
-      return Promise.resolve(undefined)
+    if (!directable(mid) || recentFailure(mid)) return Promise.resolve(undefined)
     const link = openDirect(conn.call, mid).then(
       opened => {
         direct.set(mid, opened)
@@ -101,13 +122,23 @@ export function createSpace(url: string, id: Identity): Space {
       },
       err => {
         links.delete(mid)
-        failedAt.set(mid, Date.now())
+        failures.set(mid, { at: Date.now(), error: err })
         console.warn('no direct link; streams use the relay', mid, err)
         return undefined
       },
     )
     links.set(mid, link)
     return link
+  }
+
+  const directStatus = (mid: string): DirectStatus => {
+    const open = direct.get(mid)
+    if (open) return { state: 'open', link: open }
+    if (links.has(mid)) return { state: 'opening' }
+    const failure = recentFailure(mid)
+    if (failure)
+      return { state: 'failed', error: failure.error, retryInMs: failure.at + DIRECT_RETRY_MS - Date.now() }
+    return directable(mid) ? { state: 'none' } : { state: 'unsupported' }
   }
 
   const refreshOne = async (mid: string) => {
@@ -185,6 +216,7 @@ export function createSpace(url: string, id: Identity): Space {
       if (link) return { ...(await link.open(m, p, timeoutMs, events)), via: link.path }
       return { ...(await conn.open(mid, m, p, timeoutMs, events)), via: 'relay' }
     },
+    directStatus,
     refreshShells,
     reconnectNow: conn.reconnectNow,
     close: () => {

@@ -1,8 +1,9 @@
-// What the info panel beside a session or a terminal says about its pane, in the current language.
+// What the info panel beside a session or a terminal says about its pane and how it is reached,
+// in the current language.
 
-import type { Project, Session, Shell } from '@isbell/core'
+import type { ConnStatus, DirectStatus, LinkStats, Project, Session, Shell, Via } from '@isbell/core'
 import { since } from '../utils/time'
-import type { T } from './i18n'
+import { errorText, type T } from './i18n'
 
 export type Pane = { session: Session } | { shell: Shell }
 
@@ -46,3 +47,40 @@ export function paneFacts(t: T, now: number, project: Project, pane: Pane): Fact
     },
   ]
 }
+
+export type Connection = {
+  via: Via
+  relay: { url: string; status: ConnStatus }
+  /** On a direct path: the pair it uses, once read. */
+  stats?: LinkStats | undefined
+  /** On the relay: where the machine's direct link stands, when the page tries one. */
+  direct?: DirectStatus | undefined
+}
+
+/** The path a pane's page reaches it by: the direct link's pair, or the relay and why not direct. */
+export function connectionFacts(t: T, c: Connection): FactGroup {
+  const path = { label: t('conn.path'), value: t(`via.${c.via}`) }
+  const { stats, direct } = c
+  const rows =
+    c.via === 'relay'
+      ? [
+          path,
+          { label: t('conn.relay'), value: `${new URL(c.relay.url).host} · ${t(`conn.${c.relay.status}`)}` },
+          ...(direct ? [{ label: t('conn.direct'), value: directText(t, direct) }] : []),
+        ]
+      : [
+          path,
+          { label: t('conn.rtt'), value: stats?.rttMs === undefined ? '—' : `${stats.rttMs} ms` },
+          { label: t('conn.addresses'), value: stats ? `${stats.local} → ${stats.remote}` : '—', mono: true },
+          { label: t('conn.protocol'), value: stats ? stats.protocol.toUpperCase() : '—' },
+        ]
+  return { title: t('info.connection'), rows }
+}
+
+const directText = (t: T, direct: DirectStatus) =>
+  direct.state === 'failed'
+    ? t('conn.direct.failed', {
+        reason: errorText(t, direct.error),
+        min: Math.max(1, Math.ceil(direct.retryInMs / 60_000)),
+      })
+    : t(`conn.direct.${direct.state}`)

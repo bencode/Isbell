@@ -10,12 +10,13 @@ import { Button, buttonClass } from '../../components/button'
 import { shellArg } from '../../components/command'
 import { InfoPanel, InfoToggle } from '../../components/info-panel'
 import { errorText, useI18n } from '../../core/i18n'
-import { type Pane, paneFacts } from '../../core/pane-facts'
+import { connectionFacts, type Pane, paneFacts } from '../../core/pane-facts'
 import { toggleInfo, useLocal } from '../../core/prefs'
-import { useProjects, useSpace, useSpaceView } from '../../core/space'
+import { RELAY_URL, useProjects, useSpace, useSpaceView } from '../../core/space'
 import { projectHref, sessionHref } from '../../utils/hrefs'
 import { useNow } from '../../utils/time'
 import { EndTerminal } from './end-terminal'
+import { useLink } from './use-link'
 import { useTerminal } from './use-terminal'
 
 type Found = { project: Project; name: string; pane: Pane }
@@ -67,6 +68,8 @@ function Attached({ mid, paneId, found }: { mid: string; paneId: string; found: 
   const agent = 'session' in pane
   const now = useNow()
   const info = useLocal().layout.info
+  const relay = { url: RELAY_URL, status: useSpaceView().status }
+  const link = useLink(mid, state.via, info)
   // An agent is reached by its name, as the session page shows it; a shell by its pane.
   const attach = `isbell terminal attach --control ${shellArg(`${project.machine}/${agent ? name : paneId}`)}`
   const home = projectHref(project.key)
@@ -120,7 +123,10 @@ function Attached({ mid, paneId, found }: { mid: string; paneId: string; found: 
         </div>
         {info ? (
           <InfoPanel
-            groups={paneFacts(t, now, project, pane)}
+            groups={[
+              ...paneFacts(t, now, project, pane),
+              ...(state.via ? [connectionFacts(t, { via: state.via, relay, ...link })] : []),
+            ]}
             command={{ label: t('facts.attach'), text: attach }}
           />
         ) : null}

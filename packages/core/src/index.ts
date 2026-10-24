@@ -1,5 +1,5 @@
 export { type Connection, type ConnStatus, connect } from './connection'
-export { type DirectLink, openDirect, type Path } from './direct'
+export { type DirectLink, type LinkStats, openDirect, type Path } from './direct'
 export { decode, encode, type Frame, FrameError, type Header, type RpcError } from './frame'
 export {
   type Caller,
@@ -26,7 +26,14 @@ export {
   type Seen,
   type Session,
 } from './projects'
-export { createSpace, type MachineEntry, type Space, type SpaceView, type Via } from './space'
+export {
+  createSpace,
+  type DirectStatus,
+  type MachineEntry,
+  type Space,
+  type SpaceView,
+  type Via,
+} from './space'
 export type { Agent, AgentStatus, Caps, MachineInfo, MachineState } from './state'
 export {
   CallError,

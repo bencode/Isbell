@@ -10,9 +10,9 @@ import { StatusChip } from '../../components/chip'
 import { shellArg } from '../../components/command'
 import { InfoPanel, InfoToggle } from '../../components/info-panel'
 import { errorText, useI18n } from '../../core/i18n'
-import { paneFacts } from '../../core/pane-facts'
+import { connectionFacts, paneFacts } from '../../core/pane-facts'
 import { getLocal, toggleInfo, updateLocal, useLocal } from '../../core/prefs'
-import { useProjects, useSpace, useSpaceView } from '../../core/space'
+import { RELAY_URL, useProjects, useSpace, useSpaceView } from '../../core/space'
 import { projectHref, terminalHref } from '../../utils/hrefs'
 import { useNow } from '../../utils/time'
 import { Asking } from './asking'
@@ -140,7 +140,11 @@ export function SessionPage() {
         </div>
         {info ? (
           <InfoPanel
-            groups={paneFacts(t, now, project, { session })}
+            groups={[
+              ...paneFacts(t, now, project, { session }),
+              // Reading the screen and sending keys are calls, and calls go through the relay.
+              connectionFacts(t, { via: 'relay', relay: { url: RELAY_URL, status: view.status } }),
+            ]}
             command={{ label: t('facts.attach'), text: attach }}
           />
         ) : null}

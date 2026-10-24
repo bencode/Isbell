@@ -12,7 +12,7 @@ import {
 } from 'react'
 import { useLocal } from './prefs'
 
-const RELAY_URL: string = import.meta.env.VITE_RELAY_URL ?? 'wss://isbell.fmap.dev/v1/ws'
+export const RELAY_URL: string = import.meta.env.VITE_RELAY_URL ?? 'wss://isbell.fmap.dev/v1/ws'
 /** State lists agents only; shells are pulled this often while the page is visible. */
 const SHELLS_EVERY_MS = 15_000
 

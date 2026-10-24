@@ -8,9 +8,22 @@ import { CallError, createRouter, type Opened, type StreamEvents } from './strea
 /** Whether the link stays on the local network or crosses the internet. */
 export type Path = 'lan' | 'internet'
 
+/** The candidate pair ICE chose, as the browser last measured it. */
+export type LinkStats = {
+  /** Round trip in milliseconds, once ICE has measured one. */
+  rttMs: number | undefined
+  /** Each end's candidate type: 'host' (its own address), 'srflx' (as its NAT shows it), and so on. */
+  local: string
+  remote: string
+  /** 'udp' or 'tcp'. */
+  protocol: string
+}
+
 export type DirectLink = {
   path: Path
   open: (m: string, p: unknown, timeoutMs: number, events: StreamEvents) => Promise<Opened>
+  /** Undefined once no pair is chosen, as when the link is going. */
+  stats: () => Promise<LinkStats | undefined>
   close: () => void
   /** Settles once the link is gone, whichever side ended it. */
   closed: Promise<void>
@@ -88,12 +101,33 @@ const gathered = (pc: RTCPeerConnection) =>
  * goes through the machine's NAT. The browser hides its own addresses, so only the far end tells.
  */
 async function pathOf(pc: RTCPeerConnection): Promise<Path> {
-  const stats = await pc.getStats()
-  const remote = [...stats.values()]
-    .filter(s => s.type === 'candidate-pair' && s.state === 'succeeded' && s.nominated)
-    .map(pair => stats.get(pair.remoteCandidateId))
-    .find(Boolean)
-  return remote?.candidateType === 'host' ? 'lan' : 'internet'
+  return chosenPair(await pc.getStats())?.remote.candidateType === 'host' ? 'lan' : 'internet'
+}
+
+type Candidate = { candidateType: string; protocol: string }
+
+/** The pair ICE nominated, with the candidate at each end. */
+function chosenPair(stats: RTCStatsReport) {
+  const pair = [...stats.values()].find(
+    s => s.type === 'candidate-pair' && s.state === 'succeeded' && s.nominated,
+  )
+  const local: Candidate | undefined = pair && stats.get(pair.localCandidateId)
+  const remote: Candidate | undefined = pair && stats.get(pair.remoteCandidateId)
+  if (!local || !remote) return undefined
+  const rtt: number | undefined = pair.currentRoundTripTime
+  return { rtt, local, remote }
+}
+
+async function statsOf(pc: RTCPeerConnection): Promise<LinkStats | undefined> {
+  const chosen = chosenPair(await pc.getStats())
+  if (!chosen) return undefined
+  const { rtt, local, remote } = chosen
+  return {
+    rttMs: rtt === undefined ? undefined : Math.round(rtt * 1000),
+    local: local.candidateType,
+    remote: remote.candidateType,
+    protocol: local.protocol,
+  }
 }
 
 function carry(pc: RTCPeerConnection, channel: RTCDataChannel, path: Path): DirectLink {
@@ -133,6 +167,7 @@ function carry(pc: RTCPeerConnection, channel: RTCDataChannel, path: Path): Dire
     path,
     // The router's `mid` only matches streams to their machine; a direct link has one machine.
     open: (m, p, timeoutMs, events) => router.open('', m, p, timeoutMs, events),
+    stats: () => statsOf(pc),
     close: finish,
     closed,
   }
