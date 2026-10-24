@@ -1,7 +1,7 @@
 import { sendKeys } from '@isbell/core'
 import { useState } from 'react'
 import { Button } from '../../components/button'
-import { errorText, useT } from '../../core/i18n'
+import { errorText, useI18n } from '../../core/i18n'
 import { useSpace } from '../../core/space'
 
 /** The keys an agent's question usually takes: its numbered choices, or Esc to back out. */
@@ -24,7 +24,7 @@ export function Asking({
   name: string
   screen: string
 }) {
-  const t = useT()
+  const t = useI18n()
   const space = useSpace()
   const [error, setError] = useState<string>()
   const tail = screen.trimEnd().split('\n').slice(-14).join('\n')

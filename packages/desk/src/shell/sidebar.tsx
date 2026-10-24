@@ -1,7 +1,7 @@
 import { type MachineEntry, needs, type Project } from '@isbell/core'
 import { Plus } from 'lucide-react'
 import { Link } from 'react-router'
-import { useT } from '../core/i18n'
+import { useI18n } from '../core/i18n'
 import { projectHref } from '../utils/hrefs'
 import { useOpen } from './board-shell'
 
@@ -9,7 +9,7 @@ const ITEM =
   'flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-text no-underline hover:bg-raised'
 
 function Badge({ project }: { project: Project }) {
-  const t = useT()
+  const t = useI18n()
   const asking = project.sessions.filter(s => s.status === 'blocked').length
   if (asking)
     return (
@@ -43,7 +43,7 @@ export function Sidebar({
   focused: Project | undefined
   machines: MachineEntry[]
 }) {
-  const t = useT()
+  const t = useI18n()
   const open = useOpen()
   const total = needs(projects).length
   return (

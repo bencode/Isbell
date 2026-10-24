@@ -1,7 +1,7 @@
 import { closePane } from '@isbell/core'
 import { useState } from 'react'
 import { Confirm } from '../../components/dialog'
-import { errorText, useT } from '../../core/i18n'
+import { errorText, useI18n } from '../../core/i18n'
 import { useSpace } from '../../core/space'
 
 type Props = {
@@ -19,7 +19,7 @@ type Props = {
 
 /** Ending closes the pane and whatever runs in it; leaving the page only detaches. */
 export function EndTerminal({ open, onOpenChange, mid, paneId, name, machine, path, agent, onEnded }: Props) {
-  const t = useT()
+  const t = useI18n()
   const space = useSpace()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()

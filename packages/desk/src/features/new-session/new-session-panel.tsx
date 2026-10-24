@@ -9,7 +9,7 @@ import { Button } from '../../components/button'
 import { SidePanel } from '../../components/panel'
 import { Segmented } from '../../components/segmented'
 import { SelectBox } from '../../components/select'
-import { errorText, useT } from '../../core/i18n'
+import { errorText, useI18n } from '../../core/i18n'
 import { getLocal, updateLocal } from '../../core/prefs'
 import { useProjects, useSpace, useSpaceView } from '../../core/space'
 import { sessionHref, terminalHref } from '../../utils/hrefs'
@@ -61,7 +61,7 @@ function agentsFor(kinds: string[], recent: string[]) {
 }
 
 function Form({ onOpenChange, focusedKey, onAddProject }: Omit<Props, 'open'>) {
-  const t = useT()
+  const t = useI18n()
   const space = useSpace()
   const view = useSpaceView()
   const projects = useProjects()

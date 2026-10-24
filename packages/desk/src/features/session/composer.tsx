@@ -1,13 +1,13 @@
 import { prompt } from '@isbell/core'
 import { useState } from 'react'
 import { Button } from '../../components/button'
-import { errorText, useT } from '../../core/i18n'
+import { errorText, useI18n } from '../../core/i18n'
 import { useSpace } from '../../core/space'
 import { onSubmitKey } from '../../utils/shortcuts'
 
 /** A reply, or something more the agent should know. */
 export function Composer({ mid, paneId, onSent }: { mid: string; paneId: string; onSent: () => void }) {
-  const t = useT()
+  const t = useI18n()
   const space = useSpace()
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)

@@ -7,7 +7,7 @@ import { Confirm, Modal } from '../../components/dialog'
 import { JoinCommands } from '../../components/join-commands'
 import { Segmented } from '../../components/segmented'
 import { ToggleSwitch } from '../../components/switch'
-import { uiLabels, useT } from '../../core/i18n'
+import { uiLabels, useI18n } from '../../core/i18n'
 import { applyTheme, clearLocal, type Prefs, updateLocal, useLocal } from '../../core/prefs'
 
 type Props = { open: boolean; onOpenChange: (open: boolean) => void }
@@ -39,7 +39,7 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
 }
 
 export function Settings({ open, onOpenChange, onLeave }: Props & { onLeave: () => void }) {
-  const t = useT()
+  const t = useI18n()
   const { key, prefs } = useLocal()
   const [allowed, setAllowed] = useState(permission)
 
@@ -119,7 +119,7 @@ export function Settings({ open, onOpenChange, onLeave }: Props & { onLeave: () 
 }
 
 export function LeaveSpace({ open, onOpenChange }: Props) {
-  const t = useT()
+  const t = useI18n()
   const navigate = useNavigate()
   return (
     <Confirm

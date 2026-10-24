@@ -2,7 +2,7 @@ import { type AgentStatus, needs, type Project } from '@isbell/core'
 import { SquareTerminal } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
-import { useT } from '../../core/i18n'
+import { useI18n } from '../../core/i18n'
 import { useProjects, useSpaceView } from '../../core/space'
 import { terminalHref } from '../../utils/hrefs'
 import { useNow } from '../../utils/time'
@@ -37,7 +37,7 @@ export function Shells({ project }: { project: Project }) {
 }
 
 export function ProjectView() {
-  const t = useT()
+  const t = useI18n()
   const view = useSpaceView()
   const projects = useProjects()
   const project = useFocused(projects)
@@ -55,7 +55,7 @@ export function ProjectView() {
 }
 
 function Focused({ project }: { project: Project }) {
-  const t = useT()
+  const t = useI18n()
   const now = useNow()
   const [filter, setFilter] = useState<AgentStatus | null>(null)
   const counts = FILTERS.map(

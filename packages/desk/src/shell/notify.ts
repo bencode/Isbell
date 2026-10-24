@@ -4,14 +4,14 @@
 import { type AgentStatus, needs, type Project, paneKey } from '@isbell/core'
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
-import { useT } from '../core/i18n'
+import { useI18n } from '../core/i18n'
 import { useLocal } from '../core/prefs'
 import { sessionHref } from '../utils/hrefs'
 
 const NOTIFY_ON: AgentStatus[] = ['blocked', 'done']
 
 export function useNotifications(projects: Project[], loaded: boolean) {
-  const t = useT()
+  const t = useI18n()
   const navigate = useNavigate()
   const { prefs } = useLocal()
   // Last status seen per session; null until the first state is in, so it never notifies at load.

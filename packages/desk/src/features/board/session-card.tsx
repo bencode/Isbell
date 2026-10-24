@@ -3,12 +3,12 @@ import { Sparkle, SquareTerminal } from 'lucide-react'
 import { Link } from 'react-router'
 import { buttonClass } from '../../components/button'
 import { StatusChip } from '../../components/chip'
-import { useT } from '../../core/i18n'
+import { useI18n } from '../../core/i18n'
 import { sessionHref, terminalHref } from '../../utils/hrefs'
 import { since, useNow } from '../../utils/time'
 
 export function SessionCard({ session, now }: { session: Session; now: number }) {
-  const t = useT()
+  const t = useI18n()
   const asking = session.status === 'blocked'
   return (
     <div
@@ -55,7 +55,7 @@ function NeedRow({
   project?: Project | undefined
   now: number
 }) {
-  const t = useT()
+  const t = useI18n()
   const asking = session.status === 'blocked'
   return (
     <Link
@@ -81,7 +81,7 @@ function NeedRow({
 }
 
 export function NeedsSection({ rows }: { rows: { session: Session; project?: Project | undefined }[] }) {
-  const t = useT()
+  const t = useI18n()
   const now = useNow()
   if (!rows.length) return null
   return (

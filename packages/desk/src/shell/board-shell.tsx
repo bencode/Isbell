@@ -6,7 +6,7 @@ import { createContext, type ReactNode, useContext, useMemo, useState } from 're
 import { Outlet, useNavigate } from 'react-router'
 import { Button } from '../components/button'
 import { DropdownMenu } from '../components/menu'
-import { type Key, useT } from '../core/i18n'
+import { type Key, useI18n } from '../core/i18n'
 import { useProjects, useSpace, useSpaceView } from '../core/space'
 import { AddProject } from '../features/add-project/add-project-dialog'
 import { useFocused } from '../features/board/project-page'
@@ -57,7 +57,7 @@ const HINTS: [ReactNode, Key][] = [
 ]
 
 export function BoardLayout() {
-  const t = useT()
+  const t = useI18n()
   const space = useSpace()
   const view = useSpaceView()
   const projects = useProjects()

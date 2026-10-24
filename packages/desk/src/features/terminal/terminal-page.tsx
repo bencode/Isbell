@@ -9,7 +9,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { Button, buttonClass } from '../../components/button'
 import { shellArg } from '../../components/command'
 import { InfoPanel, InfoToggle } from '../../components/info-panel'
-import { errorText, useT } from '../../core/i18n'
+import { errorText, useI18n } from '../../core/i18n'
 import { type Pane, paneFacts } from '../../core/pane-facts'
 import { toggleInfo, useLocal } from '../../core/prefs'
 import { useProjects, useSpace, useSpaceView } from '../../core/space'
@@ -32,7 +32,7 @@ const locate = (projects: Project[], mid: string, paneId: string): Found | undef
     })[0]
 
 export function TerminalPage() {
-  const t = useT()
+  const t = useI18n()
   const params = useParams()
   const mid = params.mid ?? ''
   const paneId = params.pane ?? ''
@@ -57,7 +57,7 @@ export function TerminalPage() {
 }
 
 function Attached({ mid, paneId, found }: { mid: string; paneId: string; found: Found }) {
-  const t = useT()
+  const t = useI18n()
   const navigate = useNavigate()
   const location = useLocation()
   const box = useRef<HTMLDivElement>(null)

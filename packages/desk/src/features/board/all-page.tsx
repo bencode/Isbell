@@ -1,7 +1,7 @@
 import { needs } from '@isbell/core'
 import { Link } from 'react-router'
 import { JoinCommands } from '../../components/join-commands'
-import { uiLabels, useT } from '../../core/i18n'
+import { uiLabels, useI18n } from '../../core/i18n'
 import { useLocal } from '../../core/prefs'
 import { useProjects, useSpaceView } from '../../core/space'
 import { projectHref } from '../../utils/hrefs'
@@ -13,7 +13,7 @@ import { NeedsSection, SessionCard } from './session-card'
 const CAP = 6
 
 export function AllProjects() {
-  const t = useT()
+  const t = useI18n()
   const view = useSpaceView()
   const projects = useProjects()
   const now = useNow()
@@ -73,7 +73,7 @@ export function AllProjects() {
 }
 
 function NoMachines() {
-  const t = useT()
+  const t = useI18n()
   const { key } = useLocal()
   return (
     <div className="m-auto flex w-[min(620px,100%)] flex-col gap-3">

@@ -7,14 +7,14 @@ import { useNavigate } from 'react-router'
 import { Button } from '../../components/button'
 import { Modal } from '../../components/dialog'
 import { Segmented } from '../../components/segmented'
-import { errorText, useT } from '../../core/i18n'
+import { errorText, useI18n } from '../../core/i18n'
 import { useProjects, useSpace, useSpaceView } from '../../core/space'
 import { projectHref } from '../../utils/hrefs'
 
 type Props = { open: boolean; onOpenChange: (open: boolean) => void }
 
 export function AddProject({ open, onOpenChange }: Props) {
-  const t = useT()
+  const t = useI18n()
   return (
     <Modal open={open} onOpenChange={onOpenChange} title={t('add.title')} closeLabel={t('close')}>
       {open ? <Form onDone={() => onOpenChange(false)} /> : null}
@@ -23,7 +23,7 @@ export function AddProject({ open, onOpenChange }: Props) {
 }
 
 function Form({ onDone }: { onDone: () => void }) {
-  const t = useT()
+  const t = useI18n()
   const space = useSpace()
   const view = useSpaceView()
   const projects = useProjects()

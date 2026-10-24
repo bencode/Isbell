@@ -4,7 +4,7 @@ import { KeyError, parseKey } from '@isbell/core'
 import { SquareTerminal } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '../../components/button'
-import { type Key, useT } from '../../core/i18n'
+import { type Key, useI18n } from '../../core/i18n'
 import { updateLocal } from '../../core/prefs'
 
 /** Takes a key from a `#k=` link and clears it from the address bar and history at once. */
@@ -30,7 +30,7 @@ export function Join({
   initial: string | null
   onJoined: () => void
 }) {
-  const t = useT()
+  const t = useI18n()
   const [key, setKey] = useState(initial ?? '')
   const [problem, setProblem] = useState<Key | null>(rejected ? 'join.rejected' : null)
 
