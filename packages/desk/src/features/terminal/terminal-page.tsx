@@ -7,23 +7,28 @@ import { ChevronLeft, MessageSquare, Square } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { Button, buttonClass } from '../../components/button'
+import { shellArg } from '../../components/command'
+import { InfoPanel, InfoToggle } from '../../components/info-panel'
 import { errorText, useT } from '../../core/i18n'
+import { type Pane, paneFacts } from '../../core/pane-facts'
+import { toggleInfo, useLocal } from '../../core/prefs'
 import { useProjects, useSpace, useSpaceView } from '../../core/space'
 import { projectHref, sessionHref } from '../../utils/hrefs'
+import { useNow } from '../../utils/time'
 import { EndTerminal } from './end-terminal'
 import { useTerminal } from './use-terminal'
 
-type Found = { project: Project; name: string; agent: boolean }
+type Found = { project: Project; name: string; pane: Pane }
 
 /** The project a pane belongs to, and what to call it: the agent's name, or the shell's title. */
 const locate = (projects: Project[], mid: string, paneId: string): Found | undefined =>
   projects
     .filter(p => p.mid === mid)
-    .flatMap(project => {
+    .flatMap((project): Found[] => {
       const session = project.sessions.find(s => s.paneId === paneId)
       const shell = project.shells.find(s => s.paneId === paneId)
-      if (session) return [{ project, name: session.name, agent: true }]
-      return shell ? [{ project, name: shell.title ?? paneId, agent: false }] : []
+      if (session) return [{ project, name: session.name, pane: { session } }]
+      return shell ? [{ project, name: shell.title ?? paneId, pane: { shell } }] : []
     })[0]
 
 export function TerminalPage() {
@@ -58,7 +63,12 @@ function Attached({ mid, paneId, found }: { mid: string; paneId: string; found: 
   const box = useRef<HTMLDivElement>(null)
   const { state, reconnect } = useTerminal(box, mid, paneId)
   const [ending, setEnding] = useState(false)
-  const { project, name, agent } = found
+  const { project, name, pane } = found
+  const agent = 'session' in pane
+  const now = useNow()
+  const info = useLocal().layout.info
+  // An agent is reached by its name, as the session page shows it; a shell by its pane.
+  const attach = `isbell terminal attach --control ${shellArg(`${project.machine}/${agent ? name : paneId}`)}`
   const home = projectHref(project.key)
   // Opened from a link, there is no page of ours to go back to.
   const leave = () => (location.key === 'default' ? navigate(home) : navigate(-1))
@@ -89,19 +99,30 @@ function Attached({ mid, paneId, found }: { mid: string; paneId: string; found: 
           <Square size={12} fill="currentColor" />
           {agent ? t('session.end') : t('terminal.end')}
         </Button>
+        <InfoToggle open={info} onToggle={toggleInfo} label={t('info.toggle')} />
       </header>
-      <div className="relative min-h-0 flex-1 bg-raised p-2">
-        <div ref={box} className="h-full w-full bg-raised text-text" />
-        {state.phase === 'ended' ? (
-          <div className="absolute inset-0 grid place-items-center bg-scrim">
-            <div className="flex max-w-md flex-col items-start gap-3 rounded-xl border border-line bg-raised p-5">
-              <p className="m-0 font-semibold">{t('terminal.ended')}</p>
-              {state.error ? <p className="m-0 text-[13px] text-muted">{errorText(t, state.error)}</p> : null}
-              <Button variant="primary" onClick={reconnect}>
-                {t('terminal.reconnect')}
-              </Button>
+      <div className="flex min-h-0 flex-1">
+        <div className="relative min-w-0 flex-1 bg-raised p-2">
+          <div ref={box} className="h-full w-full bg-raised text-text" />
+          {state.phase === 'ended' ? (
+            <div className="absolute inset-0 grid place-items-center bg-scrim">
+              <div className="flex max-w-md flex-col items-start gap-3 rounded-xl border border-line bg-raised p-5">
+                <p className="m-0 font-semibold">{t('terminal.ended')}</p>
+                {state.error ? (
+                  <p className="m-0 text-[13px] text-muted">{errorText(t, state.error)}</p>
+                ) : null}
+                <Button variant="primary" onClick={reconnect}>
+                  {t('terminal.reconnect')}
+                </Button>
+              </div>
             </div>
-          </div>
+          ) : null}
+        </div>
+        {info ? (
+          <InfoPanel
+            groups={paneFacts(t, now, project, pane)}
+            command={{ label: t('facts.attach'), text: attach }}
+          />
         ) : null}
       </div>
       <footer className="flex flex-none gap-4 border-t border-line px-4 py-1.5 font-mono text-xs text-faint">

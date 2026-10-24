@@ -10,6 +10,11 @@ export type Prefs = {
   lang: 'system' | 'en' | 'zh'
 }
 
+export type Layout = {
+  /** The info panel beside a session or terminal. */
+  info: boolean
+}
+
 export type Local = {
   key: string | null
   prefs: Prefs
@@ -18,6 +23,7 @@ export type Local = {
   lastAgent: Record<string, string>
   /** Agent kinds, most recently used first. */
   recentAgents: string[]
+  layout: Layout
 }
 
 const DEFAULTS: Local = {
@@ -26,18 +32,23 @@ const DEFAULTS: Local = {
   seen: {},
   lastAgent: {},
   recentAgents: [],
+  layout: { info: false },
 }
 
 const FIELDS = Object.keys(DEFAULTS) as (keyof Local)[]
 const storageKey = (field: keyof Local) => `isbell.${field}`
 
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v)
+
 function read<K extends keyof Local>(field: K): Local[K] {
   try {
     const raw = localStorage.getItem(storageKey(field))
     if (raw === null) return DEFAULTS[field]
-    const saved = JSON.parse(raw) as Local[K]
+    const saved: unknown = JSON.parse(raw)
     // Settings saved before a newer setting existed get its default.
-    return field === 'prefs' ? ({ ...DEFAULTS.prefs, ...(saved as Prefs) } as Local[K]) : saved
+    const fallback: unknown = DEFAULTS[field]
+    return (isRecord(fallback) && isRecord(saved) ? { ...fallback, ...saved } : saved) as Local[K]
   } catch (err) {
     console.warn(`could not read ${field}; using the default`, err)
     return DEFAULTS[field]
@@ -69,6 +80,9 @@ export function updateLocal(change: (l: Local) => Partial<Local>) {
 }
 
 export const getLocal = () => current
+
+/** Shows or hides the info panel, on every page that has one. */
+export const toggleInfo = () => updateLocal(l => ({ layout: { ...l.layout, info: !l.layout.info } }))
 
 export const useLocal = () => useSyncExternalStore(subscribe, getLocal)
 

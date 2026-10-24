@@ -8,11 +8,13 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { Button, buttonClass } from '../../components/button'
 import { StatusChip } from '../../components/chip'
 import { shellArg } from '../../components/command'
+import { InfoPanel, InfoToggle } from '../../components/info-panel'
 import { errorText, useT } from '../../core/i18n'
-import { getLocal, updateLocal } from '../../core/prefs'
+import { paneFacts } from '../../core/pane-facts'
+import { getLocal, toggleInfo, updateLocal, useLocal } from '../../core/prefs'
 import { useProjects, useSpace, useSpaceView } from '../../core/space'
 import { projectHref, terminalHref } from '../../utils/hrefs'
-import { since, useNow } from '../../utils/time'
+import { useNow } from '../../utils/time'
 import { Asking } from './asking'
 import { Composer } from './composer'
 import { EndSession } from './end-session'
@@ -59,6 +61,7 @@ export function SessionPage() {
   const now = useNow()
   const promptError = (useLocation().state as { promptError?: { msg: string } } | null)?.promptError
   const [ending, setEnding] = useState(false)
+  const info = useLocal().layout.info
 
   const project = projects.find(p => p.mid === mid && p.sessions.some(s => s.paneId === paneId))
   const session = project?.sessions.find(s => s.paneId === paneId)
@@ -110,6 +113,7 @@ export function SessionPage() {
           <Square size={12} fill="currentColor" />
           {t('session.end')}
         </Button>
+        <InfoToggle open={info} onToggle={toggleInfo} label={t('info.toggle')} />
       </header>
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col gap-4 p-5">
@@ -134,29 +138,12 @@ export function SessionPage() {
           {error ? <p className="m-0 text-[13px] text-danger">{errorText(t, error)}</p> : null}
           <Composer mid={mid} paneId={paneId} onSent={() => void read()} />
         </div>
-        <aside className="flex w-[280px] flex-none flex-col gap-3 overflow-auto border-l border-line p-5 text-[13px]">
-          <dl className="m-0 grid grid-cols-[86px_1fr] gap-x-3 gap-y-2">
-            <dt className="text-muted">{t('facts.status')}</dt>
-            <dd className="m-0">
-              {t('facts.statusFor', {
-                status: t(`status.${session.status}`),
-                since: since(session.statusSince, now),
-              })}
-            </dd>
-            <dt className="text-muted">{t('facts.machine')}</dt>
-            <dd className="m-0">{project.machine}</dd>
-            <dt className="text-muted">{t('facts.dir')}</dt>
-            <dd className="m-0 font-mono break-all">{project.display}</dd>
-            <dt className="text-muted">{t('facts.agent')}</dt>
-            <dd className="m-0">{session.kind ?? '—'}</dd>
-            <dt className="text-muted">{t('facts.pane')}</dt>
-            <dd className="m-0 font-mono">{session.paneId}</dd>
-          </dl>
-          <p className="m-0 mt-2 text-muted">{t('facts.attach')}</p>
-          <code className="rounded-lg border border-line bg-raised px-3 py-2.5 font-mono text-[12.5px] break-all">
-            {attach}
-          </code>
-        </aside>
+        {info ? (
+          <InfoPanel
+            groups={paneFacts(t, now, project, { session })}
+            command={{ label: t('facts.attach'), text: attach }}
+          />
+        ) : null}
       </div>
       <EndSession
         open={ending}
