@@ -3,17 +3,17 @@
 
 import '@xterm/xterm/css/xterm.css'
 import type { Project } from '@isbell/core'
-import { ChevronLeft, Square } from 'lucide-react'
+import { ChevronLeft, MessageSquare, Square } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
-import { Button } from '../../components/button'
+import { Button, buttonClass } from '../../components/button'
 import { errorText, useT } from '../../core/i18n'
 import { useProjects, useSpace, useSpaceView } from '../../core/space'
-import { projectHref } from '../../utils/hrefs'
+import { projectHref, sessionHref } from '../../utils/hrefs'
 import { EndTerminal } from './end-terminal'
 import { useTerminal } from './use-terminal'
 
-type Found = { project: Project; name: string }
+type Found = { project: Project; name: string; agent: boolean }
 
 /** The project a pane belongs to, and what to call it: the agent's name, or the shell's title. */
 const locate = (projects: Project[], mid: string, paneId: string): Found | undefined =>
@@ -22,8 +22,8 @@ const locate = (projects: Project[], mid: string, paneId: string): Found | undef
     .flatMap(project => {
       const session = project.sessions.find(s => s.paneId === paneId)
       const shell = project.shells.find(s => s.paneId === paneId)
-      if (session) return [{ project, name: session.name }]
-      return shell ? [{ project, name: shell.title ?? paneId }] : []
+      if (session) return [{ project, name: session.name, agent: true }]
+      return shell ? [{ project, name: shell.title ?? paneId, agent: false }] : []
     })[0]
 
 export function TerminalPage() {
@@ -58,7 +58,7 @@ function Attached({ mid, paneId, found }: { mid: string; paneId: string; found: 
   const box = useRef<HTMLDivElement>(null)
   const { state, reconnect } = useTerminal(box, mid, paneId)
   const [ending, setEnding] = useState(false)
-  const { project, name } = found
+  const { project, name, agent } = found
   const home = projectHref(project.key)
   // Opened from a link, there is no page of ours to go back to.
   const leave = () => (location.key === 'default' ? navigate(home) : navigate(-1))
@@ -75,9 +75,19 @@ function Attached({ mid, paneId, found }: { mid: string; paneId: string; found: 
           {project.machine} · {project.display}
         </span>
         <span className="flex-1" />
-        <Button variant="end" onClick={() => setEnding(true)}>
+        {agent ? (
+          <Link to={sessionHref(mid, paneId)} className={buttonClass()}>
+            <MessageSquare size={15} />
+            {t('terminal.chat')}
+          </Link>
+        ) : null}
+        <Button
+          variant="end"
+          onClick={() => setEnding(true)}
+          title={agent ? t('session.endHint') : undefined}
+        >
           <Square size={12} fill="currentColor" />
-          {t('terminal.end')}
+          {agent ? t('session.end') : t('terminal.end')}
         </Button>
       </header>
       <div className="relative min-h-0 flex-1 bg-raised p-2">
@@ -112,6 +122,8 @@ function Attached({ mid, paneId, found }: { mid: string; paneId: string; found: 
         paneId={paneId}
         name={name}
         machine={project.machine}
+        path={project.display}
+        agent={agent}
         onEnded={() => navigate(home)}
       />
     </div>

@@ -11,11 +11,14 @@ type Props = {
   paneId: string
   name: string
   machine: string
+  path: string
+  /** An agent's pane: ending it ends the session, and is confirmed as the session page does. */
+  agent: boolean
   onEnded: () => void
 }
 
 /** Ending closes the pane and whatever runs in it; leaving the page only detaches. */
-export function EndTerminal({ open, onOpenChange, mid, paneId, name, machine, onEnded }: Props) {
+export function EndTerminal({ open, onOpenChange, mid, paneId, name, machine, path, agent, onEnded }: Props) {
   const t = useT()
   const space = useSpace()
   const [busy, setBusy] = useState(false)
@@ -35,10 +38,10 @@ export function EndTerminal({ open, onOpenChange, mid, paneId, name, machine, on
     <Confirm
       open={open}
       onOpenChange={onOpenChange}
-      title={t('terminal.endTitle')}
-      body={t('terminal.endBody', { name, machine })}
+      title={agent ? t('end.title') : t('terminal.endTitle')}
+      body={agent ? t('end.body', { name, machine, path }) : t('terminal.endBody', { name, machine })}
       keep={t('end.keep')}
-      confirm={t('terminal.endConfirm')}
+      confirm={agent ? t('end.confirm') : t('terminal.endConfirm')}
       onConfirm={() => void end()}
       busy={busy}
       error={error}

@@ -1,31 +1,48 @@
 import type { Project, Session } from '@isbell/core'
-import { Sparkle } from 'lucide-react'
+import { Sparkle, SquareTerminal } from 'lucide-react'
 import { Link } from 'react-router'
 import { buttonClass } from '../../components/button'
 import { StatusChip } from '../../components/chip'
 import { useT } from '../../core/i18n'
-import { sessionHref } from '../../utils/hrefs'
+import { sessionHref, terminalHref } from '../../utils/hrefs'
 import { since, useNow } from '../../utils/time'
 
 export function SessionCard({ session, now }: { session: Session; now: number }) {
   const t = useT()
   const asking = session.status === 'blocked'
   return (
-    <Link
-      to={sessionHref(session.mid, session.paneId)}
-      className={`flex min-h-28 flex-col gap-2 rounded-[10px] border p-3.5 text-text no-underline hover:border-line-strong ${asking ? 'border-ask-line bg-ask' : 'border-line bg-raised'}`}
+    <div
+      className={`relative flex min-h-28 flex-col gap-2 rounded-[10px] border p-3.5 text-text hover:border-line-strong ${asking ? 'border-ask-line bg-ask' : 'border-line bg-raised'}`}
     >
       <span className="flex items-center gap-2">
         <Sparkle size={14} className="flex-none text-faint" />
-        <span className="min-w-0 truncate font-semibold">{session.name}</span>
+        {/* The name is the card's link to the chat; its ::after covers the whole card. */}
+        <Link
+          to={sessionHref(session.mid, session.paneId)}
+          className="min-w-0 truncate font-semibold text-text no-underline outline-none after:absolute after:inset-0 after:rounded-[10px] focus-visible:after:outline-2 focus-visible:after:outline-accent"
+        >
+          {session.name}
+        </Link>
         {session.unread ? <span className="size-2 flex-none rounded-full bg-ok" aria-hidden="true" /> : null}
         <StatusChip status={session.status} label={t(`status.${session.status}`)} />
         <span className="ml-auto flex-none text-xs text-faint">{since(session.statusSince, now)}</span>
+        <Link
+          to={terminalHref(session.mid, session.paneId)}
+          aria-label={t('session.terminal')}
+          title={t('session.terminal')}
+          className={buttonClass(
+            'quiet',
+            'relative z-10 -my-2 -mr-1.5 hover:bg-raised-2 hover:text-text',
+            'icon',
+          )}
+        >
+          <SquareTerminal size={15} />
+        </Link>
       </span>
       <span className="line-clamp-2 text-[13.5px] text-muted">
         {session.title ?? session.kind ?? session.paneId}
       </span>
-    </Link>
+    </div>
   )
 }
 
