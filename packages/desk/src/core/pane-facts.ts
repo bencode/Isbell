@@ -7,6 +7,19 @@ import { errorText, type T } from './i18n'
 
 export type Pane = { session: Session } | { shell: Shell }
 
+export type Found = { project: Project; name: string; pane: Pane }
+
+/** The project a pane belongs to, and what to call it: the agent's name, or the shell's title. */
+export const locate = (projects: Project[], mid: string, paneId: string): Found | undefined =>
+  projects
+    .filter(p => p.mid === mid)
+    .flatMap((project): Found[] => {
+      const session = project.sessions.find(s => s.paneId === paneId)
+      const shell = project.shells.find(s => s.paneId === paneId)
+      if (session) return [{ project, name: session.name, pane: { session } }]
+      return shell ? [{ project, name: shell.title ?? paneId, pane: { shell } }] : []
+    })[0]
+
 /** Mirrors components/info-panel's InfoGroup, which core cannot import. */
 type FactGroup = { title: string; rows: { label: string; value: string; mono?: boolean }[] }
 

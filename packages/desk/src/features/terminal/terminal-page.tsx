@@ -2,7 +2,6 @@
 // back; End terminal closes the pane.
 
 import '@xterm/xterm/css/xterm.css'
-import type { Project } from '@isbell/core'
 import { ChevronLeft, MessageSquare, Square } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
@@ -10,7 +9,7 @@ import { Button, buttonClass } from '../../components/button'
 import { shellArg } from '../../components/command'
 import { InfoPanel, InfoToggle } from '../../components/info-panel'
 import { errorText, useI18n } from '../../core/i18n'
-import { connectionFacts, type Pane, paneFacts } from '../../core/pane-facts'
+import { connectionFacts, type Found, locate, paneFacts } from '../../core/pane-facts'
 import { toggleInfo, useLocal } from '../../core/prefs'
 import { RELAY_URL, useProjects, useSpace, useSpaceView } from '../../core/space'
 import { projectHref, sessionHref } from '../../utils/hrefs'
@@ -18,19 +17,6 @@ import { useNow } from '../../utils/time'
 import { EndTerminal } from './end-terminal'
 import { useLink } from './use-link'
 import { useTerminal } from './use-terminal'
-
-type Found = { project: Project; name: string; pane: Pane }
-
-/** The project a pane belongs to, and what to call it: the agent's name, or the shell's title. */
-const locate = (projects: Project[], mid: string, paneId: string): Found | undefined =>
-  projects
-    .filter(p => p.mid === mid)
-    .flatMap((project): Found[] => {
-      const session = project.sessions.find(s => s.paneId === paneId)
-      const shell = project.shells.find(s => s.paneId === paneId)
-      if (session) return [{ project, name: session.name, pane: { session } }]
-      return shell ? [{ project, name: shell.title ?? paneId, pane: { shell } }] : []
-    })[0]
 
 export function TerminalPage() {
   const t = useI18n()

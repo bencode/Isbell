@@ -7,7 +7,7 @@ import { ProjectView } from '../features/board/project-page'
 import { Join, takeKeyFromLink } from '../features/join/join-page'
 import { SessionPage } from '../features/session/session-page'
 import { TerminalPage } from '../features/terminal/terminal-page'
-import { BoardLayout } from './board-shell'
+import { AppFrame, BoardMain } from './frame'
 import { useNotifications } from './notify'
 
 export function App() {
@@ -49,12 +49,14 @@ function Connected({ onRejected }: { onRejected: () => void }) {
   if (rejected) return null
   return (
     <Routes>
-      <Route element={<BoardLayout />}>
-        <Route index element={<AllProjects />} />
-        <Route path="p/:key" element={<ProjectView />} />
+      <Route element={<AppFrame />}>
+        <Route element={<BoardMain />}>
+          <Route index element={<AllProjects />} />
+          <Route path="p/:key" element={<ProjectView />} />
+        </Route>
+        <Route path="s/:mid/:pane" element={<SessionPage />} />
+        <Route path="t/:mid/:pane" element={<TerminalPage />} />
       </Route>
-      <Route path="s/:mid/:pane" element={<SessionPage />} />
-      <Route path="t/:mid/:pane" element={<TerminalPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

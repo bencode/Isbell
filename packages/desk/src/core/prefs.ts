@@ -13,6 +13,10 @@ export type Prefs = {
 export type Layout = {
   /** The info panel beside a session or terminal. */
   info: boolean
+  /** The sidebar shrunk to a rail of icons. */
+  rail: boolean
+  /** Project keys whose sessions are hidden in the sidebar; any other project shows them. */
+  folded: string[]
 }
 
 export type Local = {
@@ -32,7 +36,7 @@ const DEFAULTS: Local = {
   seen: {},
   lastAgent: {},
   recentAgents: [],
-  layout: { info: false },
+  layout: { info: false, rail: false, folded: [] },
 }
 
 const FIELDS = Object.keys(DEFAULTS) as (keyof Local)[]
@@ -83,6 +87,20 @@ export const getLocal = () => current
 
 /** Shows or hides the info panel, on every page that has one. */
 export const toggleInfo = () => updateLocal(l => ({ layout: { ...l.layout, info: !l.layout.info } }))
+
+export const toggleRail = () => updateLocal(l => ({ layout: { ...l.layout, rail: !l.layout.rail } }))
+
+/** Shows or hides a project's sessions in the sidebar. */
+export const toggleFolded = (key: string) =>
+  updateLocal(l => {
+    const { folded } = l.layout
+    return {
+      layout: {
+        ...l.layout,
+        folded: folded.includes(key) ? folded.filter(k => k !== key) : [...folded, key],
+      },
+    }
+  })
 
 export const useLocal = () => useSyncExternalStore(subscribe, getLocal)
 
