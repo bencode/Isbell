@@ -1,4 +1,5 @@
 export { type Connection, type ConnStatus, connect } from './connection'
+export { type DirectLink, openDirect, type Path } from './direct'
 export { decode, encode, type Frame, FrameError, type Header, type RpcError } from './frame'
 export {
   type Caller,

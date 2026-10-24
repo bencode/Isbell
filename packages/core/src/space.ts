@@ -3,6 +3,7 @@
 // since machine state only lists agents).
 
 import { type ConnStatus, connect } from './connection'
+import { type DirectLink, openDirect, type Path } from './direct'
 import { type Caller, shells as fetchShells, type Shell } from './herdr'
 import type { Identity } from './identity'
 import { isNewer, type MachineState, readState } from './state'
@@ -11,7 +12,10 @@ import type { Opened, StreamEvents } from './streams'
 export type MachineEntry = { state: MachineState; online: boolean }
 
 /** How a stream reaches its machine. */
-export type Via = 'relay'
+export type Via = 'relay' | Path
+
+/** After a direct link fails, streams to that machine use the relay this long before trying again. */
+const DIRECT_RETRY_MS = 5 * 60_000
 
 export type SpaceView = {
   status: ConnStatus
@@ -27,13 +31,14 @@ export type Space = {
   getSnapshot: () => SpaceView
   call: Caller
   openThenEnd: Caller
-  /** Opens a stream on machine `mid`. */
+  /** Opens a stream on machine `mid`, over its direct link when one is open or can be opened. */
   openStream: (
     mid: string,
     m: string,
     p: unknown,
     timeoutMs: number,
     events: StreamEvents,
+    transport?: 'auto' | 'relay',
   ) => Promise<Opened & { via: Via }>
   /** Pulls the shells of one machine, or of every online machine. */
   refreshShells: (mid?: string) => Promise<void>
@@ -47,6 +52,10 @@ export function createSpace(url: string, id: Identity): Space {
   // A newer pull for a machine wins over a slower, older one.
   const pulls = new Map<string, number>()
   const listeners = new Set<() => void>()
+  // Per machine: the link being opened or open (undefined once an attempt failed), and the open one.
+  const links = new Map<string, Promise<DirectLink | undefined>>()
+  const direct = new Map<string, DirectLink>()
+  const failedAt = new Map<string, number>()
   let status: ConnStatus = 'connecting'
   let loaded = false
   let view = build()
@@ -72,6 +81,33 @@ export function createSpace(url: string, id: Identity): Space {
   const pullable = (mid: string) => {
     const m = machines.get(mid)
     return m?.online === true && m.state.herdr.status === 'ready'
+  }
+
+  const directTo = (mid: string): Promise<DirectLink | undefined> => {
+    const known = links.get(mid)
+    if (known) return known
+    const m = machines.get(mid)
+    const recent = Date.now() - (failedAt.get(mid) ?? 0) < DIRECT_RETRY_MS
+    if (!m?.online || !m.state.caps.methods.includes('isbell.rtc.offer') || recent)
+      return Promise.resolve(undefined)
+    const link = openDirect(conn.call, mid).then(
+      opened => {
+        direct.set(mid, opened)
+        void opened.closed.then(() => {
+          direct.delete(mid)
+          links.delete(mid)
+        })
+        return opened
+      },
+      err => {
+        links.delete(mid)
+        failedAt.set(mid, Date.now())
+        console.warn('no direct link; streams use the relay', mid, err)
+        return undefined
+      },
+    )
+    links.set(mid, link)
+    return link
   }
 
   const refreshOne = async (mid: string) => {
@@ -115,7 +151,10 @@ export function createSpace(url: string, id: Identity): Space {
       const mid = state.machine.id
       const old = machines.get(mid)
       if (old && !isNewer(state, old.state)) return
-      if (old && state.boot > old.state.boot) conn.failMachine(mid)
+      if (old && state.boot > old.state.boot) {
+        conn.failMachine(mid)
+        direct.get(mid)?.close()
+      }
       machines.set(mid, { state, online: old?.online ?? true })
       changed()
       void refreshOne(mid)
@@ -124,7 +163,10 @@ export function createSpace(url: string, id: Identity): Space {
       const old = machines.get(mid)
       if (!old) return
       machines.set(mid, { ...old, online })
-      if (!online) shells.delete(mid)
+      if (!online) {
+        shells.delete(mid)
+        direct.get(mid)?.close()
+      }
       changed()
       if (online) void refreshOne(mid)
     },
@@ -138,12 +180,16 @@ export function createSpace(url: string, id: Identity): Space {
     getSnapshot: () => view,
     call: conn.call,
     openThenEnd: conn.openThenEnd,
-    openStream: async (mid, m, p, timeoutMs, events) => ({
-      ...(await conn.open(mid, m, p, timeoutMs, events)),
-      via: 'relay',
-    }),
+    openStream: async (mid, m, p, timeoutMs, events, transport = 'auto') => {
+      const link = transport === 'auto' ? await directTo(mid) : undefined
+      if (link) return { ...(await link.open(m, p, timeoutMs, events)), via: link.path }
+      return { ...(await conn.open(mid, m, p, timeoutMs, events)), via: 'relay' }
+    },
     refreshShells,
     reconnectNow: conn.reconnectNow,
-    close: conn.close,
+    close: () => {
+      for (const link of direct.values()) link.close()
+      conn.close()
+    },
   }
 }

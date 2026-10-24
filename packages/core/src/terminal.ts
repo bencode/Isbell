@@ -36,6 +36,7 @@ export async function openTerminal(
   target: TerminalTarget,
   size: { cols: number; rows: number },
   events: TerminalEvents,
+  transport: 'auto' | 'relay' = 'auto',
 ): Promise<Terminal> {
   let shown = { cols: 0, rows: 0 }
   let sent = size
@@ -65,6 +66,7 @@ export async function openTerminal(
         events.end(error)
       },
     },
+    transport,
   )
   stream.grant(WINDOW)
   timer = setInterval(() => stream.send('ping'), PING_EVERY_MS)
