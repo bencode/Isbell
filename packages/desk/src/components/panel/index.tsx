@@ -18,7 +18,7 @@ export function SidePanel({ open, onOpenChange, title, closeLabel, children, foo
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-40 bg-scrim" />
-        <Dialog.Popup className="fixed inset-y-0 right-0 z-50 flex w-[min(560px,100vw)] flex-col border-l border-line bg-raised shadow-2xl outline-none">
+        <Dialog.Popup className="fixed inset-y-0 right-0 z-50 flex w-[min(560px,100vw)] flex-col border-l border-line bg-raised index-card-lifted outline-none">
           <div className="flex flex-none items-center gap-3 border-b border-line px-5 py-4">
             <Dialog.Title className="m-0 flex-1 text-[17px] font-semibold">{title}</Dialog.Title>
             <Dialog.Close render={<Button variant="quiet" size="icon" />} aria-label={closeLabel}>

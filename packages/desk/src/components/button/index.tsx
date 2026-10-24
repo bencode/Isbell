@@ -3,7 +3,7 @@ import type { ButtonHTMLAttributes } from 'react'
 export type Variant = 'default' | 'primary' | 'quiet' | 'end' | 'danger'
 
 const BASE =
-  'inline-flex items-center gap-2 whitespace-nowrap rounded-lg border text-[13px] font-semibold no-underline cursor-pointer disabled:cursor-default disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
+  'inline-flex items-center gap-2 whitespace-nowrap rounded-md border text-[13px] font-semibold no-underline cursor-pointer disabled:cursor-default disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
 
 const VARIANTS: Record<Variant, string> = {
   default: 'border-line bg-raised text-text hover:enabled:bg-raised-2',

@@ -19,31 +19,57 @@
   --color-end: var(--end);
   --color-end-line: var(--end-line);
   --color-scrim: var(--scrim);
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  --color-side: var(--side);
+  --color-accent-soft: var(--accent-soft);
+  --color-term: var(--term);
+  --font-sans: "Instrument Sans Variable", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 /* Each token is light-dark(light, dark); color-scheme picks one: the system's, or the one chosen in settings. */
 :root {
   color-scheme: light dark;
-  --bg: light-dark(#f6f7f9, #0f1216);
-  --raised: light-dark(#ffffff, #171b21);
-  --raised-2: light-dark(#edf0f4, #1e232b);
-  --line: light-dark(#dde2e9, #2a313b);
-  --line-strong: light-dark(#c3cad5, #3a4452);
-  --text: light-dark(#1b2028, #e4e8ee);
-  --muted: light-dark(#555e6c, #9aa3b2);
-  --faint: light-dark(#6b7482, #8a93a1);
-  --accent: light-dark(#2563eb, #6ea8fe);
-  --accent-ink: light-dark(#ffffff, #0f1216);
-  --ok: light-dark(#18804a, #5fcf8f);
-  --warn: light-dark(#a86a12, #e3b55b);
-  --danger: light-dark(#c2362c, #f2837a);
-  --ask: light-dark(#fff7e2, #1f1b13);
-  --ask-line: light-dark(#e2c27a, #7a6026);
-  --end: light-dark(#fdeceb, #2a1615);
-  --end-line: light-dark(#e9b4af, #5b2a27);
-  --scrim: light-dark(rgb(20 25 32 / 0.35), rgb(5 7 10 / 0.6));
+  /* Notebook: ink on paper by day, paper-white ink on a night-blue page by night. */
+  --bg: light-dark(#f3f0e8, #10151f);
+  --side: light-dark(#ebe7dc, #0c1018);
+  --raised: light-dark(#fffdf8, #171d2a);
+  --raised-2: light-dark(#ece7db, #1f2737);
+  --line: light-dark(#dcd5c4, #283143);
+  --line-strong: light-dark(#c2b9a4, #39445a);
+  --text: light-dark(#1c2333, #e9e5d9);
+  --muted: light-dark(#575f70, #a2a8b5);
+  --faint: light-dark(#62687a, #8a92a4);
+  --accent: light-dark(#1f4fd1, #8fb0ff);
+  --accent-ink: light-dark(#ffffff, #0c1018);
+  --accent-soft: light-dark(#e2e8fa, #1c2747);
+  --ok: light-dark(#2f7d4f, #6fd39a);
+  --warn: light-dark(#985a12, #e6b45e);
+  --danger: light-dark(#b3261e, #f08a80);
+  --ask: light-dark(#fdf3dc, #221e16);
+  --ask-line: light-dark(#dcb56d, #6a5426);
+  --end: light-dark(#fbeae7, #2a1817);
+  --end-line: light-dark(#e3b2ab, #5a2d2c);
+  --term: light-dark(#fffdf8, #0d121b);
+  --dot: light-dark(rgb(28 35 51 / 0.09), rgb(233 229 217 / 0.06));
+  --scrim: light-dark(rgb(28 35 51 / 0.3), rgb(4 6 10 / 0.6));
+}
+
+/* The page a board sits on: a faint dot grid, like a notebook's. */
+@utility paper {
+  background-image: radial-gradient(var(--dot) 1px, transparent 1.2px);
+  background-size: 18px 18px;
+}
+
+/* An index card's hard offset shadow, for anything that lies on top of the page. */
+@utility index-card {
+  box-shadow: 2px 2px 0 var(--line);
+}
+
+/* The same card lifted off the page: dialogs, panels and menus. */
+@utility index-card-lifted {
+  box-shadow:
+    3px 3px 0 var(--line),
+    0 14px 36px rgb(0 0 0 / 0.14);
 }
 
 :root[data-theme="light"] {

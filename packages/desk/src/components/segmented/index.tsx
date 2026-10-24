@@ -30,7 +30,7 @@ export function Segmented<V extends string>({
         <Toggle
           key={s.value}
           value={s.value}
-          className="inline-flex h-[30px] cursor-pointer items-center gap-1.5 rounded-md border-0 bg-transparent px-3 text-[13px] font-medium text-muted outline-none data-pressed:bg-raised-2 data-pressed:text-text focus-visible:outline-2 focus-visible:outline-accent"
+          className="inline-flex h-[30px] cursor-pointer items-center gap-1.5 rounded-md border-0 bg-transparent px-3 text-[13px] font-medium text-muted outline-none data-pressed:bg-raised data-pressed:text-text data-pressed:index-card focus-visible:outline-2 focus-visible:outline-accent"
         >
           {s.label}
         </Toggle>

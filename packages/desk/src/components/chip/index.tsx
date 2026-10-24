@@ -11,7 +11,7 @@ const TONE: Record<AgentStatus, string> = {
 export function StatusChip({ status, label }: { status: AgentStatus; label: string }) {
   return (
     <span
-      className={`inline-flex h-5 items-center rounded-full border px-2 text-[11.5px] font-semibold ${TONE[status]}`}
+      className={`inline-flex h-5 items-center rounded-[3px] border px-1.5 text-[10.5px] font-semibold tracking-[0.06em] uppercase ${TONE[status]}`}
     >
       {label}
     </span>

@@ -6,7 +6,7 @@ import { Button } from '../button'
 
 const BACKDROP = 'fixed inset-0 z-40 bg-scrim'
 const POPUP =
-  'fixed left-1/2 top-1/2 z-50 flex max-h-[90vh] w-[min(560px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-auto rounded-xl border border-line bg-raised p-6 shadow-2xl outline-none'
+  'fixed left-1/2 top-1/2 z-50 flex max-h-[90vh] w-[min(560px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-auto rounded-lg border border-line bg-raised p-6 index-card-lifted outline-none'
 
 type ModalProps = {
   open: boolean

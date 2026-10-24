@@ -23,7 +23,7 @@ export function SelectBox({ value, onChange, groups, placeholder, disabled, extr
     <Select.Root value={value} onValueChange={v => v !== null && onChange(v)} disabled={disabled ?? false}>
       <Select.Trigger
         id={id}
-        className="flex h-[38px] w-full cursor-pointer items-center gap-2 rounded-lg border border-line bg-bg px-3 text-left text-sm text-text outline-none focus-visible:outline-2 focus-visible:outline-accent data-disabled:cursor-default data-disabled:opacity-60"
+        className="flex h-[38px] w-full cursor-pointer items-center gap-2 rounded-md border border-line bg-bg px-3 text-left text-sm text-text outline-none focus-visible:outline-2 focus-visible:outline-accent data-disabled:cursor-default data-disabled:opacity-60"
       >
         <span className="min-w-0 flex-1 truncate">
           {selected ? (
@@ -41,7 +41,7 @@ export function SelectBox({ value, onChange, groups, placeholder, disabled, extr
       </Select.Trigger>
       <Select.Portal>
         <Select.Positioner sideOffset={4} alignItemWithTrigger={false} className="z-[60] outline-none">
-          <Select.Popup className="max-h-[min(320px,var(--available-height))] min-w-[var(--anchor-width)] overflow-auto rounded-xl border border-line bg-raised-2 p-1.5 shadow-2xl outline-none">
+          <Select.Popup className="max-h-[min(320px,var(--available-height))] min-w-[var(--anchor-width)] overflow-auto rounded-lg border border-line bg-raised-2 p-1.5 index-card-lifted outline-none">
             <Select.List>
               {groups.map(group => (
                 <Select.Group key={group.label ?? ''}>
@@ -54,7 +54,7 @@ export function SelectBox({ value, onChange, groups, placeholder, disabled, extr
                     <Select.Item
                       key={o.value}
                       value={o.value}
-                      className="grid cursor-pointer grid-cols-[16px_1fr_auto] items-center gap-2 rounded-lg px-2.5 py-2 text-sm outline-none select-none data-highlighted:bg-raised"
+                      className="grid cursor-pointer grid-cols-[16px_1fr_auto] items-center gap-2 rounded-md px-2.5 py-2 text-sm outline-none select-none data-highlighted:bg-raised"
                     >
                       <Select.ItemIndicator className="text-accent">
                         <Check size={14} />
