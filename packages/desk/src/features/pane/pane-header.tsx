@@ -1,13 +1,15 @@
 // The header both views of a pane share: where it is, which view this is, and how to end it.
 
+import { paneKey } from '@isbell/core'
 import { MessageSquare, Square, SquareTerminal } from 'lucide-react'
+import { useEffect } from 'react'
 import { Link } from 'react-router'
 import { Button } from '../../components/button'
 import { StatusChip } from '../../components/chip'
 import { InfoToggle } from '../../components/info-panel'
 import { useI18n } from '../../core/i18n'
 import type { Found } from '../../core/pane-facts'
-import { toggleInfo, useLocal } from '../../core/prefs'
+import { rememberView, toggleInfo, useLocal } from '../../core/prefs'
 import { projectHref, sessionHref, terminalHref } from '../../utils/hrefs'
 
 const VIEW =
@@ -26,6 +28,11 @@ export function PaneHeader({ found: { project, name, pane }, mid, paneId, view, 
   const t = useI18n()
   const info = useLocal().layout.info
   const session = 'session' in pane ? pane.session : undefined
+  // The sidebar opens an agent in the view it was last seen in.
+  const agent = session !== undefined
+  useEffect(() => {
+    if (agent) rememberView(paneKey(mid, paneId), view)
+  }, [agent, mid, paneId, view])
   const where = [session ? '' : paneId, project.machine, project.display].filter(Boolean).join(' · ')
   const views = [
     { key: 'chat', href: sessionHref(mid, paneId), icon: <MessageSquare size={15} />, label: t('pane.chat') },

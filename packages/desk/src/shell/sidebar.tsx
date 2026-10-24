@@ -191,7 +191,8 @@ export function Sidebar({
 function ProjectTree({ project: p, here }: { project: Project; here: Here }) {
   const t = useI18n()
   const now = useNow()
-  const open = !useLocal().layout.folded.includes(p.key)
+  const { folded, terminal } = useLocal().layout
+  const open = !folded.includes(p.key)
   const n = asking(p)
   const inside = here.project?.key === p.key
   const Chevron = open ? ChevronDown : ChevronRight
@@ -225,7 +226,7 @@ function ProjectTree({ project: p, here }: { project: Project; here: Here }) {
           {p.sessions.map(s => (
             <Link
               key={s.paneId}
-              to={sessionHref(s.mid, s.paneId)}
+              to={(terminal.includes(paneKey(s.mid, s.paneId)) ? terminalHref : sessionHref)(s.mid, s.paneId)}
               className={`${ROW} min-h-[27px] text-[13px] ${here.pane === paneKey(s.mid, s.paneId) ? ON : ''}`}
             >
               <StatusDot status={s.status} />

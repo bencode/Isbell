@@ -17,6 +17,8 @@ export type Layout = {
   rail: boolean
   /** Project keys whose sessions are hidden in the sidebar; any other project shows them. */
   folded: string[]
+  /** Agent panes (by paneKey) last seen in their terminal, most recent first; any other opens in chat. */
+  terminal: string[]
 }
 
 export type Local = {
@@ -36,7 +38,7 @@ const DEFAULTS: Local = {
   seen: {},
   lastAgent: {},
   recentAgents: [],
-  layout: { info: false, rail: false, folded: [] },
+  layout: { info: false, rail: false, folded: [], terminal: [] },
 }
 
 const FIELDS = Object.keys(DEFAULTS) as (keyof Local)[]
@@ -101,6 +103,18 @@ export const toggleFolded = (key: string) =>
       },
     }
   })
+
+/** How many panes keep their terminal view; panes that ended fall off the end. */
+const TERMINAL_MAX = 50
+
+/** Notes which view an agent's pane was last seen in. */
+export function rememberView(key: string, view: 'chat' | 'terminal') {
+  const { terminal } = current.layout
+  const rest = terminal.filter(k => k !== key)
+  const next = view === 'terminal' ? [key, ...rest].slice(0, TERMINAL_MAX) : rest
+  if (next.length === terminal.length && next.every((k, i) => k === terminal[i])) return
+  updateLocal(l => ({ layout: { ...l.layout, terminal: next } }))
+}
 
 export const useLocal = () => useSyncExternalStore(subscribe, getLocal)
 
