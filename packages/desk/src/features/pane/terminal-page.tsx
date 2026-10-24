@@ -1,20 +1,19 @@
-// A pane in the browser: an agent's or a shell's, under full control. Leave detaches and goes
-// back; End terminal closes the pane.
+// A pane in the browser: an agent's or a shell's, under full control. Leaving the page detaches;
+// End closes the pane.
 
 import '@xterm/xterm/css/xterm.css'
-import { ChevronLeft, MessageSquare, Square } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router'
-import { Button, buttonClass } from '../../components/button'
-import { shellArg } from '../../components/command'
-import { InfoPanel, InfoToggle } from '../../components/info-panel'
+import { Link, useNavigate, useParams } from 'react-router'
+import { Button } from '../../components/button'
+import { InfoPanel } from '../../components/info-panel'
 import { errorText, useI18n } from '../../core/i18n'
-import { connectionFacts, type Found, locate, paneFacts } from '../../core/pane-facts'
-import { toggleInfo, useLocal } from '../../core/prefs'
+import { attachCommand, connectionFacts, type Found, locate, paneFacts } from '../../core/pane-facts'
+import { useLocal } from '../../core/prefs'
 import { RELAY_URL, useProjects, useSpace, useSpaceView } from '../../core/space'
-import { projectHref, sessionHref } from '../../utils/hrefs'
+import { projectHref } from '../../utils/hrefs'
 import { useNow } from '../../utils/time'
-import { EndTerminal } from './end-terminal'
+import { EndPane } from './end-pane-dialog'
+import { PaneHeader } from './pane-header'
 import { useLink } from './use-link'
 import { useTerminal } from './use-terminal'
 
@@ -46,7 +45,6 @@ export function TerminalPage() {
 function Attached({ mid, paneId, found }: { mid: string; paneId: string; found: Found }) {
   const t = useI18n()
   const navigate = useNavigate()
-  const location = useLocation()
   const box = useRef<HTMLDivElement>(null)
   const { state, reconnect } = useTerminal(box, mid, paneId)
   const [ending, setEnding] = useState(false)
@@ -56,46 +54,17 @@ function Attached({ mid, paneId, found }: { mid: string; paneId: string; found: 
   const info = useLocal().layout.info
   const relay = { url: RELAY_URL, status: useSpaceView().status }
   const link = useLink(mid, state.via, info)
-  // An agent is reached by its name, as the session page shows it; a shell by its pane.
-  const attach = `isbell terminal attach --control ${shellArg(`${project.machine}/${agent ? name : paneId}`)}`
   const home = projectHref(project.key)
-  // Opened from a link, there is no page of ours to go back to.
-  const leave = () => (location.key === 'default' ? navigate(home) : navigate(-1))
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex h-[52px] flex-none items-center gap-2 border-b border-line px-3">
-        <Button variant="quiet" onClick={leave} title={t('terminal.leaveHint')}>
-          <ChevronLeft size={16} />
-          {t('terminal.leave')}
-        </Button>
-        <span className="px-1 font-semibold">{name}</span>
-        <span className="ml-1 truncate text-muted">
-          {project.machine} · {project.display}
-        </span>
-        <span className="flex-1" />
-        {agent ? (
-          <Link to={sessionHref(mid, paneId)} className={buttonClass()}>
-            <MessageSquare size={15} />
-            {t('terminal.chat')}
-          </Link>
-        ) : null}
-        <Button
-          variant="end"
-          onClick={() => setEnding(true)}
-          title={agent ? t('session.endHint') : undefined}
-        >
-          <Square size={12} fill="currentColor" />
-          {agent ? t('session.end') : t('terminal.end')}
-        </Button>
-        <InfoToggle open={info} onToggle={toggleInfo} label={t('info.toggle')} />
-      </header>
+      <PaneHeader found={found} mid={mid} paneId={paneId} view="terminal" onEnd={() => setEnding(true)} />
       <div className="flex min-h-0 flex-1">
-        <div className="relative min-w-0 flex-1 bg-raised p-2">
-          <div ref={box} className="h-full w-full bg-raised text-text" />
+        <div className="relative min-w-0 flex-1 bg-term px-3 py-2">
+          <div ref={box} className="h-full w-full bg-term" />
           {state.phase === 'ended' ? (
             <div className="absolute inset-0 grid place-items-center bg-scrim">
-              <div className="flex max-w-md flex-col items-start gap-3 rounded-xl border border-line bg-raised p-5">
+              <div className="flex max-w-md flex-col items-start gap-3 rounded-lg border border-line bg-raised p-5 index-card-lifted">
                 <p className="m-0 font-semibold">{t('terminal.ended')}</p>
                 {state.error ? (
                   <p className="m-0 text-[13px] text-muted">{errorText(t, state.error)}</p>
@@ -113,7 +82,7 @@ function Attached({ mid, paneId, found }: { mid: string; paneId: string; found: 
               ...paneFacts(t, now, project, pane),
               ...(state.via ? [connectionFacts(t, { via: state.via, relay, ...link })] : []),
             ]}
-            command={{ label: t('facts.attach'), text: attach }}
+            command={{ label: t('facts.attach'), text: attachCommand(project, pane) }}
           />
         ) : null}
       </div>
@@ -128,7 +97,7 @@ function Attached({ mid, paneId, found }: { mid: string; paneId: string; found: 
           </span>
         ) : null}
       </footer>
-      <EndTerminal
+      <EndPane
         open={ending}
         onOpenChange={setEnding}
         mid={mid}

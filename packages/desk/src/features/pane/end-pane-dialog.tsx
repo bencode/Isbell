@@ -17,8 +17,9 @@ type Props = {
   onEnded: () => void
 }
 
-/** Ending closes the pane and whatever runs in it; leaving the page only detaches. */
-export function EndTerminal({ open, onOpenChange, mid, paneId, name, machine, path, agent, onEnded }: Props) {
+/** Ending closes the pane and whatever runs in it: an agent stops, though what it changed on disk
+ * stays. Leaving the page only detaches. */
+export function EndPane({ open, onOpenChange, mid, paneId, name, machine, path, agent, onEnded }: Props) {
   const t = useI18n()
   const space = useSpace()
   const [busy, setBusy] = useState(false)

@@ -2,22 +2,19 @@
 // isbell-ext), a way to answer or add to it, and the facts needed to reach it by hand.
 
 import { type Project, paneKey, readScreen, type Session } from '@isbell/core'
-import { ChevronLeft, Square, SquareTerminal } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
-import { Button, buttonClass } from '../../components/button'
-import { StatusChip } from '../../components/chip'
-import { shellArg } from '../../components/command'
-import { InfoPanel, InfoToggle } from '../../components/info-panel'
+import { InfoPanel } from '../../components/info-panel'
 import { errorText, useI18n } from '../../core/i18n'
-import { connectionFacts, paneFacts } from '../../core/pane-facts'
-import { getLocal, toggleInfo, updateLocal, useLocal } from '../../core/prefs'
+import { attachCommand, connectionFacts, paneFacts } from '../../core/pane-facts'
+import { getLocal, updateLocal, useLocal } from '../../core/prefs'
 import { RELAY_URL, useProjects, useSpace, useSpaceView } from '../../core/space'
-import { projectHref, terminalHref } from '../../utils/hrefs'
+import { projectHref } from '../../utils/hrefs'
 import { useNow } from '../../utils/time'
 import { Asking } from './asking'
 import { Composer } from './composer'
-import { EndSession } from './end-session'
+import { EndPane } from './end-pane-dialog'
+import { PaneHeader } from './pane-header'
 
 const READ_EVERY_MS = 2_000
 
@@ -119,31 +116,18 @@ function SessionView({
   }, [screen])
 
   const back = projectHref(project.key)
-  const attach = `isbell terminal attach --control ${shellArg(`${project.machine}/${session.name}`)}`
+  const pane = { session }
   return (
     <div className="flex h-full flex-col">
-      <header className="flex h-[52px] flex-none items-center gap-2 border-b border-line px-3">
-        <Link to={back} className={buttonClass('quiet', '', 'icon')} aria-label={t('session.back')}>
-          <ChevronLeft size={18} />
-        </Link>
-        <span className="px-1 font-semibold">{session.name}</span>
-        <StatusChip status={session.status} label={t(`status.${session.status}`)} />
-        <span className="ml-2 truncate text-muted">
-          {project.machine} · {project.display}
-        </span>
-        <span className="flex-1" />
-        <Button onClick={() => navigate(terminalHref(mid, paneId))}>
-          <SquareTerminal size={15} />
-          {t('session.terminal')}
-        </Button>
-        <Button variant="end" onClick={() => setEnding(true)} title={t('session.endHint')}>
-          <Square size={12} fill="currentColor" />
-          {t('session.end')}
-        </Button>
-        <InfoToggle open={info} onToggle={toggleInfo} label={t('info.toggle')} />
-      </header>
+      <PaneHeader
+        found={{ project, name: session.name, pane }}
+        mid={mid}
+        paneId={paneId}
+        view="chat"
+        onEnd={() => setEnding(true)}
+      />
       <div className="flex min-h-0 flex-1">
-        <div className="flex min-w-0 flex-1 flex-col gap-4 p-5">
+        <div className="paper flex min-w-0 flex-1 flex-col gap-4 p-5">
           {promptError ? (
             <p className="m-0 rounded-lg border border-ask-line bg-ask px-3.5 py-2 text-[13px]">
               {t('session.promptFailed', { msg: promptError.msg })}
@@ -158,7 +142,7 @@ function SessionView({
               const el = e.currentTarget
               pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24
             }}
-            className="m-0 min-h-0 flex-1 overflow-auto rounded-xl border border-line bg-raised p-4 font-mono text-[12.5px] leading-snug whitespace-pre-wrap text-text"
+            className="m-0 min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-raised p-4 font-mono text-[12.5px] leading-snug whitespace-pre-wrap text-text"
           >
             {screen ?? t('session.reading')}
           </pre>
@@ -168,15 +152,15 @@ function SessionView({
         {info ? (
           <InfoPanel
             groups={[
-              ...paneFacts(t, now, project, { session }),
+              ...paneFacts(t, now, project, pane),
               // Reading the screen and sending keys are calls, and calls go through the relay.
               connectionFacts(t, { via: 'relay', relay: { url: RELAY_URL, status: view.status } }),
             ]}
-            command={{ label: t('facts.attach'), text: attach }}
+            command={{ label: t('facts.attach'), text: attachCommand(project, pane) }}
           />
         ) : null}
       </div>
-      <EndSession
+      <EndPane
         open={ending}
         onOpenChange={setEnding}
         mid={mid}
@@ -184,6 +168,7 @@ function SessionView({
         name={session.name}
         machine={project.machine}
         path={project.display}
+        agent
         onEnded={() => navigate(back)}
       />
     </div>

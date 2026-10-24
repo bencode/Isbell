@@ -2,6 +2,7 @@
 // in the current language.
 
 import type { ConnStatus, DirectStatus, LinkStats, Project, Session, Shell, Via } from '@isbell/core'
+import { shellArg } from '../utils/shell'
 import { since } from '../utils/time'
 import { errorText, type T } from './i18n'
 
@@ -19,6 +20,12 @@ export const locate = (projects: Project[], mid: string, paneId: string): Found 
       if (session) return [{ project, name: session.name, pane: { session } }]
       return shell ? [{ project, name: shell.title ?? paneId, pane: { shell } }] : []
     })[0]
+
+/** How to reach a pane by hand: an agent by its name, as the session page shows it; a shell by its pane. */
+export const attachCommand = (project: Project, pane: Pane) =>
+  `isbell terminal attach --control ${shellArg(
+    `${project.machine}/${'session' in pane ? pane.session.name : pane.shell.paneId}`,
+  )}`
 
 /** Mirrors components/info-panel's InfoGroup, which core cannot import. */
 type FactGroup = { title: string; rows: { label: string; value: string; mono?: boolean }[] }

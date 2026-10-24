@@ -31,7 +31,7 @@ export function Composer({ mid, paneId, onSent }: { mid: string; paneId: string;
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-end gap-2.5 rounded-xl border border-line-strong bg-raised py-2 pr-2 pl-3.5">
+      <div className="flex items-end gap-2.5 rounded-lg border border-line-strong bg-raised py-2 pr-2 pl-3.5">
         <textarea
           rows={1}
           value={text}

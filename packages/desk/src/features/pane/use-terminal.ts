@@ -5,7 +5,6 @@ import { openTerminal, type Terminal, type Via } from '@isbell/core'
 import { FitAddon } from '@xterm/addon-fit'
 import { type ITheme, Terminal as XTerm } from '@xterm/xterm'
 import { type RefObject, useEffect, useRef, useState } from 'react'
-import { useLocal } from '../../core/prefs'
 import { useSpace } from '../../core/space'
 
 export type TerminalState = {
@@ -16,37 +15,77 @@ export type TerminalState = {
   error?: unknown
 }
 
-const FONT = 'ui-monospace, "SF Mono", Menlo, monospace'
+const FONT = '"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace'
+
+/** xterm measures its cells when it opens, so it opens once its font is in. A font that fails to
+ * load leaves the fallback, which only changes how the cells look. */
+const fontReady: Promise<void> = document.fonts.load('13px "IBM Plex Mono"').then(
+  () => undefined,
+  err => console.warn('the terminal font did not load; using a fallback', err),
+)
 /** Resizing the window fires continuously; the pane is resized once it settles. */
 const RESIZE_SETTLE_MS = 100
 const utf8 = new TextEncoder()
 
-/** The page's own colors, so the terminal follows the light or dark theme. */
-const themeOf = (el: HTMLElement): ITheme => {
-  const style = getComputedStyle(el)
-  return { background: style.backgroundColor, foreground: style.color, cursor: style.color }
+/** The terminal stays on the night page in either theme: programs such as agents pick many of their
+ * colors for a dark background, and on paper those fade. Its background is `--term`. */
+const NIGHT: ITheme = {
+  foreground: '#e9e5d9',
+  cursor: '#8fb0ff',
+  selectionBackground: '#1c2747',
+  black: '#283143',
+  red: '#f08a80',
+  green: '#6fd39a',
+  yellow: '#e6b45e',
+  blue: '#8fb0ff',
+  magenta: '#d39be0',
+  cyan: '#7fc8cf',
+  white: '#c9c5ba',
+  brightBlack: '#8a92a4',
+  brightRed: '#ffa69d',
+  brightGreen: '#8fe3b2',
+  brightYellow: '#f2c77c',
+  brightBlue: '#adc6ff',
+  brightMagenta: '#e3b5ec',
+  brightCyan: '#9edbe1',
+  brightWhite: '#e9e5d9',
 }
 
 export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, paneId: string) {
   const space = useSpace()
-  const { prefs } = useLocal()
   const [attempt, setAttempt] = useState(0)
   const [state, setState] = useState<TerminalState>({ phase: 'opening' })
-  const xterm = useRef<XTerm | null>(null)
   // The pane takes one controller at a time: an attach waits until the one before it has let go.
   const previous = useRef<Promise<void>>(Promise.resolve())
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `attempt` is how Reconnect re-attaches.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `attempt` is how Reconnect re-attaches; `attach` reads only what is listed.
   useEffect(() => {
     const host = el.current
     if (!host) return
-    const term = new XTerm({ fontFamily: FONT, fontSize: 13, cursorBlink: true, theme: themeOf(host) })
+    let cancelled = false
+    let detach: (() => void) | undefined
+    void fontReady.then(() => {
+      if (!cancelled) detach = attach(host)
+    })
+    return () => {
+      cancelled = true
+      detach?.()
+    }
+  }, [el, space, mid, paneId, attempt])
+
+  /** Opens an xterm in `host` and attaches it to the pane; returns how to let go of both. */
+  function attach(host: HTMLDivElement) {
+    const term = new XTerm({
+      fontFamily: FONT,
+      fontSize: 13,
+      cursorBlink: true,
+      theme: { ...NIGHT, background: getComputedStyle(host).backgroundColor },
+    })
     const fit = new FitAddon()
     term.loadAddon(fit)
     term.open(host)
     fit.fit()
     term.focus()
-    xterm.current = term
     setState({ phase: 'opening' })
 
     let live: Terminal | null = null
@@ -101,21 +140,8 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
       binary.dispose()
       previous.current = attached.then(t => t?.close())
       term.dispose()
-      xterm.current = null
     }
-  }, [el, space, mid, paneId, attempt])
-
-  // Follows a theme change made in settings or by the system.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `prefs.theme` changes the page colors read here.
-  useEffect(() => {
-    const apply = () => {
-      if (xterm.current && el.current) xterm.current.options.theme = themeOf(el.current)
-    }
-    apply()
-    const system = matchMedia('(prefers-color-scheme: dark)')
-    system.addEventListener('change', apply)
-    return () => system.removeEventListener('change', apply)
-  }, [el, prefs.theme])
+  }
 
   return { state, reconnect: () => setAttempt(n => n + 1) }
 }

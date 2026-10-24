@@ -40,7 +40,7 @@ export function Asking({
       .finally(() => setBusy(false))
   }
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-ask-line bg-ask p-4">
+    <section className="flex flex-col gap-3 rounded-lg border border-ask-line bg-ask p-4">
       <h2 className="m-0 text-[15px] font-semibold">{t('ask.title', { name })}</h2>
       <pre className="m-0 max-h-72 overflow-auto rounded-lg bg-bg p-3 font-mono text-[12.5px] leading-snug whitespace-pre-wrap text-text">
         {tail}

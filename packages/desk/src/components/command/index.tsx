@@ -3,10 +3,6 @@ import { Button } from '../button'
 
 export type CopyLabels = { copy: string; copied: string }
 
-/** `value` as one shell word, quoted only when it needs to be. */
-export const shellArg = (value: string) =>
-  /^[\w@%+=:,./~-]+$/.test(value) ? value : `'${value.replaceAll("'", `'\\''`)}'`
-
 /** A shell command to run elsewhere, with a copy button. */
 export function Command({ text, labels }: { text: string; labels: CopyLabels }) {
   const [copied, setCopied] = useState(false)

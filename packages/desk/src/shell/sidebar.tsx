@@ -39,9 +39,9 @@ export type SideProps = {
 }
 
 const ROW =
-  'flex min-h-[30px] items-center gap-2 rounded-md px-2 text-text no-underline hover:bg-raised-2 focus-visible:outline-2 focus-visible:outline-accent'
+  'flex min-h-[30px] items-center gap-2 rounded-md px-2 text-text no-underline hover:bg-raised focus-visible:outline-2 focus-visible:outline-accent'
 // The row the page is on.
-const ON = 'bg-raised-2'
+const ON = 'bg-accent-soft'
 
 export function AskBadge({ n, label, className = '' }: { n: number; label: string; className?: string }) {
   return (
@@ -145,7 +145,7 @@ export function Sidebar({
           type="button"
           onClick={onAddProject}
           aria-label={t('side.add')}
-          className="inline-flex size-6 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-muted hover:bg-raised-2 hover:text-text"
+          className="inline-flex size-6 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-muted hover:bg-raised hover:text-text"
         >
           <Plus size={15} />
         </button>

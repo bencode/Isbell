@@ -49,7 +49,8 @@
   --ask-line: light-dark(#dcb56d, #6a5426);
   --end: light-dark(#fbeae7, #2a1817);
   --end-line: light-dark(#e3b2ab, #5a2d2c);
-  --term: light-dark(#fffdf8, #0d121b);
+  /* The terminal keeps the night page in both themes; see use-terminal.ts. */
+  --term: #0d121b;
   --dot: light-dark(rgb(28 35 51 / 0.09), rgb(233 229 217 / 0.06));
   --scrim: light-dark(rgb(28 35 51 / 0.3), rgb(4 6 10 / 0.6));
 }

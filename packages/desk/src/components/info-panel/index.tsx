@@ -16,7 +16,9 @@ export function InfoPanel({
     <aside className="flex w-[280px] flex-none flex-col gap-5 overflow-auto border-l border-line p-5 text-[13px]">
       {groups.map(group => (
         <section key={group.title} className="flex flex-col gap-2">
-          <h2 className="m-0 text-xs font-semibold text-muted">{group.title}</h2>
+          <h2 className="m-0 text-[11px] font-semibold tracking-[0.04em] text-faint uppercase">
+            {group.title}
+          </h2>
           <dl className="m-0 grid grid-cols-[86px_1fr] gap-x-3 gap-y-2">
             {group.rows.map(row => (
               <div key={row.label} className="contents">
@@ -30,7 +32,7 @@ export function InfoPanel({
       {command ? (
         <section className="flex flex-col gap-2">
           <p className="m-0 text-muted">{command.label}</p>
-          <code className="rounded-lg border border-line bg-raised px-3 py-2.5 font-mono text-[12.5px] break-all">
+          <code className="rounded-md border border-line bg-raised px-3 py-2.5 font-mono text-[12.5px] break-all">
             {command.text}
           </code>
         </section>

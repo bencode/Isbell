@@ -10,9 +10,9 @@ import { projectHref } from '../utils/hrefs'
 import { AskBadge, asking, RelayStatus, type SideProps } from './sidebar'
 
 const ITEM =
-  'relative inline-flex size-9 flex-none cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-muted no-underline hover:bg-raised-2 hover:text-text focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent'
+  'relative inline-flex size-9 flex-none cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-muted no-underline hover:bg-raised hover:text-text focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent'
 // Important, to win over the transparent background ITEM gives buttons.
-const ON = 'bg-raised-2! text-text'
+const ON = 'bg-accent-soft! text-text'
 const CORNER = 'absolute -top-1 -right-1.5 h-4 min-w-4 text-[10px]'
 
 export function Rail({ projects, status, here, onNew, onSettings }: SideProps) {
