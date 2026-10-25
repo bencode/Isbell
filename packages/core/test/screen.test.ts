@@ -127,6 +127,26 @@ describe('claude', () => {
     ])
   })
 
+  test('a reply line that wraps onto words like a summary is still the reply', () => {
+    const rule = '─'.repeat(40)
+    const text = [
+      '❯ explain add',
+      '',
+      '⏺ The add function now',
+      '  takes 2 arguments and returns their',
+      '  sum.',
+      '',
+      '✻ Cooked for 3s',
+      '',
+      rule,
+      '❯ ',
+      rule,
+    ].join('\n')
+    expect(parseScreen('claude', text, false)?.turns[0]?.reply).toEqual([
+      { kind: 'text', text: 'The add function now\ntakes 2 arguments and returns their\nsum.' },
+    ])
+  })
+
   test('a permission prompt is a question', () => {
     const r = read('claude', 'claude-asking', true)
     expect(r.question).toEqual({

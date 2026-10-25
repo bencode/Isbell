@@ -23,7 +23,9 @@ export function Turns({
   terminal: string
 }) {
   const t = useI18n()
-  const { footer, live } = reading
+  const { footer } = reading
+  // What was still going when the agent stopped is past; a read after the stop replaces it.
+  const live = status === 'idle' || status === 'done' ? undefined : reading.live
   return (
     <>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">

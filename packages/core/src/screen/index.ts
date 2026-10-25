@@ -49,7 +49,7 @@ export type Grammar = {
   prompt: RegExp
   /** The first line of a reply item; captures its text. */
   item: RegExp
-  /** A line of its own that sums up tool calls; it starts an item. */
+  /** Sums up tool calls on a line of its own, after a blank one; it starts an item. */
   summary?: RegExp
   /** Ends a turn; the groups `took` and `at` capture what the agent shows. */
   end: RegExp
@@ -154,9 +154,7 @@ function split(g: Grammar, lines: string[], first: number, start: boolean, pinne
     const partial = pinned && n === 0
     // A long prompt wraps onto the lines after it, up to a blank line or the reply; a pinned one
     // keeps to its line, with the reply right under it.
-    const stop = partial
-      ? 1
-      : body.findIndex((l, i) => i > 0 && (!l || g.item.test(l) || !!g.summary?.test(l)))
+    const stop = partial ? 1 : body.findIndex((l, i) => i > 0 && (!l || g.item.test(l)))
     const asked = stop < 0 ? body : body.slice(0, stop)
     const prompt = [g.prompt.exec(asked[0] ?? '')?.[1] ?? '', ...asked.slice(1).map(dedent)].join('\n')
     const segment = readItems(g, prompt, body.slice(asked.length))
@@ -167,7 +165,7 @@ function split(g: Grammar, lines: string[], first: number, start: boolean, pinne
 function readItems(g: Grammar, prompt: string | undefined, lines: string[]): Segment {
   const items: Item[] = []
   let end: Segment['end']
-  for (const line of lines) {
+  for (const [i, line] of lines.entries()) {
     const closing = g.end.exec(line)
     if (closing) {
       end = timing(closing.groups)
@@ -180,7 +178,7 @@ function readItems(g: Grammar, prompt: string | undefined, lines: string[]): Seg
         end = {}
         break
       }
-    } else if (g.summary?.test(line)) items.push({ head: line.trim(), rest: [] })
+    } else if (g.summary?.test(line) && !lines[i - 1]) items.push({ head: line.trim(), rest: [] })
     else {
       const current = items.at(-1)
       if (current) current.rest.push(line)
