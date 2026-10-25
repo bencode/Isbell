@@ -57,6 +57,31 @@ describe('codex', () => {
     }
   })
 
+  test('a numbered list keeps where its numbers start', () => {
+    const text = [
+      '› list',
+      '',
+      '• Steps:',
+      '',
+      '  3. Install',
+      '  4. Run',
+      '',
+      '  • Done',
+      '  • Kept',
+      '',
+      '  Worked for 2s • 10:00',
+      '',
+      '› Ask Codex to do anything',
+      '',
+      '  GPT · ~/x',
+    ].join('\n')
+    expect(parseScreen('codex', text, false)?.turns[0]?.reply).toEqual([
+      { kind: 'text', text: 'Steps:' },
+      { kind: 'list', items: ['Install', 'Run'], start: 3 },
+      { kind: 'list', items: ['Done', 'Kept'] },
+    ])
+  })
+
   test('an approval is a question whose options answer with their number', () => {
     const r = read('codex', 'codex-asking', true)
     expect(r.question).toEqual({
@@ -144,6 +169,28 @@ describe('claude', () => {
     ].join('\n')
     expect(parseScreen('claude', text, false)?.turns[0]?.reply).toEqual([
       { kind: 'text', text: 'The add function now\ntakes 2 arguments and returns their\nsum.' },
+    ])
+  })
+
+  test('a paragraph whose first line wraps onto words like a summary is still the reply', () => {
+    const rule = '─'.repeat(40)
+    const text = [
+      '❯ fix it',
+      '',
+      '⏺ Done.',
+      '',
+      '  Fixed 2 bugs in the parser and added',
+      '  tests for both.',
+      '',
+      '✻ Cooked for 3s',
+      '',
+      rule,
+      '❯ ',
+      rule,
+    ].join('\n')
+    expect(parseScreen('claude', text, false)?.turns[0]?.reply).toEqual([
+      { kind: 'text', text: 'Done.' },
+      { kind: 'text', text: 'Fixed 2 bugs in the parser and added\ntests for both.' },
     ])
   })
 

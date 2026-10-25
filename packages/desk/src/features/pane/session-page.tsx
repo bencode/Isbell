@@ -1,7 +1,7 @@
 // One session: what its agent shows, read from its screen as turns (or the screen text when it
 // cannot be read so), a way to answer or add to it, and the facts needed to reach it by hand.
 
-import { type Project, paneKey, type Session } from '@isbell/core'
+import { type Project, paneKey, type Session, settled } from '@isbell/core'
 import { SquareTerminal } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
@@ -69,7 +69,7 @@ function SessionView({
   // Earlier turns are read a page at a time from a gateway that pages, while the agent is still.
   const canPage =
     more &&
-    (session.status === 'idle' || session.status === 'done') &&
+    settled(session.status) &&
     !!view.machines.find(m => m.state.machine.id === mid)?.state.caps.methods.includes('isbell.agent.history')
 
   // Looking at a finished session marks it read.

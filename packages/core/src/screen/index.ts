@@ -8,7 +8,8 @@ import { codex } from './codex'
 export type Block =
   /** A paragraph, its line breaks kept: code arrives as plain lines too. */
   | { kind: 'text'; text: string }
-  | { kind: 'list'; items: string[] }
+  /** `start` is the first number of a numbered list. */
+  | { kind: 'list'; items: string[]; start?: number }
   | { kind: 'action'; verb: string; target: string; output: string[] }
 
 export type Turn = { prompt: string; reply: Block[]; took?: string; at?: string }
@@ -49,8 +50,10 @@ export type Grammar = {
   prompt: RegExp
   /** The first line of a reply item; captures its text. */
   item: RegExp
-  /** Sums up tool calls on a line of its own, after a blank one; it starts an item. */
+  /** Sums up tool calls in a paragraph of one line, or above their output; it starts an item. */
   summary?: RegExp
+  /** Where a tool call's output starts, under the call. */
+  output?: RegExp
   /** Ends a turn; the groups `took` and `at` capture what the agent shows. */
   end: RegExp
   /** An item that also ends its turn, such as an interruption. */
@@ -178,7 +181,7 @@ function readItems(g: Grammar, prompt: string | undefined, lines: string[]): Seg
         end = {}
         break
       }
-    } else if (g.summary?.test(line) && !lines[i - 1]) items.push({ head: line.trim(), rest: [] })
+    } else if (g.summary?.test(line) && alone(g, lines, i)) items.push({ head: line.trim(), rest: [] })
     else {
       const current = items.at(-1)
       if (current) current.rest.push(line)
@@ -186,6 +189,12 @@ function readItems(g: Grammar, prompt: string | undefined, lines: string[]): Seg
     }
   }
   return { ...(prompt === undefined ? {} : { prompt }), items, ...(end ? { end } : {}) }
+}
+
+/** Line `i` is a paragraph of its own, or heads a tool call's output: not part of the reply's text. */
+const alone = (g: Grammar, lines: string[], i: number) => {
+  const next = lines[i + 1]
+  return !lines[i - 1] && (!next || !!g.output?.test(next))
 }
 
 const timing = (groups: Record<string, string | undefined> | undefined) => ({
@@ -205,7 +214,8 @@ const blocks = (g: Grammar, items: Item[]): Block[] =>
     return action ? [action] : paragraphs([item.head, ...item.rest.map(dedent)])
   })
 
-const LIST_ITEM = /^(?:[•\-*]|\d+\.)\s+(.*)$/
+// A list item: a bullet, or a number such as "3.", then the item.
+const LIST_ITEM = /^(?:[•\-*]|(\d+)\.)\s+(.*)$/
 
 /** Paragraphs split at blank lines; one whose every line is a list item is a list. */
 function paragraphs(lines: string[]): Block[] {
@@ -217,13 +227,17 @@ function paragraphs(lines: string[]): Block[] {
     },
     [[]],
   )
-  return groups
-    .filter(p => p.length)
-    .map(p =>
-      p.every(l => LIST_ITEM.test(l))
-        ? { kind: 'list', items: p.map(l => LIST_ITEM.exec(l)?.[1] ?? l) }
-        : { kind: 'text', text: p.join('\n') },
-    )
+  return groups.filter(p => p.length).map(p => toList(p) ?? { kind: 'text', text: p.join('\n') })
+}
+
+/** The paragraph as a list, numbered when every item is. */
+function toList(p: string[]): Block | undefined {
+  const matches = p.map(l => LIST_ITEM.exec(l))
+  if (!matches.every(m => m)) return undefined
+  const items = matches.map(m => m?.[2] ?? '')
+  const numbers = matches.map(m => m?.[1])
+  const start = numbers.every(n => n !== undefined) ? Number(numbers[0]) : undefined
+  return { kind: 'list', items, ...(start === undefined ? {} : { start }) }
 }
 
 // A numbered option, maybe marked as chosen, maybe with its shortcut such as "(y)" or "(esc)".

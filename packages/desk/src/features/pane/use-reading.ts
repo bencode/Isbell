@@ -11,6 +11,7 @@ import {
   readHistory,
   readScreen,
   type Session,
+  settled,
   stitch,
 } from '@isbell/core'
 import { useEffect, useRef, useState } from 'react'
@@ -88,7 +89,7 @@ export function useReading(
   useEffect(() => {
     // herdr has a full-screen agent's scrollback only while it is idle or done; otherwise the
     // screen alone is read, and folded into what was read before.
-    const whole = status === 'idle' || status === 'done'
+    const whole = settled(status)
     const poll = status === 'working' || status === 'unknown'
     // Once the effect is over, its chain stops and a late answer is dropped.
     let live = true
@@ -144,5 +145,6 @@ export function useReading(
       .finally(() => setPaging(false))
   }
 
-  return { ...screen, paging, earlier, reread: () => setRound(n => n + 1) }
+  const { reading, text, error, more } = screen
+  return { reading, text, error, more, paging, earlier, reread: () => setRound(n => n + 1) }
 }

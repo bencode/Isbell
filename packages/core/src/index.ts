@@ -48,7 +48,14 @@ export {
   type SpaceView,
   type Via,
 } from './space'
-export type { Agent, AgentStatus, Caps, MachineInfo, MachineState } from './state'
+export {
+  type Agent,
+  type AgentStatus,
+  type Caps,
+  type MachineInfo,
+  type MachineState,
+  settled,
+} from './state'
 export {
   CallError,
   type DataFrame,

@@ -1,7 +1,7 @@
 // A session's screen as turns: one card per turn, headed by what was asked, then the reply with
 // its tool calls folded to a line each; the turn still going ends with what the agent is doing.
 
-import type { AgentStatus, Block, Reading, Turn } from '@isbell/core'
+import { type AgentStatus, type Block, type Reading, settled, type Turn } from '@isbell/core'
 import { ChevronRight, Copy } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
@@ -33,7 +33,7 @@ export function Turns({
   const t = useI18n()
   const { footer } = reading
   // What was still going when the agent stopped is past; a read after the stop replaces it.
-  const live = status === 'idle' || status === 'done' ? undefined : reading.live
+  const live = settled(status) ? undefined : reading.live
   const count = reading.turns.length + (live ? 1 : 0)
   return (
     <>
@@ -49,7 +49,7 @@ export function Turns({
         </span>
       </div>
       <Scope start={reading.start} terminal={terminal} onEarlier={onEarlier} paging={paging} more={more} />
-      {keyed(reading.turns, turn => turn.prompt).map(([key, turn]) => (
+      {keyed(reading.turns, turn => [turn.prompt, turn.at, turn.took].join('\n')).map(([key, turn]) => (
         <TurnCard key={key} turn={turn} />
       ))}
       {live ? (
@@ -183,18 +183,27 @@ function Reply({ blocks }: { blocks: Block[] }) {
         ))}
       </div>
     ) : run.kind === 'list' ? (
-      <ul key={key} className="m-0 list-disc pl-5 leading-[1.65]">
-        {keyed(run.items, item => item).map(([k, item]) => (
-          <li key={k} className="break-words">
-            {item}
-          </li>
-        ))}
-      </ul>
+      <List key={key} items={run.items} start={run.start} />
     ) : run.kind === 'text' ? (
       <p key={key} className="m-0 leading-[1.65] break-words whitespace-pre-wrap">
         {run.text}
       </p>
     ) : null,
+  )
+}
+
+function List({ items, start }: { items: string[]; start: number | undefined }) {
+  const lis = keyed(items, item => item).map(([k, item]) => (
+    <li key={k} className="break-words">
+      {item}
+    </li>
+  ))
+  return start === undefined ? (
+    <ul className="m-0 list-disc pl-5 leading-[1.65]">{lis}</ul>
+  ) : (
+    <ol start={start} className="m-0 list-decimal pl-6 leading-[1.65]">
+      {lis}
+    </ol>
   )
 }
 
@@ -251,9 +260,7 @@ function CopyReply({ blocks }: { blocks: Block[] }) {
   const t = useI18n()
   const [copied, setCopied] = useState(false)
   const text = blocks
-    .flatMap(b =>
-      b.kind === 'text' ? [b.text] : b.kind === 'list' ? [b.items.map(i => `- ${i}`).join('\n')] : [],
-    )
+    .flatMap(b => (b.kind === 'text' ? [b.text] : b.kind === 'list' ? [listText(b.items, b.start)] : []))
     .join('\n\n')
   if (!text) return null
   const copy = () =>
@@ -273,6 +280,9 @@ function CopyReply({ blocks }: { blocks: Block[] }) {
     </button>
   )
 }
+
+const listText = (items: string[], start: number | undefined) =>
+  items.map((item, i) => `${start === undefined ? '-' : `${start + i}.`} ${item}`).join('\n')
 
 /** Keys for a list from its items' content, numbered where the content repeats. */
 function keyed<T>(items: T[], keyOf: (item: T) => string): [string, T][] {

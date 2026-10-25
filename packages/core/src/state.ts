@@ -12,6 +12,9 @@ export type Caps = { methods: string[]; agentKinds: string[] }
 
 export type AgentStatus = 'idle' | 'working' | 'blocked' | 'done' | 'unknown'
 
+/** The agent is not running: idle, or done with its turn. herdr has its scrollback only then. */
+export const settled = (status: AgentStatus) => status === 'idle' || status === 'done'
+
 export type Agent = {
   paneId: string
   name?: string

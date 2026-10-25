@@ -13,19 +13,21 @@ const SUMMARY = new RegExp(`^ {2}${SUMMED}$`)
 const SUMMED_HEAD = new RegExp(`^${SUMMED}$`)
 const TOOL = /^([A-Z][A-Za-z]*)\((.*)\)$/
 const RULE = /^─{20,}$/
+const OUTPUT = /^\s*⎿\s+/
 
 export const claude: Grammar = {
   banner: /^╭─+ Claude Code/,
   prompt: /^❯ (.*)$/,
   item: /^⏺ (.*)$/,
   summary: SUMMARY,
+  output: OUTPUT,
   end: /^[✢✳✶✻✽*·] [A-Z][a-z]+ for (?<took>\d[\dhms ]*)$/,
   // The spinner while it works ("· Germinating… (34s · ↓ 1.7k tokens)", at first just
   // "· Sprouting…"), and tips under it.
   noise: [/^[✢✳✶✻✽*·] \S.*…(?: \(.*)?$/, /^\s+⎿\s+Tip: /],
   action: (head, rest): Block | undefined => {
     // Output hangs off "⎿  "; the lines after it line up five columns in.
-    const output = rest.map(l => l.replace(/^\s*⎿\s+/, '').replace(/^ {1,5}/, ''))
+    const output = rest.map(l => l.replace(OUTPUT, '').replace(/^ {1,5}/, ''))
     if (SUMMED_HEAD.test(head)) {
       const [verb = '', ...parts] = head.replace(/…$/, '').split(', ')
       return { kind: 'action', verb, target: parts.join(', '), output }
