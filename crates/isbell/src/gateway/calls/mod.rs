@@ -105,6 +105,12 @@ impl Calls {
                     link.send(response_frame(id, result));
                 });
             }
+            Method::History => {
+                self.tasks.spawn(async move {
+                    let result = async { rpc::history(&herdr?, p).await }.await;
+                    link.send(response_frame(id, result));
+                });
+            }
             Method::Terminal => {
                 let open = async move { terminal::open(&herdr?, p).await };
                 self.stream(link, id, open, terminal::pump);

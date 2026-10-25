@@ -65,7 +65,12 @@ function SessionView({
   const promptError = (useLocation().state as { promptError?: { msg: string } } | null)?.promptError
   const [ending, setEnding] = useState(false)
   const info = useLocal().layout.info
-  const { reading, text, error, reread } = useReading(mid, paneId, session)
+  const { reading, text, error, reread, earlier, paging, more } = useReading(mid, paneId, session)
+  // Earlier turns are read a page at a time from a gateway that pages, while the agent is still.
+  const canPage =
+    more &&
+    (session.status === 'idle' || session.status === 'done') &&
+    !!view.machines.find(m => m.state.machine.id === mid)?.state.caps.methods.includes('isbell.agent.history')
 
   // Looking at a finished session marks it read.
   useEffect(() => {
@@ -118,6 +123,9 @@ function SessionView({
                   status={session.status}
                   statusSince={session.statusSince}
                   terminal={terminal}
+                  onEarlier={canPage ? earlier : undefined}
+                  paging={paging}
+                  more={more}
                 />
               ) : text === null ? (
                 <p className="m-0 text-muted">{t('session.reading')}</p>

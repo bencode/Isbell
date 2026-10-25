@@ -32,6 +32,8 @@ export async function shells(call: Caller, mid: string): Promise<Shell[]> {
   })
 }
 
+const RECENT_LINES = 200
+
 /**
  * The pane's output as plain text: `recent` is its last lines with scrollback, each as the program
  * wrote it rather than wrapped to the pane; `visible` is the screen alone. herdr captures a
@@ -45,11 +47,31 @@ export async function readScreen(
 ): Promise<string> {
   const params =
     source === 'recent'
-      ? { target: paneId, source: 'recent_unwrapped', lines: 200 }
+      ? { target: paneId, source: 'recent_unwrapped', lines: RECENT_LINES }
       : { target: paneId, source }
   const r = (await herdr(call, mid, 'agent.read', params)) as { read?: { text?: string } }
-  return r.read?.text ?? ''
+  const text = r.read?.text ?? ''
+  if (source === 'visible') return text
+  // A read that stops inside the history can have the header an agent pins over its top line
+  // (Codex shows the prompt of the turn in view); a full read leaves that line out.
+  const lines = text.replace(/\n$/, '').split('\n')
+  return lines.length < RECENT_LINES ? text : lines.slice(1).join('\n')
 }
+
+export type History = { text: string; more: boolean }
+
+/**
+ * Up to `count` lines of the pane's history ending `skip` lines above its last, each as the agent
+ * wrote it, and whether earlier lines may remain. Only while the agent is idle or done.
+ */
+export const readHistory = async (
+  call: Caller,
+  mid: string,
+  paneId: string,
+  skip: number,
+  count: number,
+): Promise<History> =>
+  (await call(mid, 'isbell.agent.history', { target: paneId, skip, count }, HERDR_TIMEOUT_MS)) as History
 
 export const prompt = (call: Caller, mid: string, paneId: string, text: string) =>
   herdr(call, mid, 'agent.prompt', { target: paneId, text })

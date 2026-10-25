@@ -15,17 +15,26 @@ export function Turns({
   status,
   statusSince,
   terminal,
+  onEarlier,
+  paging,
+  more,
 }: {
   reading: Reading
   status: AgentStatus
   statusSince: number
   /** Where earlier turns can still be seen. */
   terminal: string
+  /** Reads earlier turns; absent while they cannot be read. */
+  onEarlier: (() => void) | undefined
+  paging: boolean
+  /** Whether earlier turns may remain. */
+  more: boolean
 }) {
   const t = useI18n()
   const { footer } = reading
   // What was still going when the agent stopped is past; a read after the stop replaces it.
   const live = status === 'idle' || status === 'done' ? undefined : reading.live
+  const count = reading.turns.length + (live ? 1 : 0)
   return (
     <>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -36,21 +45,10 @@ export function Turns({
           </span>
         ) : null}
         <span className="text-xs text-faint">
-          {t('chat.turns', { n: reading.turns.length + (live ? 1 : 0) })}
+          {count === 1 ? t('chat.oneTurn') : t('chat.turns', { n: count })}
         </span>
       </div>
-      <div className="flex items-center gap-2.5 text-xs text-faint before:flex-1 before:border-t before:border-dashed before:border-line-strong after:flex-1 after:border-t after:border-dashed after:border-line-strong">
-        {reading.start ? (
-          t('chat.start')
-        ) : (
-          <span>
-            {t('chat.earlier')} ·{' '}
-            <Link to={terminal} className="text-accent no-underline hover:underline">
-              {t('session.terminal')}
-            </Link>
-          </span>
-        )}
-      </div>
+      <Scope start={reading.start} terminal={terminal} onEarlier={onEarlier} paging={paging} more={more} />
       {keyed(reading.turns, turn => turn.prompt).map(([key, turn]) => (
         <TurnCard key={key} turn={turn} />
       ))}
@@ -58,6 +56,48 @@ export function Turns({
         <LiveTurn prompt={live.prompt} reply={live.reply} status={status} statusSince={statusSince} />
       ) : null}
     </>
+  )
+}
+
+/** Where the turns shown begin: the start of the session, or a way to what came before. */
+function Scope({
+  start,
+  terminal,
+  onEarlier,
+  paging,
+  more,
+}: {
+  start: boolean
+  terminal: string
+  onEarlier: (() => void) | undefined
+  paging: boolean
+  more: boolean
+}) {
+  const t = useI18n()
+  return (
+    <div className="flex items-center gap-2.5 text-xs text-faint before:flex-1 before:border-t before:border-dashed before:border-line-strong after:flex-1 after:border-t after:border-dashed after:border-line-strong">
+      {start ? (
+        t('chat.start')
+      ) : onEarlier ? (
+        <button
+          type="button"
+          onClick={onEarlier}
+          disabled={paging}
+          className="h-[26px] cursor-pointer rounded-full border border-line bg-raised px-3 text-xs font-medium text-accent enabled:hover:bg-raised-2 focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-default disabled:text-faint"
+        >
+          {paging ? t('chat.readingEarlier') : t('chat.showEarlier')}
+        </button>
+      ) : more ? (
+        <span>
+          {t('chat.earlier')} ·{' '}
+          <Link to={terminal} className="text-accent no-underline hover:underline">
+            {t('session.terminal')}
+          </Link>
+        </span>
+      ) : (
+        t('chat.noEarlier')
+      )}
+    </div>
   )
 }
 

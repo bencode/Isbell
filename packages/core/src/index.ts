@@ -4,8 +4,10 @@ export { decode, encode, type Frame, FrameError, type Header, type RpcError } fr
 export {
   type Caller,
   closePane,
+  type History,
   openShell,
   prompt,
+  readHistory,
   readScreen,
   type Shell,
   type Started,
@@ -37,6 +39,7 @@ export {
   type Reading,
   type Turn,
 } from './screen'
+export { stitch } from './screen/history'
 export {
   createSpace,
   type DirectStatus,

@@ -1,6 +1,6 @@
-//! The gateway's unary methods: allowlisted herdr methods passed through, and starting an agent in
-//! a workspace of its own. The allowlist guards against accidental remote misuse; holders of the
-//! space key are trusted.
+//! The gateway's unary methods: allowlisted herdr methods passed through, starting an agent in a
+//! workspace of its own, and reading an agent's history a page at a time. The allowlist guards
+//! against accidental remote misuse; holders of the space key are trusted.
 
 use std::time::{Duration, Instant};
 
@@ -29,6 +29,12 @@ const BUSY_RETRY_FOR: Duration = Duration::from_secs(10);
 const READY_WAIT_FOR: Duration = Duration::from_secs(30);
 const POLL_EVERY: Duration = Duration::from_millis(500);
 const MAX_NAME: usize = 28;
+const HISTORY_SOURCES: [&str; 2] = ["recent", "recent_unwrapped"];
+/// How far back a history page may reach, within the 4 MiB herdr answer.
+const MAX_LINES: usize = 20_000;
+const MAX_COUNT: usize = 500;
+/// A page stays well under the relay's 1 MiB message.
+const MAX_PAGE_BYTES: usize = 512 << 10;
 
 /// An allowlisted herdr method, called as is.
 pub async fn passthrough(herdr: &Herdr, p: Value) -> Result<Value, RpcError> {
@@ -43,14 +49,65 @@ pub async fn passthrough(herdr: &Herdr, p: Value) -> Result<Value, RpcError> {
         let msg = format!("{} is not allowed remotely", call.method);
         return Err(RpcError::new("method_not_allowed", msg));
     }
+    if reads_history(&call.method, &call.params) {
+        return Ok(herdr.read_history(&call.method, call.params).await?);
+    }
     let timeout = timeout_for(&call.method, &call.params);
     Ok(herdr.request(&call.method, call.params, timeout).await?)
+}
+
+fn reads_history(method: &str, params: &Value) -> bool {
+    matches!(method, "agent.read" | "pane.read")
+        && params["source"].as_str().is_some_and(|source| HISTORY_SOURCES.contains(&source))
 }
 
 /// Waiting calls run as long as herdr's own `timeout_ms` (or indefinitely); others get a default.
 fn timeout_for(method: &str, params: &Value) -> Option<Duration> {
     let waits = method == "agent.wait" || (method == "agent.prompt" && !params["wait"].is_null());
     (!waits).then_some(REQUEST_TIMEOUT)
+}
+
+#[derive(Deserialize)]
+struct History {
+    target: String,
+    skip: usize,
+    count: usize,
+}
+
+/// Up to `count` lines of the agent's history ending `skip` lines above its last, as the agent
+/// wrote them, and whether earlier lines may remain. herdr only has it while the agent is idle or
+/// done.
+pub async fn history(herdr: &Herdr, p: Value) -> Result<Value, RpcError> {
+    let req: History = serde_json::from_value(p).map_err(RpcError::bad_request)?;
+    if !(1..=MAX_COUNT).contains(&req.count) {
+        return Err(RpcError::new("bad_request", format!("count must be 1..={MAX_COUNT}")));
+    }
+    // A page stops at the furthest it may reach.
+    let count = req.count.min(MAX_LINES.saturating_sub(req.skip));
+    if count == 0 {
+        return Ok(json!({"text": "", "more": false}));
+    }
+    let params =
+        json!({"target": req.target, "source": "recent_unwrapped", "lines": req.skip + count});
+    let read = herdr.read_history("agent.read", params).await?;
+    let (text, more) = page(read["read"]["text"].as_str().unwrap_or_default(), req.skip, count);
+    if text.len() > MAX_PAGE_BYTES {
+        let msg = format!("the page is over {} KiB; ask for fewer lines", MAX_PAGE_BYTES >> 10);
+        return Err(RpcError::new("history_page_too_large", msg));
+    }
+    Ok(json!({"text": text, "more": more}))
+}
+
+/// The page out of `text`, the last `skip + count` lines herdr has (fewer when that is all). A
+/// read that stops inside the history can have the header an agent pins over its top line (Codex
+/// shows the prompt of the turn in view), so a page short of the start leaves that line out.
+fn page(text: &str, skip: usize, count: usize) -> (String, bool) {
+    let lines: Vec<&str> = text.lines().collect();
+    let reach = skip + count;
+    let inside = lines.len() >= reach;
+    let end = lines.len().saturating_sub(skip);
+    let start = end.saturating_sub(count).max(usize::from(inside));
+    (lines[start..end].join("\n"), inside && reach < MAX_LINES)
 }
 
 #[derive(Deserialize)]
@@ -187,6 +244,34 @@ mod tests {
         assert_eq!(timeout_for("agent.prompt", &json!({"wait": {}})), None);
         assert_eq!(timeout_for("agent.prompt", &json!({})), Some(REQUEST_TIMEOUT));
         assert_eq!(timeout_for("agent.read", &json!({})), Some(REQUEST_TIMEOUT));
+    }
+
+    #[test]
+    fn only_history_reads_take_turns() {
+        assert!(reads_history("agent.read", &json!({"source": "recent_unwrapped"})));
+        assert!(reads_history("pane.read", &json!({"source": "recent"})));
+        assert!(!reads_history("agent.read", &json!({"source": "visible"})));
+        assert!(!reads_history("agent.list", &json!({"source": "recent"})));
+    }
+
+    /// What herdr answers for the last `reach` of `total` lines: one that stops inside the
+    /// history has a pinned header over its top line.
+    fn herdr_read(total: usize, reach: usize) -> String {
+        let first = total.saturating_sub(reach) + 1;
+        let line =
+            |n: usize| if n == first && reach < total { "pinned".into() } else { n.to_string() };
+        (first..=total).map(|n| line(n) + "\n").collect()
+    }
+
+    #[test]
+    fn pages_count_back_from_the_last_line() {
+        assert_eq!(page(&herdr_read(10, 3), 0, 3), ("9\n10".into(), true));
+        assert_eq!(page(&herdr_read(10, 7), 3, 4), ("5\n6\n7".into(), true));
+        // herdr had fewer lines than asked for: this page reaches the start, top line and all.
+        assert_eq!(page(&herdr_read(10, 12), 8, 4), ("1\n2".into(), false));
+        assert_eq!(page(&herdr_read(10, 16), 12, 4), (String::new(), false));
+        // The furthest a page may reach leaves no page beyond it.
+        assert!(!page(&herdr_read(MAX_LINES + 5, MAX_LINES), MAX_LINES - 2, 2).1);
     }
 
     #[test]

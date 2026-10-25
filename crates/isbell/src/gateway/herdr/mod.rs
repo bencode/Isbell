@@ -66,6 +66,8 @@ pub struct Herdr {
     /// The herdr executable, for commands only its CLI offers (status, terminal sessions).
     bin: PathBuf,
     next_id: Arc<AtomicU64>,
+    /// herdr cuts a history read short while another runs, so they take turns.
+    history: Arc<tokio::sync::Mutex<()>>,
 }
 
 /// `$ISBELL_HERDR_BIN`, else `herdr` from PATH.
@@ -82,7 +84,7 @@ fn subscriptions(panes: &[String]) -> Value {
 
 impl Herdr {
     pub fn new(socket: PathBuf) -> Self {
-        Self { socket, bin: herdr_bin(), next_id: Arc::default() }
+        Self { socket, bin: herdr_bin(), next_id: Arc::default(), history: Arc::default() }
     }
 
     /// A herdr CLI command (e.g. `terminal session …`).
@@ -112,6 +114,12 @@ impl Herdr {
             (None, Some(error)) => Err(HerdrError::from_error(error)),
             _ => Err(HerdrError::protocol("malformed herdr response")),
         }
+    }
+
+    /// A read of a pane's history (`recent`, `recent_unwrapped`), one at a time.
+    pub async fn read_history(&self, method: &str, params: Value) -> Result<Value, HerdrError> {
+        let _turn = self.history.lock().await;
+        self.request(method, params, Some(REQUEST_TIMEOUT)).await
     }
 
     async fn exchange(&self, method: &str, params: Value) -> Result<Value, HerdrError> {
