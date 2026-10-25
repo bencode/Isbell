@@ -22,19 +22,20 @@ Status: early development, on Macs with Apple silicon.
 
 ## How it works
 
-```mermaid
-flowchart LR
-  B["Browser<br/>isbell.fmap.dev"]
-  subgraph S["Relay server · stores nothing"]
-    R[relay] --- D[("Redis<br/>memory only, expires")]
-  end
-  subgraph M["Each of your Macs"]
-    direction TB
-    G[gateway] --- H[herdr] --- A["agents<br/>Codex · Claude Code"]
-  end
-  B -- "WSS: status, small calls" --> R
-  R <-- "WSS, dialled out by the gateway" --> G
-  B <-. "WebRTC direct: terminal, files<br/>(through the relay when it fails)" .-> G
+```text
++----------------------- relay server -------------------------+
+|  relay <--> Redis: in memory only, every key expires         |
+|  stores no user data, logs no message content                |
++-----^---------------------------------------------^----------+
+      |                                             |
+      | WSS: status,                                | WSS, dialled out
+      | small calls                                 | by the gateway
+      |                                             |
++-----+--------------+                 +------------+---------------+
+| Browser            |     WebRTC      | Each of your Macs          |
+| isbell.fmap.dev    |<===============>| gateway -- herdr -- agents |
++--------------------+     direct      +----------------------------+
+     terminal and files go direct; through the relay only if that fails
 ```
 
 - **No user data on the server**
