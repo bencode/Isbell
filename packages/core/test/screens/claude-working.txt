@@ -1,0 +1,40 @@
+
+╭─── Claude Code v2.1.197 ────────────────────────────────────────────────────────────────────────────────────────────╮
+│                                     │ Tips for getting started                                                      │
+│            Welcome back!            │ Run /init to create a CLAUDE.md file with instructions for Claude             │
+│                                     │ ───────────────────────────────────────────────────────────────────────────── │
+│               ▐▛███▜▌               │ What's new                                                                    │
+│              ▝▜█████▛▘              │ Added the Monitor tool and plugin monitors on Bedrock, Vertex, and Foundry, … │
+│                ▘▘ ▝▝                │ Fixed requests failing behind some gateways and compatible servers that reje… │
+│                                     │ Fixed background cleanup deleting some recent files, such as pasted images, … │
+│   glm-5.3[1m] · API Usage Billing   │ /release-notes for more                                                       │
+│         ~/isbell-scratch/n7         │                                                                               │
+╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+
+❯ 读一下 notes.md，用列表总结里面的内容，再给一个 python 代码块把表格解析成字典。不要改文件。
+
+  Thinking for 24s, reading 1 file, running 1 shell command…
+  ⎿  $ python3 - <<'EOF'
+     from pathlib import Path
+     md = Path("/Users/me/isbell-scratch/n7/notes.md").read_text()
+     def parse_tide_table(md: str) -> dict[str, dict[str, str]]:
+     rows = [
+     [cell.strip() for cell in line.strip().strip("|").split("|")]
+     for line in md.splitlines()
+     if line.strip().startswith("…
+
+
+
+
+
+
+
+
+· Germinating… (34s · ↓ 1.7k tokens)
+  ⎿  Tip: Use /btw to ask a quick side question without interrupting Claude's current work
+                                                                                    ✘ Auto-update failed · Run /doctor
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ⏵⏵ auto mode on (shift+tab to cycle) · esc to interrupt · ← for agents

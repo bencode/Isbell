@@ -1,0 +1,40 @@
+› 读一下 calc.py，用列表说说有什么问题，再给出修正后的代码块。先不要改文件。
+
+• 问题：
+
+  • add(a, b) 应执行加法，但当前返回 a - b，实现与函数名不符。
+
+  修正后的代码：
+
+  def add(a, b):
+      return a + b
+
+  未修改文件。
+
+  Worked for 7s • 19:30
+
+
+› 运行 python3 -c "import calc; print(calc.add(2, 3))" 看看结果，然后把 add 修好，再运行一次确认。
+
+
+• 我会先按原命令复现结果，再只修改 calc.py 中的运算符，最后重复运行验证。
+
+• Ran python3 -c "import calc; print(calc.add(2, 3))"
+  └ -1
+
+• Edited calc.py (+1 -1)
+    2 -    return a - b
+    2 +    return a + b
+    + Show details
+
+• Ran python3 -c "import calc; print(calc.add(2, 3))"
+  └ 5
+
+• 已修复 calc.py (calc.py:2)。
+  • 修
+
+
+› Ask Codex to do anything
+
+  GPT-5.6-Sol high · ~/isbell-scratch/n7 · 检查 calc.py 并提出修正
+  ← for agents · ? for shortcuts

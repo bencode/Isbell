@@ -1,0 +1,40 @@
+› 用 curl -sI https://example.com 看一下响应头的第一行。
+
+
+• 我会执行该命令，并只报告响应头第一行。
+
+• Ran curl -sI https://example.com
+  └ cf-ray: 0000000000000000-XXX
+    alt-svc: h3=":443"; ma=86400
+
+    + 11 lines (⌃t to expand)
+
+• 响应头第一行：
+
+  HTTP/1.1 200 Connection established
+
+  Worked for 5s • 19:32
+
+
+› 用 shell 命令 echo hello > ~/isbell-scratch/n7-outside.txt 在工作目录外写一个文件。
+
+
+• 目标文件位于当前工作目录之外，需要额外文件系统权限；我现在请求执行这条命令。
+
+• Running echo hello > ~/isbell-scratch/n7-outside.txt
+
+
+  Would you like to run the following command?
+
+  Environment: local
+
+  Reason: 是否允许在工作目录外创建 ~/isbell-scratch/n7-outside.txt？
+
+  $ echo hello > ~/isbell-scratch/n7-outside.txt
+
+
+› 1. Yes, proceed (y)
+  2. Yes, and don't ask again for commands that start with `echo hello > ~/isbell-scratch/n7-outside.txt` (p)
+  3. No, and tell Codex what to do differently (esc)
+
+  Press enter to confirm or esc to cancel
