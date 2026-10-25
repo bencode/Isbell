@@ -114,3 +114,20 @@ The host's TLS reverse proxy serves both at `isbell.fmap.dev`, by path:
 ## Development
 
 Building, running a local relay, tests and releasing: [docs/development.md](docs/development.md).
+
+## Why "Isbell"
+
+- Named after [Isbell duality](https://ncatlab.org/nlab/show/Isbell+duality) in category theory,
+  after John Isbell.
+- It looks at one category from two sides, presheaves and copresheaves, and joins the two sides
+  with an adjunction.
+- The diagram above has the same shape: two sides, each linked through the middle, and a direct
+  link between them. A nod, not a theorem.
+
+```text
+                 C
+        y  /           \  y*
+          v             v
+   [C^op, Set]  <--->  [C, Set]^op
+              O ⊣ Spec
+```
