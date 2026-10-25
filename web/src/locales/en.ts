@@ -216,7 +216,7 @@ export const en = {
   'join.new': 'New to Isbell?',
   'join.what':
     'Isbell opens the AI agents you run in herdr on your own machines from any browser: chat with them, answer what they ask, or take over their terminal.',
-  'join.install': 'Install herdr and isbell on a machine.',
+  'join.install': 'Install isbell (and herdr, if it is missing) on a Mac with Apple silicon.',
   'join.readme': 'How to install',
   'join.init': 'Create your space; it prints the key.',
   'join.gateway': "Let your browser reach that machine's agents.",

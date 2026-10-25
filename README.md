@@ -9,7 +9,7 @@ start new ones, or take over their terminal.
 
 ![The board: two projects on one machine, a session asking and one working](docs/board.png)
 
-Status: early development. macOS is what it runs on and is tested on today.
+Status: early development. It runs on, and is tested on, Macs with Apple silicon.
 
 ## How it works
 
@@ -30,13 +30,24 @@ Redis keeps no data on disk.
 
 ## Install
 
-1. Install herdr: <https://github.com/herdrdev/herdr>.
-2. Install Rust: <https://rustup.rs>.
-3. Install isbell:
+On a Mac with Apple silicon:
 
-   ```bash
-   cargo install --git https://github.com/bencode/Isbell --locked isbell
-   ```
+```bash
+curl -fsSL https://isbell.fmap.dev/install.sh | sh
+```
+
+It installs the latest release to `~/.local/bin/isbell` after checking its checksum. Run it again
+to upgrade: it replaces the binary and restarts the gateway service if one runs it. When
+[herdr](https://github.com/herdrdev/herdr) is missing, it offers herdr's own installer.
+`ISBELL_VERSION=v0.1.0` before `sh` installs that release instead, to go back to it.
+
+### From source
+
+Elsewhere, or to run what is on `main`, with Rust (<https://rustup.rs>) and herdr installed:
+
+```bash
+cargo install --git https://github.com/bencode/Isbell --locked isbell
+```
 
 ## Quick start
 

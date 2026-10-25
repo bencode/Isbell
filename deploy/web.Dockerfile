@@ -12,3 +12,5 @@ RUN pnpm build
 FROM caddy:2-alpine
 COPY deploy/web.Caddyfile /etc/caddy/Caddyfile
 COPY --from=build /src/dist /srv
+# Served at /install.sh, so installing and upgrading is one command.
+COPY install.sh /srv/install.sh

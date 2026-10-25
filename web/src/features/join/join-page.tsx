@@ -111,6 +111,9 @@ function NewHere() {
           <a href={`${REPO}#install`} target="_blank" rel="noreferrer" className="text-accent">
             {t('join.readme')}
           </a>
+          <div className="mt-1.5">
+            <Command text="curl -fsSL https://isbell.fmap.dev/install.sh | sh" labels={labels} />
+          </div>
         </li>
         <li>
           {t('join.init')}

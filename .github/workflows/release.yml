@@ -1,0 +1,35 @@
+# A tag v<version> builds isbell for Apple silicon Macs and publishes it as a GitHub release, which
+# install.sh downloads. The asset names carry no version, so releases/latest/download finds them.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  macos-arm64:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the tag names the crate's version
+        run: |
+          version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "isbell") | .version')
+          test "${GITHUB_REF_NAME#v}" = "$version" || { echo "tag $GITHUB_REF_NAME, crate $version"; exit 1; }
+
+      - run: cargo build --release --locked -p isbell
+
+      - name: Package
+        run: |
+          tar -C target/release -czf isbell-aarch64-apple-darwin.tar.gz isbell
+          shasum -a 256 isbell-aarch64-apple-darwin.tar.gz > isbell-aarch64-apple-darwin.tar.gz.sha256
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --generate-notes \
+            isbell-aarch64-apple-darwin.tar.gz isbell-aarch64-apple-darwin.tar.gz.sha256

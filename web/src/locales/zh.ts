@@ -214,7 +214,7 @@ export const zh: Record<Key, string> = {
   'join.new': '第一次用 Isbell？',
   'join.what':
     'Isbell 让你在任何浏览器里使用自己机器上、跑在 herdr 里的 AI agent：和它们对话、回答它们的提问，或者直接接管终端。',
-  'join.install': '在一台机器上安装 herdr 和 isbell。',
+  'join.install': '在 Apple 芯片的 Mac 上安装 isbell（缺少 herdr 时会一起装上）。',
   'join.readme': '安装说明',
   'join.init': '创建你的空间，它会打印出密钥。',
   'join.gateway': '让浏览器能连到这台机器上的 agent。',
