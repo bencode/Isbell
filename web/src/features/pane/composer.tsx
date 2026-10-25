@@ -43,7 +43,7 @@ export function Composer({ mid, paneId, onSent }: { mid: string; paneId: string;
         />
         <Button variant="primary" onClick={() => void send()} disabled={!text.trim() || busy}>
           {t('composer.send')}
-          <span className="font-mono text-[11px] opacity-70">⌘↵</span>
+          <span className="font-mono text-[11px] opacity-70">↵</span>
         </Button>
       </div>
       {error ? <p className="m-0 text-[13px] text-danger">{error}</p> : null}

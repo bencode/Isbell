@@ -21,9 +21,10 @@ export function useShortcuts(keys: Record<string, (e: KeyboardEvent) => void>, e
   }, [enabled])
 }
 
-/** ⌘↵ (Ctrl+↵ elsewhere) in a text field submits it. */
+/** ↵ submits a text field and ⇧↵ starts a new line; ⌘↵ (Ctrl+↵) submits as well. While an input
+ * method is composing, ↵ picks its candidate instead (Safari reports that ↵ as keyCode 229). */
 export const onSubmitKey = (submit: () => void) => (e: ReactKeyboardEvent<HTMLElement>) => {
-  if (e.key !== 'Enter' || !(e.metaKey || e.ctrlKey)) return
+  if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing || e.keyCode === 229) return
   e.preventDefault()
   submit()
 }

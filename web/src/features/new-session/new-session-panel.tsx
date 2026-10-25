@@ -147,7 +147,7 @@ function Form({ onOpenChange, focusedKey, onAddProject }: Omit<Props, 'open'>) {
           </Button>
           <Button variant="primary" onClick={start} disabled={!project || !kind || busy}>
             {t(busy ? going : go)}
-            {chat ? <span className="font-mono text-[11px] opacity-70">⌘↵</span> : null}
+            {chat ? <span className="font-mono text-[11px] opacity-70">↵</span> : null}
           </Button>
         </>
       }
