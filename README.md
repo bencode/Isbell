@@ -29,11 +29,12 @@ flowchart LR
     R[relay] --- D[("Redis<br/>memory only, expires")]
   end
   subgraph M["Each of your Macs"]
+    direction TB
     G[gateway] --- H[herdr] --- A["agents<br/>Codex · Claude Code"]
   end
-  B -- "WSS: sign-in, status, small calls" --> R
-  G -- "WSS, dials out" --> R
-  B <-. "WebRTC direct: terminal, files<br/>through the relay when it fails" .-> G
+  B -- "WSS: status, small calls" --> R
+  R <-- "WSS, dialled out by the gateway" --> G
+  B <-. "WebRTC direct: terminal, files<br/>(through the relay when it fails)" .-> G
 ```
 
 - **No user data on the server**
