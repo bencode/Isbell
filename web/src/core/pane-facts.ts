@@ -3,28 +3,12 @@
 
 import type { ConnStatus } from '../model/connection'
 import type { LinkStats } from '../model/direct'
-import type { Shell } from '../model/herdr'
 import type { Endpoint } from '../model/path'
-import type { Project, Session } from '../model/projects'
+import type { Pane, Project } from '../model/projects'
 import type { DirectStatus, Via } from '../model/space'
 import { shellArg } from '../utils/shell'
 import { since } from '../utils/time'
 import { errorText, type T } from './i18n'
-
-export type Pane = { session: Session } | { shell: Shell }
-
-export type Found = { project: Project; name: string; pane: Pane }
-
-/** The project a pane belongs to, and what to call it: the agent's name, or the shell's title. */
-export const locate = (projects: Project[], mid: string, paneId: string): Found | undefined =>
-  projects
-    .filter(p => p.mid === mid)
-    .flatMap((project): Found[] => {
-      const session = project.sessions.find(s => s.paneId === paneId)
-      const shell = project.shells.find(s => s.paneId === paneId)
-      if (session) return [{ project, name: session.name, pane: { session } }]
-      return shell ? [{ project, name: shell.title ?? paneId, pane: { shell } }] : []
-    })[0]
 
 /** How to reach a pane by hand: an agent by its name, as the session page shows it; a shell by its pane. */
 export const attachCommand = (project: Project, pane: Pane) =>

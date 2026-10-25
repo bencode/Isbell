@@ -113,6 +113,21 @@ export const needs = (projects: Project[]): Session[] =>
         Number(b.status === 'blocked') - Number(a.status === 'blocked') || b.statusSince - a.statusSince,
     )
 
+export type Pane = { session: Session } | { shell: Shell }
+
+export type Found = { project: Project; name: string; pane: Pane }
+
+/** The project a pane belongs to, and what to call it: the agent's name, or the shell's title. */
+export const locate = (projects: Project[], mid: string, paneId: string): Found | undefined =>
+  projects
+    .filter(p => p.mid === mid)
+    .flatMap((project): Found[] => {
+      const session = project.sessions.find(s => s.paneId === paneId)
+      const shell = project.shells.find(s => s.paneId === paneId)
+      if (session) return [{ project, name: session.name, pane: { session } }]
+      return shell ? [{ project, name: shell.title ?? paneId, pane: { shell } }] : []
+    })[0]
+
 export type AddJudgement =
   | { kind: 'none' }
   | { kind: 'bad' }

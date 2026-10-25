@@ -11,6 +11,10 @@ import type { Opened, StreamEvents } from './streams'
 
 export type MachineEntry = { state: MachineState; online: boolean }
 
+/** The machine `mid` as the space last heard of it. */
+export const machineOf = (machines: MachineEntry[], mid: string) =>
+  machines.find(m => m.state.machine.id === mid)
+
 /** How a stream reaches its machine. */
 export type Via = 'relay' | Path
 

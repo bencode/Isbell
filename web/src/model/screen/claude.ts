@@ -3,7 +3,7 @@
 // "✻ Cooked for 39s" closing a turn, and the input box between two rules at the bottom, where a
 // permission question takes its place while it waits.
 
-import type { Block, Grammar } from './index'
+import type { Block, Grammar } from './types'
 
 // "Thought for 26s", "read 1 file", "ran 1 shell command": the parts of a summary line.
 const PART = String.raw`(?:(?:Thought|Thinking) for \d[\dhms ]*|[A-Za-z]+ \d+ [a-z][a-z ]*)`

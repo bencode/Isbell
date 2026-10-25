@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, test } from 'vitest'
-import { mergeReading, parseScreen, type Reading } from './index'
+import { mergeReading, parseScreen } from './index'
+import type { Reading } from './types'
 
 // Screens recorded from real panes with `herdr agent read`: `recent-unwrapped` once the agent had
 // finished (done), `visible` while it worked or asked.

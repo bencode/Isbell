@@ -4,7 +4,7 @@ import { Button } from '../../components/button'
 import { errorText, useI18n } from '../../core/i18n'
 import { useSpace } from '../../core/space'
 import { sendKeys } from '../../model/herdr'
-import type { Question } from '../../model/screen'
+import type { Question } from '../../model/screen/types'
 
 /** The keys an agent's question usually takes: its numbered choices, or Esc to back out. */
 const KEYS: [label: string, key: string][] = [

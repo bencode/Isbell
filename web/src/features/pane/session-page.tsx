@@ -11,6 +11,7 @@ import { attachCommand, connectionFacts, paneFacts } from '../../core/pane-facts
 import { getLocal, updateLocal, useLocal } from '../../core/prefs'
 import { RELAY_URL, useProjects, useSpaceView } from '../../core/space'
 import { type Project, paneKey, type Session } from '../../model/projects'
+import { machineOf } from '../../model/space'
 import { settled } from '../../model/state'
 import { projectHref, terminalHref } from '../../utils/hrefs'
 import { useNow } from '../../utils/time'
@@ -71,7 +72,7 @@ function SessionView({
   const canPage =
     more &&
     settled(session.status) &&
-    !!view.machines.find(m => m.state.machine.id === mid)?.state.caps.methods.includes('isbell.agent.history')
+    !!machineOf(view.machines, mid)?.state.caps.methods.includes('isbell.agent.history')
 
   // Looking at a finished session marks it read.
   useEffect(() => {

@@ -12,7 +12,7 @@ import { NeedsSection, SessionCard } from './session-card'
 const FILTERS: AgentStatus[] = ['blocked', 'working', 'done', 'idle']
 
 /** The project the board is focused on, from the route. */
-export function useFocused(projects: Project[]): Project | undefined {
+function useFocused(projects: Project[]): Project | undefined {
   const { key } = useParams()
   return key ? projects.find(p => p.key === key) : undefined
 }

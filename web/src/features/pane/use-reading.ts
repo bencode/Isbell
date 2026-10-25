@@ -7,8 +7,9 @@ import { useEffect, useRef, useState } from 'react'
 import { useSpace } from '../../core/space'
 import { type History, readHistory, readScreen } from '../../model/herdr'
 import type { Session } from '../../model/projects'
-import { mergeReading, parseScreen, type Reading } from '../../model/screen'
+import { mergeReading, parseScreen } from '../../model/screen'
 import { stitch } from '../../model/screen/history'
+import type { Reading } from '../../model/screen/types'
 import { settled } from '../../model/state'
 
 const READ_EVERY_MS = 2_000

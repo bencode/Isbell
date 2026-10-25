@@ -13,7 +13,7 @@ import { getLocal, updateLocal } from '../../core/prefs'
 import { useProjects, useSpace, useSpaceView } from '../../core/space'
 import { openShell, type Started, startAgent } from '../../model/herdr'
 import type { Project } from '../../model/projects'
-import type { Space } from '../../model/space'
+import { machineOf, type Space } from '../../model/space'
 import { sessionHref, terminalHref } from '../../utils/hrefs'
 import { onSubmitKey } from '../../utils/shortcuts'
 
@@ -72,10 +72,7 @@ function Form({ onOpenChange, focusedKey, onAddProject }: Omit<Props, 'open'>) {
   const [key, setKey] = useState(startable.some(p => p.key === focusedKey) ? (focusedKey ?? null) : null)
   const project = startable.find(p => p.key === key)
   const kinds = project
-    ? agentsFor(
-        view.machines.find(m => m.state.machine.id === project.mid)?.state.caps.agentKinds ?? [],
-        getLocal().recentAgents,
-      )
+    ? agentsFor(machineOf(view.machines, project.mid)?.state.caps.agentKinds ?? [], getLocal().recentAgents)
     : []
   const [mode, setMode] = useState<Mode>('chat')
   const chat = mode === 'chat'

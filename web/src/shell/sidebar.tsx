@@ -13,14 +13,14 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router'
 import { Button } from '../components/button'
-import { type Key, useI18n } from '../core/i18n'
+import { useI18n } from '../core/i18n'
 import { toggleFolded, toggleRail, useLocal } from '../core/prefs'
 import type { ConnStatus } from '../model/connection'
 import { needs, type Project, paneKey } from '../model/projects'
 import type { MachineEntry } from '../model/space'
-import type { AgentStatus } from '../model/state'
 import { projectHref, sessionHref, terminalHref } from '../utils/hrefs'
 import { since, useNow } from '../utils/time'
+import { AskBadge, asking, MachineDot, RelayStatus, StatusDot } from './marks'
 
 /** Where the route points: a project's board, or a pane (by `paneKey`) inside some project. */
 export type Here = { project: Project | undefined; pane: string | undefined }
@@ -38,59 +38,6 @@ const ROW =
   'flex min-h-[30px] items-center gap-2 rounded-md px-2 text-text no-underline hover:bg-raised focus-visible:outline-2 focus-visible:outline-accent'
 // The row the page is on.
 const ON = 'bg-accent-soft'
-
-export function AskBadge({ n, label, className = '' }: { n: number; label: string; className?: string }) {
-  return (
-    <span
-      title={label}
-      className={`inline-flex h-[18px] min-w-[18px] flex-none items-center justify-center rounded-full bg-warn px-1 text-[11px] font-bold text-accent-ink ${className}`}
-    >
-      {n}
-      <span className="sr-only">{label}</span>
-    </span>
-  )
-}
-
-const DOT: Record<AgentStatus, string> = {
-  blocked: 'bg-warn',
-  working: 'bg-ok',
-  done: 'bg-ok',
-  idle: 'border-[1.5px] border-faint',
-  unknown: 'border-[1.5px] border-faint',
-}
-
-export const StatusDot = ({ status }: { status: AgentStatus }) => (
-  <span className={`size-[7px] flex-none rounded-full ${DOT[status]}`} />
-)
-
-const RELAY: Record<ConnStatus, { key: Key; dot: string }> = {
-  connecting: { key: 'side.relay.connecting', dot: 'border-[1.5px] border-faint' },
-  open: { key: 'side.relay.open', dot: 'bg-ok' },
-  reconnecting: { key: 'side.relay.reconnecting', dot: 'bg-warn' },
-  rejected: { key: 'side.relay.rejected', dot: 'bg-danger' },
-}
-
-/** How the relay connection is doing; `compact` keeps only the dot, with the words as its title. */
-export function RelayStatus({ status, compact }: { status: ConnStatus; compact?: boolean }) {
-  const t = useI18n()
-  const { key, dot } = RELAY[status]
-  const mark = <span className={`size-2 flex-none rounded-full ${dot}`} />
-  if (compact)
-    return (
-      <span title={t(key)} className="inline-flex size-9 items-center justify-center">
-        {mark}
-        <span className="sr-only">{t(key)}</span>
-      </span>
-    )
-  return (
-    <span className="flex items-center gap-2.5 px-2 py-1 text-[12.5px] text-muted">
-      {mark}
-      {t(key)}
-    </span>
-  )
-}
-
-export const asking = (p: Project) => p.sessions.filter(s => s.status === 'blocked').length
 
 export function Sidebar({
   projects,
@@ -160,9 +107,7 @@ export function Sidebar({
           const note = !online ? t('side.offline') : herdr === 'ready' ? '' : t(`side.herdr.${herdr}`)
           return (
             <span key={state.machine.id} className="flex items-center gap-2.5 px-2 py-0.5 text-[13px]">
-              <span
-                className={`size-2 flex-none rounded-full ${!online ? 'border-[1.5px] border-faint' : herdr === 'ready' ? 'bg-ok' : 'bg-warn'}`}
-              />
+              <MachineDot online={online} ready={herdr === 'ready'} />
               <span className="min-w-0 flex-1 truncate">{state.machine.name}</span>
               {note ? <span className="text-xs text-faint">{note}</span> : null}
             </span>

@@ -7,9 +7,8 @@ import { Button } from '../../components/button'
 import { StatusChip } from '../../components/chip'
 import { InfoToggle } from '../../components/info-panel'
 import { useI18n } from '../../core/i18n'
-import type { Found } from '../../core/pane-facts'
 import { rememberView, toggleInfo, useLocal } from '../../core/prefs'
-import { paneKey } from '../../model/projects'
+import { type Found, paneKey } from '../../model/projects'
 import { projectHref, sessionHref, terminalHref } from '../../utils/hrefs'
 
 const VIEW =

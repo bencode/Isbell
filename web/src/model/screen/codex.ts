@@ -2,7 +2,7 @@
 // "Worked for 7s • 19:30" closing a turn, and the input box with the status line at the bottom,
 // where an approval takes their place while it waits.
 
-import type { Block, Grammar } from './index'
+import type { Block, Grammar } from './types'
 
 const VERBS =
   /^(Ran|Running|Explored|Exploring|Edited|Editing|Added|Deleted|Updated|Read|Searched|Exited|Waited|Called|Calling)\b\s*(.*)$/
