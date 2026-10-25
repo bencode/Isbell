@@ -213,6 +213,14 @@ export const en = {
   'join.encoding': 'That is not a whole key. Check for a missing character.',
   'join.checksum': 'That key failed its checksum. Check for a mistyped character.',
   'join.rejected': 'The relay did not accept this key.',
+  'join.new': 'New to Isbell?',
+  'join.what':
+    'Isbell opens the AI agents you run in herdr on your own machines from any browser: chat with them, answer what they ask, or take over their terminal.',
+  'join.install': 'Install herdr and isbell on a machine.',
+  'join.readme': 'How to install',
+  'join.init': 'Create your space; it prints the key.',
+  'join.gateway': "Let your browser reach that machine's agents.",
+  'join.then': 'Then paste the key above. The key stays in this browser and on your machines.',
 
   'notify.blocked': '{name} needs you',
   'notify.done': '{name} finished',

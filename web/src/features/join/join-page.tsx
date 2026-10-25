@@ -3,7 +3,8 @@
 import { SquareTerminal } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '../../components/button'
-import { type Key, useI18n } from '../../core/i18n'
+import { Command } from '../../components/command'
+import { type Key, uiLabels, useI18n } from '../../core/i18n'
 import { updateLocal } from '../../core/prefs'
 import { KeyError, parseKey } from '../../model/identity'
 
@@ -14,6 +15,8 @@ export function takeKeyFromLink(): string | null {
   history.replaceState(history.state, '', window.location.pathname + window.location.search)
   return decodeURIComponent(match[1])
 }
+
+const REPO = 'https://github.com/bencode/Isbell'
 
 const REASON: Record<KeyError['reason'], Key> = {
   prefix: 'join.prefix',
@@ -46,9 +49,9 @@ export function Join({
   }
 
   return (
-    <div className="flex h-full items-center justify-center p-4">
+    <div className="flex h-full flex-col items-center gap-4 overflow-y-auto p-4">
       <form
-        className="flex w-[min(480px,100%)] flex-col gap-4 rounded-xl border border-line bg-raised p-6"
+        className="mt-auto flex w-[min(480px,100%)] flex-col gap-4 rounded-xl border border-line bg-raised p-6"
         onSubmit={e => {
           e.preventDefault()
           join()
@@ -89,6 +92,40 @@ export function Join({
           </Button>
         </div>
       </form>
+      <NewHere />
     </div>
+  )
+}
+
+/** For someone without a key yet: what Isbell is, and the steps that give them one. */
+function NewHere() {
+  const t = useI18n()
+  const labels = uiLabels(t)
+  return (
+    <section className="mb-auto flex w-[min(480px,100%)] flex-col gap-3 rounded-xl border border-line p-6">
+      <h2 className="m-0 text-base font-semibold">{t('join.new')}</h2>
+      <p className="m-0 text-muted">{t('join.what')}</p>
+      <ol className="m-0 flex list-decimal flex-col gap-2.5 pl-5 marker:text-faint">
+        <li>
+          {t('join.install')}{' '}
+          <a href={`${REPO}#install`} target="_blank" rel="noreferrer" className="text-accent">
+            {t('join.readme')}
+          </a>
+        </li>
+        <li>
+          {t('join.init')}
+          <div className="mt-1.5">
+            <Command text="isbell space init" labels={labels} />
+          </div>
+        </li>
+        <li>
+          {t('join.gateway')}
+          <div className="mt-1.5">
+            <Command text="isbell gateway install" labels={labels} />
+          </div>
+        </li>
+      </ol>
+      <p className="m-0 text-[13px] text-muted">{t('join.then')}</p>
+    </section>
   )
 }

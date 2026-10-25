@@ -211,6 +211,14 @@ export const zh: Record<Key, string> = {
   'join.encoding': '这不是一个完整的密钥，请检查是否少了字符。',
   'join.checksum': '密钥校验没通过，请检查是否有字符打错。',
   'join.rejected': 'relay 没有接受这个密钥。',
+  'join.new': '第一次用 Isbell？',
+  'join.what':
+    'Isbell 让你在任何浏览器里使用自己机器上、跑在 herdr 里的 AI agent：和它们对话、回答它们的提问，或者直接接管终端。',
+  'join.install': '在一台机器上安装 herdr 和 isbell。',
+  'join.readme': '安装说明',
+  'join.init': '创建你的空间，它会打印出密钥。',
+  'join.gateway': '让浏览器能连到这台机器上的 agent。',
+  'join.then': '然后把密钥粘贴到上面。密钥只保存在这个浏览器和你的机器上。',
 
   'notify.blocked': '{name} 在等你',
   'notify.done': '{name} 做完了',
