@@ -97,11 +97,12 @@ cargo fmt --all --check
 
 ### Web
 
-Requirements: Node 24, pnpm 10. `packages/core` holds the protocol, the space connection and the
-project model; `packages/desk` is the desktop workbench (React, Vite, Tailwind, Base UI).
-How the packages and an app's source are layered: [packages/ARCHITECTURE.md](packages/ARCHITECTURE.md).
+Requirements: Node 24, pnpm 10. `web/` is the web app (React, Vite, Tailwind, Base UI); its
+`src/model/` holds the protocol, the space connection, the project model and screen reading, with
+no React. How its source is layered: [web/ARCHITECTURE.md](web/ARCHITECTURE.md).
 
 ```bash
+cd web
 pnpm install
 pnpm dev                                               # workbench on http://localhost:5173
 VITE_RELAY_URL=ws://localhost:8787/v1/ws pnpm dev      # against a local relay

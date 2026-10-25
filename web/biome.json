@@ -1,0 +1,53 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.6.2/schema.json",
+  "files": { "includes": ["**", "!**/dist"] },
+  "css": { "parser": { "tailwindDirectives": true } },
+  "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 110 },
+  "javascript": {
+    "formatter": { "quoteStyle": "single", "semicolons": "asNeeded", "arrowParentheses": "asNeeded" }
+  },
+  "linter": {
+    "rules": {
+      "recommended": true,
+      "suspicious": { "noExplicitAny": "error" },
+      "style": { "noDefaultExport": "error", "useImportType": "error" }
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["src/model/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "paths": {
+                  "react": "model/ has no React; the app's layers build on it.",
+                  "react-dom": "model/ has no React; the app's layers build on it.",
+                  "react-router": "model/ has no React; the app's layers build on it.",
+                  "lucide-react": "model/ has no React; the app's layers build on it."
+                },
+                "patterns": [
+                  {
+                    "group": [
+                      "@base-ui/*",
+                      "**/core",
+                      "**/core/*",
+                      "**/features/**",
+                      "**/shell/**",
+                      "**/components/**",
+                      "**/utils/**",
+                      "**/locales/**"
+                    ],
+                    "message": "model/ imports nothing from the app; the app imports it."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

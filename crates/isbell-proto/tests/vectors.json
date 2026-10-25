@@ -1,5 +1,5 @@
 {
-  "_comment": "Shared by crates/isbell-proto/tests/vectors.rs and packages/core/test/vectors.test.ts. Both must agree with these bytes.",
+  "_comment": "Shared by crates/isbell-proto/tests/vectors.rs and web/src/model/vectors.test.ts. Both must agree with these bytes.",
   "identity": {
     "key": "isbk1-aaaqeayeaudaocajbifqydiob67ek",
     "pk": "YOEwttMk7-tHb28Otm_aioL8puHqgQDQ-xJtOdRcgmY",

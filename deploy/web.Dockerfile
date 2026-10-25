@@ -3,12 +3,12 @@
 FROM node:24-alpine AS build
 WORKDIR /src
 RUN corepack enable
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
-COPY packages ./packages
+COPY web/package.json web/pnpm-lock.yaml ./
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile \
-    && pnpm build
+    pnpm install --frozen-lockfile
+COPY web ./
+RUN pnpm build
 
 FROM caddy:2-alpine
 COPY deploy/web.Caddyfile /etc/caddy/Caddyfile
-COPY --from=build /src/packages/desk/dist /srv
+COPY --from=build /src/dist /srv
