@@ -1,27 +1,79 @@
 # Isbell
 
-Remote access to [herdr](https://github.com/herdrdev/herdr) agents across your machines.
+Reach the AI agents on your own machines from a browser. Isbell connects to
+[herdr](https://github.com/herdrdev/herdr), the terminal workspace your agents (Codex, Claude Code,
+…) run in, and shows every machine's sessions in one page: chat with them, answer what they ask,
+start new ones, or take over their terminal.
 
-Status: early development.
+**Open the app: <https://isbell.fmap.dev>**
 
-## Use
+![The board: two projects on one machine, a session asking and one working](docs/board.png)
+
+Status: early development. macOS is what it runs on and is tested on today.
+
+## How it works
+
+- **gateway**: `isbell gateway run` on each machine, beside its herdr server. It only dials out,
+  to the relay, and listens on no port.
+- **relay**: matches browsers to gateways and carries the signalling for a WebRTC direct link
+  between them. When no direct link can be opened, traffic goes through the relay instead.
+- **web app**: the page at isbell.fmap.dev, a static site; it keeps nothing on a server.
+
+A **space** groups your machines. Its key, made on your first machine, is the only credential:
+whoever holds it can reach every machine in the space, so keep it as you would a password. The
+key stays on your machines and in your browser; each connection signs a challenge with it and the
+relay checks the signature, without ever receiving the key.
+
+Traffic is protected by TLS, not encrypted end to end. Over a direct link it does not pass through
+the relay. Through the relay, the relay sees it in passing; it logs no message content, and its
+Redis keeps no data on disk.
+
+## Install
+
+1. Install herdr: <https://github.com/herdrdev/herdr>.
+2. Install Rust: <https://rustup.rs>.
+3. Install isbell:
+
+   ```bash
+   cargo install --git https://github.com/bencode/Isbell --locked isbell
+   ```
+
+## Quick start
+
+On your first machine:
 
 ```bash
-isbell space init                  # first machine: creates the space, prints the join command
-isbell space join <key>            # every other machine
-isbell gateway install             # each machine whose agents you want to reach (macOS)
+isbell space init          # creates your space and prints its key
+isbell gateway install     # keeps the gateway running for this machine
+```
+
+Then open <https://isbell.fmap.dev> and paste the key.
+
+On each other machine, with the key from the first:
+
+```bash
+isbell space join <key>
+isbell gateway install
+```
+
+`isbell space show` prints the key again on any machine in the space.
+
+`gateway install` runs `isbell gateway run` as a launchd user agent (macOS only): started at
+login, restarted after a failure, logging to `~/Library/Logs/isbell/gateway.log`. It keeps the
+`PATH` of the shell it ran in, so herdr and the agents are found; run it again after changing
+`PATH` or moving the binary. The gateway starts the herdr server when it is not running, and never
+stops it. `gateway status` and `gateway uninstall` check and remove the service. Elsewhere, run
+`isbell gateway run` under a supervisor of your own.
+
+The CLI reaches the same machines from a terminal:
+
+```bash
 isbell machine list
 isbell machine probe <machine>     # tries a direct link and shows the way it goes
 isbell terminal attach <machine>/<pane-or-agent> --control
 ```
 
-`gateway install` runs `isbell gateway run` as a launchd user agent: started at login, restarted
-after a failure, logging to `~/Library/Logs/isbell/gateway.log`. It keeps the `PATH` of the shell
-it ran in, so herdr and the agents are found; run it again after changing `PATH` or moving the
-binary. The gateway starts the herdr server when it is not running, and never stops it.
-`gateway status` and `gateway uninstall` check and remove the service.
-
-## Deploying
+## Self-hosting
 
 `deploy/compose.yml` runs the public relay with its own Redis, and the web app as static files.
 On the host, from the repository root:
