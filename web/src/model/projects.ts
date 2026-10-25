@@ -117,7 +117,8 @@ export type Pane = { session: Session } | { shell: Shell }
 
 export type Found = { project: Project; name: string; pane: Pane }
 
-/** The project a pane belongs to, and what to call it: the agent's name, or the shell's title. */
+/** The project a pane belongs to, and what to call it: the agent's name, or the shell's pane, as a
+ * shell's title may read like another's. */
 export const locate = (projects: Project[], mid: string, paneId: string): Found | undefined =>
   projects
     .filter(p => p.mid === mid)
@@ -125,7 +126,7 @@ export const locate = (projects: Project[], mid: string, paneId: string): Found 
       const session = project.sessions.find(s => s.paneId === paneId)
       const shell = project.shells.find(s => s.paneId === paneId)
       if (session) return [{ project, name: session.name, pane: { session } }]
-      return shell ? [{ project, name: shell.title ?? paneId, pane: { shell } }] : []
+      return shell ? [{ project, name: paneId, pane: { shell } }] : []
     })[0]
 
 export type AddJudgement =

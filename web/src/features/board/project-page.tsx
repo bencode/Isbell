@@ -29,8 +29,8 @@ export function Shells({ project }: { project: Project }) {
           className="inline-flex h-8 items-center gap-2 rounded-lg border border-line bg-raised px-3 font-mono text-[12.5px] text-muted no-underline hover:text-text"
         >
           <SquareTerminal size={13} />
-          {s.paneId}
-          {s.title ? ` · ${s.title}` : ''}
+          {s.paneId} · {project.display}
+          {s.cwd.slice(project.path.length)}
         </Link>
       ))}
     </div>
@@ -70,8 +70,10 @@ function Focused({ project }: { project: Project }) {
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2.5">
-        <h1 className="m-0 text-[19px] font-semibold">{project.name}</h1>
+      <div className="flex flex-wrap items-baseline gap-2.5">
+        <h1 className="m-0 text-[23px] font-bold after:mt-1 after:block after:h-[3px] after:w-7 after:rounded-sm after:bg-accent after:content-['']">
+          {project.name}
+        </h1>
         <span className="font-mono text-xs text-faint">{project.display}</span>
         <span className="rounded-md border border-line px-1.5 text-xs text-muted">{project.machine}</span>
         {project.online ? null : (

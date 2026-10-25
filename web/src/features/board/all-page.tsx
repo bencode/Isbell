@@ -29,7 +29,9 @@ export function AllProjects() {
   return (
     <>
       <div className="flex flex-wrap items-baseline gap-3">
-        <h1 className="m-0 text-[19px] font-semibold">{t('all.title')}</h1>
+        <h1 className="m-0 text-[23px] font-bold after:mt-1 after:block after:h-[3px] after:w-7 after:rounded-sm after:bg-accent after:content-['']">
+          {t('all.title')}
+        </h1>
         <span className="text-muted">
           {t('all.summary', { projects: projects.length, machines: view.machines.length, online })}
         </span>

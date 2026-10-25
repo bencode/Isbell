@@ -42,7 +42,7 @@ export const zh: Record<Key, string> = {
   'board.loading': '正在连接……',
   'needs.title': '等你处理',
   'needs.answer': '回应',
-  'needs.see': '看结果',
+  'needs.see': '查看',
   'empty.title': '添加第一台机器',
   'empty.body': '在装有 herdr 的机器上装好 isbell，然后运行下面两条命令，几秒内就会出现在这里。',
 

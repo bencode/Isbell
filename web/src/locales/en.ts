@@ -32,7 +32,7 @@ export const en = {
   'side.relay.rejected': 'The relay turned the key away',
 
   'all.title': 'All projects',
-  'all.summary': 'Projects: {projects} · machines online: {online} of {machines}',
+  'all.summary': 'Projects: {projects} · machines: {machines}, {online} online',
   'all.nothing': 'Nothing needs you right now.',
   'all.live': '{n} live',
   'all.more': '+{n} more in {name} →',
@@ -40,7 +40,7 @@ export const en = {
   'board.loading': 'Connecting…',
   'needs.title': 'Needs you',
   'needs.answer': 'Answer',
-  'needs.see': 'See result',
+  'needs.see': 'See',
   'empty.title': 'Add your first machine',
   'empty.body':
     'With isbell installed on the machine that has herdr, run these two. It shows up here within seconds.',

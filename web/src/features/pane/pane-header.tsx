@@ -32,7 +32,7 @@ export function PaneHeader({ found: { project, name, pane }, mid, paneId, view, 
   useEffect(() => {
     if (agent) rememberView(paneKey(mid, paneId), view)
   }, [agent, mid, paneId, view])
-  const where = [session ? '' : paneId, project.machine, project.display].filter(Boolean).join(' · ')
+  const where = `${project.machine} · ${project.display}`
   const views = [
     { key: 'chat', href: sessionHref(mid, paneId), icon: <MessageSquare size={15} />, label: t('pane.chat') },
     {

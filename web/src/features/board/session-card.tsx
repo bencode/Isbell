@@ -1,4 +1,4 @@
-import { Sparkle, SquareTerminal } from 'lucide-react'
+import { SquareTerminal } from 'lucide-react'
 import { Link } from 'react-router'
 import { buttonClass } from '../../components/button'
 import { StatusChip } from '../../components/chip'
@@ -15,17 +15,15 @@ export function SessionCard({ session, now }: { session: Session; now: number })
       className={`relative flex min-h-28 flex-col gap-2 rounded-[10px] border p-3.5 text-text hover:border-line-strong ${asking ? 'border-ask-line bg-ask' : 'border-line bg-raised'}`}
     >
       <span className="flex items-center gap-2">
-        <Sparkle size={14} className="flex-none text-faint" />
         {/* The name is the card's link to the chat; its ::after covers the whole card. */}
         <Link
           to={sessionHref(session.mid, session.paneId)}
-          className="min-w-0 truncate font-semibold text-text no-underline outline-none after:absolute after:inset-0 after:rounded-[10px] focus-visible:after:outline-2 focus-visible:after:outline-accent"
+          className={`min-w-0 flex-1 truncate ${session.unread ? 'font-bold' : 'font-medium'} text-text no-underline outline-none after:absolute after:inset-0 after:rounded-[10px] focus-visible:after:outline-2 focus-visible:after:outline-accent`}
         >
           {session.name}
         </Link>
-        {session.unread ? <span className="size-2 flex-none rounded-full bg-ok" aria-hidden="true" /> : null}
         <StatusChip status={session.status} label={t(`status.${session.status}`)} />
-        <span className="ml-auto flex-none text-xs text-faint">{since(session.statusSince, now)}</span>
+        <span className="flex-none text-xs text-faint">{since(session.statusSince, now)}</span>
         <Link
           to={terminalHref(session.mid, session.paneId)}
           aria-label={t('session.terminal')}
@@ -39,9 +37,8 @@ export function SessionCard({ session, now }: { session: Session; now: number })
           <SquareTerminal size={15} />
         </Link>
       </span>
-      <span className="line-clamp-2 text-[13.5px] text-muted">
-        {session.title ?? session.kind ?? session.paneId}
-      </span>
+      {session.title ? <span className="line-clamp-2 text-[13.5px] text-muted">{session.title}</span> : null}
+      <span className="mt-auto font-mono text-xs text-faint">{session.kind ?? session.paneId}</span>
     </div>
   )
 }
