@@ -17,7 +17,8 @@ export const attachCommand = (project: Project, pane: Pane) =>
   )}`
 
 /** Mirrors components/info-panel's InfoGroup, which core cannot import. */
-type FactGroup = { title: string; rows: { label: string; value: string; mono?: boolean }[] }
+type Fact = { label: string; value: string; mono?: boolean; note?: string }
+type FactGroup = { title: string; rows: Fact[] }
 
 /** The session, or the plain terminal, then the machine it runs on. */
 export function paneFacts(t: T, now: number, project: Project, pane: Pane): FactGroup[] {
@@ -80,20 +81,22 @@ export function connectionFacts(t: T, c: Connection): FactGroup {
       : [
           path,
           { label: t('conn.rtt'), value: stats?.rttMs === undefined ? '—' : `${stats.rttMs} ms` },
-          { label: t('conn.machineEnd'), value: stats ? endText(t, stats.remote) : '—' },
-          { label: t('conn.browserEnd'), value: stats ? endText(t, stats.local, t('conn.end.hidden')) : '—' },
+          endFact(t('conn.machineEnd'), t, stats?.remote),
+          endFact(t('conn.browserEnd'), t, stats?.local, t('conn.end.hidden')),
           { label: t('conn.protocol'), value: stats ? stats.protocol.toUpperCase() : '—' },
         ]
   return { title: t('info.connection'), rows }
 }
 
-/** An end of the pair: its address, or `hidden` where there is none (an mDNS name only stands in
- * for one), then what kind of address that is. */
-const endText = (t: T, end: Endpoint, hidden?: string) => {
+/** An end of the pair: its address in the code face, or `hidden` where there is none (an mDNS name
+ * only stands in for one), then what kind of address that is. */
+const endFact = (label: string, t: T, end: Endpoint | undefined, hidden?: string): Fact => {
+  if (!end) return { label, value: '—' }
   const key = `conn.end.${end.type}`
   const kind = t.has(key) ? t(key) : end.type
-  const shown = end.address && !end.address.endsWith('.local') ? end.address : hidden
-  return shown ? `${shown} · ${kind}` : kind
+  if (end.address && !end.address.endsWith('.local'))
+    return { label, value: end.address, mono: true, note: kind }
+  return hidden ? { label, value: hidden, note: kind } : { label, value: kind }
 }
 
 const directText = (t: T, direct: DirectStatus) =>

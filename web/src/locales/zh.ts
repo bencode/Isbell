@@ -142,7 +142,7 @@ export const zh: Record<Key, string> = {
   'conn.direct.failed': '{reason} {min} 分钟后重试。',
   'terminal.end': '结束终端…',
   'terminal.endTitle': '结束这个终端？',
-  'terminal.endBody': '会关闭 {machine} 上的 {name}，以及其中正在运行的一切。',
+  'terminal.endBody': '会关闭 {machine} 上的 pane {pane}，以及其中正在运行的一切。',
   'terminal.endConfirm': '结束终端',
   'terminal.opening': '正在打开…',
   'terminal.ended': '终端已断开。',

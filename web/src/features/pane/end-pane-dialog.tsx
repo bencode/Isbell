@@ -9,6 +9,7 @@ type Props = {
   onOpenChange: (open: boolean) => void
   mid: string
   paneId: string
+  /** The session's name; a shell is named by its pane, as its title may read like another's. */
   name: string
   machine: string
   path: string
@@ -40,7 +41,7 @@ export function EndPane({ open, onOpenChange, mid, paneId, name, machine, path, 
       open={open}
       onOpenChange={onOpenChange}
       title={agent ? t('end.title') : t('terminal.endTitle')}
-      body={agent ? t('end.body', { name, machine, path }) : t('terminal.endBody', { name, machine })}
+      body={agent ? t('end.body', { name, machine, path }) : t('terminal.endBody', { pane: paneId, machine })}
       keep={t('end.keep')}
       confirm={agent ? t('end.confirm') : t('terminal.endConfirm')}
       onConfirm={() => void end()}

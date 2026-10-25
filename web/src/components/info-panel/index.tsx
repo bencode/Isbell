@@ -2,7 +2,11 @@ import { PanelRightClose, PanelRightOpen } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '../button'
 
-export type InfoGroup = { title: string; rows: { label: string; value: ReactNode; mono?: boolean }[] }
+export type InfoGroup = {
+  title: string
+  /** `note` follows the value in the text face, so a `mono` value can carry words after it. */
+  rows: { label: string; value: ReactNode; mono?: boolean; note?: string }[]
+}
 
 /** The facts beside a session or terminal; `command` is how to reach it by hand. */
 export function InfoPanel({
@@ -23,7 +27,10 @@ export function InfoPanel({
             {group.rows.map(row => (
               <div key={row.label} className="contents">
                 <dt className="text-muted">{row.label}</dt>
-                <dd className={`m-0 ${row.mono ? 'font-mono break-all' : 'break-words'}`}>{row.value}</dd>
+                <dd className={`m-0 ${row.mono ? 'font-mono break-all' : 'break-words'}`}>
+                  {row.value}
+                  {row.note ? <span className="font-sans text-muted"> · {row.note}</span> : null}
+                </dd>
               </div>
             ))}
           </dl>

@@ -23,14 +23,17 @@ const OFF = 'border-[1.5px] border-faint'
 
 const DOT: Record<AgentStatus, string> = {
   blocked: 'bg-warn',
-  working: 'bg-ok',
+  // Breathing, as the turn in progress does on its session page.
+  working: 'animate-pulse bg-accent motion-reduce:animate-none',
   done: 'bg-ok',
   idle: OFF,
   unknown: OFF,
 }
 
-export const StatusDot = ({ status }: { status: AgentStatus }) => (
-  <span className={`size-[7px] flex-none rounded-full ${DOT[status]}`} />
+export const StatusDot = ({ status, label }: { status: AgentStatus; label: string }) => (
+  <span title={label} className={`size-[7px] flex-none rounded-full ${DOT[status]}`}>
+    <span className="sr-only">{label}</span>
+  </span>
 )
 
 const RELAY: Record<ConnStatus, { key: Key; dot: string }> = {

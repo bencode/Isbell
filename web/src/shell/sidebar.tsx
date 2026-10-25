@@ -170,8 +170,9 @@ function ProjectTree({ project: p, here }: { project: Project; here: Here }) {
               to={(terminal.includes(paneKey(s.mid, s.paneId)) ? terminalHref : sessionHref)(s.mid, s.paneId)}
               className={`${ROW} min-h-[27px] text-[13px] ${here.pane === paneKey(s.mid, s.paneId) ? ON : ''}`}
             >
-              <StatusDot status={s.status} />
-              <span className="min-w-0 flex-1 truncate">{s.name}</span>
+              <StatusDot status={s.status} label={t(`status.${s.status}`)} />
+              {/* Done and not yet looked at: its name stands out until its page is opened. */}
+              <span className={`min-w-0 flex-1 truncate ${s.unread ? 'font-semibold' : ''}`}>{s.name}</span>
               <span className="text-xs text-faint">{since(s.statusSince, now)}</span>
             </Link>
           ))}

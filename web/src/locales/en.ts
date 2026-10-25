@@ -141,7 +141,7 @@ export const en = {
   'conn.direct.failed': '{reason} Retries in {min} min.',
   'terminal.end': 'End terminal…',
   'terminal.endTitle': 'End this terminal?',
-  'terminal.endBody': 'This closes {name} on {machine} and whatever runs in it.',
+  'terminal.endBody': 'This closes pane {pane} on {machine} and whatever runs in it.',
   'terminal.endConfirm': 'End terminal',
   'terminal.opening': 'Opening…',
   'terminal.ended': 'The terminal is no longer connected.',
