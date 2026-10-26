@@ -1,7 +1,6 @@
 // The headings of a rendered document, to jump between; the one being read follows the scroll.
 
 import { useEffect, useState } from 'react'
-import { useI18n } from '../../core/i18n'
 
 export type Heading = { el: HTMLElement; text: string; level: number }
 
@@ -16,8 +15,15 @@ export const headingsIn = (root: HTMLElement): Heading[] =>
     level: Number(el.tagName[1]),
   }))
 
-export function Outline({ headings, scroller }: { headings: Heading[]; scroller: HTMLElement | null }) {
-  const t = useI18n()
+export function Outline({
+  headings,
+  scroller,
+  label,
+}: {
+  headings: Heading[]
+  scroller: HTMLElement | null
+  label: string
+}) {
   const [active, setActive] = useState<Heading>()
   useEffect(() => {
     if (!scroller) return
@@ -33,11 +39,11 @@ export function Outline({ headings, scroller }: { headings: Heading[]; scroller:
   const top = Math.min(...headings.map(h => h.level))
   return (
     <nav
-      aria-label={t('files.outline')}
+      aria-label={label}
       className="sticky top-0 flex w-[220px] flex-none flex-col gap-0.5 self-start py-6 pr-4"
     >
       <span className="px-2 pb-1 text-[11px] font-semibold tracking-[0.04em] text-faint uppercase">
-        {t('files.outline')}
+        {label}
       </span>
       {headings.map(h => (
         <button

@@ -1,0 +1,39 @@
+/* Highlighted code (highlight.js classes): a few hues from the palette. Loads with the renderers that
+   highlight. */
+.hljs-comment,
+.hljs-quote {
+  color: var(--faint);
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-doctag {
+  color: var(--accent);
+}
+.hljs-string,
+.hljs-regexp,
+.hljs-addition,
+.hljs-template-tag {
+  color: var(--ok);
+}
+.hljs-number,
+.hljs-built_in,
+.hljs-type,
+.hljs-symbol,
+.hljs-variable.language_ {
+  color: var(--warn);
+}
+.hljs-title,
+.hljs-section,
+.hljs-attr,
+.hljs-attribute,
+.hljs-name,
+.hljs-selector-class,
+.hljs-selector-id {
+  color: light-dark(#7a3fb0, #c9a3f0);
+}
+.hljs-meta,
+.hljs-deletion {
+  color: var(--danger);
+}

@@ -124,6 +124,7 @@ export const en = {
   'files.rendered': 'Rendered',
   'files.preview': 'Preview',
   'files.source': 'Source',
+  'files.mode': 'View',
   'files.textSize': 'Text size',
   'files.wide': 'Full width',
   'files.reload': 'Read again',

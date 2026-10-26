@@ -125,6 +125,7 @@ export const zh: Record<Key, string> = {
   'files.rendered': '渲染',
   'files.preview': '预览',
   'files.source': '源码',
+  'files.mode': '显示方式',
   'files.textSize': '字号',
   'files.wide': '全宽',
   'files.reload': '重新读取',

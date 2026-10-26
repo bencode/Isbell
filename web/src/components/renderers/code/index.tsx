@@ -1,17 +1,18 @@
 // A text file as source: line numbers, and highlighting when its name says which language it is.
 
+import '../highlight.css'
 import { toJsxRuntime } from 'hast-util-to-jsx-runtime'
 import { common, createLowlight } from 'lowlight'
 import { useMemo } from 'react'
 import { Fragment, jsx, jsxs } from 'react/jsx-runtime'
-import { extensionOf } from '../../model/files/content'
+import { extensionOf } from '../../../model/files/content'
 
 const lowlight = createLowlight(common)
 
 /** Past this, highlighting would hold the page up; the text shows plain. */
 const HIGHLIGHT_MAX = 512 << 10
 
-export function CodeView({ text, name }: { text: string; name: string }) {
+export function CodeRenderer({ text, name }: { text: string; name: string }) {
   const lang = extensionOf(name)
   const code = useMemo(
     () =>
