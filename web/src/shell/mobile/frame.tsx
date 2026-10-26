@@ -8,6 +8,7 @@ import { Drawer } from '../../components/drawer'
 import { useI18n } from '../../core/i18n'
 import { useProjects, useSpaceView } from '../../core/space'
 import { needs } from '../../model/projects'
+import { useVisibleArea } from '../../utils/viewport'
 import { hereOf, type Overlay, Overlays, ReconnectBanner } from '../common'
 import { AskBadge } from '../marks'
 import { MobileNav } from './nav'
@@ -26,6 +27,8 @@ export function MobileFrame() {
   const here = hereOf(projects, useParams())
   const [overlay, setOverlay] = useState<Overlay | null>(null)
   const [drawer, setDrawer] = useState(false)
+  // Fixed to what the keyboard leaves visible, so the bottom of a page stays above it.
+  const area = useVisibleArea()
   const fromDrawer = (next: Overlay) => {
     setDrawer(false)
     setOverlay(next)
@@ -33,7 +36,10 @@ export function MobileFrame() {
   const actions: FrameActions = { openDrawer: () => setDrawer(true), openNew: () => setOverlay('session') }
   return (
     <>
-      <div className="flex h-full flex-col">
+      <div
+        className="fixed inset-x-0 flex flex-col"
+        style={area ? { top: area.top, height: area.height } : { top: 0, bottom: 0 }}
+      >
         <ReconnectBanner />
         <div className="min-h-0 flex-1">
           <Outlet context={actions} />

@@ -21,8 +21,9 @@ export function useShortcuts(keys: Record<string, (e: KeyboardEvent) => void>, e
   }, [enabled])
 }
 
-// A touch keyboard's ↵ is its only way to a new line, so there the send button sends.
-const TOUCH = matchMedia('(pointer: coarse)').matches
+/** A touch screen, whose keyboard has no Esc, Ctrl or arrows, and whose ↵ is its only way to a
+ * new line (so there the send button sends). */
+export const TOUCH = matchMedia('(pointer: coarse)').matches
 
 /** ↵ submits a text field and ⇧↵ starts a new line; ⌘↵ (Ctrl+↵) submits as well, and on a touch
  * screen only it does. While an input method is composing, ↵ picks its candidate instead (Safari

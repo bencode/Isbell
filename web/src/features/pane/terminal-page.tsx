@@ -13,8 +13,10 @@ import { RELAY_URL, useProjects, useSpace, useSpaceView } from '../../core/space
 import { type Found, locate, type Pane, type Project, paneKey } from '../../model/projects'
 import type { Via } from '../../model/space'
 import { projectHref } from '../../utils/hrefs'
+import { TOUCH } from '../../utils/shortcuts'
 import { useNow } from '../../utils/time'
 import { EndPane } from './end-pane-dialog'
+import { KeyBar } from './key-bar'
 import type { PaneLayout } from './pane-layout'
 import { useLink } from './use-link'
 import { useTerminal } from './use-terminal'
@@ -58,7 +60,7 @@ function Attached({
   const t = useI18n()
   const navigate = useNavigate()
   const box = useRef<HTMLDivElement>(null)
-  const { state, reconnect } = useTerminal(box, mid, paneId)
+  const { state, reconnect, press, ctrl, toggleCtrl } = useTerminal(box, mid, paneId)
   const [ending, setEnding] = useState(false)
   const { project, name, pane } = found
   const agent = 'session' in pane
@@ -106,6 +108,7 @@ function Attached({
             </span>
           ) : null}
         </footer>
+        {TOUCH ? <KeyBar ctrl={ctrl} onCtrl={toggleCtrl} onKey={press} /> : null}
       </Layout>
       <EndPane
         open={ending}

@@ -151,6 +151,7 @@ export const zh: Record<Key, string> = {
   'terminal.reconnect': '重新连接',
   'terminal.gone': '这个终端已经关闭。',
   'terminal.control': '控制',
+  'terminal.keys': '终端按键',
   'via.relay': '中转',
   'via.lan': '直连 · 局域网',
   'via.vpn': '直连 · VPN',

@@ -150,6 +150,7 @@ export const en = {
   'terminal.reconnect': 'Reconnect',
   'terminal.gone': 'This terminal is no longer open.',
   'terminal.control': 'Control',
+  'terminal.keys': 'Terminal keys',
   'via.relay': 'Relay',
   'via.lan': 'Direct · LAN',
   'via.vpn': 'Direct · VPN',

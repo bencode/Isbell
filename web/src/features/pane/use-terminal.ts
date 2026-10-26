@@ -6,6 +6,7 @@ import { type ITheme, Terminal as XTerm } from '@xterm/xterm'
 import { type RefObject, useEffect, useRef, useState } from 'react'
 import { useSpace } from '../../core/space'
 import type { Via } from '../../model/space'
+import { type BarKey, barKeyBytes, withCtrl } from '../../model/term-keys'
 import { openTerminal, type Terminal } from '../../model/terminal'
 
 export type TerminalState = {
@@ -58,6 +59,15 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
   const [state, setState] = useState<TerminalState>({ phase: 'opening' })
   // The pane takes one controller at a time: an attach waits until the one before it has let go.
   const previous = useRef<Promise<void>>(Promise.resolve())
+  // A key from the bar, typed into the open xterm.
+  const keyIn = useRef<((key: BarKey) => void) | null>(null)
+  // Ctrl from the bar holds until the next key; `onData` reads the ref, the bar the state.
+  const ctrlOn = useRef(false)
+  const [ctrl, setCtrlState] = useState(false)
+  const setCtrl = (on: boolean) => {
+    ctrlOn.current = on
+    setCtrlState(on)
+  }
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `attempt` is how Reconnect re-attaches; `attach` reads only what is listed.
   useEffect(() => {
@@ -121,7 +131,13 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
         },
       )
 
-    const typed = term.onData(s => live?.input(utf8.encode(s)))
+    // The bar's keys come through here too, so any key lets go of Ctrl.
+    const typed = term.onData(s => {
+      const latched = ctrlOn.current
+      if (latched) setCtrl(false)
+      live?.input(utf8.encode(latched ? withCtrl(s) : s))
+    })
+    keyIn.current = key => term.input(barKeyBytes(key, term.modes.applicationCursorKeysMode), true)
     const binary = term.onBinary(s => live?.input(Uint8Array.from(s, c => c.charCodeAt(0))))
     let settle: ReturnType<typeof setTimeout> | undefined
     const observer = new ResizeObserver(() => {
@@ -135,6 +151,7 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
 
     return () => {
       gone = true
+      keyIn.current = null
       clearTimeout(settle)
       observer.disconnect()
       typed.dispose()
@@ -144,5 +161,11 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
     }
   }
 
-  return { state, reconnect: () => setAttempt(n => n + 1) }
+  return {
+    state,
+    reconnect: () => setAttempt(n => n + 1),
+    press: (key: BarKey) => keyIn.current?.(key),
+    ctrl,
+    toggleCtrl: () => setCtrl(!ctrlOn.current),
+  }
 }
