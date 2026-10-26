@@ -8,7 +8,6 @@ import { tailLines } from '../../../model/screen'
 import { sessionHref } from '../../../utils/hrefs'
 import { since } from '../../../utils/time'
 import { useReading } from '../../pane/use-reading'
-import { lastReply } from './card'
 
 const TAIL = 3
 
@@ -16,9 +15,11 @@ export function RunningCard({ placed: { session, project }, now }: { placed: Pla
   const t = useI18n()
   // A working agent is read again 2s after each read.
   const { reading, text, error } = useReading(session.mid, session.paneId, session)
-  const parsed = tailLines(lastReply(reading) ?? [], TAIL)
-  const lines = parsed.length
-    ? parsed
+  // The turn going on, even while it has said nothing yet: the one before would pass for it.
+  const blocks = reading?.live ? reading.live.reply : (reading?.turns.at(-1)?.reply ?? [])
+  // A screen not read as turns shows as it is.
+  const lines = reading
+    ? tailLines(blocks, TAIL)
     : (text ?? '')
         .split('\n')
         .filter(l => l.trim())
