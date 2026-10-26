@@ -1,6 +1,6 @@
 // The rows a tree of files is made of, the project's tree and the search's alike.
 
-import { ChevronDown, ChevronRight, File, FileCode, FileText, Folder } from 'lucide-react'
+import { ChevronDown, ChevronRight, File, FileCode, FileText, Folder, Workflow } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { kindOf } from '../../model/files/content'
@@ -11,7 +11,7 @@ const ROW =
 /** How far a row at `depth` is set in. */
 export const indent = (depth: number) => ({ paddingLeft: 6 + depth * 14 })
 
-const ICONS = { markdown: FileText, html: FileCode, text: File }
+const ICONS = { markdown: FileText, html: FileCode, mermaid: Workflow, text: File }
 
 export function FolderRow({
   depth,

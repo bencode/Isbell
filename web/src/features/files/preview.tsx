@@ -12,11 +12,13 @@ import { CodeFile } from './code-file'
 import { FilePage, type FileShell, type FileViewProps, Notice, Reading } from './file-page'
 import { HtmlFile } from './html-file'
 import { MarkdownFile } from './markdown-file'
+import { MermaidFile } from './mermaid-file'
 import { useFile } from './use-remote'
 
 const VIEWS: Record<FileKind, ComponentType<FileViewProps>> = {
   markdown: MarkdownFile,
   html: HtmlFile,
+  mermaid: MermaidFile,
   text: CodeFile,
 }
 

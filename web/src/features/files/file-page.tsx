@@ -94,7 +94,7 @@ const scrolls = new Map<string, number>()
 /** The scrolling body, back at the scroll it had when this history entry was last shown. Put it
  * inside the Suspense of what it shows, so it mounts once there is something to scroll. */
 export function Scroller({ children }: { children: (scroller: HTMLElement | null) => ReactNode }) {
-  const { key } = useLocation()
+  const { key, onScroll } = useHistoryScroll()
   const ref = useRef<HTMLDivElement>(null)
   const [el, setEl] = useState<HTMLElement | null>(null)
   // The content renders in the same commit, so its height is there to scroll to.
@@ -106,11 +106,18 @@ export function Scroller({ children }: { children: (scroller: HTMLElement | null
     <div
       ref={ref}
       className="min-h-0 flex-1 overflow-auto"
-      onScroll={e => scrolls.set(key, e.currentTarget.scrollTop)}
+      onScroll={e => onScroll(e.currentTarget.scrollTop)}
     >
       {children(el)}
     </div>
   )
+}
+
+/** This history entry's scroll, for a view that scrolls itself: where it was when last shown, and
+ * where it is now. Remount the view by `key`, so it starts at `top` again for a new entry. */
+export function useHistoryScroll() {
+  const { key } = useLocation()
+  return { key, top: scrolls.get(key) ?? 0, onScroll: (top: number) => scrolls.set(key, top) }
 }
 
 export function Reading() {

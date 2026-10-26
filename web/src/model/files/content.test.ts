@@ -1,12 +1,25 @@
 import { expect, test } from 'vitest'
 import { decodeText, formatSize, kindOf } from './content'
 
-test('a file is markdown, html or text by its extension', () => {
-  expect(['a.md', 'B.MARKDOWN', 'x.html', 'x.htm', 'main.rs', 'Makefile', '.env'].map(kindOf)).toEqual([
+test('a file is markdown, html, mermaid or text by its extension', () => {
+  const names = [
+    'a.md',
+    'B.MARKDOWN',
+    'x.html',
+    'x.htm',
+    'flow.mmd',
+    'f.mermaid',
+    'main.rs',
+    'Makefile',
+    '.env',
+  ]
+  expect(names.map(kindOf)).toEqual([
     'markdown',
     'markdown',
     'html',
     'html',
+    'mermaid',
+    'mermaid',
     'text',
     'text',
     'text',

@@ -2,6 +2,11 @@
 // and which agent each project last used. Nothing goes to a server.
 
 import { useSyncExternalStore } from 'react'
+import {
+  DEFAULT_APPEARANCE,
+  type ReadingAppearance,
+  readingAppearance,
+} from '../components/renderers/markdown/appearance'
 import type { Seen } from '../model/projects'
 
 export type Prefs = {
@@ -21,11 +26,13 @@ export type Layout = {
   terminal: string[]
   /** The folders open in each project's files tree (relative to its root), by project key. */
   files: Record<string, string[]>
-  /** How Markdown reads in the files view. */
-  reader: Reader
 }
 
-export type Reader = { size: 's' | 'm' | 'l'; wide: boolean }
+/** How documents read in the files view. */
+export type Reader = ReadingAppearance & {
+  /** The outline shown beside a document, where there is room for it. */
+  outline: boolean
+}
 
 export type Local = {
   key: string | null
@@ -36,6 +43,7 @@ export type Local = {
   /** Agent kinds, most recently used first. */
   recentAgents: string[]
   layout: Layout
+  reader: Reader
 }
 
 const DEFAULTS: Local = {
@@ -50,8 +58,8 @@ const DEFAULTS: Local = {
     folded: [],
     terminal: [],
     files: {},
-    reader: { size: 'm', wide: false },
   },
+  reader: { ...DEFAULT_APPEARANCE, outline: true },
 }
 
 const FIELDS = Object.keys(DEFAULTS) as (keyof Local)[]
@@ -82,7 +90,13 @@ function write(field: keyof Local, value: unknown) {
   }
 }
 
-let current: Local = Object.fromEntries(FIELDS.map(f => [f, read(f)])) as Local
+const loaded = Object.fromEntries(FIELDS.map(f => [f, read(f)])) as Local
+// The reading settings are checked one by one: an old or broken value falls back alone.
+const savedReader: Record<string, unknown> = isRecord(loaded.reader) ? loaded.reader : {}
+let current: Local = {
+  ...loaded,
+  reader: { ...readingAppearance(savedReader), outline: savedReader.outline !== false },
+}
 const listeners = new Set<() => void>()
 
 const subscribe = (listener: () => void) => {
@@ -135,7 +149,7 @@ export function openDirs(project: string, wanted: string[]) {
 }
 
 export const setReader = (change: Partial<Reader>) =>
-  updateLocal(l => ({ layout: { ...l.layout, reader: { ...l.layout.reader, ...change } } }))
+  updateLocal(l => ({ reader: { ...l.reader, ...change } }))
 
 /** How many panes keep their terminal view; panes that ended fall off the end. */
 const TERMINAL_MAX = 50

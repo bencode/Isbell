@@ -1,8 +1,15 @@
 // What a file holds, by its name and its bytes.
 
-export type FileKind = 'markdown' | 'html' | 'text'
+export type FileKind = 'markdown' | 'html' | 'mermaid' | 'text'
 
-const KINDS: Record<string, FileKind> = { md: 'markdown', markdown: 'markdown', html: 'html', htm: 'html' }
+const KINDS: Record<string, FileKind> = {
+  md: 'markdown',
+  markdown: 'markdown',
+  html: 'html',
+  htm: 'html',
+  mmd: 'mermaid',
+  mermaid: 'mermaid',
+}
 
 /** The lower-cased extension, or the whole lower-cased name when it has none (`Makefile`). */
 export const extensionOf = (name: string) => {
