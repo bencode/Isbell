@@ -75,7 +75,8 @@ async fn serve(
     inflight: Inflight,
     peers: Weak<PeerLinks>,
 ) {
-    rtc::carry(&mut peer, channel, out, |frame| to_inflight(frame, &inflight)).await;
+    // Only streams use the link, whose data frames always fit one message: no pieces to agree on.
+    rtc::carry(&mut peer, channel, out, false, |frame| to_inflight(frame, &inflight)).await;
     let lost = RpcError::new("disconnected", "lost the direct link to the machine");
     inflight.fail(lost, |t| t.mid == mid && t.direct);
     if let Some(peers) = peers.upgrade() {

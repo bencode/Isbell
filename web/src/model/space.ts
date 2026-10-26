@@ -3,7 +3,7 @@
 // since machine state only lists agents).
 
 import { type ConnStatus, connect } from './connection'
-import { type DirectLink, fitsDirect, openDirect, type Path } from './direct'
+import { type DirectLink, openDirect, type Path } from './direct'
 import { type Caller, shells as fetchShells, type Shell } from './herdr'
 import type { Identity } from './identity'
 import { isNewer, type MachineState, readState } from './state'
@@ -57,7 +57,7 @@ export type SpaceView = {
 export type Space = {
   subscribe: (listener: () => void) => () => void
   getSnapshot: () => SpaceView
-  /** Calls machine `mid` over its direct link when one is open, else over the relay. */
+  /** Calls machine `mid` over its direct link when one is open and takes pieces, else over the relay. */
   call: Caller
   openThenEnd: Caller
   /** Opens a stream on machine `mid`, over its direct link when one is open or can be opened. */
@@ -228,11 +228,11 @@ export function createSpace(url: string, id: Identity): Space {
     },
     getSnapshot: () => view,
     call: (mid, m, p, timeoutMs) => {
-      if (!fitsDirect(m, p)) return conn.call(mid, m, p, timeoutMs)
       const link = direct.get(mid)
-      if (link) return link.call(m, p, timeoutMs)
+      // Without pieces an answer too long for one message would end the link.
+      if (link?.pieces) return link.call(m, p, timeoutMs)
       // Not waited for, unlike a stream: it serves the calls after this one.
-      void directTo(mid)
+      if (!link) void directTo(mid)
       return conn.call(mid, m, p, timeoutMs)
     },
     openThenEnd: conn.openThenEnd,

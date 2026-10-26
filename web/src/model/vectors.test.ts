@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest'
 import vectors from '../../../crates/isbell-proto/tests/vectors.json' with { type: 'json' }
 import { decode, encode, type Header } from './frame'
 import { authMessage, KeyError, parseKey, signAuth } from './identity'
+import { createAssembler, split } from './pieces'
 
 describe('identity agrees with the Rust implementation', () => {
   const v = vectors.identity
@@ -30,4 +31,13 @@ describe('frames agree with the Rust implementation', () => {
     expect(typeof encoded).toBe(typeof wire)
     expect(decode(encoded)).toEqual(decode(wire))
   })
+})
+
+test('pieces agree with the Rust implementation', () => {
+  const v = vectors.pieces
+  const frame = { header: v.header as Header, body: hex.decode(v.bodyHex) }
+  const pieces = split(frame, v.size)
+  expect(pieces.map(p => (typeof p === 'string' ? p : hex.encode(p)))).toEqual(v.piecesHex)
+  const assemble = createAssembler()
+  expect(pieces.map(p => assemble(typeof p === 'string' ? p : p.buffer)).at(-1)).toEqual(frame)
 })

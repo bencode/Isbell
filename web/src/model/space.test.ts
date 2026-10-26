@@ -93,8 +93,9 @@ test('after a direct link fails, streams use the relay and it is not tried again
   expect(direct.tries).toBe(2)
 })
 
-const lanLink = (calls: string[] = []): DirectLink => ({
+const lanLink = (calls: string[] = [], pieces = true): DirectLink => ({
   path: 'lan',
+  pieces,
   open: async () => ({ result: {}, stream }),
   call: async m => {
     calls.push(m)
@@ -151,15 +152,15 @@ test('a call takes the relay and starts a direct link, and the calls after it ta
   expect(direct.tries).toBe(1)
 })
 
-test('calls whose answers may not fit in one message stay on the relay', async () => {
+test('a link to a gateway without pieces takes streams but no calls', async () => {
   const sent: string[] = []
-  direct.open = async () => lanLink(sent)
+  direct.open = async () => lanLink(sent, false)
   const space = spaceWithMachine()
-  await open(space)
 
+  expect((await open(space)).via).toBe('lan')
+  relay.calls = []
+  await space.call(MID, 'herdr', readVisible, 1_000)
   await space.call(MID, 'isbell.agent.history', { target: 'p1', skip: 0, count: 200 }, 1_000)
-  await space.call(MID, 'herdr', { method: 'agent.read', params: { source: 'recent_unwrapped' } }, 1_000)
-  await space.call(MID, 'herdr', { method: 'session.snapshot', params: {} }, 1_000)
-  expect(sent).toEqual([])
-  expect(relay.calls.slice(-3)).toEqual(['isbell.agent.history', 'herdr', 'herdr'])
+  expect([relay.calls, sent]).toEqual([['herdr', 'isbell.agent.history'], []])
+  expect(direct.tries).toBe(1)
 })

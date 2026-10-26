@@ -1,9 +1,11 @@
 // A direct link to one machine: a WebRTC DataChannel set up through the relay with the gateway's
-// `isbell.rtc.offer`. Frames on it are the relay's frames without routing fields, one per message.
+// `isbell.rtc.offer`. Frames on it are the relay's frames without routing fields, one per message,
+// or in pieces when too long for one and the gateway agreed to pieces.
 
-import { decode, encode } from './frame'
+import { encode } from './frame'
 import type { Caller } from './herdr'
 import { type Endpoint, type Path, pathOf } from './path'
+import { createAssembler, split } from './pieces'
 import { CallError, createRouter, type Opened, type StreamEvents } from './streams'
 
 // DirectLink names the path it took, so its type travels with it.
@@ -23,6 +25,8 @@ export type LinkStats = {
 
 export type DirectLink = {
   path: Path
+  /** The gateway takes and sends long frames in pieces, so answers of any size can come this way. */
+  pieces: boolean
   open: (m: string, p: unknown, timeoutMs: number, events: StreamEvents) => Promise<Opened>
   call: (m: string, p: unknown, timeoutMs: number) => Promise<unknown>
   /** Undefined once no pair is chosen, as when the link is going. */
@@ -30,20 +34,6 @@ export type DirectLink = {
   close: () => void
   /** Settles once the link is gone, whichever side ended it. */
   closed: Promise<void>
-}
-
-/**
- * Whether the answer to call `m` with `p` surely fits in one DataChannel message (browsers take
- * 256 KiB). An answer is one frame, and the gateway ends the link when it cannot send one; so
- * history pages, scrollback reads and the session snapshot, which can grow past that, go over the
- * relay.
- */
-export function fitsDirect(m: string, p: unknown): boolean {
-  if (m === 'isbell.agent.history') return false
-  if (m !== 'herdr') return true
-  const { method, params } = (p ?? {}) as { method?: string; params?: { source?: string } }
-  if (method === 'session.snapshot') return false
-  return method !== 'agent.read' || params?.source === 'visible'
 }
 
 /** The gateway's default STUN servers, so both sides look for their public addresses alike. */
@@ -64,29 +54,36 @@ export async function openDirect(call: Caller, mid: string): Promise<DirectLink>
   const channel = pc.createDataChannel('isbell')
   channel.binaryType = 'arraybuffer'
   try {
-    await connect(pc, channel, call, mid, Date.now() + DIRECT_MS)
-    return carry(pc, channel, await pathOfLink(pc))
+    const pieces = await connect(pc, channel, call, mid, Date.now() + DIRECT_MS)
+    return carry(pc, channel, await pathOfLink(pc), pieces)
   } catch (err) {
     pc.close()
     throw new CallError('direct_failed', err instanceof Error ? err.message : String(err))
   }
 }
 
-/** Every step is bounded, so this settles by `deadline` (plus at most the gathering). */
+/**
+ * Whether the gateway agreed to pieces. Every step is bounded, so this settles by `deadline` (plus
+ * at most the gathering).
+ */
 async function connect(
   pc: RTCPeerConnection,
   channel: RTCDataChannel,
   call: Caller,
   mid: string,
   deadline: number,
-) {
+): Promise<boolean> {
   const left = () => Math.max(0, deadline - Date.now())
   await pc.setLocalDescription(await pc.createOffer())
   await gathered(pc)
   const local = pc.localDescription
   if (!local) throw new Error('no local description')
   const offer: Description = { type: local.type, sdp: local.sdp }
-  const { answer } = (await call(mid, 'isbell.rtc.offer', { offer }, left())) as { answer: Description }
+  // A gateway that predates pieces leaves them out of its answer.
+  const { answer, pieces } = (await call(mid, 'isbell.rtc.offer', { offer, pieces: true }, left())) as {
+    answer: Description
+    pieces?: boolean
+  }
   await pc.setRemoteDescription(answer)
   // The channel opens after ICE and DTLS, in a later task, so listening from here misses nothing.
   const opened = new Promise<void>((resolve, reject) => {
@@ -101,6 +98,7 @@ async function connect(
     )
   })
   await opened
+  return pieces === true
 }
 
 /** Candidates are not trickled: wait for the end of gathering, SETTLE_MS past the first public
@@ -159,14 +157,16 @@ async function statsOf(pc: RTCPeerConnection): Promise<LinkStats | undefined> {
   }
 }
 
-function carry(pc: RTCPeerConnection, channel: RTCDataChannel, path: Path): DirectLink {
+function carry(pc: RTCPeerConnection, channel: RTCDataChannel, path: Path, pieces: boolean): DirectLink {
   // A frame sent while the channel closes is lost with the link, whose streams end anyway.
   const router = createRouter(frame => {
     if (channel.readyState !== 'open') return
-    const data = encode(frame)
-    if (typeof data === 'string') channel.send(data)
-    else channel.send(data)
+    for (const msg of pieces ? split(frame) : [encode(frame)]) {
+      if (typeof msg === 'string') channel.send(msg)
+      else channel.send(msg)
+    }
   }, false)
+  const assemble = createAssembler()
   let end: () => void = () => {}
   const closed = new Promise<void>(resolve => {
     end = resolve
@@ -182,7 +182,8 @@ function carry(pc: RTCPeerConnection, channel: RTCDataChannel, path: Path): Dire
   }
   channel.addEventListener('message', e => {
     try {
-      router.handle(decode(e.data as ArrayBuffer | string))
+      const frame = assemble(e.data as ArrayBuffer | string)
+      if (frame) router.handle(frame)
     } catch (err) {
       console.warn('ignoring an unreadable direct message', err)
     }
@@ -194,6 +195,7 @@ function carry(pc: RTCPeerConnection, channel: RTCDataChannel, path: Path): Dire
   })
   return {
     path,
+    pieces,
     // The router's `mid` only matches streams to their machine; a direct link has one machine.
     open: (m, p, timeoutMs, events) => router.open('', m, p, timeoutMs, events),
     call: (m, p, timeoutMs) => router.call('', m, p, timeoutMs),

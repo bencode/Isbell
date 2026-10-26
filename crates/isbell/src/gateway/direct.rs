@@ -22,6 +22,9 @@ static NEXT_LINK: AtomicU64 = AtomicU64::new(1);
 #[derive(Deserialize)]
 struct OfferRequest {
     offer: Description,
+    /// The caller puts frames back together from pieces, so long ones may go to it that way.
+    #[serde(default)]
+    pieces: bool,
 }
 
 /// Answers the offer through `link`, then serves the caller over the direct link until it ends;
@@ -33,11 +36,17 @@ pub async fn serve(
     ice: Vec<String>,
     calls: mpsc::UnboundedSender<ToCalls>,
 ) {
-    let (mut peer, answer) = match answer(p, &ice).await {
+    let OfferRequest { offer, pieces } = match serde_json::from_value(p) {
+        Ok(req) => req,
+        Err(err) => return link.send(response_frame(id, Err(RpcError::bad_request(err)))),
+    };
+    let (mut peer, answer) = match answer(offer, &ice).await {
         Ok(answered) => answered,
         Err(err) => return link.send(response_frame(id, Err(err))),
     };
-    link.send(response_frame(id, Ok(json!({"answer": answer}))));
+    let answered =
+        if pieces { json!({"answer": answer, "pieces": true}) } else { json!({"answer": answer}) };
+    link.send(response_frame(id, Ok(answered)));
     let channel = match tokio::time::timeout(OPEN_WITHIN, peer.channel()).await {
         Ok(Ok(channel)) => channel,
         Ok(Err(err)) => return close(peer, &err.to_string()).await,
@@ -48,7 +57,7 @@ pub async fn serve(
     tracing::info!(caller = key, path, "direct link open");
     let (out, out_rx) = mpsc::unbounded_channel();
     let direct = Link::peer(key.clone(), out);
-    rtc::carry(&mut peer, channel, out_rx, |frame| {
+    rtc::carry(&mut peer, channel, out_rx, pieces, |frame| {
         if calls.send(ToCalls::Frame(direct.clone(), Box::new(frame))).is_err() {
             tracing::error!("the calls stopped; dropping a direct frame");
         }
@@ -60,8 +69,7 @@ pub async fn serve(
     }
 }
 
-async fn answer(p: Value, ice: &[String]) -> Result<(Peer, Description), RpcError> {
-    let OfferRequest { offer } = serde_json::from_value(p).map_err(RpcError::bad_request)?;
+async fn answer(offer: Description, ice: &[String]) -> Result<(Peer, Description), RpcError> {
     let offered = rtc::tally(&offer.sdp);
     let mut peer = Peer::answerer(ice).await?;
     match peer.answer(offer).await {

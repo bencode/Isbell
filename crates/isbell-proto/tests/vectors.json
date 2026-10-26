@@ -176,5 +176,30 @@
       },
       "text": "{\"t\":\"data\",\"id\":7,\"k\":\"resize\",\"cols\":120,\"rows\":40,\"mid\":\"0123456789abcdef\"}"
     }
-  ]
+  ],
+  "pieces": {
+    "_comment": "A frame's binary encoding split into messages of at most `size` bytes: u32be(0xFFFFFFFF) ‖ u8(last) ‖ bytes.",
+    "size": 16,
+    "header": {
+      "t": "data",
+      "id": 4,
+      "k": "frame",
+      "full": true,
+      "cols": 80,
+      "rows": 24,
+      "mid": "0123456789abcdef"
+    },
+    "bodyHex": "000102ff",
+    "piecesHex": [
+      "ffffffff00000000587b2274223a2264",
+      "ffffffff00617461222c226964223a34",
+      "ffffffff002c226b223a226672616d65",
+      "ffffffff00222c2266756c6c223a7472",
+      "ffffffff0075652c22636f6c73223a38",
+      "ffffffff00302c22726f7773223a3234",
+      "ffffffff002c226d6964223a22303132",
+      "ffffffff003334353637383961626364",
+      "ffffffff016566227d000102ff"
+    ]
+  }
 }

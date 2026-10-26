@@ -33,14 +33,18 @@ const utf8 = new TextEncoder()
 const fromUtf8 = new TextDecoder('utf-8', { fatal: true })
 
 /** Text when there is no body, binary otherwise. Absent fields are left out of the JSON. */
-export function encode({ header, body }: Frame): string | Uint8Array<ArrayBuffer> {
-  const json = JSON.stringify(header)
-  if (!body?.length) return json
-  const head = utf8.encode(json)
-  const out = new Uint8Array(4 + head.length + body.length)
+export function encode(frame: Frame): string | Uint8Array<ArrayBuffer> {
+  return frame.body?.length ? encodeBinary(frame) : JSON.stringify(frame.header)
+}
+
+/** `u32be(headerLen) ‖ header ‖ body`, with or without a body. */
+export function encodeBinary({ header, body }: Frame): Uint8Array<ArrayBuffer> {
+  const head = utf8.encode(JSON.stringify(header))
+  const tail = body ?? new Uint8Array()
+  const out = new Uint8Array(4 + head.length + tail.length)
   new DataView(out.buffer).setUint32(0, head.length)
   out.set(head, 4)
-  out.set(body, 4 + head.length)
+  out.set(tail, 4 + head.length)
   return out
 }
 

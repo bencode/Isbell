@@ -15,6 +15,10 @@ pub enum FrameError {
     NotUtf8,
     #[error("invalid frame header: {0}")]
     Header(#[from] serde_json::Error),
+    #[error("a frame arrived in the middle of another frame's pieces")]
+    Interrupted,
+    #[error("a frame in pieces is over {0} bytes")]
+    TooLarge(usize),
 }
 
 pub enum Encoded {

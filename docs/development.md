@@ -67,8 +67,11 @@ cargo fmt --all --check
   project model and screen reading, with no React.
 - The browser keeps the space key, settings and read marks in its own storage; nothing is stored
   on the relay.
-- Terminals open over a WebRTC direct link to the machine when one can be opened (the gateway's
-  `isbell.rtc.offer`, as the CLI uses it), otherwise over the relay.
+- Calls and streams go over a WebRTC direct link to the machine when one can be opened (the
+  gateway's `isbell.rtc.offer`, as the CLI uses it), otherwise over the relay. A frame too long
+  for one DataChannel message goes in pieces (`isbell_proto::frame::pieces`, `src/model/pieces.ts`),
+  which both ends agree to in the offer. The relay always carries the offer itself and the
+  machines' state.
 - `crates/isbell-proto/tests/vectors.json` is shared by the Rust and TypeScript tests, so both
   ends encode frames and sign identically.
 

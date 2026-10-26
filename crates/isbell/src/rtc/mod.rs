@@ -239,7 +239,7 @@ mod tests {
         let (out, out_rx) = mpsc::unbounded_channel();
         let (arrived_tx, arrived) = mpsc::unbounded_channel();
         let task = tokio::spawn(async move {
-            carry(&mut peer, channel, out_rx, |frame| drop(arrived_tx.send(frame))).await;
+            carry(&mut peer, channel, out_rx, true, |frame| drop(arrived_tx.send(frame))).await;
             peer
         });
         (out, arrived, task)
@@ -249,14 +249,20 @@ mod tests {
         tokio::time::timeout(Duration::from_secs(30), f).await.unwrap_or_else(|_| panic!("{what}"))
     }
 
-    #[tokio::test]
-    async fn peers_carry_frames_both_ways_until_one_closes() {
+    /// Two peers on this machine with their channel open: the offerer's side and the answerer's.
+    async fn linked() -> ((Peer, Arc<dyn DataChannel>), (Peer, Arc<dyn DataChannel>)) {
         let (mut offerer, ours) = Peer::offerer(&[]).await.unwrap();
         let mut answerer = Peer::answerer(&[]).await.unwrap();
         let answer = answerer.answer(offerer.offer().await.unwrap()).await.unwrap();
         offerer.accept(answer).await.unwrap();
         within("the offerer's channel opens", opened(&ours)).await.unwrap();
         let theirs = within("the answerer's channel opens", answerer.channel()).await.unwrap();
+        ((offerer, ours), (answerer, theirs))
+    }
+
+    #[tokio::test]
+    async fn peers_carry_frames_both_ways_until_one_closes() {
+        let ((offerer, ours), (answerer, theirs)) = linked().await;
 
         let (offerer_out, mut offerer_in, offering) = spawn_carry(offerer, ours);
         let (answerer_out, mut answerer_in, answering) = spawn_carry(answerer, theirs);
@@ -270,5 +276,18 @@ mod tests {
         within("the offerer's side ends", offering).await.unwrap().close().await;
         within("the answerer's side ends", answering).await.unwrap().close().await;
         assert!(answerer_out.is_closed(), "senders see the ended link closed");
+    }
+
+    #[tokio::test]
+    async fn a_frame_longer_than_a_message_crosses_in_pieces() {
+        let ((offerer, ours), (answerer, theirs)) = linked().await;
+        let (offerer_out, _offerer_in, _offering) = spawn_carry(offerer, ours);
+        let (_answerer_out, mut answerer_in, _answering) = spawn_carry(answerer, theirs);
+
+        let long = Frame { body: Some((0..1 << 20).map(|i| i as u8).collect()), ..end(1) };
+        offerer_out.send(long.clone()).unwrap();
+        offerer_out.send(end(2)).unwrap();
+        assert_eq!(within("the long frame", answerer_in.recv()).await, Some(long));
+        assert_eq!(within("the frame after it", answerer_in.recv()).await, Some(end(2)));
     }
 }

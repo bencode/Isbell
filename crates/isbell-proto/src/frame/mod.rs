@@ -6,6 +6,7 @@
 
 mod codec;
 mod header;
+pub mod pieces;
 
 pub use codec::{Encoded, Frame, FrameError};
 pub use header::{DataKind, Header, Route, RpcError, SnapshotEntry};
