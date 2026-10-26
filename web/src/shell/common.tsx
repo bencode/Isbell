@@ -81,3 +81,14 @@ export function LazyTerminal({ layout }: { layout: PaneLayout }) {
     </Suspense>
   )
 }
+
+// The files view brings the Markdown and highlighting libraries; they load with it.
+const FilesPage = lazy(() => import('../features/files/files-page').then(m => ({ default: m.FilesPage })))
+
+export function LazyFiles({ layout }: { layout: PaneLayout }) {
+  return (
+    <Suspense fallback={<Loading />}>
+      <FilesPage layout={layout} />
+    </Suspense>
+  )
+}

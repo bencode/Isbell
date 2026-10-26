@@ -119,7 +119,8 @@ export function createRouter(send: (frame: Frame) => void, routed: boolean): Rou
     },
     handle: ({ header: h, body }) => {
       if (h.t === 'res') settle(h)
-      else if (h.t === 'data' && h.k === 'frame') {
+      // A terminal's frames carry its screen; a file's chunks are bytes alone.
+      else if (h.t === 'data' && (h.k === 'frame' || h.k === 'chunk')) {
         const { full, cols, rows } = h
         const size = cols && rows ? { cols, rows } : {}
         streams.get(h.id)?.events.data({ full: full === true, ...size, body: body ?? new Uint8Array() })

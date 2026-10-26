@@ -1,13 +1,15 @@
 import type { ComponentType, ReactNode } from 'react'
 import type { Found } from '../../model/projects'
 
+export type PaneView = 'chat' | 'terminal' | 'files'
+
 /** What a pane page hands its shell to arrange. */
 export type PaneParts = {
   found: Found
   mid: string
   paneId: string
-  /** Which view of an agent's pane this is; a shell has only the terminal. */
-  view: 'chat' | 'terminal'
+  /** Which view of the pane this is; a shell has no chat. */
+  view: PaneView
   onEnd: () => void
   /** The facts; mounted only while shown, so what they poll stops with them. */
   facts: ReactNode

@@ -16,6 +16,8 @@ export type Session = {
   statusSince: number
   title?: string
   unread: boolean
+  /** Where the agent works, when it said. */
+  cwd?: string
 }
 
 export type Project = {
@@ -88,6 +90,7 @@ export function deriveProjects(machines: MachineEntry[], shells: Shell[], seen: 
             mid,
             paneId: a.paneId,
             name: a.name ?? a.paneId,
+            ...(a.cwd ? { cwd: a.cwd } : {}),
             ...(a.kind ? { kind: a.kind } : {}),
             status: a.status,
             statusSince: a.statusSince,

@@ -30,6 +30,15 @@ test('data after the result reaches the stream, and half a window consumed is gr
   expect(sent.filter(h => h.t === 'credit')).toEqual([{ t: 'credit', id: 1, n: WINDOW / 2, mid: 'm1' }])
 })
 
+test("a file's chunks reach its stream as bytes alone", async () => {
+  const { router, data, events, frame } = setup()
+  const opening = router.open('m1', 'isbell.file.read', { path: '/a.md' }, 1000, events)
+  router.handle(frame({ t: 'res', id: 1, ok: true, r: { size: 2 } }))
+  await opening
+  router.handle(frame({ t: 'data', id: 1, k: 'chunk' }, new Uint8Array([104, 105])))
+  expect(data).toEqual([{ full: false, body: new Uint8Array([104, 105]) }])
+})
+
 test('losing the link ends an open stream once, and nothing more is sent on it', async () => {
   const { sent, router, ends, events, frame } = setup()
   const opening = router.open('m1', 'isbell.terminal', {}, 1000, events)

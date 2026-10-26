@@ -1,6 +1,6 @@
-// The header both views of a pane share: where it is, which view this is, and how to end it.
+// The header the views of a pane share: where it is, which view this is, and how to end it.
 
-import { MessageSquare, Square, SquareTerminal } from 'lucide-react'
+import { FolderOpen, MessageSquare, Square, SquareTerminal } from 'lucide-react'
 import { Link } from 'react-router'
 import { Button } from '../../components/button'
 import { StatusChip } from '../../components/chip'
@@ -8,7 +8,8 @@ import { InfoToggle } from '../../components/info-panel'
 import { useI18n } from '../../core/i18n'
 import { toggleInfo, useLocal } from '../../core/prefs'
 import type { Found } from '../../model/projects'
-import { projectHref, sessionHref, terminalHref } from '../../utils/hrefs'
+import { filesHref, projectHref, sessionHref, terminalHref } from '../../utils/hrefs'
+import type { PaneView } from './pane-layout'
 
 const VIEW =
   'inline-flex h-[30px] items-center gap-1.5 rounded-md px-3 text-[13px] font-medium no-underline focus-visible:outline-2 focus-visible:outline-accent'
@@ -17,8 +18,8 @@ type Props = {
   found: Found
   mid: string
   paneId: string
-  /** Which view of an agent's pane this is; a shell has only the terminal. */
-  view: 'chat' | 'terminal'
+  /** Which view of the pane this is; a shell has no chat. */
+  view: PaneView
   onEnd: () => void
 }
 
@@ -27,14 +28,21 @@ export function PaneHeader({ found: { project, name, pane }, mid, paneId, view, 
   const info = useLocal().layout.info
   const session = 'session' in pane ? pane.session : undefined
   const where = `${project.machine} · ${project.display}`
+  const chat = {
+    key: 'chat',
+    href: sessionHref(mid, paneId),
+    icon: <MessageSquare size={15} />,
+    label: t('pane.chat'),
+  }
   const views = [
-    { key: 'chat', href: sessionHref(mid, paneId), icon: <MessageSquare size={15} />, label: t('pane.chat') },
+    ...(session ? [chat] : []),
     {
       key: 'terminal',
       href: terminalHref(mid, paneId),
       icon: <SquareTerminal size={15} />,
       label: t('pane.terminal'),
     },
+    { key: 'files', href: filesHref(mid, paneId), icon: <FolderOpen size={15} />, label: t('pane.files') },
   ]
   return (
     <header className="flex h-[52px] flex-none items-center gap-2.5 border-b border-line pr-3 pl-5">
@@ -51,24 +59,22 @@ export function PaneHeader({ found: { project, name, pane }, mid, paneId, view, 
       </div>
       <span className="min-w-0 truncate text-[12.5px] text-faint">{where}</span>
       <span className="flex-1" />
-      {session ? (
-        <nav
-          aria-label={t('pane.view')}
-          className="inline-flex flex-none gap-0.5 rounded-lg border border-line bg-bg p-0.5"
-        >
-          {views.map(v => (
-            <Link
-              key={v.key}
-              to={v.href}
-              aria-current={v.key === view ? 'page' : undefined}
-              className={`${VIEW} ${v.key === view ? 'index-card bg-raised text-text' : 'text-muted hover:text-text'}`}
-            >
-              {v.icon}
-              {v.label}
-            </Link>
-          ))}
-        </nav>
-      ) : null}
+      <nav
+        aria-label={t('pane.view')}
+        className="inline-flex flex-none gap-0.5 rounded-lg border border-line bg-bg p-0.5"
+      >
+        {views.map(v => (
+          <Link
+            key={v.key}
+            to={v.href}
+            aria-current={v.key === view ? 'page' : undefined}
+            className={`${VIEW} ${v.key === view ? 'index-card bg-raised text-text' : 'text-muted hover:text-text'}`}
+          >
+            {v.icon}
+            {v.label}
+          </Link>
+        ))}
+      </nav>
       <Button variant="end" onClick={onEnd} title={session ? t('session.endHint') : undefined}>
         <Square size={12} fill="currentColor" />
         {session ? t('session.end') : t('terminal.end')}

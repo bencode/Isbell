@@ -19,7 +19,13 @@ export type Layout = {
   folded: string[]
   /** Agent panes (by paneKey) last seen in their terminal, most recent first; any other opens in chat. */
   terminal: string[]
+  /** The folders open in each project's files tree (relative to its root), by project key. */
+  files: Record<string, string[]>
+  /** How Markdown reads in the files view. */
+  reader: Reader
 }
+
+export type Reader = { size: 's' | 'm' | 'l'; wide: boolean }
 
 export type Local = {
   key: string | null
@@ -38,7 +44,14 @@ const DEFAULTS: Local = {
   seen: {},
   lastAgent: {},
   recentAgents: [],
-  layout: { info: false, rail: false, folded: [], terminal: [] },
+  layout: {
+    info: false,
+    rail: false,
+    folded: [],
+    terminal: [],
+    files: {},
+    reader: { size: 'm', wide: false },
+  },
 }
 
 const FIELDS = Object.keys(DEFAULTS) as (keyof Local)[]
@@ -103,6 +116,26 @@ export const toggleFolded = (key: string) =>
       },
     }
   })
+
+const withOpenDirs = (project: string, change: (dirs: string[]) => string[]) =>
+  updateLocal(l => ({
+    layout: { ...l.layout, files: { ...l.layout.files, [project]: change(l.layout.files[project] ?? []) } },
+  }))
+
+/** Opens or closes a folder in a project's files tree. */
+export const toggleDir = (project: string, dir: string) =>
+  withOpenDirs(project, dirs => (dirs.includes(dir) ? dirs.filter(d => d !== dir) : [...dirs, dir]))
+
+/** Opens these folders in a project's files tree, keeping the ones already open. */
+export function openDirs(project: string, wanted: string[]) {
+  const open = getLocal().layout.files[project]
+  // Opening a file whose folders are open already saves nothing.
+  if (open && wanted.every(d => open.includes(d))) return
+  withOpenDirs(project, dirs => [...dirs, ...wanted.filter(d => !dirs.includes(d))])
+}
+
+export const setReader = (change: Partial<Reader>) =>
+  updateLocal(l => ({ layout: { ...l.layout, reader: { ...l.layout.reader, ...change } } }))
 
 /** How many panes keep their terminal view; panes that ended fall off the end. */
 const TERMINAL_MAX = 50
