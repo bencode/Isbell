@@ -57,8 +57,6 @@ export const zh: Record<Key, string> = {
   'empty.title': '添加第一台机器',
   'empty.body': '在装有 herdr 的机器上装好 isbell，然后运行下面两条命令，几秒内就会出现在这里。',
 
-  'project.live': '正在跑的会话',
-  'project.all': '全部',
   'project.none': '没有在跑的会话。用"新建会话"（n）开一个。',
   'project.offline': '这台机器离线了。',
   'project.gone': '这个项目里已经没有在跑的东西了。',

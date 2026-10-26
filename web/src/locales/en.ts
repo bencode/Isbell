@@ -56,8 +56,6 @@ export const en = {
   'empty.body':
     'With isbell installed on the machine that has herdr, run these two. It shows up here within seconds.',
 
-  'project.live': 'Live sessions',
-  'project.all': 'All',
   'project.none': 'No sessions running. Start one with New session (n).',
   'project.offline': 'The machine is offline.',
   'project.gone': 'Nothing runs in this project any more.',

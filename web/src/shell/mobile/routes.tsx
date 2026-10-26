@@ -14,7 +14,7 @@ export function MobileRoutes() {
       <Route element={<MobileFrame />}>
         <Route element={<MobileBoard />}>
           <Route index element={<AllAgents stacked />} />
-          <Route path="p/:key" element={<ProjectView />} />
+          <Route path="p/:key" element={<ProjectView stacked />} />
         </Route>
         <Route path="s/:mid/:pane" element={<SessionPage layout={MobilePane} />} />
         <Route path="t/:mid/:pane" element={<LazyTerminal layout={MobilePane} />} />

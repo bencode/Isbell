@@ -1,17 +1,11 @@
 import { SquareTerminal } from 'lucide-react'
-import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useI18n } from '../../core/i18n'
 import { useProjects, useSpaceView } from '../../core/space'
 import { lanes, type Project } from '../../model/projects'
-import type { AgentStatus } from '../../model/state'
 import { terminalHref } from '../../utils/hrefs'
 import { useNow } from '../../utils/time'
-import { AskingCard } from './cards/asking-card'
-import { FinishedCard } from './cards/finished-card'
-import { SessionCard } from './session-card'
-
-const FILTERS: AgentStatus[] = ['blocked', 'working', 'done', 'idle']
+import { Lanes } from './lanes'
 
 /** The project the board is focused on, from the route. */
 function useFocused(projects: Project[]): Project | undefined {
@@ -39,7 +33,8 @@ function Shells({ project }: { project: Project }) {
   )
 }
 
-export function ProjectView() {
+/** One project's agents on the home's lanes; `stacked` lays the lanes one under another. */
+export function ProjectView({ stacked = false }: { stacked?: boolean }) {
   const t = useI18n()
   const view = useSpaceView()
   const projects = useProjects()
@@ -53,23 +48,13 @@ export function ProjectView() {
         <Link to="/">{t('project.back')}</Link>
       </div>
     )
-  // Keyed so the status filter starts over for each project.
-  return <Focused key={project.key} project={project} />
+  // Keyed so the lanes start over for each project.
+  return <Focused key={project.key} project={project} stacked={stacked} />
 }
 
-function Focused({ project }: { project: Project }) {
+function Focused({ project, stacked }: { project: Project; stacked: boolean }) {
   const t = useI18n()
   const now = useNow()
-  const [filter, setFilter] = useState<AgentStatus | null>(null)
-  const counts = FILTERS.map(
-    status => [status, project.sessions.filter(s => s.status === status).length] as const,
-  )
-  // A status whose last session left shows nothing; fall back to all.
-  const active = filter && counts.some(([status, n]) => status === filter && n > 0) ? filter : null
-  const shown = project.sessions.filter(s => !active || s.status === active)
-  const chip = (on: boolean) =>
-    `inline-flex h-[30px] cursor-pointer items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium capitalize ${on ? 'border-line-strong bg-raised-2 text-text' : 'border-line bg-transparent text-muted'}`
-
   return (
     <>
       <div className="flex flex-wrap items-baseline gap-2.5">
@@ -82,65 +67,12 @@ function Focused({ project }: { project: Project }) {
           <span className="rounded-full border border-line px-2 text-xs text-muted">{t('side.offline')}</span>
         )}
       </div>
-      <Needs project={project} now={now} />
-      <section className="flex flex-col gap-3">
-        <h2 className="m-0 flex items-baseline gap-2 text-base font-semibold">
-          {t('project.live')}{' '}
-          <span className="text-sm font-normal text-faint">{project.sessions.length}</span>
-        </h2>
-        {project.sessions.length ? (
-          <>
-            <div className="flex flex-wrap gap-1.5">
-              <button type="button" className={chip(active === null)} onClick={() => setFilter(null)}>
-                {t('project.all')} <span className="text-xs text-faint">{project.sessions.length}</span>
-              </button>
-              {counts
-                .filter(([, n]) => n)
-                .map(([status, n]) => (
-                  <button
-                    key={status}
-                    type="button"
-                    className={chip(active === status)}
-                    onClick={() => setFilter(status)}
-                  >
-                    {t(`status.${status}`)} <span className="text-xs text-faint">{n}</span>
-                  </button>
-                ))}
-            </div>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
-              {shown.map(s => (
-                <SessionCard key={s.paneId} session={s} now={now} />
-              ))}
-            </div>
-          </>
-        ) : (
-          <p className="m-0 text-muted">{project.online ? t('project.none') : t('project.offline')}</p>
-        )}
-        <Shells project={project} />
-      </section>
+      <Shells project={project} />
+      {project.sessions.length ? (
+        <Lanes lanes={lanes([project])} now={now} stacked={stacked} />
+      ) : (
+        <p className="m-0 text-muted">{project.online ? t('project.none') : t('project.offline')}</p>
+      )}
     </>
-  )
-}
-
-/** The project's agents that ask or finished unseen, answered on their cards. */
-function Needs({ project, now }: { project: Project; now: number }) {
-  const t = useI18n()
-  const { asking, finished } = lanes([project])
-  if (!asking.length && !finished.length) return null
-  return (
-    <section className="flex flex-col gap-2.5">
-      <h2 className="m-0 flex items-baseline gap-2 text-base font-semibold">
-        {t('needs.title')}{' '}
-        <span className="text-sm font-normal text-faint">{asking.length + finished.length}</span>
-      </h2>
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] items-start gap-3">
-        {asking.map(p => (
-          <AskingCard key={p.session.paneId} placed={p} now={now} />
-        ))}
-        {finished.map(p => (
-          <FinishedCard key={p.session.paneId} placed={p} now={now} />
-        ))}
-      </div>
-    </section>
   )
 }
