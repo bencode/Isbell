@@ -24,11 +24,12 @@ export function useShortcuts(keys: Record<string, (e: KeyboardEvent) => void>, e
 // A touch keyboard's ↵ is its only way to a new line, so there the send button sends.
 const TOUCH = matchMedia('(pointer: coarse)').matches
 
-/** ↵ submits a text field and ⇧↵ starts a new line; ⌘↵ (Ctrl+↵) submits as well; on a touch
- * screen ↵ always starts a new line. While an input method is composing, ↵ picks its candidate
- * instead (Safari reports that ↵ as keyCode 229). */
+/** ↵ submits a text field and ⇧↵ starts a new line; ⌘↵ (Ctrl+↵) submits as well, and on a touch
+ * screen only it does. While an input method is composing, ↵ picks its candidate instead (Safari
+ * reports that ↵ as keyCode 229). */
 export const onSubmitKey = (submit: () => void) => (e: ReactKeyboardEvent<HTMLElement>) => {
-  if (TOUCH || e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing || e.keyCode === 229) return
+  if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing || e.keyCode === 229) return
+  if (TOUCH && !e.metaKey && !e.ctrlKey) return
   e.preventDefault()
   submit()
 }
