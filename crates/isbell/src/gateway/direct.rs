@@ -62,9 +62,17 @@ pub async fn serve(
 
 async fn answer(p: Value, ice: &[String]) -> Result<(Peer, Description), RpcError> {
     let OfferRequest { offer } = serde_json::from_value(p).map_err(RpcError::bad_request)?;
+    let offered = rtc::tally(&offer.sdp);
     let mut peer = Peer::answerer(ice).await?;
     match peer.answer(offer).await {
-        Ok(answer) => Ok((peer, answer)),
+        Ok(answer) => {
+            tracing::info!(
+                offer = offered,
+                answer = rtc::tally(&answer.sdp),
+                "answered a direct link"
+            );
+            Ok((peer, answer))
+        }
         Err(err) => {
             peer.close().await;
             Err(err.into())
@@ -73,6 +81,6 @@ async fn answer(p: Value, ice: &[String]) -> Result<(Peer, Description), RpcErro
 }
 
 async fn close(peer: Peer, why: &str) {
-    tracing::info!(why, "direct link closed");
+    tracing::info!(why, states = peer.states(), "direct link closed");
     peer.close().await;
 }

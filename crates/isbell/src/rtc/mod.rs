@@ -11,8 +11,8 @@
 mod channel;
 mod path;
 
-use std::sync::Arc;
-use std::time::Duration;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use isbell_proto::frame::RpcError;
 use tokio::sync::{mpsc, watch};
@@ -24,7 +24,7 @@ use webrtc::peer_connection::{
 };
 
 pub use self::channel::carry;
-pub use self::path::Path;
+pub use self::path::{Path, tally};
 
 /// An offer or answer; serializes as `{"type", "sdp"}`, like a browser's.
 pub type Description = webrtc::peer_connection::RTCSessionDescription;
@@ -61,6 +61,9 @@ struct Handler {
     gathered: mpsc::UnboundedSender<()>,
     state: watch::Sender<RTCPeerConnectionState>,
     channels: mpsc::UnboundedSender<Arc<dyn DataChannel>>,
+    since: Instant,
+    /// Every state the connection went through, as `state@ms` since the peer was made.
+    trail: Arc<Mutex<Vec<String>>>,
 }
 
 #[async_trait::async_trait]
@@ -76,6 +79,8 @@ impl PeerConnectionEventHandler for Handler {
         }
     }
     async fn on_connection_state_change(&self, state: RTCPeerConnectionState) {
+        let at = format!("{state}@{}ms", self.since.elapsed().as_millis());
+        self.trail.lock().expect("trail poisoned").push(at);
         self.state.send_replace(state);
     }
     async fn on_data_channel(&self, channel: Arc<dyn DataChannel>) {
@@ -88,6 +93,7 @@ pub struct Peer {
     gathered: mpsc::UnboundedReceiver<()>,
     state: watch::Receiver<RTCPeerConnectionState>,
     channels: mpsc::UnboundedReceiver<Arc<dyn DataChannel>>,
+    trail: Arc<Mutex<Vec<String>>>,
 }
 
 impl Peer {
@@ -107,7 +113,14 @@ impl Peer {
         let (gathered_tx, gathered) = mpsc::unbounded_channel();
         let (state_tx, state) = watch::channel(RTCPeerConnectionState::New);
         let (channels_tx, channels) = mpsc::unbounded_channel();
-        let handler = Handler { gathered: gathered_tx, state: state_tx, channels: channels_tx };
+        let trail = Arc::new(Mutex::new(Vec::new()));
+        let handler = Handler {
+            gathered: gathered_tx,
+            state: state_tx,
+            channels: channels_tx,
+            since: Instant::now(),
+            trail: trail.clone(),
+        };
         let servers = match ice.is_empty() {
             true => vec![],
             false => vec![RTCIceServer { urls: ice.to_vec(), ..Default::default() }],
@@ -120,7 +133,13 @@ impl Peer {
             .build()
             .await
             .map_err(webrtc_error)?;
-        Ok(Peer { pc: Box::new(pc), gathered, state, channels })
+        Ok(Peer { pc: Box::new(pc), gathered, state, channels, trail })
+    }
+
+    /// The states the connection went through, e.g. `connecting@31ms failed@7804ms`.
+    pub fn states(&self) -> String {
+        let trail = self.trail.lock().expect("trail poisoned");
+        if trail.is_empty() { "new".to_owned() } else { trail.join(" ") }
     }
 
     pub async fn offer(&mut self) -> Result<Description, RtcError> {
