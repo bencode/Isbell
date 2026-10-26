@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import type { Shell } from './herdr'
-import { deriveProjects, judgeAdd, needs } from './projects'
+import { deriveProjects, judgeAdd, lanes, needs } from './projects'
 import type { MachineEntry } from './space'
 import type { Agent } from './state'
 
@@ -85,6 +85,31 @@ test('needs lists blocked sessions first, then unread ones, newest first', () =>
     {},
   )
   expect(needs(projects).map(s => s.paneId)).toEqual(['blocked', 'done-new', 'done-old'])
+})
+
+test('the lanes hold who asks, who finished unseen and who works, the longest waiting first', () => {
+  const projects = deriveProjects(
+    [
+      machine([
+        agent('asks-late', '/srv/a', 'blocked', 5),
+        agent('asks-early', '/srv/b', 'blocked', 2),
+        agent('done', '/srv/c', 'done', 3),
+        agent('seen', '/srv/c', 'done', 1),
+        agent('works', '/srv/d', 'working', 4),
+        agent('idle', '/srv/d', 'idle', 6),
+        agent('unknown', '/srv/d', 'unknown', 7),
+      ]),
+    ],
+    [],
+    { [`${MID}/seen`]: 1 },
+  )
+  const ids = (lane: { session: { paneId: string } }[]) => lane.map(p => p.session.paneId)
+  const { asking, finished, running } = lanes(projects)
+  expect([ids(asking), ids(finished), ids(running)]).toEqual([
+    ['asks-early', 'asks-late'],
+    ['done'],
+    ['works'],
+  ])
 })
 
 describe('judgeAdd', () => {

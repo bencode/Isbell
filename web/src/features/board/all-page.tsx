@@ -1,19 +1,13 @@
-import { Link } from 'react-router'
 import { JoinCommands } from '../../components/join-commands'
 import { uiLabels, useI18n } from '../../core/i18n'
 import { useLocal } from '../../core/prefs'
 import { useProjects, useSpaceView } from '../../core/space'
-import { needs } from '../../model/projects'
-import { projectHref } from '../../utils/hrefs'
+import { lanes } from '../../model/projects'
 import { useNow } from '../../utils/time'
-import { NeedsSection } from '../needs/needs-section'
-import { Shells } from './project-page'
-import { SessionCard } from './session-card'
+import { Lanes } from './lanes'
 
-/** Each project shows this many sessions here; focusing it shows them all. */
-const CAP = 6
-
-export function AllProjects() {
+/** Every agent on one board, by what it is doing; `stacked` lays the lanes one under another. */
+export function AllProjects({ stacked = false }: { stacked?: boolean }) {
   const t = useI18n()
   const view = useSpaceView()
   const projects = useProjects()
@@ -22,11 +16,8 @@ export function AllProjects() {
   if (!view.loaded) return <p className="m-0 text-muted">{t('board.loading')}</p>
   if (!view.machines.length) return <NoMachines />
 
-  const rows = needs(projects).map(session => ({
-    session,
-    project: projects.find(p => p.sessions.includes(session)),
-  }))
   const online = view.machines.filter(m => m.online).length
+  const agents = projects.reduce((n, p) => n + p.sessions.length, 0)
   return (
     <>
       <div className="flex flex-wrap items-baseline gap-3">
@@ -34,43 +25,14 @@ export function AllProjects() {
           {t('all.title')}
         </h1>
         <span className="text-muted">
-          {t('all.summary', { projects: projects.length, machines: view.machines.length, online })}
+          {t('all.summary', { projects: projects.length, machines: view.machines.length, online, agents })}
         </span>
       </div>
-      {rows.length ? <NeedsSection rows={rows} /> : <p className="m-0 text-muted">{t('all.nothing')}</p>}
-      {projects.length ? null : <p className="m-0 text-muted">{t('all.empty')}</p>}
-      {projects.map(p => (
-        <section key={p.key} className="flex flex-col gap-2.5">
-          <div className="flex flex-wrap items-baseline gap-2.5">
-            <h2 className="m-0 text-base font-semibold">
-              <Link to={projectHref(p.key)} className="text-text no-underline hover:underline">
-                {p.name}
-              </Link>
-            </h2>
-            <span className="font-mono text-xs text-faint">{p.display}</span>
-            <span className="rounded-md border border-line px-1.5 text-xs text-muted">{p.machine}</span>
-            {p.sessions.length ? (
-              <span className="text-sm text-faint">{t('all.live', { n: p.sessions.length })}</span>
-            ) : null}
-          </div>
-          {p.sessions.length ? (
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
-              {p.sessions.slice(0, CAP).map(s => (
-                <SessionCard key={s.paneId} session={s} now={now} />
-              ))}
-              {p.sessions.length > CAP ? (
-                <Link
-                  to={projectHref(p.key)}
-                  className="flex min-h-28 items-center justify-center rounded-[10px] border border-dashed border-line text-[13px] text-muted no-underline hover:border-line-strong hover:text-text"
-                >
-                  {t('all.more', { n: p.sessions.length - CAP, name: p.name })}
-                </Link>
-              ) : null}
-            </div>
-          ) : null}
-          <Shells project={p} />
-        </section>
-      ))}
+      {agents ? (
+        <Lanes lanes={lanes(projects)} now={now} stacked={stacked} />
+      ) : (
+        <p className="m-0 text-muted">{t('all.empty')}</p>
+      )}
     </>
   )
 }

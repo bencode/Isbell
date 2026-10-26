@@ -6,7 +6,15 @@ import { prompt } from '../../model/herdr'
 import { onSubmitKey } from '../../utils/shortcuts'
 
 /** A reply, or something more the agent should know. */
-export function Composer({ mid, paneId, onSent }: { mid: string; paneId: string; onSent: () => void }) {
+export function Composer({
+  mid,
+  paneId,
+  onSent,
+}: {
+  mid: string
+  paneId: string
+  onSent: (text: string) => void
+}) {
   const t = useI18n()
   const space = useSpace()
   const [text, setText] = useState('')
@@ -21,7 +29,7 @@ export function Composer({ mid, paneId, onSent }: { mid: string; paneId: string;
       await prompt(space.call, mid, paneId, message)
       setText('')
       setError(undefined)
-      onSent()
+      onSent(message)
     } catch (err) {
       setError(errorText(t, err))
     } finally {

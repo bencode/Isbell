@@ -13,7 +13,7 @@ export function MobileRoutes() {
     <Routes>
       <Route element={<MobileFrame />}>
         <Route element={<MobileBoard />}>
-          <Route index element={<AllProjects />} />
+          <Route index element={<AllProjects stacked />} />
           <Route path="p/:key" element={<ProjectView />} />
         </Route>
         <Route path="s/:mid/:pane" element={<SessionPage layout={MobilePane} />} />

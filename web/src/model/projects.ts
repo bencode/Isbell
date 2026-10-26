@@ -113,6 +113,24 @@ export const needs = (projects: Project[]): Session[] =>
         Number(b.status === 'blocked') - Number(a.status === 'blocked') || b.statusSince - a.statusSince,
     )
 
+/** A session with the project it runs in. */
+export type Placed = { session: Session; project: Project }
+
+/** The agents the home shows, by what they are doing. */
+export type Lanes = { asking: Placed[]; finished: Placed[]; running: Placed[] }
+
+/** Every agent that asks, finished unseen, or works; the longest waiting first in each lane. */
+export function lanes(projects: Project[]): Lanes {
+  const placed = projects
+    .flatMap(project => project.sessions.map(session => ({ session, project })))
+    .sort((a, b) => a.session.statusSince - b.session.statusSince)
+  return {
+    asking: placed.filter(p => p.session.status === 'blocked'),
+    finished: placed.filter(p => p.session.status === 'done' && p.session.unread),
+    running: placed.filter(p => p.session.status === 'working'),
+  }
+}
+
 export type Pane = { session: Session } | { shell: Shell }
 
 export type Found = { project: Project; name: string; pane: Pane }
