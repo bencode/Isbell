@@ -92,9 +92,14 @@ pub async fn list_and_search(session: &Session, mid: &str) {
     std::fs::write(dir.path().join("README.md"), "hi").unwrap();
 
     let listed = session.call(mid, "isbell.file.list", json!({"path": dir.path()}), None).await;
+    let mut listed = listed.unwrap();
+    for entry in listed["entries"].as_array_mut().unwrap() {
+        let mtime = entry.as_object_mut().unwrap().remove("mtime");
+        assert!(mtime.and_then(|m| m.as_u64()).is_some(), "each entry says when it changed");
+    }
     let entries =
         json!([{"name": "docs", "kind": "dir"}, {"name": "README.md", "kind": "file", "size": 2}]);
-    assert_eq!(listed.unwrap(), json!({"entries": entries, "truncated": false}));
+    assert_eq!(listed, json!({"entries": entries, "total": 2, "truncated": false}));
 
     let query = json!({"root": dir.path(), "query": "design/HOME"});
     let found = session.call(mid, "isbell.file.search", query, None).await;

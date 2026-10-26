@@ -7,10 +7,10 @@ mod read;
 mod search;
 mod write;
 
-use std::fs::DirEntry;
+use std::fs::{DirEntry, Metadata};
 use std::io::ErrorKind;
 use std::path::Path;
-use std::time::Duration;
+use std::time::{Duration, UNIX_EPOCH};
 
 use isbell_proto::frame::RpcError;
 
@@ -39,6 +39,13 @@ fn io_error(err: std::io::Error) -> RpcError {
         _ => "io_error",
     };
     RpcError::new(code, err.to_string())
+}
+
+/// When the file was last modified, in milliseconds since the epoch; `None` where the system does
+/// not keep it.
+fn mtime_ms(meta: &Metadata) -> Option<u64> {
+    let since = meta.modified().ok()?.duration_since(UNIX_EPOCH).ok()?;
+    u64::try_from(since.as_millis()).ok()
 }
 
 /// Runs blocking filesystem work, many small syscalls, off the async workers.

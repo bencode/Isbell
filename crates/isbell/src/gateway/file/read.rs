@@ -9,7 +9,7 @@ use tokio::io::AsyncReadExt;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::TryRecvError;
 
-use super::{STALLED_FOR, absolute_path, io_error};
+use super::{STALLED_FOR, absolute_path, io_error, mtime_ms};
 use crate::gateway::stream::{Input, Output};
 
 #[derive(Deserialize)]
@@ -17,7 +17,8 @@ struct ReadRequest {
     path: String,
 }
 
-/// Opens the regular file at the absolute `path`; answers with its size.
+/// Opens the regular file at the absolute `path`; answers with its size and, where known, when it
+/// was last modified.
 pub async fn open_read(p: Value) -> Result<(File, Value), RpcError> {
     let req: ReadRequest = serde_json::from_value(p).map_err(RpcError::bad_request)?;
     let path = absolute_path(&req.path)?;
@@ -27,7 +28,11 @@ pub async fn open_read(p: Value) -> Result<(File, Value), RpcError> {
         return Err(RpcError::new("not_a_file", format!("{} is not a regular file", req.path)));
     }
     let file = File::open(path).await.map_err(io_error)?;
-    Ok((file, json!({"size": meta.len()})))
+    let mut opened = json!({"size": meta.len()});
+    if let Some(mtime) = mtime_ms(&meta) {
+        opened["mtime"] = json!(mtime);
+    }
+    Ok((file, opened))
 }
 
 /// Sends the file in chunks as credit allows, until all of it is sent, the caller closes the
@@ -104,7 +109,8 @@ mod tests {
         let path = dir.path().join("f.md");
         std::fs::write(&path, content).unwrap();
         let (file, r) = open_read(json!({"path": path})).await.unwrap();
-        assert_eq!(r, json!({"size": content.len()}));
+        assert_eq!(r["size"], json!(content.len()));
+        assert!(r["mtime"].as_u64().is_some(), "the opened file says when it changed: {r}");
         (dir, file)
     }
 
