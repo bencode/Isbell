@@ -232,7 +232,7 @@ export const zh: Record<Key, string> = {
   'error.too_many_streams': '这台机器上开着的终端太多了。',
   'error.idle': '终端闲置太久，已断开。',
   'error.slow_client': '页面跟不上终端的输出，已断开。',
-  'error.direct_failed': '无法直连这台机器。',
+  'error.direct_failed': '无法直连这台机器：{msg}。',
   'error.rate_limited': '请求太频繁，请稍后再试。',
   'error.agent_not_ready': 'agent 没有及时准备好。',
   'error.terminal_failed': '打不开终端：{msg}',

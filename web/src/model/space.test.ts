@@ -39,6 +39,7 @@ vi.mock('./direct', () => ({
 
 const MID = '0123456789abcdef'
 const RETRY_MS = 5 * 60_000
+const WAIT_MS = 4_000
 
 /** A space whose relay has reported one machine, online and able to open direct links. */
 function spaceWithMachine(): Space {
@@ -87,14 +88,33 @@ test('after a direct link fails, streams use the relay and it is not tried again
   expect(direct.tries).toBe(2)
 })
 
+const lanLink = (): DirectLink => ({
+  path: 'lan',
+  open: async () => ({ result: {}, stream }),
+  stats: async () => undefined,
+  close: vi.fn(),
+  closed: new Promise(() => {}),
+})
+
+test('a stream takes the relay while a slow direct link opens, and the streams after it take the link', async () => {
+  vi.useFakeTimers()
+  const link = lanLink()
+  let opened: (link: DirectLink) => void = () => {}
+  direct.open = () => new Promise(resolve => (opened = resolve))
+  const space = spaceWithMachine()
+
+  const first = open(space)
+  await vi.advanceTimersByTimeAsync(WAIT_MS)
+  expect((await first).via).toBe('relay')
+  expect(space.directStatus(MID)).toEqual({ state: 'opening' })
+
+  opened(link)
+  expect((await open(space)).via).toBe('lan')
+  expect(direct.tries).toBe(1)
+})
+
 test('streams take an open direct link, and it closes when the machine goes offline', async () => {
-  const link: DirectLink = {
-    path: 'lan',
-    open: async () => ({ result: {}, stream }),
-    stats: async () => undefined,
-    close: vi.fn(),
-    closed: new Promise(() => {}),
-  }
+  const link = lanLink()
   direct.open = async () => link
   const space = spaceWithMachine()
 

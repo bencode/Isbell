@@ -15,8 +15,9 @@ use super::relay_io::to_inflight;
 use super::{PeerLinks, Session};
 use crate::rtc::{self, Description, Path, Peer};
 
-/// Offer, answer and the channel opening together.
-const DIRECT_WITHIN: Duration = Duration::from_secs(5);
+/// Offer, answer and the channel opening together: room for both ends' gathering, as long as the
+/// gateway gives the channel to open.
+const DIRECT_WITHIN: Duration = Duration::from_secs(10);
 
 impl Session {
     /// Opens a direct link to machine `mid`, unless one is open already; returns the way it goes

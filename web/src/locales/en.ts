@@ -234,7 +234,7 @@ export const en = {
   'error.too_many_streams': 'The machine has too many terminals open.',
   'error.idle': 'The terminal was idle for too long.',
   'error.slow_client': 'This page fell too far behind the terminal.',
-  'error.direct_failed': 'Could not reach the machine directly.',
+  'error.direct_failed': 'Could not reach the machine directly: {msg}.',
   'error.rate_limited': 'Too many requests. Try again in a moment.',
   'error.agent_not_ready': 'The agent did not get ready in time.',
   'error.terminal_failed': 'Could not open a terminal: {msg}',

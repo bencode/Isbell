@@ -33,10 +33,10 @@ export type DirectLink = {
 
 /** The gateway's default STUN servers, so both sides look for their public addresses alike. */
 const STUN = ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478']
-/** The offer goes out once a public address is known, or after this, as the gateway does. */
-const GATHER_MS = 1_000
+/** The offer goes out once gathering completes, or after this, as the gateway does. */
+const GATHER_MS = 2_500
 /** Offer, answer and the channel opening together, as the CLI allows. */
-const DIRECT_MS = 5_000
+const DIRECT_MS = 10_000
 
 type Description = { type: RTCSdpType; sdp: string }
 
@@ -84,7 +84,8 @@ async function connect(
   await opened
 }
 
-/** Candidates are not trickled: wait for a public address, the end of gathering, or GATHER_MS. */
+/** Candidates are not trickled: wait for the end of gathering, or GATHER_MS, so the offer carries
+ * every address found, of both families. */
 const gathered = (pc: RTCPeerConnection) =>
   new Promise<void>(resolve => {
     const done = () => {
@@ -93,7 +94,7 @@ const gathered = (pc: RTCPeerConnection) =>
     }
     const timer = setTimeout(done, GATHER_MS)
     pc.addEventListener('icecandidate', e => {
-      if (!e.candidate || e.candidate.type === 'srflx') done()
+      if (!e.candidate) done()
     })
     if (pc.iceGatheringState === 'complete') done()
   })

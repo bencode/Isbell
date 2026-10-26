@@ -19,8 +19,7 @@ use tokio::sync::{mpsc, watch};
 use webrtc::data_channel::{DataChannel, DataChannelEvent};
 use webrtc::peer_connection::{
     PeerConnection, PeerConnectionBuilder, PeerConnectionEventHandler, RTCConfigurationBuilder,
-    RTCIceCandidateType, RTCIceGatheringState, RTCIceServer, RTCPeerConnectionIceEvent,
-    RTCPeerConnectionState,
+    RTCIceGatheringState, RTCIceServer, RTCPeerConnectionState,
 };
 
 pub use self::channel::carry;
@@ -29,9 +28,9 @@ pub use self::path::{Path, tally};
 /// An offer or answer; serializes as `{"type", "sdp"}`, like a browser's.
 pub type Description = webrtc::peer_connection::RTCSessionDescription;
 
-/// Descriptions go out once a server-reflexive candidate exists, or after this; finishing the
-/// gathering can take seconds longer on interfaces no STUN server answers.
-const GATHER_WITHIN: Duration = Duration::from_secs(1);
+/// Descriptions go out once gathering completes, or after this: a STUN server that never answers
+/// keeps it going for seconds. Waiting for every candidate keeps both address families on offer.
+const GATHER_WITHIN: Duration = Duration::from_millis(2_500);
 /// The library blocks `send` while this much is queued.
 const SEND_BUFFER: usize = 1 << 20;
 const LABEL: &str = "isbell";
@@ -68,11 +67,6 @@ struct Handler {
 
 #[async_trait::async_trait]
 impl PeerConnectionEventHandler for Handler {
-    async fn on_ice_candidate(&self, event: RTCPeerConnectionIceEvent) {
-        if event.candidate.typ == RTCIceCandidateType::Srflx {
-            let _ = self.gathered.send(());
-        }
-    }
     async fn on_ice_gathering_state_change(&self, state: RTCIceGatheringState) {
         if state == RTCIceGatheringState::Complete {
             let _ = self.gathered.send(());

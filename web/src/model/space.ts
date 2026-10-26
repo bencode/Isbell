@@ -20,6 +20,18 @@ export type Via = 'relay' | Path
 
 /** After a direct link fails, streams to that machine use the relay this long before trying again. */
 const DIRECT_RETRY_MS = 5 * 60_000
+/** How long a stream waits for a direct link being set up before it takes the relay; the link
+ * keeps opening, for the streams after it. */
+const DIRECT_WAIT_MS = 4_000
+
+/** `link`, or undefined once `ms` pass first. */
+const within = <T>(link: Promise<T | undefined>, ms: number): Promise<T | undefined> => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const late = new Promise<undefined>(resolve => {
+    timer = setTimeout(() => resolve(undefined), ms)
+  })
+  return Promise.race([link, late]).finally(() => clearTimeout(timer))
+}
 
 /** Where this client stands with a machine's direct link. */
 export type DirectStatus =
@@ -216,7 +228,7 @@ export function createSpace(url: string, id: Identity): Space {
     call: conn.call,
     openThenEnd: conn.openThenEnd,
     openStream: async (mid, m, p, timeoutMs, events, transport = 'auto') => {
-      const link = transport === 'auto' ? await directTo(mid) : undefined
+      const link = transport === 'auto' ? await within(directTo(mid), DIRECT_WAIT_MS) : undefined
       if (link) return { ...(await link.open(m, p, timeoutMs, events)), via: link.path }
       return { ...(await conn.open(mid, m, p, timeoutMs, events)), via: 'relay' }
     },
