@@ -87,6 +87,8 @@ test('needs lists blocked sessions first, then unread ones, newest first', () =>
   expect(needs(projects).map(s => s.paneId)).toEqual(['blocked', 'done-new', 'done-old'])
 })
 
+const ids = (lane: { session: { paneId: string } }[]) => lane.map(p => p.session.paneId)
+
 test('the lanes hold who asks, who finished unseen and who works, the longest waiting first', () => {
   const projects = deriveProjects(
     [
@@ -103,13 +105,26 @@ test('the lanes hold who asks, who finished unseen and who works, the longest wa
     [],
     { [`${MID}/seen`]: 1 },
   )
-  const ids = (lane: { session: { paneId: string } }[]) => lane.map(p => p.session.paneId)
-  const { asking, finished, running } = lanes(projects)
+  const { asking, finished, running, standing, offline } = lanes(projects)
   expect([ids(asking), ids(finished), ids(running)]).toEqual([
     ['asks-early', 'asks-late'],
     ['done'],
     ['works'],
   ])
+  // The rest stand by, the latest first.
+  expect(ids(standing)).toEqual(['unknown', 'idle', 'seen'])
+  expect(offline).toEqual([])
+})
+
+test('every agent of an offline machine is offline, whatever it last reported', () => {
+  const projects = deriveProjects(
+    [machine([agent('works', '/srv/a', 'working', 1), agent('asks', '/srv/b', 'blocked', 2)], false)],
+    [],
+    {},
+  )
+  const { asking, running, standing, offline } = lanes(projects)
+  expect([asking, running, standing].flat()).toEqual([])
+  expect(ids(offline)).toEqual(['asks', 'works'])
 })
 
 describe('judgeAdd', () => {

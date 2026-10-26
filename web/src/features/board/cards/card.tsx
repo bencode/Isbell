@@ -6,8 +6,13 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import { useI18n } from '../../../core/i18n'
 import type { Placed, Session } from '../../../model/projects'
+import type { Block, Reading } from '../../../model/screen/types'
 import { sessionHref } from '../../../utils/hrefs'
 import { since } from '../../../utils/time'
+
+/** What the agent said last: the turn still going, or else the last one ended. */
+export const lastReply = (reading: Reading | null): Block[] | undefined =>
+  reading?.live?.reply.length ? reading.live.reply : reading?.turns.at(-1)?.reply
 
 /** `sent` fades the card while what was sent takes effect. */
 export function Card({ ask, sent, children }: { ask?: boolean; sent?: boolean; children: ReactNode }) {

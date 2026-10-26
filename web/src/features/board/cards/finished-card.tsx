@@ -10,7 +10,7 @@ import type { Reading } from '../../../model/screen/types'
 import { Composer } from '../../pane/composer'
 import { Reply } from '../../pane/reply'
 import { useReading } from '../../pane/use-reading'
-import { Card, CardHead, SentNote, useSent } from './card'
+import { Card, CardHead, lastReply, SentNote, useSent } from './card'
 
 export function FinishedCard({ placed, now }: { placed: Placed; now: number }) {
   const t = useI18n()
@@ -60,7 +60,7 @@ export function FinishedCard({ placed, now }: { placed: Placed; now: number }) {
 
 /** The end of what the agent said last, scrolled to its end with the rest above it. */
 function LastReply({ reading, text }: { reading: Reading | null; text: string }) {
-  const blocks = reading?.live?.reply.length ? reading.live.reply : reading?.turns.at(-1)?.reply
+  const blocks = lastReply(reading)
   if (!blocks?.length)
     return (
       <pre className="m-0 max-h-28 overflow-auto rounded-md bg-bg px-2.5 py-2 font-mono text-[11.5px] leading-snug whitespace-pre-wrap">

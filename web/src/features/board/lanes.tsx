@@ -1,13 +1,14 @@
-// The board's three lanes: who asks, who finished unseen, who works. An agent moves from lane to
-// lane as its status changes; within a lane the longest waiting comes first.
+// The board's four lanes: who asks, who finished unseen, who works, and who stands by. Every agent
+// is in exactly one, and moves from lane to lane as its status changes.
 
-import type { ReactNode } from 'react'
+import { type ReactNode, useState } from 'react'
 import { useI18n } from '../../core/i18n'
 import type { Lanes as LaneSet, Placed } from '../../model/projects'
 import { paneKey } from '../../model/projects'
 import { AskingCard } from './cards/asking-card'
 import { FinishedCard } from './cards/finished-card'
 import { RunningCard } from './cards/running-card'
+import { StandingRow } from './cards/standing-row'
 
 const keyOf = ({ session }: Placed) => paneKey(session.mid, session.paneId)
 
@@ -17,7 +18,9 @@ export function Lanes({ lanes, now, stacked }: { lanes: LaneSet; now: number; st
   return (
     <div
       className={
-        stacked ? 'flex flex-col gap-4' : 'grid min-h-0 flex-1 grid-cols-[1.15fr_1.05fr_0.9fr] gap-3.5'
+        stacked
+          ? 'flex flex-col gap-4'
+          : 'grid min-h-0 flex-1 grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,0.95fr)_minmax(0,0.95fr)] gap-3'
       }
     >
       <Lane title={t('lane.asking')} dot="bg-warn" hint={t('lane.oldest')} count={lanes.asking.length}>
@@ -35,7 +38,44 @@ export function Lanes({ lanes, now, stacked }: { lanes: LaneSet; now: number; st
           <RunningCard key={keyOf(p)} placed={p} now={now} />
         ))}
       </Lane>
+      <Standing standing={lanes.standing} offline={lanes.offline} now={now} />
     </div>
+  )
+}
+
+/** The rest, latest first, each opened to give it its next step; then the offline ones by machine. */
+function Standing({ standing, offline, now }: { standing: Placed[]; offline: Placed[]; now: number }) {
+  const t = useI18n()
+  // One row open at a time.
+  const [open, setOpen] = useState<string | null>(null)
+  const machines = [...new Set(offline.map(p => p.project.machine))]
+  const row = (p: Placed) => (
+    <StandingRow
+      key={keyOf(p)}
+      placed={p}
+      now={now}
+      open={open === keyOf(p)}
+      onOpen={() => setOpen(keyOf(p))}
+      onClose={() => setOpen(null)}
+    />
+  )
+  return (
+    <Lane
+      title={t('lane.standing')}
+      dot="bg-faint"
+      hint={t('lane.latest')}
+      count={standing.length + offline.length}
+    >
+      {standing.map(row)}
+      {machines.map(machine => (
+        <div key={machine} className="flex flex-col gap-1.5">
+          <h3 className="m-0 px-0.5 pt-1.5 text-[11px] font-semibold tracking-[0.04em] text-faint uppercase">
+            {t('lane.offline', { machine })}
+          </h3>
+          {offline.filter(p => p.project.machine === machine).map(row)}
+        </div>
+      ))}
+    </Lane>
   )
 }
 
