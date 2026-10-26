@@ -113,6 +113,7 @@ export const zh: Record<Key, string> = {
   'files.old': '这台机器上的 isbell 太旧，看不了文件。请在那台机器上更新。',
   'files.noRoot': '这个 pane 没有可看的目录。',
   'files.refresh': '重新列出',
+  'files.resize': '拖动调整文件树宽度',
   'files.search': '按路径搜文件',
   'files.searching': '搜索中…',
   'files.noMatch': '没有匹配的文件。',

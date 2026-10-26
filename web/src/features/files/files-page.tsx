@@ -3,8 +3,10 @@
 // files.
 
 import { useCallback, useState } from 'react'
+import { Group, Panel, useDefaultLayout } from 'react-resizable-panels'
 import { Link, useNavigate, useParams } from 'react-router'
 import { InfoFacts } from '../../components/info-panel'
+import { ResizeHandle } from '../../components/resize-handle'
 import { useI18n } from '../../core/i18n'
 import { attachCommand, connectionFacts, paneFacts } from '../../core/pane-facts'
 import { RELAY_URL, useProjects, useSpaceView } from '../../core/space'
@@ -18,6 +20,8 @@ import type { PaneLayout } from '../pane/pane-layout'
 import { useLink } from '../pane/use-link'
 import { Preview } from './preview'
 import { Tree } from './tree'
+
+const PANELS = ['tree', 'file']
 
 export function FilesPage({ layout }: { layout: PaneLayout }) {
   const t = useI18n()
@@ -66,6 +70,8 @@ function Browse({
   const machine = machineOf(useSpaceView().machines, mid)
   const { project, name, pane } = found
   const agent = 'session' in pane
+  // The tree's width, the same for every project.
+  const split = useDefaultLayout({ id: 'isbell.files-split', panelIds: PANELS, storage: localStorage })
   // Stable, so a document's links are not rendered again for it.
   const hrefOf = useCallback((to: string) => filesHref(mid, paneId, to), [mid, paneId])
 
@@ -89,17 +95,35 @@ function Browse({
         {note ? (
           <p className="m-6 text-muted">{note}</p>
         ) : (
-          <div className="flex min-h-0 flex-1">
-            <Tree
-              mid={mid}
-              project={project}
-              cwd={relative(project.path, agent ? (pane.session.cwd ?? '') : pane.shell.cwd) ?? ''}
-              current={rel}
-              hrefOf={hrefOf}
-            />
-            {/* Keyed, so each file starts with its own view mode and scroll. */}
-            <Preview key={rel} mid={mid} project={project} rel={rel} hrefOf={hrefOf} />
-          </div>
+          <Group
+            orientation="horizontal"
+            className="min-h-0 flex-1"
+            defaultLayout={split.defaultLayout}
+            onLayoutChanged={split.onLayoutChanged}
+          >
+            {/* Keeps its width as the window resizes. */}
+            <Panel
+              id="tree"
+              className="flex"
+              defaultSize="300px"
+              minSize="200px"
+              maxSize="50%"
+              groupResizeBehavior="preserve-pixel-size"
+            >
+              <Tree
+                mid={mid}
+                project={project}
+                cwd={relative(project.path, agent ? (pane.session.cwd ?? '') : pane.shell.cwd) ?? ''}
+                current={rel}
+                hrefOf={hrefOf}
+              />
+            </Panel>
+            <ResizeHandle label={t('files.resize')} />
+            <Panel id="file" className="flex" minSize="320px">
+              {/* Keyed, so each file starts with its own view mode and scroll. */}
+              <Preview key={rel} mid={mid} project={project} rel={rel} hrefOf={hrefOf} />
+            </Panel>
+          </Group>
         )}
       </Layout>
       <EndPane

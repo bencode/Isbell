@@ -112,6 +112,7 @@ export const en = {
   'files.old': "This machine's isbell is too old to show files. Update it there.",
   'files.noRoot': 'This pane has no directory to show.',
   'files.refresh': 'List again',
+  'files.resize': 'Drag to resize the file tree',
   'files.search': 'Search files by path',
   'files.searching': 'Searching…',
   'files.noMatch': 'No file matches.',

@@ -1,22 +1,17 @@
 // The project's folders, each listed only while it is open; or, while a search is typed, the files
 // found. Which folders are open is kept per project.
 
-import { ChevronDown, ChevronRight, File, FileCode, FileText, Folder, RotateCw } from 'lucide-react'
+import { RotateCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router'
 import { Button } from '../../components/button'
 import { errorText, useI18n } from '../../core/i18n'
 import { openDirs, toggleDir, useLocal } from '../../core/prefs'
-import { kindOf } from '../../model/files/content'
 import { ancestors, join } from '../../model/files/paths'
-import type { Entry } from '../../model/files/remote'
 import type { Project } from '../../model/projects'
 import { since, useNow } from '../../utils/time'
+import { FileRow, FolderRow, indent } from './rows'
 import { SearchBox, SearchResults } from './search'
 import { useListing } from './use-remote'
-
-const ROW =
-  'flex h-[26px] w-full min-w-0 items-center gap-1.5 rounded-md pr-2 text-left text-[13px] no-underline text-text hover:bg-raised-2'
 
 type Where = {
   mid: string
@@ -45,7 +40,7 @@ export function Tree(where: Where) {
   }, [project.key, current])
 
   return (
-    <aside className="flex w-[300px] flex-none flex-col border-r border-line bg-side">
+    <aside className="flex min-w-0 flex-1 flex-col bg-side">
       <div className="flex flex-col gap-2 border-b border-line px-3 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
           <b className="truncate">{project.name}</b>
@@ -80,7 +75,7 @@ function Level({ where, rel, depth, open }: { where: Where; rel: string; depth: 
   const t = useI18n()
   const now = useNow()
   const { data, error } = useListing(where.mid, join(where.project.path, rel))
-  const pad = { paddingLeft: 6 + depth * 14 }
+  const pad = indent(depth)
   if (error)
     return (
       <p className="m-0 py-1 text-[12.5px] text-danger" style={pad}>
@@ -105,29 +100,37 @@ function Level({ where, rel, depth, open }: { where: Where; rel: string; depth: 
       {data.entries.map(entry => {
         const child = rel ? `${rel}/${entry.name}` : entry.name
         if (entry.kind !== 'dir')
-          return <FileRow key={entry.name} where={where} rel={child} entry={entry} depth={depth} now={now} />
+          return (
+            <FileRow
+              key={entry.name}
+              depth={depth}
+              name={entry.name}
+              to={where.hrefOf(child)}
+              on={child === where.current}
+              label={entry.name}
+              extra={
+                entry.mtime === undefined ? null : (
+                  <span className="flex-none text-[11.5px] text-faint">{since(entry.mtime, now)}</span>
+                )
+              }
+            />
+          )
         const isOpen = open.includes(child)
         return (
           <div key={entry.name}>
-            <button
-              type="button"
-              className={`${ROW} cursor-pointer border-0 bg-transparent`}
-              style={pad}
-              onClick={() => toggleDir(where.project.key, child)}
-            >
-              {isOpen ? (
-                <ChevronDown size={13} className="flex-none text-faint" />
-              ) : (
-                <ChevronRight size={13} className="flex-none text-faint" />
-              )}
-              <Folder size={14} className="flex-none text-muted" />
-              <span className="truncate">{entry.name}</span>
-              {child === where.cwd ? (
-                <span className="flex-none rounded-[3px] border border-line px-1 font-mono text-[10px] text-faint">
-                  {t('files.cwd')}
-                </span>
-              ) : null}
-            </button>
+            <FolderRow
+              depth={depth}
+              open={isOpen}
+              onToggle={() => toggleDir(where.project.key, child)}
+              label={entry.name}
+              extra={
+                child === where.cwd ? (
+                  <span className="flex-none rounded-[3px] border border-line px-1 font-mono text-[10px] text-faint">
+                    {t('files.cwd')}
+                  </span>
+                ) : null
+              }
+            />
             {isOpen ? <Level where={where} rel={child} depth={depth + 1} open={open} /> : null}
           </div>
         )
@@ -138,39 +141,5 @@ function Level({ where, rel, depth, open }: { where: Where; rel: string; depth: 
         </p>
       ) : null}
     </>
-  )
-}
-
-const ICONS = { markdown: FileText, html: FileCode, text: File }
-
-function FileRow({
-  where,
-  rel,
-  entry,
-  depth,
-  now,
-}: {
-  where: Where
-  rel: string
-  entry: Entry
-  depth: number
-  now: number
-}) {
-  const Icon = ICONS[kindOf(entry.name)]
-  const on = rel === where.current
-  return (
-    <Link
-      to={where.hrefOf(rel)}
-      aria-current={on ? 'page' : undefined}
-      className={`${ROW} ${on ? 'bg-accent-soft' : ''}`}
-      // The chevron's room, so names line up with folders'.
-      style={{ paddingLeft: 6 + depth * 14 + 19 }}
-    >
-      <Icon size={14} className="flex-none text-faint" />
-      <span className="min-w-0 flex-1 truncate">{entry.name}</span>
-      {entry.mtime === undefined ? null : (
-        <span className="flex-none text-[11.5px] text-faint">{since(entry.mtime, now)}</span>
-      )}
-    </Link>
   )
 }
