@@ -97,6 +97,8 @@ export const en = {
   'pane.view': 'View',
   'pane.chat': 'Chat',
   'pane.terminal': 'Terminal',
+  'pane.back': 'Back',
+  'pane.more': 'More',
   'session.terminal': 'Open terminal',
   'session.end': 'End session…',
   'session.endHint': 'Stops the agent and closes its pane',

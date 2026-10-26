@@ -8,8 +8,8 @@ export type InfoGroup = {
   rows: { label: string; value: ReactNode; mono?: boolean; note?: string }[]
 }
 
-/** The facts beside a session or terminal; `command` is how to reach it by hand. */
-export function InfoPanel({
+/** The facts about a session or terminal; `command` is how to reach it by hand. */
+export function InfoFacts({
   groups,
   command,
 }: {
@@ -17,7 +17,7 @@ export function InfoPanel({
   command?: { label: string; text: string }
 }) {
   return (
-    <aside className="flex w-[280px] flex-none flex-col gap-5 overflow-auto border-l border-line p-5 text-[13px]">
+    <>
       {groups.map(group => (
         <section key={group.title} className="flex flex-col gap-2">
           <h2 className="m-0 text-[11px] font-semibold tracking-[0.04em] text-faint uppercase">
@@ -44,6 +44,15 @@ export function InfoPanel({
           </code>
         </section>
       ) : null}
+    </>
+  )
+}
+
+/** The column beside a session or terminal that holds its facts. */
+export function InfoPanel({ children }: { children: ReactNode }) {
+  return (
+    <aside className="flex w-[280px] flex-none flex-col gap-5 overflow-auto border-l border-line p-5 text-[13px]">
+      {children}
     </aside>
   )
 }

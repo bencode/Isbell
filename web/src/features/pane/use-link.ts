@@ -1,5 +1,5 @@
-// The direct link behind a terminal, for its info panel: read again every few seconds while the
-// panel shows it, since the browser does not announce changes to a pair's measurements.
+// The direct link behind a terminal, for its facts: read again every few seconds while they show,
+// since the browser does not announce changes to a pair's measurements.
 
 import { useEffect, useState } from 'react'
 import { useSpace } from '../../core/space'
@@ -10,12 +10,12 @@ const EVERY_MS = 2_000
 
 type Link = { direct?: DirectStatus; stats?: LinkStats | undefined }
 
-/** Where machine `mid`'s direct link stands and, on a direct path, its pair; read while `active`. */
-export function useLink(mid: string, via: Via | undefined, active: boolean): Link {
+/** Where machine `mid`'s direct link stands and, on a direct path, its pair; read while mounted. */
+export function useLink(mid: string, via: Via | undefined): Link {
   const space = useSpace()
   const [link, setLink] = useState<Link>({})
   useEffect(() => {
-    if (!active || !via) return
+    if (!via) return
     let live = true
     const read = async () => {
       const direct = space.directStatus(mid)
@@ -33,6 +33,6 @@ export function useLink(mid: string, via: Via | undefined, active: boolean): Lin
     return () => {
       live = false
     }
-  }, [space, mid, via, active])
+  }, [space, mid, via])
   return link
 }

@@ -98,6 +98,8 @@ export const zh: Record<Key, string> = {
   'pane.view': '视图',
   'pane.chat': '对话',
   'pane.terminal': '终端',
+  'pane.back': '返回',
+  'pane.more': '更多',
   'session.terminal': '打开终端',
   'session.end': '结束会话…',
   'session.endHint': '停掉 agent，并关掉它的 pane',

@@ -6,6 +6,7 @@ import { ProjectView } from '../../features/board/project-page'
 import { SessionPage } from '../../features/pane/session-page'
 import { LazyTerminal } from '../common'
 import { MobileBoard, MobileFrame } from './frame'
+import { MobilePane } from './pane'
 
 export function MobileRoutes() {
   return (
@@ -15,8 +16,8 @@ export function MobileRoutes() {
           <Route index element={<AllProjects />} />
           <Route path="p/:key" element={<ProjectView />} />
         </Route>
-        <Route path="s/:mid/:pane" element={<SessionPage />} />
-        <Route path="t/:mid/:pane" element={<LazyTerminal />} />
+        <Route path="s/:mid/:pane" element={<SessionPage layout={MobilePane} />} />
+        <Route path="t/:mid/:pane" element={<LazyTerminal layout={MobilePane} />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

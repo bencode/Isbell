@@ -8,6 +8,7 @@ import { useI18n } from '../core/i18n'
 import { useSpace, useSpaceView } from '../core/space'
 import { AddProject } from '../features/add-project/add-project-dialog'
 import { NewSession } from '../features/new-session/new-session-panel'
+import type { PaneLayout } from '../features/pane/pane-layout'
 import { LeaveSpace, Settings } from '../features/settings/settings-dialog'
 import { locate, type Project, paneKey } from '../model/projects'
 
@@ -73,10 +74,10 @@ const TerminalPage = lazy(() =>
   import('../features/pane/terminal-page').then(m => ({ default: m.TerminalPage })),
 )
 
-export function LazyTerminal() {
+export function LazyTerminal({ layout }: { layout: PaneLayout }) {
   return (
     <Suspense fallback={<Loading />}>
-      <TerminalPage />
+      <TerminalPage layout={layout} />
     </Suspense>
   )
 }

@@ -5,20 +5,21 @@ import '@xterm/xterm/css/xterm.css'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { Button } from '../../components/button'
-import { InfoPanel } from '../../components/info-panel'
+import { InfoFacts } from '../../components/info-panel'
 import { errorText, useI18n } from '../../core/i18n'
 import { attachCommand, connectionFacts, paneFacts } from '../../core/pane-facts'
-import { useLocal } from '../../core/prefs'
+import { rememberView } from '../../core/prefs'
 import { RELAY_URL, useProjects, useSpace, useSpaceView } from '../../core/space'
-import { type Found, locate } from '../../model/projects'
+import { type Found, locate, type Pane, type Project, paneKey } from '../../model/projects'
+import type { Via } from '../../model/space'
 import { projectHref } from '../../utils/hrefs'
 import { useNow } from '../../utils/time'
 import { EndPane } from './end-pane-dialog'
-import { PaneHeader } from './pane-header'
+import type { PaneLayout } from './pane-layout'
 import { useLink } from './use-link'
 import { useTerminal } from './use-terminal'
 
-export function TerminalPage() {
+export function TerminalPage({ layout }: { layout: PaneLayout }) {
   const t = useI18n()
   const params = useParams()
   const mid = params.mid ?? ''
@@ -40,10 +41,20 @@ export function TerminalPage() {
         <Link to="/">{t('project.back')}</Link>
       </div>
     )
-  return <Attached key={`${mid}/${paneId}`} mid={mid} paneId={paneId} found={found} />
+  return <Attached key={`${mid}/${paneId}`} layout={layout} mid={mid} paneId={paneId} found={found} />
 }
 
-function Attached({ mid, paneId, found }: { mid: string; paneId: string; found: Found }) {
+function Attached({
+  layout: Layout,
+  mid,
+  paneId,
+  found,
+}: {
+  layout: PaneLayout
+  mid: string
+  paneId: string
+  found: Found
+}) {
   const t = useI18n()
   const navigate = useNavigate()
   const box = useRef<HTMLDivElement>(null)
@@ -51,17 +62,24 @@ function Attached({ mid, paneId, found }: { mid: string; paneId: string; found: 
   const [ending, setEnding] = useState(false)
   const { project, name, pane } = found
   const agent = 'session' in pane
-  const now = useNow()
-  const info = useLocal().layout.info
-  const relay = { url: RELAY_URL, status: useSpaceView().status }
-  const link = useLink(mid, state.via, info)
   const home = projectHref(project.key)
 
+  // The sidebar and the drawer open an agent in the view it was last seen in.
+  useEffect(() => {
+    if (agent) rememberView(paneKey(mid, paneId), 'terminal')
+  }, [agent, mid, paneId])
+
   return (
-    <div className="flex h-full flex-col">
-      <PaneHeader found={found} mid={mid} paneId={paneId} view="terminal" onEnd={() => setEnding(true)} />
-      <div className="flex min-h-0 flex-1">
-        <div className="relative min-w-0 flex-1 bg-term px-3 py-2">
+    <>
+      <Layout
+        found={found}
+        mid={mid}
+        paneId={paneId}
+        view="terminal"
+        onEnd={() => setEnding(true)}
+        facts={<TerminalFacts mid={mid} via={state.via} project={project} pane={pane} />}
+      >
+        <div className="relative min-h-0 flex-1 bg-term px-3 py-2">
           <div ref={box} className="h-full w-full bg-term" />
           {state.phase === 'ended' ? (
             <div className="absolute inset-0 grid place-items-center bg-scrim">
@@ -77,27 +95,18 @@ function Attached({ mid, paneId, found }: { mid: string; paneId: string; found: 
             </div>
           ) : null}
         </div>
-        {info ? (
-          <InfoPanel
-            groups={[
-              ...paneFacts(t, now, project, pane),
-              ...(state.via ? [connectionFacts(t, { via: state.via, relay, ...link })] : []),
-            ]}
-            command={{ label: t('facts.attach'), text: attachCommand(project, pane) }}
-          />
-        ) : null}
-      </div>
-      <footer className="flex flex-none gap-4 border-t border-line px-4 py-1.5 font-mono text-xs text-faint">
-        <span>
-          {state.phase === 'opening' ? t('terminal.opening') : state.via ? t(`via.${state.via}`) : ''}
-        </span>
-        <span>{t('terminal.control')}</span>
-        {state.size ? (
+        <footer className="flex flex-none gap-4 border-t border-line px-4 py-1.5 font-mono text-xs text-faint">
           <span>
-            {state.size.cols}×{state.size.rows}
+            {state.phase === 'opening' ? t('terminal.opening') : state.via ? t(`via.${state.via}`) : ''}
           </span>
-        ) : null}
-      </footer>
+          <span>{t('terminal.control')}</span>
+          {state.size ? (
+            <span>
+              {state.size.cols}×{state.size.rows}
+            </span>
+          ) : null}
+        </footer>
+      </Layout>
       <EndPane
         open={ending}
         onOpenChange={setEnding}
@@ -109,6 +118,33 @@ function Attached({ mid, paneId, found }: { mid: string; paneId: string; found: 
         agent={agent}
         onEnded={() => navigate(home)}
       />
-    </div>
+    </>
+  )
+}
+
+/** The facts beside a terminal, with its direct link read again while they show. */
+function TerminalFacts({
+  mid,
+  via,
+  project,
+  pane,
+}: {
+  mid: string
+  via: Via | undefined
+  project: Project
+  pane: Pane
+}) {
+  const t = useI18n()
+  const now = useNow()
+  const relay = { url: RELAY_URL, status: useSpaceView().status }
+  const link = useLink(mid, via)
+  return (
+    <InfoFacts
+      groups={[
+        ...paneFacts(t, now, project, pane),
+        ...(via ? [connectionFacts(t, { via, relay, ...link })] : []),
+      ]}
+      command={{ label: t('facts.attach'), text: attachCommand(project, pane) }}
+    />
   )
 }
