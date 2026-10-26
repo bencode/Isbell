@@ -20,6 +20,7 @@ import { Composer } from './composer'
 import { EndPane } from './end-pane-dialog'
 import type { PaneLayout } from './pane-layout'
 import { Turns } from './turns'
+import { useLink } from './use-link'
 import { useReading } from './use-reading'
 
 // The reading column: as wide as the pane up to a wide screen, then centred.
@@ -76,6 +77,8 @@ function SessionView({
   const promptError = (useLocation().state as { promptError?: { msg: string } } | null)?.promptError
   const [ending, setEnding] = useState(false)
   const { reading, text, error, reread, earlier, paging, more } = useReading(mid, paneId, session)
+  // Reading the screen and sending keys are calls, so the page's path is the calls' path.
+  const { via, ...link } = useLink(mid, 'calls')
   // Earlier turns are read a page at a time from a gateway that pages, while the agent is still.
   const canPage =
     more &&
@@ -108,8 +111,9 @@ function SessionView({
     <InfoFacts
       groups={[
         ...paneFacts(t, now, project, pane),
-        // Reading the screen and sending keys are calls, and calls go through the relay.
-        connectionFacts(t, { via: 'relay', relay: { url: RELAY_URL, status: view.status } }),
+        ...(via
+          ? [connectionFacts(t, { via, relay: { url: RELAY_URL, status: view.status }, ...link })]
+          : []),
       ]}
       command={{ label: t('facts.attach'), text: attachCommand(project, pane) }}
     />

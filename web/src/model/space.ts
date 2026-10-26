@@ -71,6 +71,8 @@ export type Space = {
   ) => Promise<Opened & { via: Via }>
   /** Read on demand; it is not part of the view, so it notifies no one. */
   directStatus: (mid: string) => DirectStatus
+  /** Where a call to machine `mid` goes now; read on demand, like `directStatus`. */
+  callVia: (mid: string) => Via
   /** Pulls the shells of one machine, or of every online machine. */
   refreshShells: (mid?: string) => Promise<void>
   reconnectNow: () => void
@@ -149,6 +151,21 @@ export function createSpace(url: string, id: Identity): Space {
     return link
   }
 
+  /** The link calls to `mid` take: an open one that takes pieces, since without them an answer
+   * too long for one message would end it. */
+  const callLink = (mid: string) => {
+    const link = direct.get(mid)
+    return link?.pieces ? link : undefined
+  }
+
+  const call: Caller = (mid, m, p, timeoutMs) => {
+    const link = callLink(mid)
+    if (link) return link.call(m, p, timeoutMs)
+    // Not waited for, unlike a stream: it serves the calls after this one.
+    void directTo(mid)
+    return conn.call(mid, m, p, timeoutMs)
+  }
+
   const directStatus = (mid: string): DirectStatus => {
     const open = direct.get(mid)
     if (open) return { state: 'open', link: open }
@@ -164,7 +181,7 @@ export function createSpace(url: string, id: Identity): Space {
     const seq = (pulls.get(mid) ?? 0) + 1
     pulls.set(mid, seq)
     try {
-      const found = await fetchShells(conn.call, mid)
+      const found = await fetchShells(call, mid)
       if (pulls.get(mid) !== seq) return
       shells.set(mid, found)
       changed()
@@ -203,6 +220,8 @@ export function createSpace(url: string, id: Identity): Space {
       if (old && state.boot > old.state.boot) {
         conn.failMachine(mid)
         direct.get(mid)?.close()
+        // Its `closed` drops it only later, and the pull below must not go to the closed link.
+        direct.delete(mid)
       }
       machines.set(mid, { state, online: old?.online ?? true })
       changed()
@@ -227,14 +246,8 @@ export function createSpace(url: string, id: Identity): Space {
       return () => listeners.delete(listener)
     },
     getSnapshot: () => view,
-    call: (mid, m, p, timeoutMs) => {
-      const link = direct.get(mid)
-      // Without pieces an answer too long for one message would end the link.
-      if (link?.pieces) return link.call(m, p, timeoutMs)
-      // Not waited for, unlike a stream: it serves the calls after this one.
-      if (!link) void directTo(mid)
-      return conn.call(mid, m, p, timeoutMs)
-    },
+    call,
+    callVia: mid => callLink(mid)?.path ?? 'relay',
     openThenEnd: conn.openThenEnd,
     openStream: async (mid, m, p, timeoutMs, events, transport = 'auto') => {
       const link = transport === 'auto' ? await within(directTo(mid), DIRECT_WAIT_MS) : undefined

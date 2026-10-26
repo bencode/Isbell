@@ -45,22 +45,19 @@ const MID = '0123456789abcdef'
 const RETRY_MS = 5 * 60_000
 const WAIT_MS = 4_000
 
+const machineState = (boot: number) => ({
+  machine: { id: MID, name: 'mac-mini', hostname: 'mac-mini.local', os: 'macos', version: '0.1.0' },
+  boot,
+  rev: 1,
+  herdr: { status: 'ready' },
+  caps: { methods: ['isbell.terminal', 'isbell.rtc.offer'], agentKinds: [] },
+  agents: [],
+})
+
 /** A space whose relay has reported one machine, online and able to open direct links. */
 function spaceWithMachine(): Space {
   const space = createSpace('wss://relay.test/v1/ws', parseKey(vectors.identity.key))
-  relay.on?.snapshot([
-    {
-      online: true,
-      state: {
-        machine: { id: MID, name: 'mac-mini', hostname: 'mac-mini.local', os: 'macos', version: '0.1.0' },
-        boot: 1,
-        rev: 1,
-        herdr: { status: 'ready' },
-        caps: { methods: ['isbell.terminal', 'isbell.rtc.offer'], agentKinds: [] },
-        agents: [],
-      },
-    },
-  ])
+  relay.on?.snapshot([{ online: true, state: machineState(1) }])
   return space
 }
 
@@ -163,4 +160,18 @@ test('a link to a gateway without pieces takes streams but no calls', async () =
   await space.call(MID, 'isbell.agent.history', { target: 'p1', skip: 0, count: 200 }, 1_000)
   expect([relay.calls, sent]).toEqual([['herdr', 'isbell.agent.history'], []])
   expect(direct.tries).toBe(1)
+})
+
+test('a machine that restarts has its shells pulled over the relay, not over the link it closed', async () => {
+  const sent: string[] = []
+  const link = lanLink(sent)
+  direct.open = async () => link
+  const space = spaceWithMachine()
+
+  expect((await open(space)).via).toBe('lan')
+  relay.calls = []
+  relay.on?.state(machineState(2))
+  expect(link.close).toHaveBeenCalledTimes(1)
+  expect([relay.calls, sent]).toEqual([['herdr'], []])
+  expect(space.callVia(MID)).toBe('relay')
 })
