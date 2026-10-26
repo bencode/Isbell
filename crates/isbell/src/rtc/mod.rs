@@ -19,7 +19,8 @@ use tokio::sync::{mpsc, watch};
 use webrtc::data_channel::{DataChannel, DataChannelEvent};
 use webrtc::peer_connection::{
     PeerConnection, PeerConnectionBuilder, PeerConnectionEventHandler, RTCConfigurationBuilder,
-    RTCIceGatheringState, RTCIceServer, RTCPeerConnectionState,
+    RTCIceCandidateType, RTCIceGatheringState, RTCIceServer, RTCPeerConnectionIceEvent,
+    RTCPeerConnectionState,
 };
 
 pub use self::channel::carry;
@@ -28,9 +29,12 @@ pub use self::path::{Path, tally};
 /// An offer or answer; serializes as `{"type", "sdp"}`, like a browser's.
 pub type Description = webrtc::peer_connection::RTCSessionDescription;
 
-/// Descriptions go out once gathering completes, or after this: a STUN server that never answers
-/// keeps it going for seconds. Waiting for every candidate keeps both address families on offer.
+/// Descriptions go out once gathering completes, `SETTLE` after the first public address, or after
+/// this: an interface no STUN server answers keeps gathering going for seconds.
 const GATHER_WITHIN: Duration = Duration::from_millis(2_500);
+/// STUN servers answer within a few hundred milliseconds of each other, so waiting this long after
+/// the first public address brings the other family's too.
+const SETTLE: Duration = Duration::from_millis(500);
 /// The library blocks `send` while this much is queued.
 const SEND_BUFFER: usize = 1 << 20;
 const LABEL: &str = "isbell";
@@ -56,8 +60,15 @@ fn webrtc_error(err: impl std::fmt::Display) -> RtcError {
 
 /// What the library reports, as channels the peer reads. Sends fail only once the peer is gone,
 /// when nothing waits for them any more.
+/// How gathering went on: a public (server-reflexive) address came in, or it ended.
+#[derive(PartialEq)]
+enum Gathered {
+    Public,
+    Complete,
+}
+
 struct Handler {
-    gathered: mpsc::UnboundedSender<()>,
+    gathered: mpsc::UnboundedSender<Gathered>,
     state: watch::Sender<RTCPeerConnectionState>,
     channels: mpsc::UnboundedSender<Arc<dyn DataChannel>>,
     since: Instant,
@@ -67,9 +78,14 @@ struct Handler {
 
 #[async_trait::async_trait]
 impl PeerConnectionEventHandler for Handler {
+    async fn on_ice_candidate(&self, event: RTCPeerConnectionIceEvent) {
+        if event.candidate.typ == RTCIceCandidateType::Srflx {
+            let _ = self.gathered.send(Gathered::Public);
+        }
+    }
     async fn on_ice_gathering_state_change(&self, state: RTCIceGatheringState) {
         if state == RTCIceGatheringState::Complete {
-            let _ = self.gathered.send(());
+            let _ = self.gathered.send(Gathered::Complete);
         }
     }
     async fn on_connection_state_change(&self, state: RTCPeerConnectionState) {
@@ -84,7 +100,7 @@ impl PeerConnectionEventHandler for Handler {
 
 pub struct Peer {
     pc: Box<dyn PeerConnection>,
-    gathered: mpsc::UnboundedReceiver<()>,
+    gathered: mpsc::UnboundedReceiver<Gathered>,
     state: watch::Receiver<RTCPeerConnectionState>,
     channels: mpsc::UnboundedReceiver<Arc<dyn DataChannel>>,
     trail: Arc<Mutex<Vec<String>>>,
@@ -168,7 +184,16 @@ impl Peer {
 
     /// The local description with the candidates gathered so far (see `GATHER_WITHIN`).
     async fn gathered(&mut self) -> Result<Description, RtcError> {
-        if tokio::time::timeout(GATHER_WITHIN, self.gathered.recv()).await.is_err() {
+        let gathered = &mut self.gathered;
+        let settled = async {
+            if gathered.recv().await != Some(Gathered::Public) {
+                return;
+            }
+            // Until gathering ends, if it does within SETTLE.
+            let ended = async { while gathered.recv().await == Some(Gathered::Public) {} };
+            let _ = tokio::time::timeout(SETTLE, ended).await;
+        };
+        if tokio::time::timeout(GATHER_WITHIN, settled).await.is_err() {
             tracing::debug!("sending the candidates gathered so far");
         }
         let local = self.pc.local_description().await;

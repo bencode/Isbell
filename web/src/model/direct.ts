@@ -33,8 +33,12 @@ export type DirectLink = {
 
 /** The gateway's default STUN servers, so both sides look for their public addresses alike. */
 const STUN = ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478']
-/** The offer goes out once gathering completes, or after this, as the gateway does. */
+/** The offer goes out once gathering completes, SETTLE_MS after the first public address, or
+ * after this, as the gateway does. */
 const GATHER_MS = 2_500
+/** STUN servers answer within a few hundred milliseconds of each other, so waiting this long after
+ * the first public address brings the other family's too. */
+const SETTLE_MS = 500
 /** Offer, answer and the channel opening together, as the CLI allows. */
 const DIRECT_MS = 10_000
 
@@ -84,17 +88,20 @@ async function connect(
   await opened
 }
 
-/** Candidates are not trickled: wait for the end of gathering, or GATHER_MS, so the offer carries
- * every address found, of both families. */
+/** Candidates are not trickled: wait for the end of gathering, SETTLE_MS past the first public
+ * address, or GATHER_MS, so the offer carries the public addresses of both families. */
 const gathered = (pc: RTCPeerConnection) =>
   new Promise<void>(resolve => {
+    let settling: ReturnType<typeof setTimeout> | undefined
     const done = () => {
       clearTimeout(timer)
+      clearTimeout(settling)
       resolve()
     }
     const timer = setTimeout(done, GATHER_MS)
     pc.addEventListener('icecandidate', e => {
       if (!e.candidate) done()
+      else if (e.candidate.type === 'srflx' && settling === undefined) settling = setTimeout(done, SETTLE_MS)
     })
     if (pc.iceGatheringState === 'complete') done()
   })
