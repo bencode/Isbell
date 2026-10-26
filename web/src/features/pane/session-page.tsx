@@ -8,7 +8,7 @@ import { buttonClass } from '../../components/button'
 import { InfoFacts } from '../../components/info-panel'
 import { errorText, useI18n } from '../../core/i18n'
 import { attachCommand, connectionFacts, paneFacts } from '../../core/pane-facts'
-import { getLocal, rememberView, updateLocal } from '../../core/prefs'
+import { markSeen, rememberView } from '../../core/prefs'
 import { RELAY_URL, useProjects, useSpaceView } from '../../core/space'
 import { type Project, paneKey, type Session } from '../../model/projects'
 import { machineOf } from '../../model/space'
@@ -89,10 +89,7 @@ function SessionView({
 
   // Looking at a finished session marks it read.
   useEffect(() => {
-    if (session.status !== 'done') return
-    const key = paneKey(mid, paneId)
-    if ((getLocal().seen[key] ?? 0) >= session.statusSince) return
-    updateLocal(l => ({ seen: { ...l.seen, [key]: session.statusSince } }))
+    if (session.status === 'done') markSeen(paneKey(mid, paneId), session.statusSince)
   }, [session, mid, paneId])
 
   // The page follows what comes in while it is scrolled to the end.

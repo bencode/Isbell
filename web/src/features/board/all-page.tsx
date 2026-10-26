@@ -6,8 +6,9 @@ import { useProjects, useSpaceView } from '../../core/space'
 import { needs } from '../../model/projects'
 import { projectHref } from '../../utils/hrefs'
 import { useNow } from '../../utils/time'
+import { NeedsSection } from '../needs/needs-section'
 import { Shells } from './project-page'
-import { NeedsSection, SessionCard } from './session-card'
+import { SessionCard } from './session-card'
 
 /** Each project shows this many sessions here; focusing it shows them all. */
 const CAP = 6

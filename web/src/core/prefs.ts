@@ -107,6 +107,12 @@ export const toggleFolded = (key: string) =>
 /** How many panes keep their terminal view; panes that ended fall off the end. */
 const TERMINAL_MAX = 50
 
+/** Notes that a finished session was seen as it stood at `since`, which makes it read. */
+export function markSeen(key: string, since: number) {
+  if ((current.seen[key] ?? 0) >= since) return
+  updateLocal(l => ({ seen: { ...l.seen, [key]: since } }))
+}
+
 /** Notes which view an agent's pane was last seen in. */
 export function rememberView(key: string, view: 'chat' | 'terminal') {
   const { terminal } = current.layout

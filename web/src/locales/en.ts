@@ -39,8 +39,10 @@ export const en = {
   'all.empty': 'Nothing is running. Start a session (n), or add a project (a).',
   'board.loading': 'Connecting…',
   'needs.title': 'Needs you',
-  'needs.answer': 'Answer',
-  'needs.see': 'See',
+  'needs.open': 'Open session',
+  'needs.next': 'Next: {name}',
+  'needs.last': 'Last one',
+  'needs.readOnLeave': 'Marked read when you move on',
   'empty.title': 'Add your first machine',
   'empty.body':
     'With isbell installed on the machine that has herdr, run these two. It shows up here within seconds.',

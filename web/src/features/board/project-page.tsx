@@ -7,7 +7,8 @@ import { needs, type Project } from '../../model/projects'
 import type { AgentStatus } from '../../model/state'
 import { terminalHref } from '../../utils/hrefs'
 import { useNow } from '../../utils/time'
-import { NeedsSection, SessionCard } from './session-card'
+import { NeedsSection } from '../needs/needs-section'
+import { SessionCard } from './session-card'
 
 const FILTERS: AgentStatus[] = ['blocked', 'working', 'done', 'idle']
 
