@@ -9,7 +9,7 @@ import { markSeen } from '../../core/prefs'
 import { type Project, paneKey, type Session } from '../../model/projects'
 import { since, useNow } from '../../utils/time'
 import { NeedBody } from './need-body'
-import { follow, type Open } from './open'
+import { FIRST, follow, type Open } from './open'
 
 type Row = { session: Session; project?: Project | undefined }
 
@@ -19,13 +19,15 @@ const label = ({ session, project }: Row) => (project ? `${session.name} · ${pr
 export function NeedsSection({ rows }: { rows: Row[] }) {
   const t = useI18n()
   const now = useNow()
-  const [open, setOpen] = useState<Open | null>(null)
+  // Null once a row was closed by hand; then nothing opens by itself until one is picked.
+  const [open, setOpen] = useState<Open | null>(FIRST)
   const shown = follow(
     rows.map(r => keyOf(r.session)),
     open,
   )
-  // Kept as the open row, so one arriving above it does not take its place.
-  if (shown?.key !== open?.key || shown?.at !== open?.at) setOpen(shown)
+  // Kept as the open row, so one arriving above it does not take its place. An empty list keeps
+  // what was open, so the first row to come opens.
+  if (shown && (shown.key !== open?.key || shown.at !== open?.at)) setOpen(shown)
   if (!rows.length) return null
 
   /** Leaving a finished session, as on its page, marks it read. */

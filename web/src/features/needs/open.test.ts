@@ -1,5 +1,9 @@
 import { expect, test } from 'vitest'
-import { follow } from './open'
+import { FIRST, follow } from './open'
+
+test('before a row is picked, the first one is open', () => {
+  expect(follow(['a', 'b'], FIRST)).toEqual({ key: 'a', at: 0 })
+})
 
 test('the open row stays open as the rows around it move', () => {
   expect(follow(['new', 'a', 'b'], { key: 'a', at: 0 })).toEqual({ key: 'a', at: 1 })

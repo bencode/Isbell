@@ -4,6 +4,9 @@
 /** A row by its `paneKey`, and where it stood when it was last seen open. */
 export type Open = { key: string; at: number }
 
+/** Nothing picked yet: the row in the first place opens, so the list is ready to answer. */
+export const FIRST: Open = { key: '', at: 0 }
+
 /** The row to show open: the one opened, or, once it has left, the one that took its place. */
 export function follow(keys: string[], open: Open | null): Open | null {
   if (!open) return null
