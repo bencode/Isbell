@@ -69,7 +69,7 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
     setCtrlState(on)
   }
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `attempt` is how Reconnect re-attaches; `attach` reads only what is listed.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `attempt` is how Reconnect re-attaches; `attach` reads only what is listed, and refs.
   useEffect(() => {
     const host = el.current
     if (!host) return
