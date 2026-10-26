@@ -15,17 +15,21 @@ pub enum Method {
     StartAgent,
     History,
     Terminal,
+    FileList,
+    FileSearch,
     FileRead,
     FileWrite,
     RtcOffer,
 }
 
 impl Method {
-    const ALL: [Method; 7] = [
+    const ALL: [Method; 9] = [
         Method::Herdr,
         Method::StartAgent,
         Method::History,
         Method::Terminal,
+        Method::FileList,
+        Method::FileSearch,
         Method::FileRead,
         Method::FileWrite,
         Method::RtcOffer,
@@ -37,6 +41,8 @@ impl Method {
             Method::StartAgent => "isbell.agent.start",
             Method::History => "isbell.agent.history",
             Method::Terminal => "isbell.terminal",
+            Method::FileList => "isbell.file.list",
+            Method::FileSearch => "isbell.file.search",
             Method::FileRead => "isbell.file.read",
             Method::FileWrite => "isbell.file.write",
             Method::RtcOffer => "isbell.rtc.offer",
@@ -215,6 +221,7 @@ mod tests {
         assert!(methods.iter().any(|m| m == "isbell.terminal"));
         assert!(methods.iter().any(|m| m == "isbell.rtc.offer"), "clients look for direct links");
         assert!(methods.iter().any(|m| m == "isbell.agent.history"), "clients look for paging");
+        assert!(methods.iter().any(|m| m == "isbell.file.list"), "clients look for the files view");
         assert!(!methods.iter().any(|m| m == "herdr"));
     }
 }

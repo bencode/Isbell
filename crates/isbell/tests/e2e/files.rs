@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use isbell::client::Session;
 use isbell_proto::flow::{MAX_CHUNK, WINDOW};
+use serde_json::json;
 
 /// A file larger than the credit window arrives whole and in bounded chunks, so the reader had to
 /// grant more credit along the way; bad paths fail before any data.
@@ -81,4 +82,25 @@ async fn only_target_left(dir: &Path, target: &str) {
     tokio::time::timeout(Duration::from_secs(10), cleaned)
         .await
         .unwrap_or_else(|_| panic!("temporary files left: {:?}", names()));
+}
+
+/// A directory comes back one level at a time, and a nested file is found by part of its path.
+pub async fn list_and_search(session: &Session, mid: &str) {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(dir.path().join("docs/design")).unwrap();
+    std::fs::write(dir.path().join("docs/design/home.md"), "# Home").unwrap();
+    std::fs::write(dir.path().join("README.md"), "hi").unwrap();
+
+    let listed = session.call(mid, "isbell.file.list", json!({"path": dir.path()}), None).await;
+    let entries =
+        json!([{"name": "docs", "kind": "dir"}, {"name": "README.md", "kind": "file", "size": 2}]);
+    assert_eq!(listed.unwrap(), json!({"entries": entries, "truncated": false}));
+
+    let query = json!({"root": dir.path(), "query": "design/HOME"});
+    let found = session.call(mid, "isbell.file.search", query, None).await;
+    assert_eq!(found.unwrap(), json!({"paths": ["docs/design/home.md"], "truncated": false}));
+
+    let err =
+        session.call(mid, "isbell.file.list", json!({"path": "docs"}), None).await.unwrap_err();
+    assert_eq!(err.code, "bad_request");
 }

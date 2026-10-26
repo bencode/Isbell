@@ -115,6 +115,13 @@ impl Calls {
                 let open = async move { terminal::open(&herdr?, p).await };
                 self.stream(link, id, open, terminal::pump);
             }
+            Method::FileList => {
+                self.tasks.spawn(async move { link.send(response_frame(id, file::list(p).await)) });
+            }
+            Method::FileSearch => {
+                self.tasks
+                    .spawn(async move { link.send(response_frame(id, file::search(p).await)) });
+            }
             Method::FileRead => self.stream(link, id, file::open_read(p), file::pump_read),
             Method::FileWrite => self.stream(link, id, file::open_write(p), file::pump_write),
             Method::RtcOffer => {
