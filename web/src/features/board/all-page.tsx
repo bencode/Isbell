@@ -7,7 +7,7 @@ import { useNow } from '../../utils/time'
 import { Lanes } from './lanes'
 
 /** Every agent on one board, by what it is doing; `stacked` lays the lanes one under another. */
-export function AllProjects({ stacked = false }: { stacked?: boolean }) {
+export function AllAgents({ stacked = false }: { stacked?: boolean }) {
   const t = useI18n()
   const view = useSpaceView()
   const projects = useProjects()

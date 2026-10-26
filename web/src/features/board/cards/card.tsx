@@ -1,8 +1,7 @@
 // What every card on the board shares: its frame, its head, and the note it keeps once answered
 // until the agent moves on.
 
-import type { ReactNode } from 'react'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { Link } from 'react-router'
 import { useI18n } from '../../../core/i18n'
 import type { Placed, Session } from '../../../model/projects'

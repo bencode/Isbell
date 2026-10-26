@@ -13,7 +13,7 @@ const GO =
   'h-[26px] flex-none cursor-pointer rounded-md border border-line-strong bg-raised px-2.5 text-xs text-accent hover:bg-raised-2'
 
 export function StandingRow({
-  placed: { session, project },
+  placed,
   now,
   open,
   onOpen,
@@ -26,6 +26,7 @@ export function StandingRow({
   onClose: () => void
 }) {
   const t = useI18n()
+  const { session, project } = placed
   const { sent, markSent, unsend } = useSent(session)
   const unknown = session.status === 'unknown'
   const frame = !project.online
@@ -57,7 +58,7 @@ export function StandingRow({
       </div>
       {open && !sent ? (
         <Continue
-          placed={{ session, project }}
+          placed={placed}
           onSent={what => {
             markSent(what)
             onClose()

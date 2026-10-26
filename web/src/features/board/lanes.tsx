@@ -48,7 +48,8 @@ function Standing({ standing, offline, now }: { standing: Placed[]; offline: Pla
   const t = useI18n()
   // One row open at a time.
   const [open, setOpen] = useState<string | null>(null)
-  const machines = [...new Set(offline.map(p => p.project.machine))]
+  // By machine id: two machines may share a name.
+  const machines = [...new Set(offline.map(p => p.project.mid))]
   const row = (p: Placed) => (
     <StandingRow
       key={keyOf(p)}
@@ -67,14 +68,17 @@ function Standing({ standing, offline, now }: { standing: Placed[]; offline: Pla
       count={standing.length + offline.length}
     >
       {standing.map(row)}
-      {machines.map(machine => (
-        <div key={machine} className="flex flex-col gap-1.5">
-          <h3 className="m-0 px-0.5 pt-1.5 text-[11px] font-semibold tracking-[0.04em] text-faint uppercase">
-            {t('lane.offline', { machine })}
-          </h3>
-          {offline.filter(p => p.project.machine === machine).map(row)}
-        </div>
-      ))}
+      {machines.map(mid => {
+        const rows = offline.filter(p => p.project.mid === mid)
+        return (
+          <div key={mid} className="flex flex-col gap-1.5">
+            <h3 className="m-0 px-0.5 pt-1.5 text-[11px] font-semibold tracking-[0.04em] text-faint uppercase">
+              {t('lane.offline', { machine: rows[0]?.project.machine ?? mid })}
+            </h3>
+            {rows.map(row)}
+          </div>
+        )
+      })}
     </Lane>
   )
 }

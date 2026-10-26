@@ -1,7 +1,7 @@
 // The same pages at the same addresses as on a computer, in the phone's frame.
 
 import { Navigate, Route, Routes } from 'react-router'
-import { AllProjects } from '../../features/board/all-page'
+import { AllAgents } from '../../features/board/all-page'
 import { ProjectView } from '../../features/board/project-page'
 import { SessionPage } from '../../features/pane/session-page'
 import { LazyTerminal } from '../common'
@@ -13,7 +13,7 @@ export function MobileRoutes() {
     <Routes>
       <Route element={<MobileFrame />}>
         <Route element={<MobileBoard />}>
-          <Route index element={<AllProjects stacked />} />
+          <Route index element={<AllAgents stacked />} />
           <Route path="p/:key" element={<ProjectView />} />
         </Route>
         <Route path="s/:mid/:pane" element={<SessionPage layout={MobilePane} />} />
