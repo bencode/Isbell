@@ -9,7 +9,7 @@ import { CallError, type Stream } from './streams'
 // The relay connection and the direct link are stood in for: the test plays the relay and decides
 // whether a direct link opens. A plain function, not vi.fn: a vi.fn whose promise rejects is
 // reported as an unhandled rejection even though the space handles it.
-const relay = vi.hoisted(() => ({ on: undefined as ConnectionEvents | undefined }))
+const relay = vi.hoisted(() => ({ on: undefined as ConnectionEvents | undefined, calls: [] as string[] }))
 const direct = vi.hoisted(() => ({
   tries: 0,
   open: (): Promise<DirectLink> => Promise.reject(new Error('no direct link set up')),
@@ -21,7 +21,10 @@ vi.mock('./connection', () => ({
   connect: (_url: string, _id: unknown, on: ConnectionEvents) => {
     relay.on = on
     return {
-      call: async () => ({ snapshot: { panes: [] } }),
+      call: async (_mid: string, m: string) => {
+        relay.calls.push(m)
+        return { snapshot: { panes: [] } }
+      },
       open: async () => ({ result: {}, stream }),
       openThenEnd: async () => ({}),
       failMachine: () => {},
@@ -30,7 +33,8 @@ vi.mock('./connection', () => ({
     }
   },
 }))
-vi.mock('./direct', () => ({
+vi.mock('./direct', async importOriginal => ({
+  ...(await importOriginal<typeof import('./direct')>()),
   openDirect: () => {
     direct.tries += 1
     return direct.open()
@@ -65,6 +69,7 @@ const open = (space: Space) =>
 
 beforeEach(() => {
   direct.tries = 0
+  relay.calls = []
 })
 afterEach(() => vi.useRealTimers())
 
@@ -88,9 +93,13 @@ test('after a direct link fails, streams use the relay and it is not tried again
   expect(direct.tries).toBe(2)
 })
 
-const lanLink = (): DirectLink => ({
+const lanLink = (calls: string[] = []): DirectLink => ({
   path: 'lan',
   open: async () => ({ result: {}, stream }),
+  call: async m => {
+    calls.push(m)
+    return {}
+  },
   stats: async () => undefined,
   close: vi.fn(),
   closed: new Promise(() => {}),
@@ -122,4 +131,35 @@ test('streams take an open direct link, and it closes when the machine goes offl
   expect(space.directStatus(MID)).toEqual({ state: 'open', link })
   relay.on?.presence(MID, false)
   expect(link.close).toHaveBeenCalledTimes(1)
+})
+
+const readVisible = { method: 'agent.read', params: { target: 'p1', source: 'visible' } }
+
+test('a call takes the relay and starts a direct link, and the calls after it take the link', async () => {
+  const sent: string[] = []
+  direct.open = async () => lanLink(sent)
+  const space = spaceWithMachine()
+  // Counted from here: the snapshot pulled the machine's shells.
+  relay.calls = []
+
+  await space.call(MID, 'herdr', readVisible, 1_000)
+  expect([relay.calls, sent]).toEqual([['herdr'], []])
+  await vi.waitFor(() => expect(space.directStatus(MID).state).toBe('open'))
+
+  await space.call(MID, 'herdr', readVisible, 1_000)
+  expect([relay.calls, sent]).toEqual([['herdr'], ['herdr']])
+  expect(direct.tries).toBe(1)
+})
+
+test('calls whose answers may not fit in one message stay on the relay', async () => {
+  const sent: string[] = []
+  direct.open = async () => lanLink(sent)
+  const space = spaceWithMachine()
+  await open(space)
+
+  await space.call(MID, 'isbell.agent.history', { target: 'p1', skip: 0, count: 200 }, 1_000)
+  await space.call(MID, 'herdr', { method: 'agent.read', params: { source: 'recent_unwrapped' } }, 1_000)
+  await space.call(MID, 'herdr', { method: 'session.snapshot', params: {} }, 1_000)
+  expect(sent).toEqual([])
+  expect(relay.calls.slice(-3)).toEqual(['isbell.agent.history', 'herdr', 'herdr'])
 })

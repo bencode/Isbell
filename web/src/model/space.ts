@@ -3,7 +3,7 @@
 // since machine state only lists agents).
 
 import { type ConnStatus, connect } from './connection'
-import { type DirectLink, openDirect, type Path } from './direct'
+import { type DirectLink, fitsDirect, openDirect, type Path } from './direct'
 import { type Caller, shells as fetchShells, type Shell } from './herdr'
 import type { Identity } from './identity'
 import { isNewer, type MachineState, readState } from './state'
@@ -18,7 +18,8 @@ export const machineOf = (machines: MachineEntry[], mid: string) =>
 /** How a stream reaches its machine. */
 export type Via = 'relay' | Path
 
-/** After a direct link fails, streams to that machine use the relay this long before trying again. */
+/** After a direct link fails, streams and calls to that machine use the relay this long before trying
+ * again. */
 const DIRECT_RETRY_MS = 5 * 60_000
 /** How long a stream waits for a direct link being set up before it takes the relay; the link
  * keeps opening, for the streams after it. */
@@ -56,6 +57,7 @@ export type SpaceView = {
 export type Space = {
   subscribe: (listener: () => void) => () => void
   getSnapshot: () => SpaceView
+  /** Calls machine `mid` over its direct link when one is open, else over the relay. */
   call: Caller
   openThenEnd: Caller
   /** Opens a stream on machine `mid`, over its direct link when one is open or can be opened. */
@@ -117,7 +119,7 @@ export function createSpace(url: string, id: Identity): Space {
     return m?.online === true && m.state.caps.methods.includes('isbell.rtc.offer')
   }
 
-  /** The last failure, while it still keeps streams on the relay. */
+  /** The last failure, while it still keeps streams and calls on the relay. */
   const recentFailure = (mid: string) => {
     const failure = failures.get(mid)
     return failure && Date.now() - failure.at < DIRECT_RETRY_MS ? failure : undefined
@@ -139,7 +141,7 @@ export function createSpace(url: string, id: Identity): Space {
       err => {
         links.delete(mid)
         failures.set(mid, { at: Date.now(), error: err })
-        console.warn('no direct link; streams use the relay', mid, err)
+        console.warn('no direct link; streams and calls use the relay', mid, err)
         return undefined
       },
     )
@@ -225,7 +227,14 @@ export function createSpace(url: string, id: Identity): Space {
       return () => listeners.delete(listener)
     },
     getSnapshot: () => view,
-    call: conn.call,
+    call: (mid, m, p, timeoutMs) => {
+      if (!fitsDirect(m, p)) return conn.call(mid, m, p, timeoutMs)
+      const link = direct.get(mid)
+      if (link) return link.call(m, p, timeoutMs)
+      // Not waited for, unlike a stream: it serves the calls after this one.
+      void directTo(mid)
+      return conn.call(mid, m, p, timeoutMs)
+    },
     openThenEnd: conn.openThenEnd,
     openStream: async (mid, m, p, timeoutMs, events, transport = 'auto') => {
       const link = transport === 'auto' ? await within(directTo(mid), DIRECT_WAIT_MS) : undefined

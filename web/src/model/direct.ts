@@ -24,11 +24,26 @@ export type LinkStats = {
 export type DirectLink = {
   path: Path
   open: (m: string, p: unknown, timeoutMs: number, events: StreamEvents) => Promise<Opened>
+  call: (m: string, p: unknown, timeoutMs: number) => Promise<unknown>
   /** Undefined once no pair is chosen, as when the link is going. */
   stats: () => Promise<LinkStats | undefined>
   close: () => void
   /** Settles once the link is gone, whichever side ended it. */
   closed: Promise<void>
+}
+
+/**
+ * Whether the answer to call `m` with `p` surely fits in one DataChannel message (browsers take
+ * 256 KiB). An answer is one frame, and the gateway ends the link when it cannot send one; so
+ * history pages, scrollback reads and the session snapshot, which can grow past that, go over the
+ * relay.
+ */
+export function fitsDirect(m: string, p: unknown): boolean {
+  if (m === 'isbell.agent.history') return false
+  if (m !== 'herdr') return true
+  const { method, params } = (p ?? {}) as { method?: string; params?: { source?: string } }
+  if (method === 'session.snapshot') return false
+  return method !== 'agent.read' || params?.source === 'visible'
 }
 
 /** The gateway's default STUN servers, so both sides look for their public addresses alike. */
@@ -181,6 +196,7 @@ function carry(pc: RTCPeerConnection, channel: RTCDataChannel, path: Path): Dire
     path,
     // The router's `mid` only matches streams to their machine; a direct link has one machine.
     open: (m, p, timeoutMs, events) => router.open('', m, p, timeoutMs, events),
+    call: (m, p, timeoutMs) => router.call('', m, p, timeoutMs),
     stats: () => statsOf(pc),
     close: finish,
     closed,
