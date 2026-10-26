@@ -46,14 +46,12 @@ fn needle(query: &str) -> Result<String, RpcError> {
 /// The '/'-separated paths under `root` of the files matching the lower-cased `needle`, and whether
 /// the walk stopped at MAX_RESULTS or `deadline`. Symlinks are neither followed nor matched, so the
 /// walk cannot loop or leave `root`. Directories wait as paths and are opened in turn, so a wide
-/// tree holds one open at a time.
+/// tree holds one open at a time. A directory that blocks on reading (a hung network mount) holds
+/// the walk until it answers; the caller's own timeout bounds the wait.
 fn walk(root: &Path, needle: &str, deadline: Instant) -> Result<(Vec<String>, bool), RpcError> {
     let mut dirs = VecDeque::from([String::new()]);
     let mut found = Vec::new();
     while let Some(dir) = dirs.pop_front() {
-        if Instant::now() > deadline {
-            return Ok((found, true));
-        }
         // Not `root.join("")`, whose trailing '/' turns a root that is a file into an I/O error.
         let at = if dir.is_empty() { root.to_owned() } else { root.join(&dir) };
         let entries = match read_dir(&at) {
@@ -66,6 +64,10 @@ fn walk(root: &Path, needle: &str, deadline: Instant) -> Result<(Vec<String>, bo
             }
         };
         for entry in entries {
+            // Checked for each entry, so one huge directory cannot hold the search past it.
+            if Instant::now() >= deadline {
+                return Ok((found, true));
+            }
             let name = entry.file_name().to_string_lossy().into_owned();
             let path = if dir.is_empty() { name.clone() } else { format!("{dir}/{name}") };
             let kind = match entry.file_type() {
@@ -103,8 +105,13 @@ mod tests {
         dir
     }
 
-    const DEPTH: fn(&String) -> usize = |p| p.matches('/').count();
-    const LATER: fn() -> Instant = || Instant::now() + SEARCH_FOR;
+    fn depth(path: &str) -> usize {
+        path.matches('/').count()
+    }
+
+    fn later() -> Instant {
+        Instant::now() + SEARCH_FOR
+    }
 
     #[test]
     fn finds_files_by_any_part_of_their_path_shallow_first() {
@@ -118,9 +125,9 @@ mod tests {
         ]);
         symlink(dir.path().join("priv"), dir.path().join("link")).unwrap();
 
-        let (found, truncated) = walk(dir.path(), "design", LATER()).unwrap();
+        let (found, truncated) = walk(dir.path(), "design", later()).unwrap();
         assert!(!truncated);
-        assert!(found.windows(2).all(|w| DEPTH(&w[0]) <= DEPTH(&w[1])), "{found:?}");
+        assert!(found.windows(2).all(|w| depth(&w[0]) <= depth(&w[1])), "{found:?}");
         let mut sorted = found.clone();
         sorted.sort();
         let expected = [
@@ -136,7 +143,7 @@ mod tests {
     fn stops_at_the_cap_or_the_deadline_and_says_so() {
         let names: Vec<String> = (0..=MAX_RESULTS).map(|i| format!("f{i}.md")).collect();
         let dir = tree(&names.iter().map(String::as_str).collect::<Vec<_>>());
-        let (found, truncated) = walk(dir.path(), ".md", LATER()).unwrap();
+        let (found, truncated) = walk(dir.path(), ".md", later()).unwrap();
         assert_eq!((found.len(), truncated), (MAX_RESULTS, true));
         assert_eq!(walk(dir.path(), ".md", Instant::now()).unwrap(), (vec![], true));
     }

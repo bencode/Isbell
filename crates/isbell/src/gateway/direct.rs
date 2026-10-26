@@ -1,5 +1,6 @@
-//! A caller's direct link: `isbell.rtc.offer {offer}` is answered with `{answer}`, then the
-//! caller's frames on the link are served like relayed ones until the link ends.
+//! A caller's direct link: `isbell.rtc.offer {offer, pieces?}` is answered with
+//! `{answer, pieces?}`, pieces agreed only when the caller asked; then the caller's frames on the
+//! link are served like relayed ones until the link ends.
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;

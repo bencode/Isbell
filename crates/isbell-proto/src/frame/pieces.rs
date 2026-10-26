@@ -22,8 +22,9 @@ const MARK: [u8; 4] = [0xFF; 4];
 const HEAD: usize = MARK.len() + 1;
 
 /// A frame's binary encoding as messages of at most `size` bytes: itself when it fits, else its
-/// pieces.
+/// pieces. `size` must leave room for a piece's head.
 pub fn split(encoded: Vec<u8>, size: usize) -> Vec<Vec<u8>> {
+    assert!(size > HEAD, "a piece of {size} bytes has no room past its head");
     if encoded.len() <= size {
         return vec![encoded];
     }

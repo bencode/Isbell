@@ -10,6 +10,8 @@ use super::{absolute_path, blocking, read_dir};
 
 /// More than anyone reads in one directory; a listing past it says it was cut.
 const MAX_ENTRIES: usize = 2000;
+/// A listing stays well under the relay's 1 MiB message, however long the names.
+const MAX_BYTES: usize = 512 << 10;
 
 #[derive(Deserialize)]
 struct ListRequest {
@@ -55,12 +57,23 @@ fn entry_of(entry: &DirEntry) -> Entry {
     Entry { name, kind, size }
 }
 
-/// Directories first, then by name regardless of case; at most MAX_ENTRIES, and whether any were
-/// left out.
+/// Directories first, then by name regardless of case; at most MAX_ENTRIES within MAX_BYTES, and
+/// whether any were left out.
 fn listing(mut entries: Vec<Entry>) -> (Vec<Entry>, bool) {
     entries.sort_by_cached_key(|e| (e.kind != Kind::Dir, e.name.to_lowercase(), e.name.clone()));
-    let truncated = entries.len() > MAX_ENTRIES;
-    entries.truncate(MAX_ENTRIES);
+    let fit = entries
+        .iter()
+        // Each entry as it goes out, escapes and all, and the comma after it; one that cannot be
+        // written fills the rest.
+        .scan(0, |bytes, e| {
+            *bytes += serde_json::to_vec(e).map_or(MAX_BYTES, |json| json.len() + 1);
+            Some(*bytes)
+        })
+        .take(MAX_ENTRIES)
+        .take_while(|&bytes| bytes <= MAX_BYTES)
+        .count();
+    let truncated = entries.len() > fit;
+    entries.truncate(fit);
     (entries, truncated)
 }
 
@@ -101,6 +114,16 @@ mod tests {
         assert!(truncated);
         assert_eq!(entries.len(), MAX_ENTRIES);
         assert_eq!(entries.last().unwrap().name, format!("f{:05}", MAX_ENTRIES - 1));
+
+        // Long names fill the answer before the count does.
+        let long = |i: usize| Entry {
+            name: format!("{i:04}\"{}", "名".repeat(80)),
+            kind: Kind::File,
+            size: None,
+        };
+        let (entries, truncated) = listing((0..MAX_ENTRIES).map(long).collect());
+        assert!(truncated && entries.len() < MAX_ENTRIES);
+        assert!(serde_json::to_vec(&entries).unwrap().len() <= MAX_BYTES);
     }
 
     #[tokio::test]

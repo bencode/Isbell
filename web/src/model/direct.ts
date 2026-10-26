@@ -158,12 +158,19 @@ async function statsOf(pc: RTCPeerConnection): Promise<LinkStats | undefined> {
 }
 
 function carry(pc: RTCPeerConnection, channel: RTCDataChannel, path: Path, pieces: boolean): DirectLink {
-  // A frame sent while the channel closes is lost with the link, whose streams end anyway.
+  // A frame sent while the channel closes is lost with the link, whose streams end anyway. A send
+  // that fails (a full send queue) ends the link, as the gateway's does: the rest of the frame
+  // would be missing, and the gateway would drop what came after it.
   const router = createRouter(frame => {
     if (channel.readyState !== 'open') return
-    for (const msg of pieces ? split(frame) : [encode(frame)]) {
-      if (typeof msg === 'string') channel.send(msg)
-      else channel.send(msg)
+    try {
+      for (const msg of pieces ? split(frame) : [encode(frame)]) {
+        if (typeof msg === 'string') channel.send(msg)
+        else channel.send(msg)
+      }
+    } catch (err) {
+      console.error('a direct send failed; ending the link', err)
+      finish()
     }
   }, false)
   const assemble = createAssembler()
