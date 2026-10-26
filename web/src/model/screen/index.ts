@@ -40,6 +40,18 @@ export function mergeReading(prev: Reading | null, next: Reading, whole: boolean
   }
 }
 
+/** The last `n` lines of a reply: each line of text, each list item, each tool call and its last output. */
+export function tailLines(blocks: Block[], n: number): string[] {
+  return blocks
+    .flatMap(b => {
+      if (b.kind === 'text') return b.text.split('\n').filter(l => l.trim())
+      if (b.kind === 'list') return b.items
+      const out = b.output.at(-1)
+      return [`${b.verb} ${b.target}`, ...(out ? [`└ ${out}`] : [])]
+    })
+    .slice(-n)
+}
+
 const turnKey = (t: Turn) => [t.prompt, t.at ?? '', t.took ?? ''].join('\n')
 
 type Item = { head: string; rest: string[] }

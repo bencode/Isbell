@@ -24,6 +24,20 @@
   --color-term: var(--term);
   --font-sans: "Instrument Sans Variable", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* What a running agent shows: lit when it changes, greyed once it has not for 30s. */
+  --animate-tail: flash 1.2s ease-out, quiet 0.4s ease 30s forwards;
+}
+
+@keyframes flash {
+  from {
+    background-color: var(--accent-soft);
+  }
+}
+
+@keyframes quiet {
+  to {
+    color: var(--faint);
+  }
 }
 
 /* Each token is light-dark(light, dark); color-scheme picks one: the system's, or the one chosen in settings. */

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, test } from 'vitest'
-import { mergeReading, parseScreen } from './index'
+import { mergeReading, parseScreen, tailLines } from './index'
 import type { Reading } from './types'
 
 // Screens recorded from real panes with `herdr agent read`: `recent-unwrapped` once the agent had
@@ -234,4 +234,21 @@ describe('mergeReading', () => {
   test('a reading with history replaces what was known', () => {
     expect(mergeReading(asking, done, true)).toBe(done)
   })
+})
+
+test('the tail of a reply is its last lines, a tool call with its last output', () => {
+  const lines = tailLines(
+    [
+      { kind: 'text', text: 'Looking at the relay.\n\nFirst the config.' },
+      { kind: 'list', items: ['bind on ::', 'keep 0.0.0.0'] },
+      {
+        kind: 'action',
+        verb: 'Ran',
+        target: 'stunclient isbell.fmap.dev',
+        output: ['Binding test', 'Mapped address: 1.2.3.4'],
+      },
+    ],
+    3,
+  )
+  expect(lines).toEqual(['keep 0.0.0.0', 'Ran stunclient isbell.fmap.dev', '└ Mapped address: 1.2.3.4'])
 })
