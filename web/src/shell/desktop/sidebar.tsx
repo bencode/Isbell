@@ -12,18 +12,16 @@ import {
   SquareTerminal,
 } from 'lucide-react'
 import { Link } from 'react-router'
-import { Button } from '../components/button'
-import { useI18n } from '../core/i18n'
-import { toggleFolded, toggleRail, useLocal } from '../core/prefs'
-import type { ConnStatus } from '../model/connection'
-import { needs, type Project, paneKey } from '../model/projects'
-import type { MachineEntry } from '../model/space'
-import { projectHref, sessionHref, terminalHref } from '../utils/hrefs'
-import { since, useNow } from '../utils/time'
-import { AskBadge, asking, MachineDot, RelayStatus, StatusDot } from './marks'
-
-/** Where the route points: a project's board, or a pane (by `paneKey`) inside some project. */
-export type Here = { project: Project | undefined; pane: string | undefined }
+import { Button } from '../../components/button'
+import { useI18n } from '../../core/i18n'
+import { toggleFolded, toggleRail, useLocal } from '../../core/prefs'
+import type { ConnStatus } from '../../model/connection'
+import { needs, type Project, paneKey } from '../../model/projects'
+import type { MachineEntry } from '../../model/space'
+import { projectHref, sessionHref, terminalHref } from '../../utils/hrefs'
+import { since, useNow } from '../../utils/time'
+import type { Here } from '../common'
+import { AskBadge, asking, MachineList, RelayStatus, StatusDot } from '../marks'
 
 export type SideProps = {
   projects: Project[]
@@ -102,17 +100,7 @@ export function Sidebar({
         <span className="px-2 pt-1 pb-0.5 text-[11px] font-semibold tracking-[0.04em] text-faint uppercase">
           {t('side.machines')}
         </span>
-        {machines.map(({ state, online }) => {
-          const herdr = state.herdr.status
-          const note = !online ? t('side.offline') : herdr === 'ready' ? '' : t(`side.herdr.${herdr}`)
-          return (
-            <span key={state.machine.id} className="flex items-center gap-2.5 px-2 py-0.5 text-[13px]">
-              <MachineDot online={online} ready={herdr === 'ready'} />
-              <span className="min-w-0 flex-1 truncate">{state.machine.name}</span>
-              {note ? <span className="text-xs text-faint">{note}</span> : null}
-            </span>
-          )
-        })}
+        <MachineList machines={machines} />
         <RelayStatus status={status} />
         <div className="mt-1 flex items-center">
           <Button variant="quiet" className="flex-1" onClick={onSettings}>

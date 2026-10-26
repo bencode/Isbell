@@ -3,11 +3,11 @@
 
 import { ChevronsRight, LayoutGrid, Plus, Search, Settings2, SquareTerminal } from 'lucide-react'
 import { Link } from 'react-router'
-import { useI18n } from '../core/i18n'
-import { toggleRail } from '../core/prefs'
-import { needs } from '../model/projects'
-import { projectHref } from '../utils/hrefs'
-import { AskBadge, asking, RelayStatus } from './marks'
+import { useI18n } from '../../core/i18n'
+import { toggleRail } from '../../core/prefs'
+import { needs } from '../../model/projects'
+import { projectHref } from '../../utils/hrefs'
+import { AskBadge, asking, RelayStatus } from '../marks'
 import type { SideProps } from './sidebar'
 
 const ITEM =

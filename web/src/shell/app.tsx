@@ -1,14 +1,19 @@
-import { useEffect, useState } from 'react'
-import { Navigate, Route, Routes } from 'react-router'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { updateLocal, useLocal } from '../core/prefs'
 import { SpaceProvider, useProjects, useSpaceView } from '../core/space'
-import { AllProjects } from '../features/board/all-page'
-import { ProjectView } from '../features/board/project-page'
 import { Join, takeKeyFromLink } from '../features/join/join-page'
-import { SessionPage } from '../features/pane/session-page'
-import { TerminalPage } from '../features/pane/terminal-page'
-import { AppFrame, BoardMain } from './frame'
+import { Loading } from './common'
 import { useNotifications } from './notify'
+
+/** A phone gets its own shell, decided once at load; by the shorter side, so landscape counts too. */
+const MOBILE = matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600
+
+// Each shell is loaded only where it is used.
+const Shell = lazy(() =>
+  MOBILE
+    ? import('./mobile/routes').then(m => ({ default: m.MobileRoutes }))
+    : import('./desktop/routes').then(m => ({ default: m.DesktopRoutes })),
+)
 
 export function App() {
   const { key } = useLocal()
@@ -48,16 +53,8 @@ function Connected({ onRejected }: { onRejected: () => void }) {
   }, [rejected, onRejected])
   if (rejected) return null
   return (
-    <Routes>
-      <Route element={<AppFrame />}>
-        <Route element={<BoardMain />}>
-          <Route index element={<AllProjects />} />
-          <Route path="p/:key" element={<ProjectView />} />
-        </Route>
-        <Route path="s/:mid/:pane" element={<SessionPage />} />
-        <Route path="t/:mid/:pane" element={<TerminalPage />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <Suspense fallback={<Loading />}>
+      <Shell />
+    </Suspense>
   )
 }
