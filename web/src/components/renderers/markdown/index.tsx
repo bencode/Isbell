@@ -2,7 +2,6 @@
 // math and diagrams, in the reader's chosen appearance, and an outline of its headings. Raw HTML
 // in it is dropped, so it runs nothing; what each link does is the caller's to say.
 
-import '../highlight.css'
 import './markdown.css'
 import { type CSSProperties, use, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown, { type Options } from 'react-markdown'

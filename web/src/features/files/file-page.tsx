@@ -1,9 +1,10 @@
 // What every file view shares: a header saying what the file is and when it changed, with the
-// view's own tools and the ones every file has (read again, download); a body that scrolls back to
-// where it was for each step of the history; and the notice for a file that is not shown.
+// view's own tools and the ones every file has (read again, download); the scroll each step of the
+// history had, for the views (which scroll themselves) to go back to; and the notice for a file that
+// is not shown.
 
 import { Download, RotateCw } from 'lucide-react'
-import { type ReactNode, useLayoutEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useLocation } from 'react-router'
 import { Button } from '../../components/button'
 import { useI18n } from '../../core/i18n'
@@ -91,30 +92,7 @@ function Facts({ where, file }: { where: string; file: FileRead | undefined }) {
 /** Scroll positions by history entry, for this tab's life. */
 const scrolls = new Map<string, number>()
 
-/** The scrolling body, back at the scroll it had when this history entry was last shown. Put it
- * inside the Suspense of what it shows, so it mounts once there is something to scroll. */
-export function Scroller({ children }: { children: (scroller: HTMLElement | null) => ReactNode }) {
-  const { key, onScroll } = useHistoryScroll()
-  const ref = useRef<HTMLDivElement>(null)
-  const [el, setEl] = useState<HTMLElement | null>(null)
-  // The content renders in the same commit, so its height is there to scroll to.
-  useLayoutEffect(() => {
-    setEl(ref.current)
-    if (ref.current) ref.current.scrollTop = scrolls.get(key) ?? 0
-  }, [key])
-  return (
-    <div
-      ref={ref}
-      className="min-h-0 flex-1 overflow-auto"
-      onScroll={e => onScroll(e.currentTarget.scrollTop)}
-    >
-      {children(el)}
-    </div>
-  )
-}
-
-/** This history entry's scroll, for a view that scrolls itself: where it was when last shown, and
- * where it is now. Remount the view by `key`, so it starts at `top` again for a new entry. */
+/** This history entry's scroll: where it was when last shown, and where it is now. Remount the view by `key`, so it starts at `top` again for a new entry. */
 export function useHistoryScroll() {
   const { key } = useLocation()
   return { key, top: scrolls.get(key) ?? 0, onScroll: (top: number) => scrolls.set(key, top) }

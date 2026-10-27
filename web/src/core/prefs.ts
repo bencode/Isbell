@@ -26,6 +26,8 @@ export type Layout = {
   terminal: string[]
   /** The folders open in each project's files tree (relative to its root), by project key. */
   files: Record<string, string[]>
+  /** Whether long lines of source wrap. */
+  wrap: boolean
 }
 
 /** How documents read in the files view. */
@@ -58,6 +60,7 @@ const DEFAULTS: Local = {
     folded: [],
     terminal: [],
     files: {},
+    wrap: false,
   },
   reader: { ...DEFAULT_APPEARANCE, outline: true },
 }
@@ -147,6 +150,8 @@ export function openDirs(project: string, wanted: string[]) {
   if (open && wanted.every(d => open.includes(d))) return
   withOpenDirs(project, dirs => [...dirs, ...wanted.filter(d => !dirs.includes(d))])
 }
+
+export const toggleWrap = () => updateLocal(l => ({ layout: { ...l.layout, wrap: !l.layout.wrap } }))
 
 export const setReader = (change: Partial<Reader>) =>
   updateLocal(l => ({ reader: { ...l.reader, ...change } }))

@@ -2,16 +2,17 @@
 // source. A link to another file under the root opens it here.
 
 import { ListTree } from 'lucide-react'
-import { lazy, Suspense, useCallback, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Button } from '../../components/button'
+import type { CodeRendererHandle } from '../../components/renderers/code'
 import type { MarkdownLabels, MarkdownLink, OutlineLayout } from '../../components/renderers/markdown'
 import type { AppearanceLabels } from '../../components/renderers/markdown/appearance-control'
 import { Segmented } from '../../components/segmented'
 import { useI18n } from '../../core/i18n'
 import { setReader, useLocal } from '../../core/prefs'
 import { resolveLink } from '../../model/files/paths'
-import { SourceView } from './code-file'
+import { SourceTools, SourceView } from './code-file'
 import { FilePage, type FileViewProps, Reading, useHistoryScroll } from './file-page'
 
 // The Markdown libraries load with the first document rendered, and the Aa panel with them.
@@ -32,6 +33,7 @@ export function MarkdownFile({ shell, text, rel, hrefOf }: FileViewProps) {
   const reader = useLocal().reader
   const scroll = useHistoryScroll()
   const [mode, setMode] = useState<Mode>('rendered')
+  const source = useRef<CodeRendererHandle>(null)
   const [outline, setOutline] = useState<{ available: boolean; layout: OutlineLayout }>({
     available: false,
     layout: 'beside',
@@ -96,6 +98,7 @@ export function MarkdownFile({ shell, text, rel, hrefOf }: FileViewProps) {
           { value: 'source', label: t('files.source') },
         ]}
       />
+      {mode === 'source' ? <SourceTools source={source} /> : null}
       {mode === 'rendered' && outline.available ? (
         <Button
           size="small"
@@ -119,7 +122,7 @@ export function MarkdownFile({ shell, text, rel, hrefOf }: FileViewProps) {
   return (
     <FilePage shell={shell} tools={tools}>
       {mode === 'source' ? (
-        <SourceView text={text} name={shell.name} />
+        <SourceView ref={source} text={text} name={shell.name} />
       ) : (
         <Suspense fallback={<Reading />}>
           <MarkdownRenderer

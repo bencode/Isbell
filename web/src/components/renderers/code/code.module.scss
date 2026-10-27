@@ -1,0 +1,116 @@
+// The source view in the app's tokens, so it follows the app's theme; the hues are those of code in
+// documents. CodeMirror's classes (cm-*, and tok-* from classHighlighter) are its own, so reached as
+// global.
+
+.code {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+
+  :global {
+    .cm-editor {
+      flex: 1;
+      min-height: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 12.5px;
+    }
+    .cm-editor.cm-focused {
+      outline: none;
+    }
+    .cm-scroller {
+      font-family: var(--font-mono);
+      line-height: 1.6;
+    }
+    .cm-content {
+      padding-block: 16px 48px;
+      caret-color: var(--text);
+    }
+    .cm-gutters {
+      border-right: 1px solid var(--line);
+      background: var(--raised);
+      color: var(--faint);
+    }
+    :is(.cm-activeLine, .cm-activeLineGutter) {
+      background: color-mix(in oklch, var(--accent) 7%, transparent);
+    }
+    // As specific as CodeMirror's own, which is light only.
+    .cm-scroller .cm-selectionLayer .cm-selectionBackground,
+    .cm-editor.cm-focused .cm-scroller .cm-selectionLayer .cm-selectionBackground {
+      background: var(--accent-soft);
+    }
+    .cm-foldPlaceholder {
+      border-color: var(--line);
+      background: var(--raised-2);
+      color: var(--muted);
+    }
+    .cm-panels {
+      border-color: var(--line);
+      background: var(--raised);
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 12.5px;
+    }
+    .cm-panel.cm-search input,
+    .cm-panel.cm-search button {
+      font: inherit;
+    }
+    .cm-textfield {
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .cm-button {
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--raised-2);
+      background-image: none;
+      color: var(--text);
+    }
+    .cm-searchMatch {
+      background: color-mix(in oklch, var(--warn) 28%, transparent);
+    }
+    .cm-searchMatch-selected {
+      background: color-mix(in oklch, var(--accent) 35%, transparent);
+    }
+    .cm-matchingBracket {
+      background: var(--accent-soft);
+      outline: none;
+    }
+
+    .tok-comment {
+      color: var(--faint);
+      font-style: italic;
+    }
+    :is(.tok-keyword, .tok-bool, .tok-null) {
+      color: var(--accent);
+    }
+    :is(.tok-string, .tok-string2, .tok-inserted, .tok-url) {
+      color: var(--ok);
+    }
+    :is(.tok-number, .tok-typeName, .tok-className, .tok-namespace, .tok-atom) {
+      color: var(--warn);
+    }
+    :is(.tok-propertyName, .tok-attributeName, .tok-labelName, .tok-macroName) {
+      color: light-dark(#7a3fb0, #c9a3f0);
+    }
+    :is(.tok-variableName.tok-definition, .tok-heading) {
+      color: var(--text);
+      font-weight: 600;
+    }
+    :is(.tok-meta, .tok-deleted, .tok-invalid) {
+      color: var(--danger);
+    }
+    .tok-emphasis {
+      font-style: italic;
+    }
+    .tok-strong {
+      font-weight: 600;
+    }
+    .tok-link {
+      text-decoration: underline;
+    }
+  }
+}

@@ -76,3 +76,44 @@
     grid-template-columns: [wide-start prose-start] minmax(0, 1fr) [prose-end wide-end];
   }
 }
+
+// Code in documents, coloured by rehype-highlight (highlight.js classes).
+.reader {
+  :global(.hljs-comment),
+  :global(.hljs-quote) {
+    color: var(--faint);
+    font-style: italic;
+  }
+  :global(.hljs-keyword),
+  :global(.hljs-selector-tag),
+  :global(.hljs-literal),
+  :global(.hljs-doctag) {
+    color: var(--accent);
+  }
+  :global(.hljs-string),
+  :global(.hljs-regexp),
+  :global(.hljs-addition),
+  :global(.hljs-template-tag) {
+    color: var(--ok);
+  }
+  :global(.hljs-number),
+  :global(.hljs-built_in),
+  :global(.hljs-type),
+  :global(.hljs-symbol),
+  :global(.hljs-variable.language_) {
+    color: var(--warn);
+  }
+  :global(.hljs-title),
+  :global(.hljs-section),
+  :global(.hljs-attr),
+  :global(.hljs-attribute),
+  :global(.hljs-name),
+  :global(.hljs-selector-class),
+  :global(.hljs-selector-id) {
+    color: light-dark(#7a3fb0, #c9a3f0);
+  }
+  :global(.hljs-meta),
+  :global(.hljs-deletion) {
+    color: var(--danger);
+  }
+}
