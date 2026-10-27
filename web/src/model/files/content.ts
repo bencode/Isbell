@@ -19,6 +19,22 @@ export const extensionOf = (name: string) => {
 
 export const kindOf = (name: string): FileKind => KINDS[extensionOf(name)] ?? 'text'
 
+const IMAGES: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  avif: 'image/avif',
+  bmp: 'image/bmp',
+  ico: 'image/x-icon',
+  svg: 'image/svg+xml',
+}
+
+/** The media type of an image file by its name, or undefined when it is not one. An SVG shows in
+ * `<img>` only when its Blob says so. */
+export const imageType = (name: string): string | undefined => IMAGES[extensionOf(name)]
+
 const utf8 = new TextDecoder('utf-8', { fatal: true })
 
 /** The bytes as text, or null when they are not text: a NUL byte, or not UTF-8. */

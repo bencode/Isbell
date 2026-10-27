@@ -6,7 +6,12 @@ import { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Button } from '../../components/button'
 import type { CodeRendererHandle } from '../../components/renderers/code'
-import type { MarkdownLabels, MarkdownLink, OutlineLayout } from '../../components/renderers/markdown'
+import type {
+  MarkdownImage,
+  MarkdownLabels,
+  MarkdownLink,
+  OutlineLayout,
+} from '../../components/renderers/markdown'
 import type { AppearanceLabels } from '../../components/renderers/markdown/appearance-control'
 import { Segmented } from '../../components/segmented'
 import { useI18n } from '../../core/i18n'
@@ -27,7 +32,9 @@ const AppearanceControl = lazy(() =>
 
 type Mode = 'rendered' | 'source'
 
-export function MarkdownFile({ shell, text, rel, hrefOf }: FileViewProps) {
+const WEB_IMAGE = /^https?:\/\//i
+
+export function MarkdownFile({ shell, text, rel, hrefOf, image }: FileViewProps) {
   const t = useI18n()
   const navigate = useNavigate()
   const reader = useLocal().reader
@@ -55,6 +62,15 @@ export function MarkdownFile({ shell, text, rel, hrefOf }: FileViewProps) {
       return { kind: 'internal', href: to, open: () => navigate(to) }
     },
     [rel, hrefOf, navigate],
+  )
+  // From the web as it is; from under the root, read; anything else is a placeholder.
+  const imageOf = useCallback(
+    (src: string): MarkdownImage => {
+      if (WEB_IMAGE.test(src)) return { kind: 'url', url: src }
+      const target = resolveLink(rel, src)
+      return target.kind === 'file' ? { kind: 'load', load: () => image(target.rel) } : { kind: 'none' }
+    },
+    [rel, image],
   )
   const labels = useMemo<MarkdownLabels>(
     () => ({
@@ -131,6 +147,7 @@ export function MarkdownFile({ shell, text, rel, hrefOf }: FileViewProps) {
             text={text}
             appearance={reader}
             link={link}
+            image={imageOf}
             labels={labels}
             outline={{ open: outlineOpen, onOpenChange: setOutlineOpen, onState: setOutline }}
             scroll={scroll}

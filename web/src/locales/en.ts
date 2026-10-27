@@ -135,6 +135,12 @@ export const en = {
   'files.sandboxed':
     'Sandboxed: its scripts run, but cannot reach this page. Files next to it (images, styles) are not loaded.',
   'files.image': '[image: {alt}]',
+  'files.picture': 'Image',
+  'files.zoomIn': 'Zoom in',
+  'files.zoomOut': 'Zoom out',
+  'files.actualSize': 'Actual size',
+  'files.fit': 'Fit',
+  'files.imageFailed': 'The image could not be shown.',
   'files.outline': 'Outline',
   'files.outlineShow': 'Show outline',
   'files.outlineHide': 'Hide outline',

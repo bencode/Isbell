@@ -1,6 +1,7 @@
 // A Markdown document to read, rendered as GitHub does (tables, task lists, highlighted code), with
 // math and diagrams, in the reader's chosen appearance, and an outline of its headings. Raw HTML
-// in it is dropped, so it runs nothing; what each link does is the caller's to say.
+// in it is dropped, so it runs nothing; what each link does, and where each image comes from, is the
+// caller's to say.
 
 import './markdown.css'
 import { type CSSProperties, use, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
@@ -10,12 +11,14 @@ import rehypeSlug from 'rehype-slug'
 import remarkGfm from 'remark-gfm'
 import { type ReadingAppearance, themeStyle } from './appearance'
 import { blocks, type MarkdownLabels, type MarkdownLink } from './blocks'
+import type { MarkdownImage } from './doc-image'
 import { languages, PLAIN } from './languages'
 import styles from './markdown.module.scss'
 import { mathPlugins, mayHaveMath, normalizeMath } from './math'
 import { type Heading, headingsIn, Outline, type OutlineLayout } from './outline'
 
 export type { MarkdownLabels, MarkdownLink } from './blocks'
+export type { MarkdownImage } from './doc-image'
 export type { OutlineLayout } from './outline'
 
 // GitHub's heading ids, so the document's ids never shadow the page's own (a heading "Root").
@@ -28,6 +31,7 @@ type Props = {
   text: string
   appearance: ReadingAppearance
   link: (href: string) => MarkdownLink
+  image: (src: string) => MarkdownImage
   labels: MarkdownLabels
   outline: {
     open: boolean
@@ -39,7 +43,7 @@ type Props = {
   scroll: { top: number; onScroll: (top: number) => void }
 }
 
-export function MarkdownRenderer({ text, appearance, link, labels, outline, scroll }: Props) {
+export function MarkdownRenderer({ text, appearance, link, image, labels, outline, scroll }: Props) {
   // Waits, under the caller's Suspense, for the math plugins when the text may have math.
   const math = mayHaveMath(text) ? use(mathPlugins()) : undefined
   const root = useRef<HTMLDivElement>(null)
@@ -68,13 +72,13 @@ export function MarkdownRenderer({ text, appearance, link, labels, outline, scro
       <ReactMarkdown
         remarkPlugins={math ? [remarkGfm, math.remark] : [remarkGfm]}
         rehypePlugins={rehype}
-        components={blocks({ link, labels, jump })}
+        components={blocks({ link, image, labels, jump })}
         skipHtml
       >
         {math ? normalizeMath(text) : text}
       </ReactMarkdown>
     )
-  }, [text, math, link, labels])
+  }, [text, math, link, image, labels])
 
   // Read from the document as rendered. A renderer is mounted for one read of one file, so its
   // text stays as it was.

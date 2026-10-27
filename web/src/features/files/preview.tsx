@@ -1,16 +1,19 @@
-// One file read, shown by the view for its kind; or, when it is not text or too large to show,
-// what it is and a way to download it.
+// One file read, shown by the view for its kind (an image as one, else text by its kind); or, when
+// it is neither or too large to show, what it is and a way to download it. A document's images are
+// read for it as it asks.
 
 import { type ComponentType, useMemo, useState } from 'react'
 import { errorText, useI18n } from '../../core/i18n'
 import { useSpace } from '../../core/space'
-import { decodeText, type FileKind, formatSize, kindOf } from '../../model/files/content'
+import { decodeText, type FileKind, formatSize, imageType, kindOf } from '../../model/files/content'
+import { imageReader } from '../../model/files/images'
 import { join, nameOf } from '../../model/files/paths'
 import { type FileRead, PREVIEW_MAX, read } from '../../model/files/remote'
 import type { Project } from '../../model/projects'
 import { CodeFile } from './code-file'
 import { FilePage, type FileShell, type FileViewProps, Notice, Reading } from './file-page'
 import { HtmlFile } from './html-file'
+import { ImageFile } from './image-file'
 import { MarkdownFile } from './markdown-file'
 import { MermaidFile } from './mermaid-file'
 import { useFile } from './use-remote'
@@ -37,7 +40,13 @@ function Read({ mid, project, rel, hrefOf, again }: Props & { again: () => void 
   const { openStream } = useSpace()
   const path = join(project.path, rel)
   const { data, error } = useFile(mid, path)
-  const text = useMemo(() => (data?.bytes ? decodeText(data.bytes) : null), [data])
+  const type = imageType(rel)
+  const text = useMemo(() => (data?.bytes && !type ? decodeText(data.bytes) : null), [data, type])
+  // Afresh for each file and each reading of it: Preview is keyed by the file, Read by the round.
+  const image = useMemo(
+    () => imageReader(under => read(openStream, mid, join(project.path, under), PREVIEW_MAX)),
+    [openStream, mid, project.path],
+  )
   const [saveError, setSaveError] = useState<string>()
 
   const download = async () => {
@@ -56,9 +65,10 @@ function Read({ mid, project, rel, hrefOf, again }: Props & { again: () => void 
     download,
     saveError,
   }
+  if (type && data?.bytes) return <ImageFile shell={shell} bytes={data.bytes} type={type} />
   if (text !== null) {
     const View = VIEWS[kindOf(rel)]
-    return <View shell={shell} text={text} rel={rel} hrefOf={hrefOf} />
+    return <View shell={shell} text={text} rel={rel} hrefOf={hrefOf} image={image} />
   }
   return (
     <FilePage shell={shell}>

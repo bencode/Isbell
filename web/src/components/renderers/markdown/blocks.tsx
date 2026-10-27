@@ -1,4 +1,4 @@
-// How the parts of a document render: links as the caller says, images as placeholders, tables
+// How the parts of a document render: links and images as the caller says, tables
 // that scroll sideways, and Mermaid fences drawn as diagrams (loaded the first time one appears).
 
 import {
@@ -12,6 +12,7 @@ import {
   Suspense,
 } from 'react'
 import type { Components } from 'react-markdown'
+import { DocImage, type MarkdownImage } from './doc-image'
 import styles from './markdown.module.scss'
 
 /** How one link behaves: jump within the document, open in a new tab, open in the app, or nothing. */
@@ -34,10 +35,12 @@ const MermaidDiagram = lazy(() => import('../mermaid/diagram').then(m => ({ defa
 
 export function blocks({
   link,
+  image,
   labels,
   jump,
 }: {
   link: (href: string) => MarkdownLink
+  image: (src: string) => MarkdownImage
   labels: MarkdownLabels
   jump: (id: string) => void
 }): Components {
@@ -47,7 +50,9 @@ export function blocks({
         {children}
       </DocLink>
     ),
-    img: ({ alt }) => <span className="text-faint">{labels.image(alt ?? '')}</span>,
+    img: ({ src, alt = '' }) => (
+      <DocImage image={image(typeof src === 'string' ? src : '')} alt={alt} placeholder={labels.image(alt)} />
+    ),
     table: ({ node: _node, ...props }) => (
       <div className={styles.table}>
         <table {...props} />

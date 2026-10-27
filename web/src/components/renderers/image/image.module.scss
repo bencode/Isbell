@@ -1,0 +1,27 @@
+// The image on a checkerboard of the app's raised tones, centred while it is smaller than the space.
+
+.renderer {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  padding: 24px;
+}
+
+.image {
+  margin: auto;
+  background-color: var(--raised);
+  background-image: conic-gradient(
+    var(--raised-2) 25%,
+    transparent 0 50%,
+    var(--raised-2) 0 75%,
+    transparent 0
+  );
+  background-size: 16px 16px;
+}
+
+.renderer[data-fit="true"] .image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}

@@ -31,6 +31,8 @@ export type FileViewProps = {
   /** The file, relative to the root. */
   rel: string
   hrefOf: (rel: string) => string
+  /** Reads an image under the root (root-relative), for the documents that show some. */
+  image: (rel: string) => Promise<Blob>
 }
 
 export function FilePage({
