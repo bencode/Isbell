@@ -79,6 +79,6 @@ fn show(ctx: &Ctx, id: &Identity) {
         ctx.out.json(&json!({"key": key, "sid": id.sid(), "join": join}));
     } else {
         println!("Space key (keep it secret; it controls every machine in the space):\n  {key}\n");
-        println!("Add another machine:\n  {join}\n  isbell gateway run");
+        println!("Add another machine:\n  {join}\n  isbell gateway install");
     }
 }

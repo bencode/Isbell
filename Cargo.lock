@@ -1266,7 +1266,7 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
 name = "isbell"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1296,7 +1296,7 @@ dependencies = [
 
 [[package]]
 name = "isbell-proto"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "data-encoding",
  "ed25519-dalek",
@@ -1310,7 +1310,7 @@ dependencies = [
 
 [[package]]
 name = "isbell-relay"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "axum",
