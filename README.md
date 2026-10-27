@@ -6,19 +6,36 @@ Reach the AI agents on your own Macs from any browser. Isbell connects to
 
 **Open the app: <https://isbell.fmap.dev>**
 
-![The board: two projects on one machine, a session asking and one working](docs/board.png)
+![The board: an agent asking, two just finished, one running and one standing by](docs/board.png)
 
 Status: early development, on Macs with Apple silicon.
 
+## Set up
+
+Paste this to the agent on your Mac (Claude Code, Codex, …):
+
+```text
+Set up Isbell on this Mac: read https://raw.githubusercontent.com/bencode/Isbell/main/docs/setup.md and follow it.
+```
+
+It installs `isbell` (and herdr, if you agree), runs the gateway, and tells you how to open the app.
+It never sees your space key.
+
 ## Features
 
-- **One board** for the sessions on all your machines; those asking you, or just done, come first.
-- **Chat**: each session reads as turns; reply, or answer what the agent asks with one click.
-- **Start and end**: a new agent session with its task, or a plain shell, on any machine.
+- **Board**: every agent on all your machines, in four lanes: Asking, Just finished, Running and
+  Standing by. Answer an agent from its card.
+- **Projects**: agents and shells grouped by the git repository they work in, each project with an
+  overview and its files.
+- **Chat**: a session reads as turns; reply, or answer what the agent asks with one click.
 - **Terminal**: watch or take over any pane, in the browser.
-- **Notifications** when an agent asks or finishes, while Isbell is open in a tab; the tab title
-  counts what needs you.
-- **CLI**: the same from a terminal, plus copying files between machines (`isbell file get/put`).
+- **Files**: read what the agents write. Markdown in a theme of your choosing, with its outline,
+  math and diagrams; source with highlighting; images; HTML pages, run apart from the app, here or
+  in a tab of their own. Anything else downloads.
+- **New**: start an agent with its task, or a shell, in a project or any directory, on any machine.
+- **Notifications** when an agent asks or finishes, while Isbell is open in a tab.
+- **Phones** get a layout of their own.
+- **CLI**: the same from a terminal, plus copying files between machines.
 
 ## How it works
 
@@ -48,9 +65,11 @@ Status: early development, on Macs with Apple silicon.
 - **One key per space**: the key is the only credential; each connection signs with it, and the
   relay checks the signature without ever receiving the key.
 - **Gateways only dial out**: a machine opens no port; its gateway connects to the relay.
+- **Pages run apart**: an HTML page from a project runs on `isbell-preview.fmap.dev`, an origin of
+  its own, so its scripts cannot reach the app or your key.
 - **TLS, not end to end**: what goes through the relay is visible to the relay as it passes.
 
-## Install
+## Install by hand
 
 ```bash
 curl -fsSL https://isbell.fmap.dev/install.sh | sh
@@ -62,15 +81,7 @@ curl -fsSL https://isbell.fmap.dev/install.sh | sh
 - `ISBELL_VERSION=v0.1.0` before `sh` installs that release instead, to go back to it.
 - Macs with Apple silicon only, for now.
 
-### From source
-
-On other systems, or to run `main`, with Rust (<https://rustup.rs>) and herdr installed:
-
-```bash
-cargo install --git https://github.com/bencode/Isbell --locked isbell
-```
-
-## Quick start
+Then:
 
 1. On your first machine: `isbell space init`, which creates your space and prints its key.
 2. Then `isbell gateway install`, which keeps the gateway running for this machine.
@@ -84,6 +95,14 @@ cargo install --git https://github.com/bencode/Isbell --locked isbell
   changing `PATH`.
 - `gateway status` and `gateway uninstall` check and remove it; elsewhere, run
   `isbell gateway run` under a supervisor of your own.
+
+### From source
+
+On other systems, or to run `main`, with Rust (<https://rustup.rs>) and herdr installed:
+
+```bash
+cargo install --git https://github.com/bencode/Isbell --locked isbell
+```
 
 ## CLI
 
@@ -104,12 +123,13 @@ On the host, from the repository root:
 docker compose -f deploy/compose.yml up -d --build
 ```
 
-The host's TLS reverse proxy serves both at `isbell.fmap.dev`, by path:
+The host's TLS reverse proxy serves them:
 
-| Path | Upstream |
+| Site, path | Upstream |
 |---|---|
-| `/v1/*`, `/healthz` | relay on `172.17.0.1:5800` |
-| everything else | web app on `172.17.0.1:5801` |
+| `isbell.fmap.dev` `/v1/*`, `/healthz` | relay on `172.17.0.1:5800` |
+| `isbell.fmap.dev`, everything else | web app on `172.17.0.1:5801` |
+| `isbell-preview.fmap.dev` | the preview origin, on `172.17.0.1:5802` |
 
 ## Development
 
