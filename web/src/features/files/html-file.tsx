@@ -3,23 +3,20 @@
 
 import { ExternalLink } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { useParams } from 'react-router'
 import { buttonClass } from '../../components/button'
 import type { CodeRendererHandle } from '../../components/renderers/code'
 import { HtmlRenderer } from '../../components/renderers/html'
 import { Segmented } from '../../components/segmented'
 import { useI18n } from '../../core/i18n'
-import { pageHref } from '../../utils/hrefs'
 import { SourceTools, SourceView } from './code-file'
 import { FilePage, type FileViewProps } from './file-page'
 
 type Mode = 'preview' | 'source'
 
-export function HtmlFile({ shell, text, rel, asset }: FileViewProps) {
+export function HtmlFile({ shell, text, rel, asset, apartHref }: FileViewProps) {
   const t = useI18n()
   const [mode, setMode] = useState<Mode>('preview')
   const source = useRef<CodeRendererHandle>(null)
-  const { mid = '', pane = '' } = useParams()
   const tools = (
     <>
       <Segmented
@@ -35,7 +32,7 @@ export function HtmlFile({ shell, text, rel, asset }: FileViewProps) {
         <SourceTools source={source} />
       ) : (
         <a
-          href={pageHref(mid, pane, rel)}
+          href={apartHref}
           target="_blank"
           rel="noopener"
           aria-label={t('files.openApart')}

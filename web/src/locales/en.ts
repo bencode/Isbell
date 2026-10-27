@@ -60,6 +60,9 @@ export const en = {
   'project.offline': 'The machine is offline.',
   'project.gone': 'Nothing runs in this project any more.',
   'project.back': 'Back to all projects',
+  'project.views': 'Project view',
+  'project.overview': 'Overview',
+  'project.files': 'Files',
 
   'status.blocked': 'asking',
   'status.working': 'working',

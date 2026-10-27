@@ -6,6 +6,7 @@ import { lanes, type Project } from '../../model/projects'
 import { terminalHref } from '../../utils/hrefs'
 import { useNow } from '../../utils/time'
 import { Lanes } from './lanes'
+import { ProjectTabs } from './project-tabs'
 
 /** The project the board is focused on, from the route. */
 function useFocused(projects: Project[]): Project | undefined {
@@ -65,6 +66,12 @@ function Focused({ project, stacked }: { project: Project; stacked: boolean }) {
         <span className="rounded-md border border-line px-1.5 text-xs text-muted">{project.machine}</span>
         {project.online ? null : (
           <span className="rounded-full border border-line px-2 text-xs text-muted">{t('side.offline')}</span>
+        )}
+        {/* Phones have no files view. */}
+        {stacked ? null : (
+          <span className="ml-auto self-center">
+            <ProjectTabs projectKey={project.key} current="overview" />
+          </span>
         )}
       </div>
       <Shells project={project} />

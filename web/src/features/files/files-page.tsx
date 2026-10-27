@@ -3,25 +3,19 @@
 // files.
 
 import { useCallback, useState } from 'react'
-import { Group, Panel, useDefaultLayout } from 'react-resizable-panels'
 import { Link, useNavigate, useParams } from 'react-router'
 import { InfoFacts } from '../../components/info-panel'
-import { ResizeHandle } from '../../components/resize-handle'
 import { useI18n } from '../../core/i18n'
 import { attachCommand, connectionFacts, paneFacts } from '../../core/pane-facts'
 import { RELAY_URL, useProjects, useSpaceView } from '../../core/space'
 import { relative } from '../../model/files/paths'
 import { type Found, locate, type Pane, type Project } from '../../model/projects'
-import { machineOf } from '../../model/space'
 import { filesHref, projectHref } from '../../utils/hrefs'
 import { useNow } from '../../utils/time'
 import { EndPane } from '../pane/end-pane-dialog'
 import type { PaneLayout } from '../pane/pane-layout'
 import { useLink } from '../pane/use-link'
-import { Preview } from './preview'
-import { Tree } from './tree'
-
-const PANELS = ['tree', 'file']
+import { FilesSplit } from './files-split'
 
 export function FilesPage({ layout }: { layout: PaneLayout }) {
   const t = useI18n()
@@ -64,24 +58,13 @@ function Browse({
   found: Found
   rel: string
 }) {
-  const t = useI18n()
   const navigate = useNavigate()
   const [ending, setEnding] = useState(false)
-  const machine = machineOf(useSpaceView().machines, mid)
   const { project, name, pane } = found
   const agent = 'session' in pane
-  // The tree's width, the same for every project.
-  const split = useDefaultLayout({ id: 'isbell.files-split', panelIds: PANELS, storage: localStorage })
   // Stable, so a document's links are not rendered again for it.
   const hrefOf = useCallback((to: string) => filesHref(mid, paneId, to), [mid, paneId])
 
-  const note = !project.online
-    ? t('files.offline')
-    : !machine?.state.caps.methods.includes('isbell.file.list')
-      ? t('files.old')
-      : !project.path
-        ? t('files.noRoot')
-        : undefined
   return (
     <>
       <Layout
@@ -92,39 +75,13 @@ function Browse({
         onEnd={() => setEnding(true)}
         facts={<FilesFacts mid={mid} project={project} pane={pane} />}
       >
-        {note ? (
-          <p className="m-6 text-muted">{note}</p>
-        ) : (
-          <Group
-            orientation="horizontal"
-            className="min-h-0 flex-1"
-            defaultLayout={split.defaultLayout}
-            onLayoutChanged={split.onLayoutChanged}
-          >
-            {/* Keeps its width as the window resizes. */}
-            <Panel
-              id="tree"
-              className="flex"
-              defaultSize="300px"
-              minSize="200px"
-              maxSize="50%"
-              groupResizeBehavior="preserve-pixel-size"
-            >
-              <Tree
-                mid={mid}
-                project={project}
-                cwd={relative(project.path, agent ? (pane.session.cwd ?? '') : pane.shell.cwd) ?? ''}
-                current={rel}
-                hrefOf={hrefOf}
-              />
-            </Panel>
-            <ResizeHandle label={t('files.resize')} />
-            <Panel id="file" className="flex" minSize="320px">
-              {/* Keyed, so each file starts with its own view mode and scroll. */}
-              <Preview key={rel} mid={mid} project={project} rel={rel} hrefOf={hrefOf} />
-            </Panel>
-          </Group>
-        )}
+        <FilesSplit
+          mid={mid}
+          project={project}
+          cwd={relative(project.path, agent ? (pane.session.cwd ?? '') : pane.shell.cwd) ?? ''}
+          rel={rel}
+          hrefOf={hrefOf}
+        />
       </Layout>
       <EndPane
         open={ending}

@@ -11,7 +11,12 @@ const tail = (rel: string) => (rel ? `/${rel.split('/').map(encodeURIComponent).
 export const filesHref = (mid: string, paneId: string, rel = '') =>
   `/f/${mid}/${encodeURIComponent(paneId)}${tail(rel)}`
 
-/** The page at `rel` under a pane's project root, on its own in the window. */
-export const pageHref = (mid: string, paneId: string, rel: string) =>
-  `/v/${mid}/${encodeURIComponent(paneId)}${tail(rel)}`
+/** A project's files, at `rel` under its root. */
+export const projectFilesHref = (projectKey: string, rel = '') =>
+  `${projectHref(projectKey)}/files${tail(rel)}`
+
+/** The page at `rel` under a project's root, on its own in the window. */
+export const pageHref = (projectKey: string, rel: string) =>
+  `/v/${encodeURIComponent(projectKey)}${tail(rel)}`
+
 export const sessionHref = (mid: string, paneId: string) => `/s/${mid}/${encodeURIComponent(paneId)}`

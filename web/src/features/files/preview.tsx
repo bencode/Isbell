@@ -10,6 +10,7 @@ import { decodeText, type FileKind, formatSize, imageType, kindOf } from '../../
 import { join, nameOf } from '../../model/files/paths'
 import { type FileRead, PREVIEW_MAX, read } from '../../model/files/remote'
 import type { Project } from '../../model/projects'
+import { pageHref } from '../../utils/hrefs'
 import { CodeFile } from './code-file'
 import { FilePage, type FileShell, type FileViewProps, Notice, Reading } from './file-page'
 import { HtmlFile } from './html-file'
@@ -68,7 +69,16 @@ function Read({ mid, project, rel, hrefOf, again }: Props & { again: () => void 
   if (type && data?.bytes) return <ImageFile shell={shell} bytes={data.bytes} type={type} />
   if (text !== null) {
     const View = VIEWS[kindOf(rel)]
-    return <View shell={shell} text={text} rel={rel} hrefOf={hrefOf} asset={asset} />
+    return (
+      <View
+        shell={shell}
+        text={text}
+        rel={rel}
+        hrefOf={hrefOf}
+        asset={asset}
+        apartHref={pageHref(project.key, rel)}
+      />
+    )
   }
   return (
     <FilePage shell={shell}>

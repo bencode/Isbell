@@ -5,14 +5,12 @@ import { Link } from 'react-router'
 import { Button } from '../../components/button'
 import { StatusChip } from '../../components/chip'
 import { InfoToggle } from '../../components/info-panel'
+import { ViewTabs } from '../../components/view-tabs'
 import { useI18n } from '../../core/i18n'
 import { toggleInfo, useLocal } from '../../core/prefs'
 import type { Found } from '../../model/projects'
 import { filesHref, projectHref, sessionHref, terminalHref } from '../../utils/hrefs'
 import type { PaneView } from './pane-layout'
-
-const VIEW =
-  'inline-flex h-[30px] items-center gap-1.5 rounded-md px-3 text-[13px] font-medium no-underline focus-visible:outline-2 focus-visible:outline-accent'
 
 type Props = {
   found: Found
@@ -59,22 +57,7 @@ export function PaneHeader({ found: { project, name, pane }, mid, paneId, view, 
       </div>
       <span className="min-w-0 truncate text-[12.5px] text-faint">{where}</span>
       <span className="flex-1" />
-      <nav
-        aria-label={t('pane.view')}
-        className="inline-flex flex-none gap-0.5 rounded-lg border border-line bg-bg p-0.5"
-      >
-        {views.map(v => (
-          <Link
-            key={v.key}
-            to={v.href}
-            aria-current={v.key === view ? 'page' : undefined}
-            className={`${VIEW} ${v.key === view ? 'index-card bg-raised text-text' : 'text-muted hover:text-text'}`}
-          >
-            {v.icon}
-            {v.label}
-          </Link>
-        ))}
-      </nav>
+      <ViewTabs label={t('pane.view')} views={views} current={view} />
       <Button variant="end" onClick={onEnd} title={session ? t('session.endHint') : undefined}>
         <Square size={12} fill="currentColor" />
         {session ? t('session.end') : t('terminal.end')}

@@ -60,6 +60,9 @@ export const zh: Record<Key, string> = {
   'project.none': '没有在跑的会话。用"新建会话"（n）开一个。',
   'project.offline': '这台机器离线了。',
   'project.gone': '这个项目里已经没有在跑的东西了。',
+  'project.views': '项目视图',
+  'project.overview': '概览',
+  'project.files': '文件',
   'project.back': '回到全部项目',
 
   'status.blocked': '在问',
