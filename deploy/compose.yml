@@ -1,6 +1,6 @@
 # Isbell at isbell.fmap.dev, behind the host's TLS reverse proxy: the relay on 172.17.0.1:5800
-# (/v1/ws, /healthz) and the web app on 172.17.0.1:5801 (every other path). Run from the
-# repository root:
+# (/v1/ws, /healthz) and the web app on 172.17.0.1:5801 (every other path); the preview origin,
+# isbell-preview.fmap.dev, on 172.17.0.1:5802. Run from the repository root:
 #   docker compose -f deploy/compose.yml up -d --build
 name: isbell
 services:
@@ -24,6 +24,7 @@ services:
       dockerfile: deploy/web.Dockerfile
     ports:
       - "172.17.0.1:5801:80"
+      - "172.17.0.1:5802:81"
     restart: unless-stopped
   redis:
     image: redis:7-alpine

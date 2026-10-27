@@ -1,15 +1,17 @@
-// The images one document shows, read from its machine: each once, and only a few at a time, since
-// the gateway allows a connection 8 streams and terminals and chats need theirs.
+// The files a document shows beside itself, read from its machine: a Markdown document's images, an
+// HTML page's every file. Each is read once, and only a few at a time, since the gateway allows a
+// connection 8 streams and terminals and chats need theirs.
 
-import { imageType } from './content'
+import { CallError } from '../streams'
+import { mediaType } from './content'
 import type { FileRead } from './remote'
 
-/** At most this many of a document's images are read at once. */
+/** At most this many of a document's files are read at once. */
 const AT_ONCE = 3
 
-/** Reads the images of one document by their paths under the root: each path once, AT_ONCE at a
- * time. A file larger than `readFile`'s limit rejects. */
-export function imageReader(readFile: (rel: string) => Promise<FileRead>): (rel: string) => Promise<Blob> {
+/** Reads the files of one document by their paths under the root: each path once, AT_ONCE at a
+ * time, typed by name. A file larger than `readFile`'s limit rejects as `too_large`. */
+export function assetReader(readFile: (rel: string) => Promise<FileRead>): (rel: string) => Promise<Blob> {
   const reads = new Map<string, Promise<Blob>>()
   const waiting: (() => void)[] = []
   let running = 0
@@ -34,8 +36,8 @@ export function imageReader(readFile: (rel: string) => Promise<FileRead>): (rel:
     await acquire()
     try {
       const { bytes } = await readFile(rel)
-      if (!bytes) throw new Error(`${rel} is larger than the preview limit`)
-      const type = imageType(rel)
+      if (!bytes) throw new CallError('too_large', `${rel} is larger than the preview limit`)
+      const type = mediaType(rel)
       return new Blob([bytes], type ? { type } : {})
     } finally {
       release()

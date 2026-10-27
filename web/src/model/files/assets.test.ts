@@ -1,8 +1,8 @@
 import { expect, test } from 'vitest'
-import { imageReader } from './images'
+import { assetReader } from './assets'
 import type { FileRead } from './remote'
 
-test('a document reads each image once, three at a time, and refuses one over the limit', async () => {
+test('a document reads each file once, three at a time, typed by name, and refuses one over the limit', async () => {
   const reads: string[] = []
   let running = 0
   let most = 0
@@ -14,10 +14,10 @@ test('a document reads each image once, three at a time, and refuses one over th
     running -= 1
     return rel === 'huge.png' ? { size: 9 << 20 } : { size: 1, bytes: new Uint8Array([1]) }
   }
-  const image = imageReader(readFile)
-  const rels = ['a.png', 'b.svg', 'c.png', 'a.png', 'd.gif', 'e.webp']
-  const blobs = await Promise.all(rels.map(image))
-  const huge = await image('huge.png').then(
+  const asset = assetReader(readFile)
+  const rels = ['a.png', 'b.svg', 'c.png', 'a.png', 'd.gif', 'app.js']
+  const blobs = await Promise.all(rels.map(asset))
+  const huge = await asset('huge.png').then(
     () => 'read',
     () => 'refused',
   )
@@ -26,4 +26,5 @@ test('a document reads each image once, three at a time, and refuses one over th
   expect(most).toBe(3)
   expect(huge).toBe('refused')
   expect(blobs[1]?.type).toBe('image/svg+xml')
+  expect(blobs[5]?.type).toBe('text/javascript;charset=utf-8')
 })

@@ -1,4 +1,4 @@
-# Serves the web app behind the host's TLS reverse proxy.
+# Serves the web app (:80) and the preview origin (:81) behind the host's TLS reverse proxy.
 :80 {
 	root * /srv
 	# Built assets carry a content hash in their names, so they never change; a missing one is a 404.
@@ -13,4 +13,12 @@
 		try_files {path} /index.html
 		file_server
 	}
+}
+
+# The preview origin: the bridge and the worker that serve a page's files. Only here, never at :80,
+# so the worker can never be registered on the app's origin. Every other path is the worker's.
+:81 {
+	root * /srv-preview
+	header Cache-Control "no-cache"
+	file_server
 }

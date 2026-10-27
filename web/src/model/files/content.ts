@@ -19,7 +19,7 @@ export const extensionOf = (name: string) => {
 
 export const kindOf = (name: string): FileKind => KINDS[extensionOf(name)] ?? 'text'
 
-const IMAGES: Record<string, string> = {
+const MEDIA: Record<string, string> = {
   png: 'image/png',
   jpg: 'image/jpeg',
   jpeg: 'image/jpeg',
@@ -29,11 +29,31 @@ const IMAGES: Record<string, string> = {
   bmp: 'image/bmp',
   ico: 'image/x-icon',
   svg: 'image/svg+xml',
+  // With a charset, so a page with no <meta charset> does not read as Latin-1.
+  html: 'text/html;charset=utf-8',
+  htm: 'text/html;charset=utf-8',
+  css: 'text/css;charset=utf-8',
+  // A module script loads only with a JavaScript type.
+  js: 'text/javascript;charset=utf-8',
+  mjs: 'text/javascript;charset=utf-8',
+  json: 'application/json',
+  txt: 'text/plain;charset=utf-8',
+  woff: 'font/woff',
+  woff2: 'font/woff2',
+  ttf: 'font/ttf',
+  otf: 'font/otf',
+  wasm: 'application/wasm',
 }
+
+/** The media type a file is served with, by its name; undefined lets the browser sniff. */
+export const mediaType = (name: string): string | undefined => MEDIA[extensionOf(name)]
 
 /** The media type of an image file by its name, or undefined when it is not one. An SVG shows in
  * `<img>` only when its Blob says so. */
-export const imageType = (name: string): string | undefined => IMAGES[extensionOf(name)]
+export const imageType = (name: string): string | undefined => {
+  const type = mediaType(name)
+  return type?.startsWith('image/') ? type : undefined
+}
 
 const utf8 = new TextDecoder('utf-8', { fatal: true })
 

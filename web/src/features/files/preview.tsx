@@ -1,12 +1,12 @@
 // One file read, shown by the view for its kind (an image as one, else text by its kind); or, when
-// it is neither or too large to show, what it is and a way to download it. A document's images are
-// read for it as it asks.
+// it is neither or too large to show, what it is and a way to download it. The files a document
+// shows beside itself are read for it as it asks.
 
 import { type ComponentType, useMemo, useState } from 'react'
 import { errorText, useI18n } from '../../core/i18n'
 import { useSpace } from '../../core/space'
+import { assetReader } from '../../model/files/assets'
 import { decodeText, type FileKind, formatSize, imageType, kindOf } from '../../model/files/content'
-import { imageReader } from '../../model/files/images'
 import { join, nameOf } from '../../model/files/paths'
 import { type FileRead, PREVIEW_MAX, read } from '../../model/files/remote'
 import type { Project } from '../../model/projects'
@@ -43,8 +43,8 @@ function Read({ mid, project, rel, hrefOf, again }: Props & { again: () => void 
   const type = imageType(rel)
   const text = useMemo(() => (data?.bytes && !type ? decodeText(data.bytes) : null), [data, type])
   // Afresh for each file and each reading of it: Preview is keyed by the file, Read by the round.
-  const image = useMemo(
-    () => imageReader(under => read(openStream, mid, join(project.path, under), PREVIEW_MAX)),
+  const asset = useMemo(
+    () => assetReader(under => read(openStream, mid, join(project.path, under), PREVIEW_MAX)),
     [openStream, mid, project.path],
   )
   const [saveError, setSaveError] = useState<string>()
@@ -68,7 +68,7 @@ function Read({ mid, project, rel, hrefOf, again }: Props & { again: () => void 
   if (type && data?.bytes) return <ImageFile shell={shell} bytes={data.bytes} type={type} />
   if (text !== null) {
     const View = VIEWS[kindOf(rel)]
-    return <View shell={shell} text={text} rel={rel} hrefOf={hrefOf} image={image} />
+    return <View shell={shell} text={text} rel={rel} hrefOf={hrefOf} asset={asset} />
   }
   return (
     <FilePage shell={shell}>

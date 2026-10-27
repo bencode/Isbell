@@ -34,7 +34,7 @@ type Mode = 'rendered' | 'source'
 
 const WEB_IMAGE = /^https?:\/\//i
 
-export function MarkdownFile({ shell, text, rel, hrefOf, image }: FileViewProps) {
+export function MarkdownFile({ shell, text, rel, hrefOf, asset }: FileViewProps) {
   const t = useI18n()
   const navigate = useNavigate()
   const reader = useLocal().reader
@@ -68,9 +68,9 @@ export function MarkdownFile({ shell, text, rel, hrefOf, image }: FileViewProps)
     (src: string): MarkdownImage => {
       if (WEB_IMAGE.test(src)) return { kind: 'url', url: src }
       const target = resolveLink(rel, src)
-      return target.kind === 'file' ? { kind: 'load', load: () => image(target.rel) } : { kind: 'none' }
+      return target.kind === 'file' ? { kind: 'load', load: () => asset(target.rel) } : { kind: 'none' }
     },
-    [rel, image],
+    [rel, asset],
   )
   const labels = useMemo<MarkdownLabels>(
     () => ({

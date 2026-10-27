@@ -1,0 +1,57 @@
+<!doctype html>
+<!--
+  The bridge on the preview origin. The app frames it as host.html?t=<token>&open=<path>; it
+  registers the worker, then opens the page as /p/<token>/<path>. Each file the page asks for, the
+  worker hands here and this asks the app, which reads it from the machine. The page itself is
+  never touched.
+-->
+<meta charset="utf-8" />
+<title>Isbell preview</title>
+<style>
+  html,
+  body,
+  iframe {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+  }
+</style>
+<script>
+  const query = new URLSearchParams(location.search)
+  const token = query.get('t')
+  const open = query.get('open')
+  document.title = open.slice(open.lastIndexOf('/') + 1)
+  const ports = new Map()
+  let last = 0
+
+  // The worker asks for a file; the app answers. Paths are no secret, and this page does not know
+  // the app's origin, so it asks whoever framed it.
+  navigator.serviceWorker.addEventListener('message', e => {
+    const id = ++last
+    ports.set(id, e.ports[0])
+    parent.postMessage({ isbell: 'read', id, rel: e.data.rel }, '*')
+  })
+
+  addEventListener('message', e => {
+    if (e.source !== parent || e.data?.isbell !== 'file') return
+    const port = ports.get(e.data.id)
+    ports.delete(e.data.id)
+    port?.postMessage(e.data, e.data.bytes ? [e.data.bytes] : [])
+  })
+
+  navigator.serviceWorker
+    .register('/sw.js')
+    .then(() => navigator.serviceWorker.ready)
+    .then(() => {
+      const page = document.createElement('iframe')
+      page.title = open
+      page.src = `/p/${token}/${open.split('/').map(encodeURIComponent).join('/')}`
+      document.body.append(page)
+    })
+    .catch(err => {
+      console.error('could not start the preview', err)
+      document.body.textContent = 'This browser cannot show the preview: it needs service workers.'
+    })
+</script>

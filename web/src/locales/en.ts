@@ -132,8 +132,9 @@ export const en = {
   'files.download': 'Download',
   'files.tooLarge': 'Larger than {limit}, so not shown. Download it to open.',
   'files.binary': 'Not text, so not shown. Download it to open.',
+  'files.openApart': 'Open in a new tab',
   'files.sandboxed':
-    'Sandboxed: its scripts run, but cannot reach this page. Files next to it (images, styles) are not loaded.',
+    'Runs apart from this page: its scripts run but cannot reach it. Files beside it load from the machine.',
   'files.image': '[image: {alt}]',
   'files.picture': 'Image',
   'files.zoomIn': 'Zoom in',
