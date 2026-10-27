@@ -3,7 +3,6 @@
 
 import {
   Children,
-  Component,
   isValidElement,
   lazy,
   type MouseEvent,
@@ -12,6 +11,7 @@ import {
   Suspense,
 } from 'react'
 import type { Components } from 'react-markdown'
+import { ErrorBoundary } from '../../error-boundary'
 import { DocImage, type MarkdownImage } from './doc-image'
 import styles from './markdown.module.scss'
 
@@ -87,7 +87,8 @@ function Diagram({
 }) {
   const note = (text: string) => <p className="m-0 mb-2 text-[0.85em] text-faint">{text}</p>
   return (
-    <DiagramBoundary
+    // Keeps a document readable when the diagram code fails to load.
+    <ErrorBoundary
       fallback={
         <figure data-wide className="m-0">
           {note(labels.diagramFailed)}
@@ -107,22 +108,8 @@ function Diagram({
           {block}
         </MermaidDiagram>
       </Suspense>
-    </DiagramBoundary>
+    </ErrorBoundary>
   )
-}
-
-/** Keeps a document readable when the diagram code fails to load. */
-class DiagramBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
-  state = { failed: false }
-  static getDerivedStateFromError() {
-    return { failed: true }
-  }
-  componentDidCatch(error: unknown) {
-    console.error('could not load the diagram renderer', error)
-  }
-  render() {
-    return this.state.failed ? this.props.fallback : this.props.children
-  }
 }
 
 const plain = (e: MouseEvent) => e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey

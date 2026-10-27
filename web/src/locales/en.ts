@@ -7,6 +7,8 @@ export const en = {
   close: 'Close',
 
   'app.newSession': 'New',
+  'app.broken': 'This page stopped working. Reload it; after an update, that brings the new version.',
+  'app.reload': 'Reload',
   'banner.reconnecting': 'Reconnecting to the relay… What you see may be out of date.',
   'banner.now': 'Reconnect now',
 

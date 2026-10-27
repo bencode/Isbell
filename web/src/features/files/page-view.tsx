@@ -9,6 +9,7 @@ import { useProjects, useSpace, useSpaceView } from '../../core/space'
 import { assetReader } from '../../model/files/assets'
 import { join, nameOf } from '../../model/files/paths'
 import { PREVIEW_MAX, read } from '../../model/files/remote'
+import { projectsSettled } from '../../model/space'
 
 export function PageView() {
   const t = useI18n()
@@ -28,15 +29,16 @@ export function PageView() {
     document.title = nameOf(rel)
   }, [rel])
 
-  const note = !view.loaded
-    ? t('board.loading')
-    : !project
+  // Until the projects settle, one not found may yet appear.
+  const note = !project
+    ? projectsSettled(view)
       ? t('project.gone')
-      : !project.online
-        ? t('files.offline')
-        : !asset
-          ? t('files.noRoot')
-          : undefined
+      : t('board.loading')
+    : !project.online
+      ? t('files.offline')
+      : !asset
+        ? t('files.noRoot')
+        : undefined
   if (note || !asset) return <p className="m-6 text-muted">{note}</p>
   return (
     <div className="flex h-screen flex-col">

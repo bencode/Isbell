@@ -3,13 +3,18 @@ import vectors from '../../../crates/isbell-proto/tests/vectors.json'
 import type { ConnectionEvents } from './connection'
 import type { DirectLink } from './direct'
 import { parseKey } from './identity'
-import { createSpace, type Space } from './space'
+import { createSpace, projectsSettled, type Space } from './space'
 import { CallError, type Stream } from './streams'
 
 // The relay connection and the direct link are stood in for: the test plays the relay and decides
 // whether a direct link opens. A plain function, not vi.fn: a vi.fn whose promise rejects is
 // reported as an unhandled rejection even though the space handles it.
-const relay = vi.hoisted(() => ({ on: undefined as ConnectionEvents | undefined, calls: [] as string[] }))
+const relay = vi.hoisted(() => ({
+  on: undefined as ConnectionEvents | undefined,
+  calls: [] as string[],
+  /** Answers the calls in place of the default, when a test sets it. */
+  answer: undefined as ((m: string, p: unknown) => Promise<unknown>) | undefined,
+}))
 const direct = vi.hoisted(() => ({
   tries: 0,
   open: (): Promise<DirectLink> => Promise.reject(new Error('no direct link set up')),
@@ -21,9 +26,9 @@ vi.mock('./connection', () => ({
   connect: (_url: string, _id: unknown, on: ConnectionEvents) => {
     relay.on = on
     return {
-      call: async (_mid: string, m: string) => {
+      call: async (_mid: string, m: string, p: unknown) => {
         relay.calls.push(m)
-        return { snapshot: { panes: [] } }
+        return relay.answer ? relay.answer(m, p) : { snapshot: { panes: [] } }
       },
       open: async () => ({ result: {}, stream }),
       openThenEnd: async () => ({}),
@@ -67,6 +72,7 @@ const open = (space: Space) =>
 beforeEach(() => {
   direct.tries = 0
   relay.calls = []
+  relay.answer = undefined
 })
 afterEach(() => vi.useRealTimers())
 
@@ -174,4 +180,41 @@ test('a machine that restarts has its shells pulled over the relay, not over the
   expect(link.close).toHaveBeenCalledTimes(1)
   expect([relay.calls, sent]).toEqual([['herdr'], []])
   expect(space.callVia(MID)).toBe('relay')
+})
+
+test('the projects settle only once the first shells are pulled and the repositories looked up', async () => {
+  let pullShells = () => {}
+  const shellsPulled = new Promise<unknown>(resolve => {
+    pullShells = () => resolve({ snapshot: { panes: [] } })
+  })
+  let listGit = () => {}
+  const gitListed = new Promise<void>(resolve => {
+    listGit = resolve
+  })
+  relay.answer = async (m, p) => {
+    if (m === 'herdr') return shellsPulled
+    await gitListed
+    // Only /r is a repository.
+    if ((p as { path: string }).path === '/r/.git') return { entries: [], total: 0, truncated: false }
+    throw new CallError('not_found', 'no such directory')
+  }
+  const space = createSpace('wss://relay.test/v1/ws', parseKey(vectors.identity.key))
+  const agent = { paneId: 'w1:p1', status: 'working', statusSince: 0, cwd: '/r/web' }
+  const state = {
+    ...machineState(1),
+    caps: { methods: ['isbell.file.list'], agentKinds: [] },
+    agents: [agent],
+  }
+  relay.on?.snapshot([{ online: true, state }])
+  const view = () => space.getSnapshot()
+  // Seen loaded, it already knows what it is still finding out.
+  expect([view().loaded, view().pulling, [...view().looking]]).toEqual([true, true, [`${MID}:/r/web`]])
+
+  pullShells()
+  await vi.waitFor(() => expect(view().pulling).toBe(false))
+  expect([...view().looking, projectsSettled(view())]).toEqual([`${MID}:/r/web`, false])
+
+  listGit()
+  await vi.waitFor(() => expect(projectsSettled(view())).toBe(true))
+  expect(view().repos).toEqual({ [`${MID}:/r/web`]: '/r' })
 })

@@ -5,6 +5,7 @@ import { Link, useParams } from 'react-router'
 import { useI18n } from '../../core/i18n'
 import { useProjects, useSpaceView } from '../../core/space'
 import type { Project } from '../../model/projects'
+import { projectsSettled } from '../../model/space'
 import { projectFilesHref } from '../../utils/hrefs'
 import { ProjectTabs } from '../board/project-tabs'
 import { FilesSplit } from './files-split'
@@ -15,7 +16,8 @@ export function ProjectFiles() {
   const view = useSpaceView()
   const project = useProjects().find(p => p.key === params.key)
 
-  if (!view.loaded) return <p className="m-6 text-muted">{t('board.loading')}</p>
+  // Until the projects settle, one not found may yet appear.
+  if (!project && !projectsSettled(view)) return <p className="m-6 text-muted">{t('board.loading')}</p>
   if (!project)
     return (
       <div className="m-6 flex flex-col items-start gap-3">

@@ -1,4 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
+import { Button } from '../components/button'
+import { ErrorBoundary } from '../components/error-boundary'
+import { useI18n } from '../core/i18n'
 import { updateLocal, useLocal } from '../core/prefs'
 import { SpaceProvider, useProjects, useSpaceView } from '../core/space'
 import { Join, takeKeyFromLink } from '../features/join/join-page'
@@ -53,8 +56,22 @@ function Connected({ onRejected }: { onRejected: () => void }) {
   }, [rejected, onRejected])
   if (rejected) return null
   return (
-    <Suspense fallback={<Loading />}>
-      <Shell />
-    </Suspense>
+    <ErrorBoundary fallback={<Broken />}>
+      <Suspense fallback={<Loading />}>
+        <Shell />
+      </Suspense>
+    </ErrorBoundary>
+  )
+}
+
+/** In place of a page that failed, such as one whose code is gone after an update: only a reload
+ * loads it again, so that is what it offers. */
+function Broken() {
+  const t = useI18n()
+  return (
+    <div className="m-6 flex flex-col items-start gap-3">
+      <p className="m-0 text-muted">{t('app.broken')}</p>
+      <Button onClick={() => location.reload()}>{t('app.reload')}</Button>
+    </div>
   )
 }

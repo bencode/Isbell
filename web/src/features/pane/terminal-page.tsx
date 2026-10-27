@@ -11,7 +11,7 @@ import { attachCommand, connectionFacts, paneFacts } from '../../core/pane-facts
 import { rememberView } from '../../core/prefs'
 import { RELAY_URL, useProjects, useSpace, useSpaceView } from '../../core/space'
 import { type Found, locate, type Pane, type Project, paneKey } from '../../model/projects'
-import type { Via } from '../../model/space'
+import { projectsSettled, type Via } from '../../model/space'
 import { projectHref } from '../../utils/hrefs'
 import { TOUCH } from '../../utils/shortcuts'
 import { useNow } from '../../utils/time'
@@ -30,12 +30,14 @@ export function TerminalPage({ layout }: { layout: PaneLayout }) {
   const view = useSpaceView()
   const found = locate(useProjects(), mid, paneId)
 
+  const ready = projectsSettled(view)
   // Shells are pulled every so often; one opened a moment ago may not be listed yet.
   useEffect(() => {
-    if (view.loaded && !found) void space.refreshShells(mid)
-  }, [view.loaded, found, space, mid])
+    if (ready && !found) void space.refreshShells(mid)
+  }, [ready, found, space, mid])
 
-  if (!view.loaded) return <p className="m-6 text-muted">{t('board.loading')}</p>
+  // Until the projects settle, a pane not found may yet appear.
+  if (!found && !ready) return <p className="m-6 text-muted">{t('board.loading')}</p>
   if (!found)
     return (
       <div className="m-6 flex flex-col items-start gap-3">

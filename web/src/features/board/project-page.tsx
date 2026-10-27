@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import { useI18n } from '../../core/i18n'
 import { useProjects, useSpaceView } from '../../core/space'
 import { lanes, type Project } from '../../model/projects'
+import { projectsSettled } from '../../model/space'
 import { terminalHref } from '../../utils/hrefs'
 import { useNow } from '../../utils/time'
 import { Lanes } from './lanes'
@@ -41,7 +42,8 @@ export function ProjectView({ stacked = false }: { stacked?: boolean }) {
   const projects = useProjects()
   const project = useFocused(projects)
 
-  if (!view.loaded) return <p className="m-0 text-muted">{t('board.loading')}</p>
+  // Until the projects settle, one not found may yet appear.
+  if (!project && !projectsSettled(view)) return <p className="m-0 text-muted">{t('board.loading')}</p>
   if (!project)
     return (
       <div className="flex flex-col items-start gap-3">

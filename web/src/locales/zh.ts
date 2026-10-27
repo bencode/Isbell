@@ -9,6 +9,8 @@ export const zh: Record<Key, string> = {
   close: '关闭',
 
   'app.newSession': '新建',
+  'app.broken': '页面出错了，重新加载一下；如果刚更新过，重新加载就是新版本。',
+  'app.reload': '重新加载',
   'banner.reconnecting': '正在重新连接 relay…… 当前看到的内容可能已过时。',
   'banner.now': '立即重连',
 

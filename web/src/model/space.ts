@@ -55,7 +55,16 @@ export type SpaceView = {
   machines: MachineEntry[]
   shells: Shell[]
   repos: Repos
+  /** Directories, by `projectKey(mid, cwd)`, whose repository is still being looked up; until it is
+   * found, each stands as a project of its own. */
+  looking: ReadonlySet<string>
+  /** Whether some machine's shells are still being pulled for the first time since the snapshot. */
+  pulling: boolean
 }
+
+/** Whether the projects are as they will stay: a project or pane not among them now is gone, not
+ * still to come. */
+export const projectsSettled = (view: SpaceView) => view.loaded && !view.pulling && !view.looking.size
 
 export type Space = {
   subscribe: (listener: () => void) => () => void
@@ -91,6 +100,9 @@ export function createSpace(url: string, id: Identity): Space {
   // is asked once.
   const repos = new Map<string, string>()
   const asked = new Set<string>()
+  const looking = new Set<string>()
+  // The machines whose first shells, after a snapshot, have not come yet.
+  const pulling = new Set<string>()
   const listeners = new Set<() => void>()
   // Per machine: the link being opened or open (undefined once an attempt failed), and the open one.
   const links = new Map<string, Promise<DirectLink | undefined>>()
@@ -111,6 +123,8 @@ export function createSpace(url: string, id: Identity): Space {
       ),
       shells: [...shells.values()].flat(),
       repos: Object.fromEntries(repos),
+      looking: new Set(looking),
+      pulling: pulling.size > 0,
     }
   }
 
@@ -193,15 +207,18 @@ export function createSpace(url: string, id: Identity): Space {
       const key = projectKey(mid, cwd)
       if (asked.has(key)) continue
       asked.add(key)
+      looking.add(key)
       repoRootOf(call, mid, cwd).then(
         root => {
-          if (!root) return
-          repos.set(key, root)
+          if (root) repos.set(key, root)
+          looking.delete(key)
           changed()
         },
         (err: unknown) => {
-          // Asked again on the next report.
+          // Asked again on the next report; until then it stands as its own project.
           asked.delete(key)
+          looking.delete(key)
+          changed()
           console.warn('could not find the repository of', cwd, err)
         },
       )
@@ -216,9 +233,13 @@ export function createSpace(url: string, id: Identity): Space {
       const found = await fetchShells(call, mid)
       if (pulls.get(mid) !== seq) return
       shells.set(mid, found)
-      changed()
+      // Its shells' directories are being looked up before it stops counting as pulling.
       findRepos(mid)
+      pulling.delete(mid)
+      changed()
     } catch (err) {
+      pulling.delete(mid)
+      changed()
       console.warn('could not list shells', mid, err)
     }
   }
@@ -241,8 +262,12 @@ export function createSpace(url: string, id: Identity): Space {
       }
       for (const mid of shells.keys()) if (!machines.get(mid)?.online) shells.delete(mid)
       loaded = true
+      // What is still to be found out is known before anyone sees the space loaded.
+      for (const mid of machines.keys()) {
+        if (pullable(mid)) pulling.add(mid)
+        findRepos(mid)
+      }
       changed()
-      for (const mid of machines.keys()) findRepos(mid)
       void refreshShells()
     },
     state: value => {
@@ -258,8 +283,8 @@ export function createSpace(url: string, id: Identity): Space {
         direct.delete(mid)
       }
       machines.set(mid, { state, online: old?.online ?? true })
-      changed()
       findRepos(mid)
+      changed()
       void refreshOne(mid)
     },
     presence: (mid, online) => {
