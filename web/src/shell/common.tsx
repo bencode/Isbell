@@ -6,7 +6,6 @@ import type { Params } from 'react-router'
 import { Button } from '../components/button'
 import { useI18n } from '../core/i18n'
 import { useSpace, useSpaceView } from '../core/space'
-import { AddProject } from '../features/add-project/add-project-dialog'
 import { NewSession } from '../features/new-session/new-session-panel'
 import type { PaneLayout } from '../features/pane/pane-layout'
 import { LeaveSpace, Settings } from '../features/settings/settings-dialog'
@@ -21,9 +20,9 @@ export const hereOf = (projects: Project[], { key, mid, pane }: Readonly<Params>
   return { project: undefined, pane: undefined }
 }
 
-export type Overlay = 'session' | 'add' | 'settings' | 'leave'
+export type Overlay = 'session' | 'newDir' | 'settings' | 'leave'
 
-/** New session, add project, settings and leaving the space; one open at a time. */
+/** New (in a project or a new directory), settings and leaving the space; one open at a time. */
 export function Overlays({
   overlay,
   setOverlay,
@@ -37,12 +36,11 @@ export function Overlays({
   return (
     <>
       <NewSession
-        open={overlay === 'session'}
+        open={overlay === 'session' || overlay === 'newDir'}
         onOpenChange={close}
         focusedKey={focusedKey}
-        onAddProject={() => setOverlay('add')}
+        newDir={overlay === 'newDir'}
       />
-      <AddProject open={overlay === 'add'} onOpenChange={close} />
       <Settings open={overlay === 'settings'} onOpenChange={close} onLeave={() => setOverlay('leave')} />
       <LeaveSpace open={overlay === 'leave'} onOpenChange={close} />
     </>

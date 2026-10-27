@@ -44,8 +44,8 @@ export function Sidebar({
   here,
   onNew,
   onSettings,
-  onAddProject,
-}: SideProps & { onAddProject: () => void }) {
+  onNewDir,
+}: SideProps & { onNewDir: () => void }) {
   const t = useI18n()
   const total = needs(projects).length
   return (
@@ -84,7 +84,7 @@ export function Sidebar({
         </span>
         <button
           type="button"
-          onClick={onAddProject}
+          onClick={onNewDir}
           aria-label={t('side.add')}
           className="inline-flex size-6 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-muted hover:bg-raised hover:text-text"
         >

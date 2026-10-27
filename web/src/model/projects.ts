@@ -1,6 +1,6 @@
-// Projects are derived, never stored: a project is a directory on a machine where an agent or a
-// shell is running. Agents nested in another agent's directory belong to that outer project;
-// shells join the project they sit in, or stand as their own when they sit in none.
+// Projects are derived, never stored: a project is the root of a directory on a machine where an
+// agent or a shell is running. A directory's root is the git repository it is in, or the directory
+// itself when it is in none; only the pane's own directory decides, never the panes around it.
 
 import type { Shell } from './herdr'
 import type { MachineEntry } from './space'
@@ -44,18 +44,8 @@ const HOME = /^\/(?:Users|home)\/[^/]+/
 /** The home directory as it shows in a machine's paths, if any does. */
 export const homeOf = (paths: string[]): string | undefined => paths.map(p => HOME.exec(p)?.[0]).find(Boolean)
 
-/** A home directory or above never groups the directories below it. */
-const isBroad = (path: string) =>
-  path === '/' || path === '/root' || /^\/(?:Users|home)(?:\/[^/]+)?$/.test(path)
-
-const contains = (root: string, path: string) =>
-  path === root || (!isBroad(root) && path.startsWith(`${root}/`))
-
-/** The directories none of the others contain. */
-const outermost = (paths: string[]) => {
-  const unique = [...new Set(paths)]
-  return unique.filter(p => !unique.some(q => q !== p && contains(q, p)))
-}
+/** The repository roots found for the directories machines report, by `projectKey(mid, cwd)`. */
+export type Repos = Readonly<Record<string, string>>
 
 const trimSlash = (path: string) => (path.length > 1 ? path.replace(/\/+$/, '') : path)
 
@@ -63,19 +53,22 @@ const tildify = (path: string, home: string | undefined) =>
   home && (path === home || path.startsWith(`${home}/`)) ? `~${path.slice(home.length)}` : path
 
 /** Ordered by name, so a project keeps its place (and its number key) as its sessions change. */
-export function deriveProjects(machines: MachineEntry[], shells: Shell[], seen: Seen): Project[] {
+export function deriveProjects(
+  machines: MachineEntry[],
+  shells: Shell[],
+  seen: Seen,
+  repos: Repos,
+): Project[] {
   return machines
     .flatMap(({ state, online }) => {
       const mid = state.machine.id
-      const agents = state.agents.map(a => ({ ...a, cwd: trimSlash(a.cwd ?? '') }))
-      const mine = shells.filter(s => s.mid === mid).map(s => ({ ...s, cwd: trimSlash(s.cwd) }))
-      const agentRoots = outermost(agents.map(a => a.cwd).filter(Boolean))
-      const shellRoots = outermost(
-        mine.map(s => s.cwd).filter(cwd => !agentRoots.some(root => contains(root, cwd))),
-      )
-      const roots = [...agentRoots, ...shellRoots, ...(agents.some(a => !a.cwd) ? [''] : [])]
+      const rootOf = (cwd: string | undefined) => (cwd ? (repos[projectKey(mid, cwd)] ?? trimSlash(cwd)) : '')
+      const agents = state.agents.map(a => ({ ...a, cwd: trimSlash(a.cwd ?? ''), root: rootOf(a.cwd) }))
+      const mine = shells
+        .filter(s => s.mid === mid)
+        .map(s => ({ shell: { ...s, cwd: trimSlash(s.cwd) }, root: rootOf(s.cwd) }))
+      const roots = [...new Set([...agents.map(a => a.root), ...mine.map(s => s.root)])]
       const home = homeOf(roots)
-      const rootOf = (cwd: string) => (cwd ? roots.find(root => root && contains(root, cwd)) : '')
       return roots.map(path => ({
         key: projectKey(mid, path),
         mid,
@@ -85,7 +78,7 @@ export function deriveProjects(machines: MachineEntry[], shells: Shell[], seen: 
         display: path ? tildify(path, home) : '?',
         name: path.split('/').pop() || (path ? '/' : state.machine.name),
         sessions: agents
-          .filter(a => rootOf(a.cwd) === path)
+          .filter(a => a.root === path)
           .map(a => ({
             mid,
             paneId: a.paneId,
@@ -97,7 +90,7 @@ export function deriveProjects(machines: MachineEntry[], shells: Shell[], seen: 
             ...(a.title ? { title: a.title } : {}),
             unread: a.status === 'done' && a.statusSince > (seen[paneKey(mid, a.paneId)] ?? 0),
           })),
-        shells: mine.filter(s => rootOf(s.cwd) === path),
+        shells: mine.filter(s => s.root === path).map(s => s.shell),
       }))
     })
     .sort(
@@ -164,21 +157,28 @@ export const locate = (projects: Project[], mid: string, paneId: string): Found 
       return shell ? [{ project, name: paneId, pane: { shell } }] : []
     })[0]
 
-export type AddJudgement =
-  | { kind: 'none' }
-  | { kind: 'bad' }
-  /** `inside` when the directory is below the project's own. */
-  | { kind: 'open'; project: Project; inside: boolean }
-  | { kind: 'add'; dir: string }
+export type DirJudgement = { kind: 'none' } | { kind: 'bad' } | { kind: 'dir'; dir: string }
 
-/** What adding `input` on machine `mid` would do. Whether the directory exists is the machine's call. */
-export function judgeAdd(projects: Project[], mid: string, input: string): AddJudgement {
+/** What a directory typed for machine `mid` is: nothing yet, not a full path, or the directory.
+ * Whether it is there is the machine's call. */
+export function judgeDir(projects: Project[], mid: string, input: string): DirJudgement {
   const typed = trimSlash(input.trim())
   if (!typed) return { kind: 'none' }
   if (!typed.startsWith('/') && !typed.startsWith('~')) return { kind: 'bad' }
-  const mine = projects.filter(p => p.mid === mid && p.path)
-  const home = homeOf(mine.map(p => p.path))
-  const dir = typed.startsWith('~') && home ? home + typed.slice(1) : typed
-  const project = mine.find(p => contains(p.path, dir))
-  return project ? { kind: 'open', project, inside: dir !== project.path } : { kind: 'add', dir }
+  return { kind: 'dir', dir: expandHome(projects, mid, typed) }
+}
+
+const projectsOf = (projects: Project[], mid: string) => projects.filter(p => p.mid === mid && p.path)
+
+/** `typed` with a leading ~ as machine `mid`'s home, as its projects show it; unchanged when no
+ * home shows. */
+export function expandHome(projects: Project[], mid: string, typed: string): string {
+  const home = homeOf(projectsOf(projects, mid).map(p => p.path))
+  return typed.startsWith('~') && home ? home + typed.slice(1) : typed
+}
+
+/** How directory `dir` stands among machine `mid`'s projects: one itself, and how many it holds. */
+export function projectsAt(projects: Project[], mid: string, dir: string) {
+  const paths = projectsOf(projects, mid).map(p => p.path)
+  return { is: paths.includes(dir), holds: paths.filter(p => p.startsWith(`${dir}/`)).length }
 }

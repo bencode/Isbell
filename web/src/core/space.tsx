@@ -61,5 +61,8 @@ export function useSpaceView(): SpaceView {
 export function useProjects(): Project[] {
   const view = useSpaceView()
   const { seen } = useLocal()
-  return useMemo(() => deriveProjects(view.machines, view.shells, seen), [view.machines, view.shells, seen])
+  return useMemo(
+    () => deriveProjects(view.machines, view.shells, seen, view.repos),
+    [view.machines, view.shells, seen, view.repos],
+  )
 }

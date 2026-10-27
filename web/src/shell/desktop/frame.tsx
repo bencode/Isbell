@@ -1,5 +1,5 @@
 // The frame around every page on a computer: the sidebar (or its rail), a strip while the relay
-// reconnects, and the overlays (new session, add project, settings) that any part of it can open.
+// reconnects, and the overlays (new, settings) that any part of it can open.
 
 import { useState } from 'react'
 import { Outlet, useMatch, useNavigate, useParams } from 'react-router'
@@ -34,7 +34,7 @@ export function AppFrame() {
     {
       ...numbers,
       n: () => setOverlay('session'),
-      a: () => setOverlay('add'),
+      a: () => setOverlay('newDir'),
       ',': () => setOverlay('settings'),
       '0': () => navigate('/'),
       esc: () => navigate('/'),
@@ -55,7 +55,7 @@ export function AppFrame() {
   return (
     <>
       <div className="flex h-full">
-        {rail ? <Rail {...side} /> : <Sidebar {...side} onAddProject={() => setOverlay('add')} />}
+        {rail ? <Rail {...side} /> : <Sidebar {...side} onNewDir={() => setOverlay('newDir')} />}
         <div className="flex min-w-0 flex-1 flex-col">
           <ReconnectBanner />
           <div className="min-h-0 flex-1">

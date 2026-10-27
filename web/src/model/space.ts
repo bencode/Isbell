@@ -4,8 +4,10 @@
 
 import { type ConnStatus, connect } from './connection'
 import { type DirectLink, openDirect, type Path } from './direct'
+import { repoRootOf } from './files/repo'
 import { type Caller, shells as fetchShells, type Shell } from './herdr'
 import type { Identity } from './identity'
+import { projectKey, type Repos } from './projects'
 import { isNewer, type MachineState, readState } from './state'
 import type { Opened, StreamEvents } from './streams'
 
@@ -52,6 +54,7 @@ export type SpaceView = {
   /** Ordered by name, then id. */
   machines: MachineEntry[]
   shells: Shell[]
+  repos: Repos
 }
 
 export type Space = {
@@ -84,6 +87,10 @@ export function createSpace(url: string, id: Identity): Space {
   const shells = new Map<string, Shell[]>()
   // A newer pull for a machine wins over a slower, older one.
   const pulls = new Map<string, number>()
+  // The repositories found for the directories reported, and the directories asked about, so each
+  // is asked once.
+  const repos = new Map<string, string>()
+  const asked = new Set<string>()
   const listeners = new Set<() => void>()
   // Per machine: the link being opened or open (undefined once an attempt failed), and the open one.
   const links = new Map<string, Promise<DirectLink | undefined>>()
@@ -103,6 +110,7 @@ export function createSpace(url: string, id: Identity): Space {
           a.state.machine.id.localeCompare(b.state.machine.id),
       ),
       shells: [...shells.values()].flat(),
+      repos: Object.fromEntries(repos),
     }
   }
 
@@ -176,6 +184,30 @@ export function createSpace(url: string, id: Identity): Space {
     return directable(mid) ? { state: 'none' } : { state: 'unsupported' }
   }
 
+  /** Asks machine `mid` which repository each directory it reports is in, once for each. */
+  const findRepos = (mid: string) => {
+    const m = machines.get(mid)
+    if (!m?.online || !m.state.caps.methods.includes('isbell.file.list')) return
+    const cwds = [...m.state.agents.map(a => a.cwd), ...(shells.get(mid) ?? []).map(s => s.cwd)]
+    for (const cwd of new Set(cwds.filter((cwd): cwd is string => Boolean(cwd)))) {
+      const key = projectKey(mid, cwd)
+      if (asked.has(key)) continue
+      asked.add(key)
+      repoRootOf(call, mid, cwd).then(
+        root => {
+          if (!root) return
+          repos.set(key, root)
+          changed()
+        },
+        (err: unknown) => {
+          // Asked again on the next report.
+          asked.delete(key)
+          console.warn('could not find the repository of', cwd, err)
+        },
+      )
+    }
+  }
+
   const refreshOne = async (mid: string) => {
     if (!pullable(mid)) return
     const seq = (pulls.get(mid) ?? 0) + 1
@@ -185,6 +217,7 @@ export function createSpace(url: string, id: Identity): Space {
       if (pulls.get(mid) !== seq) return
       shells.set(mid, found)
       changed()
+      findRepos(mid)
     } catch (err) {
       console.warn('could not list shells', mid, err)
     }
@@ -209,6 +242,7 @@ export function createSpace(url: string, id: Identity): Space {
       for (const mid of shells.keys()) if (!machines.get(mid)?.online) shells.delete(mid)
       loaded = true
       changed()
+      for (const mid of machines.keys()) findRepos(mid)
       void refreshShells()
     },
     state: value => {
@@ -225,6 +259,7 @@ export function createSpace(url: string, id: Identity): Space {
       }
       machines.set(mid, { state, online: old?.online ?? true })
       changed()
+      findRepos(mid)
       void refreshOne(mid)
     },
     presence: (mid, online) => {
