@@ -8,7 +8,7 @@ import { tailLines } from '../../../model/screen'
 import { since } from '../../../utils/time'
 import { useAnswer } from '../../pane/asking'
 import { useReading } from '../../pane/use-reading'
-import { OpenButton } from './card'
+import { HEAD_BUTTON, OpenButton } from './card'
 
 const TAIL = 3
 
@@ -53,7 +53,7 @@ export function RunningCard({
           disabled={stop.busy}
           aria-label={t('card.stop')}
           title={t('card.stopHint')}
-          className="inline-flex size-6 flex-none cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-faint hover:bg-raised-2 hover:text-danger disabled:cursor-default disabled:opacity-50"
+          className={`${HEAD_BUTTON} hover:text-danger`}
         >
           <Square size={11} fill="currentColor" />
         </button>

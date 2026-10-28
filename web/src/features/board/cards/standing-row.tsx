@@ -88,7 +88,7 @@ function Continue({ placed: { session }, onSent }: { placed: Placed; onSent: (wh
     <div className="flex flex-col gap-2 pt-1.5 pb-1">
       {last ? <p className="m-0 line-clamp-2 text-[12.5px] text-muted">{last.text}</p> : null}
       {error ? <p className="m-0 text-[12.5px] text-danger">{errorText(t, error)}</p> : null}
-      <Composer mid={mid} paneId={paneId} onSent={onSent} />
+      <Composer mid={mid} paneId={paneId} onSent={onSent} compact />
     </div>
   )
 }

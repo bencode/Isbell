@@ -20,34 +20,41 @@ export function Card({ ask, sent, children }: { ask?: boolean; sent?: boolean; c
     ? 'border-dashed border-line-strong opacity-60'
     : `index-card ${ask ? 'border-ask-line' : 'border-line'}`
   return (
-    <div className={`flex flex-col gap-2.5 rounded-[10px] border bg-raised px-3.5 py-3 ${frame}`}>
+    <div className={`flex flex-col gap-2 rounded-[10px] border bg-raised px-3 py-2.5 ${frame}`}>
       {children}
     </div>
   )
 }
 
 /** The agent's name, where it runs unless the board is all one project's, how long it has been so,
- * and the button that opens it. */
+ * what else the card does in a word (`actions`), and the button that opens it. */
 export function CardHead({
   placed: { session, project },
   now,
   scoped,
+  actions,
 }: {
   placed: Placed
   now: number
   scoped: boolean
+  actions?: ReactNode
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <b className="truncate font-semibold">{session.name}</b>
+    <div className="flex items-center gap-1.5">
+      <b className="truncate text-[13.5px] font-semibold">{session.name}</b>
       <span className="min-w-0 flex-1 truncate text-xs text-faint">
         {scoped ? null : `${project.name} · ${project.machine}`}
       </span>
-      <span className="flex-none text-xs text-faint">{since(session.statusSince, now)}</span>
+      <span className="mr-0.5 flex-none text-xs text-faint">{since(session.statusSince, now)}</span>
+      {actions}
       <OpenButton session={session} />
     </div>
   )
 }
+
+/** A small icon button for a card's head, where words would crowd it. */
+export const HEAD_BUTTON =
+  'inline-flex size-6 flex-none cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-faint no-underline hover:bg-raised-2 focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-default disabled:opacity-50'
 
 /** The one way into a session from its card: the card itself is for acting on it in place. */
 export function OpenButton({ session }: { session: Session }) {
@@ -57,7 +64,7 @@ export function OpenButton({ session }: { session: Session }) {
       to={sessionHref(session.mid, session.paneId)}
       aria-label={t('card.open')}
       title={t('card.open')}
-      className="inline-flex size-6 flex-none items-center justify-center rounded-md text-faint no-underline hover:bg-raised-2 hover:text-accent focus-visible:outline-2 focus-visible:outline-accent"
+      className={`${HEAD_BUTTON} hover:text-accent`}
     >
       <PanelRightOpen size={14} />
     </Link>

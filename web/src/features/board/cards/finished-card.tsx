@@ -3,7 +3,6 @@
 
 import { Check } from 'lucide-react'
 import { useLayoutEffect, useRef, useState } from 'react'
-import { Button } from '../../../components/button'
 import { errorText, useI18n } from '../../../core/i18n'
 import { markSeen } from '../../../core/prefs'
 import { type Placed, paneKey } from '../../../model/projects'
@@ -11,7 +10,7 @@ import type { Reading } from '../../../model/screen/types'
 import { Composer } from '../../pane/composer'
 import { Reply } from '../../pane/reply'
 import { useReading } from '../../pane/use-reading'
-import { Card, CardHead, lastReply, SentNote, useSent } from './card'
+import { Card, CardHead, HEAD_BUTTON, lastReply, SentNote, useSent } from './card'
 
 export function FinishedCard({ placed, now, scoped }: { placed: Placed; now: number; scoped: boolean }) {
   const t = useI18n()
@@ -22,7 +21,22 @@ export function FinishedCard({ placed, now, scoped }: { placed: Placed; now: num
 
   return (
     <Card sent={!!sent}>
-      <CardHead placed={placed} now={now} scoped={scoped} />
+      <CardHead
+        placed={placed}
+        now={now}
+        scoped={scoped}
+        actions={
+          <button
+            type="button"
+            onClick={() => markSeen(paneKey(mid, paneId), session.statusSince)}
+            aria-label={t('card.markRead')}
+            title={t('card.markRead')}
+            className={`${HEAD_BUTTON} hover:text-ok`}
+          >
+            <Check size={15} />
+          </button>
+        }
+      />
       {sent ? (
         <SentNote
           what={sent}
@@ -39,20 +53,7 @@ export function FinishedCard({ placed, now, scoped }: { placed: Placed; now: num
             <LastReply reading={reading} text={text} />
           )}
           {error ? <p className="m-0 text-[13px] text-danger">{errorText(t, error)}</p> : null}
-          <div className="flex items-start gap-2">
-            <div className="min-w-0 flex-1">
-              <Composer mid={mid} paneId={paneId} onSent={markSent} />
-            </div>
-            <Button
-              size="icon"
-              onClick={() => markSeen(paneKey(mid, paneId), session.statusSince)}
-              aria-label={t('card.markRead')}
-              title={t('card.markRead')}
-              className="mt-1 text-ok"
-            >
-              <Check size={16} />
-            </Button>
-          </div>
+          <Composer mid={mid} paneId={paneId} onSent={markSent} compact />
         </>
       )}
     </Card>
@@ -97,7 +98,7 @@ function LastReply({ reading, text }: { reading: Reading | null; text: string })
         <button
           type="button"
           onClick={() => setAll(!all)}
-          className="cursor-pointer border-0 bg-transparent p-0 text-[12.5px] text-accent hover:underline"
+          className="cursor-pointer border-0 bg-transparent p-0 text-xs text-faint hover:text-accent"
         >
           {t(all ? 'card.less' : 'card.all')}
         </button>

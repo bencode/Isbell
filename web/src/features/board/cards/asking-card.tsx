@@ -51,7 +51,7 @@ export function AskingCard({ placed, now, scoped }: { placed: Placed; now: numbe
       ) : (
         <>
           <ScreenKeys screen={text} lines={6} busy={answer.busy} onPress={press} />
-          <Composer mid={mid} paneId={paneId} onSent={markSent} />
+          <Composer mid={mid} paneId={paneId} onSent={markSent} compact />
         </>
       )}
       {failure ? <p className="m-0 text-[13px] text-danger">{failure}</p> : null}

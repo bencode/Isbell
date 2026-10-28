@@ -57,12 +57,6 @@ export const en = {
   'card.stop': 'Stop',
   'card.stopHint': 'Stop: press Esc in its terminal',
   'shells.title': 'Terminals {n}',
-  'dispatch.placeholder': 'A task for {project}: the goal, the constraints, and how to tell it is done',
-  'dispatch.aProject': 'a project',
-  'dispatch.noProject': 'No project to start in yet: More… starts in a new directory',
-  'dispatch.notReady': 'herdr is not ready on {machine}',
-  'dispatch.shell': 'Open a shell here',
-  'dispatch.more': 'More…',
   'empty.title': 'Add your first machine',
   'empty.body':
     'With isbell installed on the machine that has herdr, run these two. It shows up here within seconds.',
@@ -73,6 +67,7 @@ export const en = {
   'project.back': 'Back to all projects',
   'project.views': 'Project view',
   'project.agents': 'Agents',
+  'project.newTask': 'New task',
   'project.files': 'Files',
 
   'status.blocked': 'asking',
@@ -259,6 +254,7 @@ export const en = {
   'chat.working': 'Working',
   'chat.waiting': 'Waiting for your answer',
   'chat.unreadable': "This agent's screen can't be read as turns, so it is shown as text.",
+  'composer.short': 'Reply…',
   'composer.placeholder': 'Reply, or add something it should know…',
   'composer.send': 'Send',
   'end.title': 'End this session?',

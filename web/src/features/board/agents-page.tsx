@@ -1,13 +1,12 @@
-// The board on a computer: every agent, or one project's, on the four lanes, with the task box
-// above them and, for a project, its plain shells below. `/` shows all of them; `/p/:key` the project's.
+// The board on a computer: every agent, or one project's, on the four lanes, and for a project its
+// plain shells below them. `/` shows all of them; `/p/:key` the project's.
 
-import { Link, useOutletContext, useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { useI18n } from '../../core/i18n'
 import { useProjects, useSpaceView } from '../../core/space'
 import { lanes, type Project } from '../../model/projects'
 import { projectsSettled } from '../../model/space'
 import { useNow } from '../../utils/time'
-import { Dispatch } from '../new-session/dispatch'
 import { NoMachines } from './all-page'
 import { Lanes } from './lanes'
 import { AllHeader, ProjectHeader } from './project-header'
@@ -23,7 +22,6 @@ export function AgentsPage() {
   const view = useSpaceView()
   const projects = useProjects()
   const { key } = useParams()
-  const { openNew } = useOutletContext<BoardActions>()
   const project = key ? projects.find(p => p.key === key) : undefined
 
   if (!view.loaded) return <p className={NOTE}>{t('board.loading')}</p>
@@ -38,19 +36,11 @@ export function AgentsPage() {
     ) : (
       <p className={NOTE}>{t('board.loading')}</p>
     )
-  // Keyed so the lanes and the task box start over for each project.
-  return <Board key={project?.key ?? ''} project={project} all={projects} onMore={openNew} />
+  // Keyed so the lanes start over for each project.
+  return <Board key={project?.key ?? ''} project={project} all={projects} />
 }
 
-function Board({
-  project,
-  all,
-  onMore,
-}: {
-  project: Project | undefined
-  all: Project[]
-  onMore: () => void
-}) {
+function Board({ project, all }: { project: Project | undefined; all: Project[] }) {
   const t = useI18n()
   const now = useNow()
   const shown = project ? [project] : all
@@ -59,7 +49,6 @@ function Board({
     <div className="flex h-full flex-col">
       {project ? <ProjectHeader project={project} current="agents" /> : <AllHeader />}
       <main className="paper flex min-h-0 flex-1 flex-col gap-5 overflow-auto px-7 py-5">
-        <Dispatch project={project} onMore={onMore} />
         {shown.some(p => p.sessions.length) ? (
           <Lanes lanes={lanes(shown)} now={now} scoped={!!project} />
         ) : (

@@ -59,12 +59,6 @@ export const zh: Record<Key, string> = {
   'card.stop': '停止',
   'card.stopHint': '停止：相当于在它的终端里按 Esc',
   'shells.title': '终端 {n}',
-  'dispatch.placeholder': '给 {project} 派个任务：目标、约束，以及怎样算完成',
-  'dispatch.aProject': '某个项目',
-  'dispatch.noProject': '还没有可以开始的项目：点「更多…」在新目录里开始',
-  'dispatch.notReady': '{machine} 上的 herdr 还没就绪',
-  'dispatch.shell': '在这里开一个终端',
-  'dispatch.more': '更多…',
   'empty.title': '添加第一台机器',
   'empty.body': '在装有 herdr 的机器上装好 isbell，然后运行下面两条命令，几秒内就会出现在这里。',
 
@@ -73,6 +67,7 @@ export const zh: Record<Key, string> = {
   'project.gone': '这个项目里已经没有在跑的东西了。',
   'project.views': '项目视图',
   'project.agents': 'Agents',
+  'project.newTask': '新任务',
   'project.files': '文件',
   'project.back': '回到全部项目',
 
@@ -259,6 +254,7 @@ export const zh: Record<Key, string> = {
   'chat.working': '工作中',
   'chat.waiting': '等你回答',
   'chat.unreadable': '读不出这个 agent 的对话轮次，下面按原样显示屏幕文本。',
+  'composer.short': '回复…',
   'composer.placeholder': '回复，或补充它需要知道的……',
   'composer.send': '发送',
   'end.title': '结束这个会话？',

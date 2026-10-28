@@ -1,9 +1,14 @@
 // The bar atop a project's views, the same on each so moving between them keeps it still: the
-// project, where it is, and its views. On all agents, what the space holds.
+// project, where it is, a way to start a task there, and its views. On all agents, what the space
+// holds.
 
+import { Plus } from 'lucide-react'
+import { useOutletContext } from 'react-router'
+import { Button } from '../../components/button'
 import { useI18n } from '../../core/i18n'
 import { useProjects, useSpaceView } from '../../core/space'
 import type { Project } from '../../model/projects'
+import type { BoardActions } from './agents-page'
 import { ProjectTabs } from './project-tabs'
 
 const BAR = 'flex h-[52px] flex-none items-center gap-2.5 border-b border-line pr-3 pl-5'
@@ -23,6 +28,7 @@ export function ProjectHeader({ project, current }: { project: Project; current:
         </span>
       )}
       <span className="flex-1" />
+      <NewTask />
       <ProjectTabs projectKey={project.key} current={current} />
     </header>
   )
@@ -40,6 +46,20 @@ export function AllHeader() {
       <span className="min-w-0 truncate text-[12.5px] text-faint">
         {t('all.summary', { projects: projects.length, machines: view.machines.length, online, agents })}
       </span>
+      <span className="flex-1" />
+      <NewTask />
     </header>
+  )
+}
+
+/** Opens New on the project the page is in, if any. */
+function NewTask() {
+  const t = useI18n()
+  const { openNew } = useOutletContext<BoardActions>()
+  return (
+    <Button size="small" onClick={openNew}>
+      <Plus size={14} />
+      {t('project.newTask')}
+    </Button>
   )
 }

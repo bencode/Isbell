@@ -10,13 +10,14 @@ import { SidePanel } from '../../components/panel'
 import { Segmented } from '../../components/segmented'
 import { SelectBox } from '../../components/select'
 import { errorText, useI18n } from '../../core/i18n'
-import { getLocal } from '../../core/prefs'
+import { getLocal, updateLocal } from '../../core/prefs'
 import { useProjects, useSpace, useSpaceView } from '../../core/space'
+import { openShell, type Started, startAgent } from '../../model/herdr'
 import { projectKey } from '../../model/projects'
-import { machineOf } from '../../model/space'
+import { machineOf, type Space } from '../../model/space'
+import { sessionHref, terminalHref } from '../../utils/hrefs'
 import { onSubmitKey } from '../../utils/shortcuts'
 import { useNewDir } from './dir-input'
-import { agentsFor, launch, type Mode, rememberAgent, SHELL, type Target } from './launch'
 import { NewDirField } from './new-dir'
 
 type Props = {
@@ -30,6 +31,41 @@ type Props = {
 export function NewSession({ open, ...props }: Props) {
   // Mounted only while open, so each opening starts from the focused project.
   return open ? <Form {...props} /> : null
+}
+
+type Mode = 'chat' | 'terminal'
+/** The agent choice that starts no agent: a plain shell. Agent kinds never contain ':'. */
+const SHELL = ':shell'
+
+/** Where to start: a directory on a machine, and how to show it. */
+type Target = { mid: string; path: string; machine: string; display: string }
+
+/** Starts what the form describes and says where to go next. */
+async function launch(
+  space: Space,
+  { mid, path }: Target,
+  mode: Mode,
+  kind: string,
+  prompt: string,
+): Promise<{ href: string; state?: { promptError?: Started['promptError'] } }> {
+  if (kind === SHELL) {
+    const paneId = await openShell(space.openThenEnd, mid, path)
+    await space.refreshShells(mid)
+    return { href: terminalHref(mid, paneId) }
+  }
+  const started = await startAgent(space.call, mid, {
+    cwd: path,
+    kind,
+    ...(mode === 'chat' && prompt ? { prompt } : {}),
+  })
+  return mode === 'chat'
+    ? { href: sessionHref(mid, started.paneId), state: { promptError: started.promptError } }
+    : { href: terminalHref(mid, started.paneId) }
+}
+
+function agentsFor(kinds: string[], recent: string[]) {
+  const rank = (k: string) => (recent.includes(k) ? recent.indexOf(k) : recent.length)
+  return [...kinds].sort((a, b) => rank(a) - rank(b))
 }
 
 function Form({ onOpenChange, focusedKey, newDir }: Omit<Props, 'open'>) {
@@ -85,9 +121,15 @@ function Form({ onOpenChange, focusedKey, newDir }: Omit<Props, 'open'>) {
     setError(undefined)
     try {
       const next = await launch(space, target, mode, kind, task.trim())
-      if (kind !== SHELL) rememberAgent(target, kind)
+      if (kind !== SHELL)
+        updateLocal(l => ({
+          lastAgent: { ...l.lastAgent, [projectKey(target.mid, target.path)]: kind },
+          recentAgents: [kind, ...l.recentAgents.filter(k => k !== kind)],
+        }))
       onOpenChange(false)
-      navigate(next.href, { state: next.state })
+      // A chat joins the board, which stays where it is; a terminal opens to work in, and a task that
+      // did not reach the agent shows on its page.
+      if (!chat || next.state?.promptError) navigate(next.href, { state: next.state })
     } catch (err) {
       setError(errorText(t, err))
       setBusy(false)
