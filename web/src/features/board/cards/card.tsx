@@ -1,13 +1,13 @@
 // What every card on the board shares: its frame, its head, and the note it keeps once answered
 // until the agent moves on.
 
-import { PanelRightOpen } from 'lucide-react'
+import { MessageSquareText } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { useI18n } from '../../../core/i18n'
 import type { Placed, Session } from '../../../model/projects'
 import type { Block, Reading } from '../../../model/screen/types'
-import { sessionHref } from '../../../utils/hrefs'
+import { boardHref, peekHref } from '../../../utils/hrefs'
 import { since } from '../../../utils/time'
 
 /** What the agent said last: the turn still going, or else the last one ended. */
@@ -56,17 +56,22 @@ export function CardHead({
 export const HEAD_BUTTON =
   'inline-flex size-6 flex-none cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-faint no-underline hover:bg-raised-2 focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-default disabled:opacity-50'
 
-/** The one way into a session from its card: the card itself is for acting on it in place. */
+/** The one way into a session from its card, beside the board: the card itself is for acting on it
+ * in place. On the session open beside the board, it closes it. */
 export function OpenButton({ session }: { session: Session }) {
   const t = useI18n()
+  const { key, mid, pane } = useParams()
+  const open = mid === session.mid && pane === session.paneId
+  const label = t(open ? 'card.close' : 'card.open')
   return (
     <Link
-      to={sessionHref(session.mid, session.paneId)}
-      aria-label={t('card.open')}
-      title={t('card.open')}
-      className={`${HEAD_BUTTON} hover:text-accent`}
+      to={open ? boardHref(key) : peekHref(key, session.mid, session.paneId)}
+      aria-label={label}
+      aria-pressed={open}
+      title={label}
+      className={`${HEAD_BUTTON} ${open ? 'bg-accent-soft text-accent' : 'hover:text-accent'}`}
     >
-      <PanelRightOpen size={14} />
+      <MessageSquareText size={14} />
     </Link>
   )
 }

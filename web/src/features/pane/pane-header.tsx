@@ -9,7 +9,7 @@ import { ViewTabs } from '../../components/view-tabs'
 import { useI18n } from '../../core/i18n'
 import { toggleInfo, useLocal } from '../../core/prefs'
 import type { Found } from '../../model/projects'
-import { filesHref, projectHref, sessionHref, terminalHref } from '../../utils/hrefs'
+import { filesHref, peekHref, projectHref, terminalHref } from '../../utils/hrefs'
 import type { PaneView } from './pane-layout'
 
 type Props = {
@@ -28,7 +28,7 @@ export function PaneHeader({ found: { project, name, pane }, mid, paneId, view, 
   const where = `${project.machine} · ${project.display}`
   const chat = {
     key: 'chat',
-    href: sessionHref(mid, paneId),
+    href: peekHref(project.key, mid, paneId),
     icon: <MessageSquare size={15} />,
     label: t('pane.chat'),
   }

@@ -20,3 +20,10 @@ export const pageHref = (projectKey: string, rel: string) =>
   `/v/${encodeURIComponent(projectKey)}${tail(rel)}`
 
 export const sessionHref = (mid: string, paneId: string) => `/s/${mid}/${encodeURIComponent(paneId)}`
+
+/** The board: one project's, or every agent's. */
+export const boardHref = (projectKey?: string) => (projectKey ? projectHref(projectKey) : '/')
+
+/** A session opened beside the board it is on. */
+export const peekHref = (projectKey: string | undefined, mid: string, paneId: string) =>
+  `${projectKey ? projectHref(projectKey) : ''}${sessionHref(mid, paneId)}`

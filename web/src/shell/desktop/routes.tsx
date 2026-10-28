@@ -1,7 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router'
 import { AgentsPage } from '../../features/board/agents-page'
-import { SessionPage } from '../../features/pane/session-page'
 import { LazyFiles, LazyTerminal, Loading } from '../common'
 import { AppFrame } from './frame'
 import { DesktopPane } from './pane'
@@ -17,9 +16,11 @@ export function DesktopRoutes() {
   return (
     <Routes>
       <Route element={<AppFrame />}>
+        {/* One page, so opening a session beside the board and closing it keeps the board as it is. */}
         <Route index element={<AgentsPage />} />
+        <Route path="s/:mid/:pane" element={<AgentsPage />} />
         <Route path="p/:key" element={<AgentsPage />} />
-        <Route path="s/:mid/:pane" element={<SessionPage layout={DesktopPane} />} />
+        <Route path="p/:key/s/:mid/:pane" element={<AgentsPage />} />
         <Route path="t/:mid/:pane" element={<LazyTerminal layout={DesktopPane} />} />
         <Route path="f/:mid/:pane/*" element={<LazyFiles layout={DesktopPane} />} />
         <Route
