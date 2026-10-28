@@ -1,6 +1,4 @@
-import { PanelRightClose, PanelRightOpen } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Button } from '../button'
 
 export type InfoGroup = {
   title: string
@@ -45,38 +43,5 @@ export function InfoFacts({
         </section>
       ) : null}
     </>
-  )
-}
-
-/** The column beside a session or terminal that holds its facts. */
-export function InfoPanel({ children }: { children: ReactNode }) {
-  return (
-    <aside className="flex w-[280px] flex-none flex-col gap-5 overflow-auto border-l border-line p-5 text-[13px]">
-      {children}
-    </aside>
-  )
-}
-
-/** The header button that shows or hides the info panel. */
-export function InfoToggle({
-  open,
-  onToggle,
-  label,
-}: {
-  open: boolean
-  onToggle: () => void
-  label: string
-}) {
-  return (
-    <Button
-      variant="quiet"
-      size="icon"
-      onClick={onToggle}
-      aria-pressed={open}
-      aria-label={label}
-      title={label}
-    >
-      {open ? <PanelRightClose size={17} /> : <PanelRightOpen size={17} />}
-    </Button>
   )
 }

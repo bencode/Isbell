@@ -16,8 +16,8 @@ import { useListing } from './use-remote'
 type Where = {
   mid: string
   project: Project
-  /** The pane's directory relative to the root ('' for the root); marked, and opened at first. */
-  cwd: string
+  /** A directory to open down to, relative to the root ('' for none). */
+  dir: string
   /** The file being read, relative to the root ('' for none). */
   current: string
   hrefOf: (rel: string) => string
@@ -25,16 +25,15 @@ type Where = {
 
 export function Tree(where: Where) {
   const t = useI18n()
-  const { project, cwd, current } = where
+  const { project, dir, current } = where
   const open = useLocal().layout.files[project.key]
   const [round, setRound] = useState(0)
   const [query, setQuery] = useState('')
 
-  // A project seen for the first time opens down to the pane's directory; a file being read
-  // always has its folders open.
+  // The directory asked for, and the folders of a file being read, are always open.
   useEffect(() => {
-    if (!open) openDirs(project.key, cwd ? [...ancestors(cwd), cwd] : [])
-  }, [open, project.key, cwd])
+    if (dir) openDirs(project.key, [...ancestors(dir), dir])
+  }, [project.key, dir])
   useEffect(() => {
     if (current) openDirs(project.key, ancestors(current))
   }, [project.key, current])
@@ -123,13 +122,6 @@ function Level({ where, rel, depth, open }: { where: Where; rel: string; depth: 
               open={isOpen}
               onToggle={() => toggleDir(where.project.key, child)}
               label={entry.name}
-              extra={
-                child === where.cwd ? (
-                  <span className="flex-none rounded-[3px] border border-line px-1 font-mono text-[10px] text-faint">
-                    {t('files.cwd')}
-                  </span>
-                ) : null
-              }
             />
             {isOpen ? <Level where={where} rel={child} depth={depth + 1} open={open} /> : null}
           </div>

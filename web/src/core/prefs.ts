@@ -16,8 +16,6 @@ export type Prefs = {
 }
 
 export type Layout = {
-  /** The info panel beside a session or terminal. */
-  info: boolean
   /** The sidebar shrunk to a rail of icons. */
   rail: boolean
   /** Machine ids whose projects are hidden in the sidebar; any other machine shows them. Keys saved
@@ -56,7 +54,6 @@ const DEFAULTS: Local = {
   lastAgent: {},
   recentAgents: [],
   layout: {
-    info: false,
     rail: false,
     folded: [],
     terminal: [],
@@ -117,9 +114,6 @@ export function updateLocal(change: (l: Local) => Partial<Local>) {
 }
 
 export const getLocal = () => current
-
-/** Shows or hides the info panel, on every page that has one. */
-export const toggleInfo = () => updateLocal(l => ({ layout: { ...l.layout, info: !l.layout.info } }))
 
 export const toggleRail = () => updateLocal(l => ({ layout: { ...l.layout, rail: !l.layout.rail } }))
 

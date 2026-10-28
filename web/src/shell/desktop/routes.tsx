@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router'
 import { AgentsPage } from '../../features/board/agents-page'
-import { LazyFiles, LazyTerminal, Loading } from '../common'
+import { LazyTerminal, Loading } from '../common'
 import { AppFrame } from './frame'
 import { DesktopPane } from './pane'
 
@@ -22,7 +22,6 @@ export function DesktopRoutes() {
         <Route path="p/:key" element={<AgentsPage />} />
         <Route path="p/:key/s/:mid/:pane" element={<AgentsPage />} />
         <Route path="t/:mid/:pane" element={<LazyTerminal layout={DesktopPane} />} />
-        <Route path="f/:mid/:pane/*" element={<LazyFiles layout={DesktopPane} />} />
         <Route
           path="p/:key/files/*"
           element={

@@ -1,7 +1,7 @@
 import type { ComponentType, ReactNode } from 'react'
 import type { Found } from '../../model/projects'
 
-export type PaneView = 'chat' | 'terminal' | 'files'
+export type PaneView = 'chat' | 'terminal'
 
 /** What a pane page hands its shell to arrange. */
 export type PaneParts = {

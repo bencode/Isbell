@@ -15,14 +15,14 @@ const PANELS = ['tree', 'file']
 type Props = {
   mid: string
   project: Project
-  /** Where the tree opens, relative to the root. */
-  cwd: string
+  /** The directory the tree opens down to, relative to the root ('' for none). */
+  dir: string
   /** The file read, relative to the root. */
   rel: string
   hrefOf: (rel: string) => string
 }
 
-export function FilesSplit({ mid, project, cwd, rel, hrefOf }: Props) {
+export function FilesSplit({ mid, project, dir, rel, hrefOf }: Props) {
   const t = useI18n()
   const machine = machineOf(useSpaceView().machines, mid)
   // The tree's width, the same for every project.
@@ -52,7 +52,7 @@ export function FilesSplit({ mid, project, cwd, rel, hrefOf }: Props) {
         maxSize="50%"
         groupResizeBehavior="preserve-pixel-size"
       >
-        <Tree mid={mid} project={project} cwd={cwd} current={rel} hrefOf={hrefOf} />
+        <Tree mid={mid} project={project} dir={dir} current={rel} hrefOf={hrefOf} />
       </Panel>
       <ResizeHandle label={t('files.resize')} />
       <Panel id="file" className="flex" minSize="320px">

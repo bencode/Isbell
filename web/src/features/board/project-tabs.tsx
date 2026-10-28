@@ -5,12 +5,22 @@ import { ViewTabs } from '../../components/view-tabs'
 import { useI18n } from '../../core/i18n'
 import { projectFilesHref, projectHref } from '../../utils/hrefs'
 
-export function ProjectTabs({ projectKey, current }: { projectKey: string; current: 'agents' | 'files' }) {
+/** `current`: none on a page that is neither, such as a terminal; `agentsHref`, where Agents leads
+ * instead of the project's board. */
+export function ProjectTabs({
+  projectKey,
+  current,
+  agentsHref = projectHref(projectKey),
+}: {
+  projectKey: string
+  current?: 'agents' | 'files'
+  agentsHref?: string
+}) {
   const t = useI18n()
   const views = [
     {
       key: 'agents',
-      href: projectHref(projectKey),
+      href: agentsHref,
       icon: <LayoutGrid size={15} />,
       label: t('project.agents'),
     },
@@ -21,5 +31,5 @@ export function ProjectTabs({ projectKey, current }: { projectKey: string; curre
       label: t('project.files'),
     },
   ]
-  return <ViewTabs label={t('project.views')} views={views} current={current} />
+  return <ViewTabs label={t('project.views')} views={views} current={current ?? ''} />
 }

@@ -3,6 +3,7 @@
 // holds.
 
 import { Plus } from 'lucide-react'
+import type { ComponentProps } from 'react'
 import { useOutletContext } from 'react-router'
 import { Button } from '../../components/button'
 import { useI18n } from '../../core/i18n'
@@ -13,7 +14,11 @@ import { ProjectTabs } from './project-tabs'
 
 const BAR = 'flex h-[52px] flex-none items-center gap-2.5 border-b border-line pr-3 pl-5'
 
-export function ProjectHeader({ project, current }: { project: Project; current: 'agents' | 'files' }) {
+/** `tabs`: which view this is, and where Agents leads; see `ProjectTabs`. */
+export function ProjectHeader({
+  project,
+  ...tabs
+}: { project: Project } & Omit<ComponentProps<typeof ProjectTabs>, 'projectKey'>) {
   const t = useI18n()
   return (
     <header className={BAR}>
@@ -29,7 +34,7 @@ export function ProjectHeader({ project, current }: { project: Project; current:
       )}
       <span className="flex-1" />
       <NewTask />
-      <ProjectTabs projectKey={project.key} current={current} />
+      <ProjectTabs projectKey={project.key} {...tabs} />
     </header>
   )
 }

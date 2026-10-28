@@ -1,4 +1,5 @@
-// A project's files, from its page: the same tree and file as a pane's, opened at the root.
+// A project's files: the tree and the file read. An address ending in '/' is a directory, opened
+// in the tree with nothing read yet.
 
 import { useCallback } from 'react'
 import { Link, useParams } from 'react-router'
@@ -32,10 +33,17 @@ export function ProjectFiles() {
 function Browse({ project, rel }: { project: Project; rel: string }) {
   // Stable, so a document's links are not rendered again for it.
   const hrefOf = useCallback((to: string) => projectFilesHref(project.key, to), [project.key])
+  const isDir = rel.endsWith('/')
   return (
     <div className="flex h-full flex-col">
       <ProjectHeader project={project} current="files" />
-      <FilesSplit mid={project.mid} project={project} cwd="" rel={rel} hrefOf={hrefOf} />
+      <FilesSplit
+        mid={project.mid}
+        project={project}
+        dir={isDir ? rel.slice(0, -1) : ''}
+        rel={isDir ? '' : rel}
+        hrefOf={hrefOf}
+      />
     </div>
   )
 }
