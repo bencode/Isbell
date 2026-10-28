@@ -1,8 +1,9 @@
 // A session open beside the board: its bar, with a way into its terminal and a way to close it,
 // then the page. The project shows on the bar only when the board is every agent's.
 
-import { Maximize2, X } from 'lucide-react'
+import { SquareTerminal, X } from 'lucide-react'
 import { Link, useParams } from 'react-router'
+import { buttonClass } from '../../components/button'
 import { useI18n } from '../../core/i18n'
 import { boardHref, terminalHref } from '../../utils/hrefs'
 import { BAR_ICON, PaneBar } from './pane-bar'
@@ -19,13 +20,9 @@ export function PeekPane({ found, mid, paneId, onEnd, facts, children }: PanePar
         facts={facts}
         showProject={!key}
         before={
-          <Link
-            to={terminalHref(mid, paneId)}
-            aria-label={t('pane.terminal')}
-            title={t('pane.terminal')}
-            className={BAR_ICON}
-          >
-            <Maximize2 size={15} />
+          <Link to={terminalHref(mid, paneId)} className={buttonClass('quiet', 'mr-1', 'small')}>
+            <SquareTerminal size={14} />
+            {t('pane.terminal')}
           </Link>
         }
         after={
