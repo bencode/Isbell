@@ -3,7 +3,6 @@
 
 import { SquareTerminal, X } from 'lucide-react'
 import { Link, useParams } from 'react-router'
-import { buttonClass } from '../../components/button'
 import { useI18n } from '../../core/i18n'
 import { boardHref, terminalHref } from '../../utils/hrefs'
 import { BAR_ICON, PaneBar } from './pane-bar'
@@ -20,9 +19,13 @@ export function PeekPane({ found, mid, paneId, onEnd, facts, children }: PanePar
         facts={facts}
         showProject={!key}
         before={
-          <Link to={terminalHref(mid, paneId)} className={buttonClass('quiet', 'mr-1', 'small')}>
-            <SquareTerminal size={14} />
-            {t('pane.terminal')}
+          <Link
+            to={terminalHref(mid, paneId)}
+            aria-label={t('pane.terminal')}
+            title={t('pane.terminal')}
+            className={BAR_ICON}
+          >
+            <SquareTerminal size={16} />
           </Link>
         }
         after={

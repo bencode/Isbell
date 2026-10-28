@@ -1,11 +1,10 @@
 // The bar over a pane, beside the board or on its terminal page: its name and state, the project
-// where the page around does not say it, then the facts in a popover and ending it in the more menu.
+// where the page around does not say it, then the facts in a popover and a way to end it.
 
 import { Popover } from '@base-ui/react/popover'
-import { Info, MoreHorizontal } from 'lucide-react'
+import { Info, Power } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { StatusChip } from '../../components/chip'
-import { DropdownMenu } from '../../components/menu'
 import { useI18n } from '../../core/i18n'
 import type { Found } from '../../model/projects'
 
@@ -20,7 +19,7 @@ type Props = {
   facts: ReactNode
   /** Says which project; only where the page around does not. */
   showProject: boolean
-  /** Buttons before the facts and after more. */
+  /** Buttons before the facts and after ending. */
   before?: ReactNode
   after?: ReactNode
 }
@@ -51,14 +50,15 @@ export function PaneBar({ found: { project, name, pane }, onEnd, facts, showProj
           </Popover.Positioner>
         </Popover.Portal>
       </Popover.Root>
-      <DropdownMenu
-        trigger={
-          <button type="button" aria-label={t('pane.more')} title={t('pane.more')} className={BAR_ICON}>
-            <MoreHorizontal size={16} />
-          </button>
-        }
-        items={[{ label: t(session ? 'session.end' : 'terminal.end'), onClick: onEnd, danger: true }]}
-      />
+      <button
+        type="button"
+        onClick={onEnd}
+        aria-label={t(session ? 'session.end' : 'terminal.end')}
+        title={t(session ? 'session.end' : 'terminal.end')}
+        className={`${BAR_ICON} hover:text-danger!`}
+      >
+        <Power size={15} />
+      </button>
       {after}
     </header>
   )
