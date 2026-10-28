@@ -7,7 +7,7 @@ import type { Block } from '../../../model/screen/types'
 import { since } from '../../../utils/time'
 import { Composer } from '../../pane/composer'
 import { useReading } from '../../pane/use-reading'
-import { lastReply, SentNote, useSent } from './card'
+import { lastReply, OpenButton, SentNote, useSent } from './card'
 
 const GO =
   'h-[26px] flex-none cursor-pointer rounded-md border border-line-strong bg-raised px-2.5 text-xs text-accent hover:bg-raised-2'
@@ -15,12 +15,15 @@ const GO =
 export function StandingRow({
   placed,
   now,
+  scoped,
   open,
   onOpen,
   onClose,
 }: {
   placed: Placed
   now: number
+  /** All of one project's, so the row need not say which. */
+  scoped: boolean
   open: boolean
   onOpen: () => void
   onClose: () => void
@@ -45,9 +48,12 @@ export function StandingRow({
           {unknown ? '?' : t(`status.${session.status}`)}
         </span>
         <span className="ml-auto flex-none text-[11.5px] text-faint">{since(session.statusSince, now)}</span>
+        <OpenButton session={session} />
       </div>
       <div className="flex min-h-[26px] min-w-0 items-center gap-1.5">
-        <span className="min-w-0 flex-1 truncate text-[11.5px] text-faint">{project.name}</span>
+        <span className="min-w-0 flex-1 truncate text-[11.5px] text-faint">
+          {scoped ? null : project.name}
+        </span>
         {!project.online ? null : sent ? (
           <SentNote what={sent} onAgain={unsend} />
         ) : (
@@ -82,7 +88,7 @@ function Continue({ placed: { session }, onSent }: { placed: Placed; onSent: (wh
     <div className="flex flex-col gap-2 pt-1.5 pb-1">
       {last ? <p className="m-0 line-clamp-2 text-[12.5px] text-muted">{last.text}</p> : null}
       {error ? <p className="m-0 text-[12.5px] text-danger">{errorText(t, error)}</p> : null}
-      <Composer mid={mid} paneId={paneId} onSent={onSent} />
+      <Composer mid={mid} paneId={paneId} onSent={onSent} compact />
     </div>
   )
 }

@@ -17,6 +17,8 @@ export function MobileRoutes() {
           <Route path="p/:key" element={<ProjectView stacked />} />
         </Route>
         <Route path="s/:mid/:pane" element={<SessionPage layout={MobilePane} />} />
+        {/* Where a card on a project's board opens its session. */}
+        <Route path="p/:key/s/:mid/:pane" element={<SessionPage layout={MobilePane} />} />
         <Route path="t/:mid/:pane" element={<LazyTerminal layout={MobilePane} />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

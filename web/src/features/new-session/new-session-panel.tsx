@@ -127,7 +127,9 @@ function Form({ onOpenChange, focusedKey, newDir }: Omit<Props, 'open'>) {
           recentAgents: [kind, ...l.recentAgents.filter(k => k !== kind)],
         }))
       onOpenChange(false)
-      navigate(next.href, { state: next.state })
+      // A chat joins the board, which stays where it is; a terminal opens to work in, and a task that
+      // did not reach the agent shows on its page.
+      if (!chat || next.state?.promptError) navigate(next.href, { state: next.state })
     } catch (err) {
       setError(errorText(t, err))
       setBusy(false)

@@ -1,5 +1,6 @@
-// The sidebar every page keeps: a way to start something, the projects with what runs in them,
-// and the state of the machines and the relay. Folded into a rail, see rail.tsx.
+// The sidebar every page keeps: the projects by the machine they are on, with what needs you in
+// each, a way to start in a new directory, and the state of the machines and the relay. The agents
+// themselves are on the board. Folded into a rail, see rail.tsx.
 
 import {
   ChevronDown,
@@ -16,19 +17,17 @@ import { Button } from '../../components/button'
 import { useI18n } from '../../core/i18n'
 import { toggleFolded, toggleRail, useLocal } from '../../core/prefs'
 import type { ConnStatus } from '../../model/connection'
-import { needs, type Project, paneKey } from '../../model/projects'
+import { needs, type Project } from '../../model/projects'
 import type { MachineEntry } from '../../model/space'
-import { projectHref, sessionHref, terminalHref } from '../../utils/hrefs'
-import { since, useNow } from '../../utils/time'
+import { projectHref } from '../../utils/hrefs'
 import type { Here } from '../common'
-import { AskBadge, asking, MachineList, RelayStatus, StatusDot } from '../marks'
+import { AskBadge, asking, MachineDot, RelayStatus } from '../marks'
 
 export type SideProps = {
   projects: Project[]
   machines: MachineEntry[]
   status: ConnStatus
   here: Here
-  onNew: () => void
   onSettings: () => void
 }
 
@@ -42,7 +41,6 @@ export function Sidebar({
   machines,
   status,
   here,
-  onNew,
   onSettings,
   onNewDir,
 }: SideProps & { onNewDir: () => void }) {
@@ -56,10 +54,6 @@ export function Sidebar({
       <div className="flex items-center gap-2 px-3.5 pt-3 pb-2">
         <SquareTerminal size={20} className="text-accent" aria-hidden="true" />
         <span className="flex-1 text-[15px] font-bold">Isbell</span>
-        <Button variant="primary" size="small" onClick={onNew}>
-          <Plus size={15} />
-          {t('app.newSession')}
-        </Button>
       </div>
       <button
         type="button"
@@ -92,15 +86,17 @@ export function Sidebar({
         </button>
       </div>
       <div className="min-h-0 flex-1 overflow-auto px-2 pb-2">
-        {projects.map(p => (
-          <ProjectTree key={p.key} project={p} here={here} />
+        {/* In the order of the projects, so the number keys count down the sidebar. */}
+        {machines.map(m => (
+          <MachineGroup
+            key={m.state.machine.id}
+            entry={m}
+            projects={projects.filter(p => p.mid === m.state.machine.id)}
+            here={here}
+          />
         ))}
       </div>
       <div className="flex flex-col gap-0.5 border-t border-line p-2">
-        <span className="px-2 pt-1 pb-0.5 text-[11px] font-semibold tracking-[0.04em] text-faint uppercase">
-          {t('side.machines')}
-        </span>
-        <MachineList machines={machines} />
         <RelayStatus status={status} />
         <div className="mt-1 flex items-center">
           <Button variant="quiet" className="flex-1" onClick={onSettings}>
@@ -116,68 +112,56 @@ export function Sidebar({
   )
 }
 
-/** A project, and unless folded, its sessions and then its shells. */
-function ProjectTree({ project: p, here }: { project: Project; here: Here }) {
+/** A machine's name heading its projects, with its state; folded to the heading on a click. */
+function MachineGroup({ entry, projects, here }: { entry: MachineEntry; projects: Project[]; here: Here }) {
   const t = useI18n()
-  const now = useNow()
-  const { folded, terminal } = useLocal().layout
-  const open = !folded.includes(p.key)
-  const n = asking(p)
-  const inside = here.project?.key === p.key
-  const Chevron = open ? ChevronDown : ChevronRight
+  const { state, online } = entry
+  const id = state.machine.id
+  const folded = useLocal().layout.folded.includes(id)
+  const herdr = state.herdr.status
+  const note = !online ? t('side.offline') : herdr === 'ready' ? '' : t(`side.herdr.${herdr}`)
+  // Folded, the heading still says how many ask.
+  const n = online ? projects.reduce((sum, p) => sum + asking(p), 0) : 0
+  const Chevron = folded ? ChevronRight : ChevronDown
   return (
-    <>
-      <div className={`${ROW} pl-0.5 ${inside && (!here.pane || !open) ? ON : ''}`}>
-        <button
-          type="button"
-          onClick={() => toggleFolded(p.key)}
-          aria-expanded={open}
-          aria-label={t(open ? 'side.hide' : 'side.show')}
-          className="inline-flex size-6 flex-none cursor-pointer items-center justify-center rounded border-0 bg-transparent text-faint hover:text-text"
-        >
-          <Chevron size={14} />
-        </button>
-        <Link to={projectHref(p.key)} className="min-w-0 flex-1 truncate text-text no-underline">
-          <span className="font-semibold">{p.name}</span>{' '}
-          <span className="text-xs text-faint">
-            {p.machine}
-            {p.online ? '' : ` · ${t('side.offline')}`}
-          </span>
-        </Link>
-        {n ? (
-          <AskBadge n={n} label={t('side.asking', { n })} />
-        ) : p.sessions.length ? (
-          <span className="pr-1 text-xs text-faint">{p.sessions.length}</span>
-        ) : null}
-      </div>
-      {open ? (
-        <div className="flex flex-col pl-[22px]">
-          {p.sessions.map(s => (
-            <Link
-              key={s.paneId}
-              to={(terminal.includes(paneKey(s.mid, s.paneId)) ? terminalHref : sessionHref)(s.mid, s.paneId)}
-              className={`${ROW} min-h-[27px] text-[13px] ${here.pane === paneKey(s.mid, s.paneId) ? ON : ''}`}
-            >
-              <StatusDot status={s.status} label={t(`status.${s.status}`)} />
-              {/* Done and not yet looked at: its name stands out until its page is opened. */}
-              <span className={`min-w-0 flex-1 truncate ${s.unread ? 'font-semibold' : ''}`}>{s.name}</span>
-              <span className="text-xs text-faint">{since(s.statusSince, now)}</span>
-            </Link>
-          ))}
-          {p.shells.map(s => (
-            <Link
-              key={s.paneId}
-              to={terminalHref(s.mid, s.paneId)}
-              title={s.title}
-              className={`${ROW} min-h-[27px] text-[13px] ${here.pane === paneKey(s.mid, s.paneId) ? ON : ''}`}
-            >
-              <SquareTerminal size={13} className="flex-none text-faint" />
-              <span className="min-w-0 flex-1 truncate font-mono text-xs">{s.paneId}</span>
-              <span className="text-xs text-faint">{t('side.shell')}</span>
-            </Link>
-          ))}
-        </div>
+    <section className="mt-3 flex flex-col first:mt-1">
+      <button
+        type="button"
+        onClick={() => toggleFolded(id)}
+        aria-expanded={!folded}
+        className="group flex h-7 cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent px-2 text-left hover:bg-raised focus-visible:outline-2 focus-visible:outline-accent"
+      >
+        <MachineDot online={online} ready={herdr === 'ready'} />
+        <span className="min-w-0 truncate text-[11px] font-semibold tracking-[0.06em] text-faint uppercase">
+          {state.machine.name}
+        </span>
+        {note ? <span className="min-w-0 truncate text-[11px] text-faint">· {note}</span> : null}
+        <span className="flex-1" />
+        {folded && n ? <AskBadge n={n} label={t('side.asking', { n })} /> : null}
+        <Chevron size={13} className="flex-none text-faint opacity-0 group-hover:opacity-100" />
+      </button>
+      {folded
+        ? null
+        : projects.map(p => <ProjectRow key={p.key} project={p} on={here.project?.key === p.key} />)}
+    </section>
+  )
+}
+
+/** A project: how many of its agents ask, and whether any is at work. */
+function ProjectRow({ project: p, on }: { project: Project; on: boolean }) {
+  const t = useI18n()
+  const n = p.online ? asking(p) : 0
+  const working = p.online && p.sessions.some(s => s.status === 'working')
+  return (
+    <Link to={projectHref(p.key)} className={`${ROW} ${on ? ON : ''} ${p.online ? '' : 'opacity-60'}`}>
+      <span className="min-w-0 flex-1 truncate font-medium">{p.name}</span>
+      {working ? (
+        <span
+          title={t('status.working')}
+          className="size-[7px] flex-none animate-pulse rounded-full bg-accent motion-reduce:animate-none"
+        />
       ) : null}
-    </>
+      {n ? <AskBadge n={n} label={t('side.asking', { n })} /> : null}
+    </Link>
   )
 }

@@ -1,12 +1,13 @@
 // What every card on the board shares: its frame, its head, and the note it keeps once answered
 // until the agent moves on.
 
+import { MessageSquareText } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useParams } from 'react-router'
 import { useI18n } from '../../../core/i18n'
 import type { Placed, Session } from '../../../model/projects'
 import type { Block, Reading } from '../../../model/screen/types'
-import { sessionHref } from '../../../utils/hrefs'
+import { boardHref, peekHref } from '../../../utils/hrefs'
 import { since } from '../../../utils/time'
 
 /** What the agent said last: the turn still going, or else the last one ended. */
@@ -19,31 +20,60 @@ export function Card({ ask, sent, children }: { ask?: boolean; sent?: boolean; c
     ? 'border-dashed border-line-strong opacity-60'
     : `index-card ${ask ? 'border-ask-line' : 'border-line'}`
   return (
-    <div className={`flex flex-col gap-2.5 rounded-[10px] border bg-raised px-3.5 py-3 ${frame}`}>
+    <div className={`flex flex-col gap-2 rounded-[10px] border bg-raised px-3 py-2.5 ${frame}`}>
       {children}
     </div>
   )
 }
 
-/** The agent's name, where it runs, how long it has been so, and the way to its page. */
-export function CardHead({ placed: { session, project }, now }: { placed: Placed; now: number }) {
-  const t = useI18n()
+/** The agent's name, where it runs unless the board is all one project's, how long it has been so,
+ * what else the card does in a word (`actions`), and the button that opens it. */
+export function CardHead({
+  placed: { session, project },
+  now,
+  scoped,
+  actions,
+}: {
+  placed: Placed
+  now: number
+  scoped: boolean
+  actions?: ReactNode
+}) {
   return (
-    <div className="flex items-baseline gap-2">
-      <b className="truncate font-semibold">{session.name}</b>
+    <div className="flex items-center gap-1.5">
+      <b className="truncate text-[13.5px] font-semibold">{session.name}</b>
       <span className="min-w-0 flex-1 truncate text-xs text-faint">
-        {project.name} · {project.machine}
+        {scoped ? null : `${project.name} · ${project.machine}`}
       </span>
-      <span className="flex-none text-xs text-faint">{since(session.statusSince, now)}</span>
-      <Link
-        to={sessionHref(session.mid, session.paneId)}
-        aria-label={t('card.open')}
-        title={t('card.open')}
-        className="flex-none text-[13px] text-faint no-underline hover:text-accent"
-      >
-        ↗
-      </Link>
+      <span className="mr-0.5 flex-none text-xs text-faint">{since(session.statusSince, now)}</span>
+      {actions}
+      <OpenButton session={session} />
     </div>
+  )
+}
+
+/** A small icon button for a card's head, where words would crowd it; `on` while what it opens is
+ * open. Its colours are one or the other, since classes setting the same one do not override. */
+export const headButton = (on = false) =>
+  `inline-flex size-6 flex-none cursor-pointer items-center justify-center rounded-md border-0 no-underline focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-default disabled:opacity-50 ${on ? 'bg-accent-soft text-accent' : 'bg-transparent text-faint hover:bg-raised-2'}`
+
+/** The one way into a session from its card, beside the board: the card itself is for acting on it
+ * in place. On the session open beside the board, it closes it. */
+export function OpenButton({ session }: { session: Session }) {
+  const t = useI18n()
+  const { key, mid, pane } = useParams()
+  const open = mid === session.mid && pane === session.paneId
+  const label = t(open ? 'card.close' : 'card.open')
+  return (
+    <Link
+      to={open ? boardHref(key) : peekHref(key, session.mid, session.paneId)}
+      aria-label={label}
+      aria-pressed={open}
+      title={label}
+      className={`${headButton(open)} ${open ? '' : 'hover:text-accent'}`}
+    >
+      <MessageSquareText size={14} />
+    </Link>
   )
 }
 

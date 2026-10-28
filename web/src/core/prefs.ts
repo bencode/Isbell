@@ -16,11 +16,10 @@ export type Prefs = {
 }
 
 export type Layout = {
-  /** The info panel beside a session or terminal. */
-  info: boolean
   /** The sidebar shrunk to a rail of icons. */
   rail: boolean
-  /** Project keys whose sessions are hidden in the sidebar; any other project shows them. */
+  /** Machine ids whose projects are hidden in the sidebar; any other machine shows them. Keys saved
+   * when it held projects never match a machine id, so they fold nothing. */
   folded: string[]
   /** Agent panes (by paneKey) last seen in their terminal, most recent first; any other opens in chat. */
   terminal: string[]
@@ -55,7 +54,6 @@ const DEFAULTS: Local = {
   lastAgent: {},
   recentAgents: [],
   layout: {
-    info: false,
     rail: false,
     folded: [],
     terminal: [],
@@ -117,12 +115,9 @@ export function updateLocal(change: (l: Local) => Partial<Local>) {
 
 export const getLocal = () => current
 
-/** Shows or hides the info panel, on every page that has one. */
-export const toggleInfo = () => updateLocal(l => ({ layout: { ...l.layout, info: !l.layout.info } }))
-
 export const toggleRail = () => updateLocal(l => ({ layout: { ...l.layout, rail: !l.layout.rail } }))
 
-/** Shows or hides a project's sessions in the sidebar. */
+/** Shows or hides a machine's projects in the sidebar. */
 export const toggleFolded = (key: string) =>
   updateLocal(l => {
     const { folded } = l.layout

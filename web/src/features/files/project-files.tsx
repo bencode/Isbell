@@ -1,4 +1,5 @@
-// A project's files, from its page: the same tree and file as a pane's, opened at the root.
+// A project's files: the tree and the file read. An address ending in '/' is a directory, opened
+// in the tree with nothing read yet.
 
 import { useCallback } from 'react'
 import { Link, useParams } from 'react-router'
@@ -7,7 +8,7 @@ import { useProjects, useSpaceView } from '../../core/space'
 import type { Project } from '../../model/projects'
 import { projectsSettled } from '../../model/space'
 import { projectFilesHref } from '../../utils/hrefs'
-import { ProjectTabs } from '../board/project-tabs'
+import { ProjectHeader } from '../board/project-header'
 import { FilesSplit } from './files-split'
 
 export function ProjectFiles() {
@@ -30,23 +31,19 @@ export function ProjectFiles() {
 }
 
 function Browse({ project, rel }: { project: Project; rel: string }) {
-  const t = useI18n()
   // Stable, so a document's links are not rendered again for it.
   const hrefOf = useCallback((to: string) => projectFilesHref(project.key, to), [project.key])
+  const isDir = rel.endsWith('/')
   return (
     <div className="flex h-full flex-col">
-      <header className="flex h-[52px] flex-none items-center gap-2.5 border-b border-line pr-3 pl-5">
-        <span className="flex-none font-semibold">{project.name}</span>
-        <span className="min-w-0 truncate text-[12.5px] text-faint">
-          {project.machine} · {project.display}
-        </span>
-        {project.online ? null : (
-          <span className="rounded-full border border-line px-2 text-xs text-muted">{t('side.offline')}</span>
-        )}
-        <span className="flex-1" />
-        <ProjectTabs projectKey={project.key} current="files" />
-      </header>
-      <FilesSplit mid={project.mid} project={project} cwd="" rel={rel} hrefOf={hrefOf} />
+      <ProjectHeader project={project} current="files" />
+      <FilesSplit
+        mid={project.mid}
+        project={project}
+        dir={isDir ? rel.slice(0, -1) : ''}
+        rel={isDir ? '' : rel}
+        hrefOf={hrefOf}
+      />
     </div>
   )
 }

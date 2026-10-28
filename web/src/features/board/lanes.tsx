@@ -12,8 +12,16 @@ import { StandingRow } from './cards/standing-row'
 
 const keyOf = ({ session }: Placed) => paneKey(session.mid, session.paneId)
 
-/** Side by side, each lane scrolling on its own; `stacked`, one under another as the page scrolls. */
-export function Lanes({ lanes, now, stacked }: { lanes: LaneSet; now: number; stacked?: boolean }) {
+type Props = {
+  lanes: LaneSet
+  now: number
+  /** One under another as the page scrolls, rather than side by side, each scrolling on its own. */
+  stacked?: boolean
+  /** All of one project's, so the cards need not say which. */
+  scoped?: boolean
+}
+
+export function Lanes({ lanes, now, stacked, scoped = false }: Props) {
   const t = useI18n()
   return (
     <div
@@ -25,26 +33,36 @@ export function Lanes({ lanes, now, stacked }: { lanes: LaneSet; now: number; st
     >
       <Lane title={t('lane.asking')} dot="bg-warn" hint={t('lane.oldest')} count={lanes.asking.length}>
         {lanes.asking.map(p => (
-          <AskingCard key={keyOf(p)} placed={p} now={now} />
+          <AskingCard key={keyOf(p)} placed={p} now={now} scoped={scoped} />
         ))}
       </Lane>
       <Lane title={t('lane.finished')} dot="bg-ok" hint={t('lane.markRead')} count={lanes.finished.length}>
         {lanes.finished.map(p => (
-          <FinishedCard key={keyOf(p)} placed={p} now={now} />
+          <FinishedCard key={keyOf(p)} placed={p} now={now} scoped={scoped} />
         ))}
       </Lane>
-      <Lane title={t('lane.running')} dot="bg-accent" hint={t('lane.readOnly')} count={lanes.running.length}>
+      <Lane title={t('lane.running')} dot="bg-accent" hint={t('lane.watch')} count={lanes.running.length}>
         {lanes.running.map(p => (
-          <RunningCard key={keyOf(p)} placed={p} now={now} />
+          <RunningCard key={keyOf(p)} placed={p} now={now} scoped={scoped} />
         ))}
       </Lane>
-      <Standing standing={lanes.standing} offline={lanes.offline} now={now} />
+      <Standing standing={lanes.standing} offline={lanes.offline} now={now} scoped={scoped} />
     </div>
   )
 }
 
 /** The rest, latest first, each opened to give it its next step; then the offline ones by machine. */
-function Standing({ standing, offline, now }: { standing: Placed[]; offline: Placed[]; now: number }) {
+function Standing({
+  standing,
+  offline,
+  now,
+  scoped,
+}: {
+  standing: Placed[]
+  offline: Placed[]
+  now: number
+  scoped: boolean
+}) {
   const t = useI18n()
   // One row open at a time.
   const [open, setOpen] = useState<string | null>(null)
@@ -55,6 +73,7 @@ function Standing({ standing, offline, now }: { standing: Placed[]; offline: Pla
       key={keyOf(p)}
       placed={p}
       now={now}
+      scoped={scoped}
       open={open === keyOf(p)}
       onOpen={() => setOpen(keyOf(p))}
       onClose={() => setOpen(null)}

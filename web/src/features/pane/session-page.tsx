@@ -26,7 +26,8 @@ import { useReading } from './use-reading'
 // The reading column: as wide as the pane up to a wide screen, then centred.
 const COLUMN = 'mx-auto w-full max-w-[1240px] px-4 sm:px-8'
 
-export function SessionPage({ layout }: { layout: PaneLayout }) {
+/** `after`: where to go once the session is ended or found gone; its project's board unless given. */
+export function SessionPage({ layout, after }: { layout: PaneLayout; after?: string }) {
   const t = useI18n()
   const params = useParams()
   const mid = params.mid ?? ''
@@ -41,7 +42,7 @@ export function SessionPage({ layout }: { layout: PaneLayout }) {
     return (
       <div className="m-6 flex flex-col items-start gap-3">
         <p className="m-0 text-muted">{t('session.gone')}</p>
-        <Link to="/">{t('project.back')}</Link>
+        <Link to={after ?? '/'}>{t('project.back')}</Link>
       </div>
     )
   // Keyed, so moving to another session starts its page over instead of showing this one's screen.
@@ -53,6 +54,7 @@ export function SessionPage({ layout }: { layout: PaneLayout }) {
       paneId={paneId}
       project={project}
       session={session}
+      after={after ?? projectHref(project.key)}
     />
   )
 }
@@ -63,12 +65,14 @@ function SessionView({
   paneId,
   project,
   session,
+  after,
 }: {
   layout: PaneLayout
   mid: string
   paneId: string
   project: Project
   session: Session
+  after: string
 }) {
   const t = useI18n()
   const view = useSpaceView()
@@ -103,7 +107,6 @@ function SessionView({
     if ((reading || text !== null) && el && pinned.current) el.scrollTop = el.scrollHeight
   }, [reading, text])
 
-  const back = projectHref(project.key)
   const terminal = terminalHref(mid, paneId)
   const pane = { session }
   const asking = session.status === 'blocked' && text !== null
@@ -202,7 +205,7 @@ function SessionView({
         machine={project.machine}
         path={project.display}
         agent
-        onEnded={() => navigate(back)}
+        onEnded={() => navigate(after)}
       />
     </>
   )

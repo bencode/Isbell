@@ -1,18 +1,28 @@
-// A project's views: its overview (the agents on their lanes) and its files.
+// A project's views: its agents on their lanes, and its files.
 
 import { FolderOpen, LayoutGrid } from 'lucide-react'
 import { ViewTabs } from '../../components/view-tabs'
 import { useI18n } from '../../core/i18n'
 import { projectFilesHref, projectHref } from '../../utils/hrefs'
 
-export function ProjectTabs({ projectKey, current }: { projectKey: string; current: 'overview' | 'files' }) {
+/** `current`: none on a page that is neither, such as a terminal; `agentsHref`, where Agents leads
+ * instead of the project's board. */
+export function ProjectTabs({
+  projectKey,
+  current,
+  agentsHref = projectHref(projectKey),
+}: {
+  projectKey: string
+  current?: 'agents' | 'files'
+  agentsHref?: string
+}) {
   const t = useI18n()
   const views = [
     {
-      key: 'overview',
-      href: projectHref(projectKey),
+      key: 'agents',
+      href: agentsHref,
       icon: <LayoutGrid size={15} />,
-      label: t('project.overview'),
+      label: t('project.agents'),
     },
     {
       key: 'files',
@@ -21,5 +31,5 @@ export function ProjectTabs({ projectKey, current }: { projectKey: string; curre
       label: t('project.files'),
     },
   ]
-  return <ViewTabs label={t('project.views')} views={views} current={current} />
+  return <ViewTabs label={t('project.views')} views={views} current={current ?? ''} />
 }

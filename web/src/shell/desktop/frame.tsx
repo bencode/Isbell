@@ -5,7 +5,8 @@ import { useState } from 'react'
 import { Outlet, useMatch, useNavigate, useParams } from 'react-router'
 import { useLocal } from '../../core/prefs'
 import { useProjects, useSpaceView } from '../../core/space'
-import { projectHref } from '../../utils/hrefs'
+import type { BoardActions } from '../../features/board/agents-page'
+import { boardHref, projectHref } from '../../utils/hrefs'
 import { useShortcuts } from '../../utils/shortcuts'
 import { hereOf, type Overlay, Overlays, ReconnectBanner } from '../common'
 import { Rail } from './rail'
@@ -14,12 +15,19 @@ import { Sidebar } from './sidebar'
 export function AppFrame() {
   const view = useSpaceView()
   const projects = useProjects()
-  const here = hereOf(projects, useParams())
+  const params = useParams()
+  // A session open beside every agent's board is on that board, not in its project.
+  const allPeek = useMatch('/s/:mid/:pane')
+  const here = allPeek ? { project: undefined, pane: undefined } : hereOf(projects, params)
+  const projectPeek = useMatch('/p/:key/s/:mid/:pane')
+  // A session open beside a board, every agent's or a project's.
+  const peek = Boolean(allPeek || projectPeek)
+  const boards = [useMatch('/'), useMatch('/p/:key')]
   const rail = useLocal().layout.rail
   const navigate = useNavigate()
   const [overlay, setOverlay] = useState<Overlay | null>(null)
   // Single keys belong to the boards; on a session or a terminal they are typing.
-  const board = [useMatch('/'), useMatch('/p/:key')].some(Boolean)
+  const board = peek || boards.some(Boolean)
 
   const step = (by: number) => {
     if (!projects.length) return
@@ -37,19 +45,19 @@ export function AppFrame() {
       a: () => setOverlay('newDir'),
       ',': () => setOverlay('settings'),
       '0': () => navigate('/'),
-      esc: () => navigate('/'),
+      esc: () => navigate(peek ? boardHref(params.key) : '/'),
       ']': () => step(1),
       '[': () => step(-1),
     },
     overlay === null && board,
   )
 
+  const actions: BoardActions = { openNew: () => setOverlay('session') }
   const side = {
     projects,
     machines: view.machines,
     status: view.status,
     here,
-    onNew: () => setOverlay('session'),
     onSettings: () => setOverlay('settings'),
   }
   return (
@@ -59,20 +67,11 @@ export function AppFrame() {
         <div className="flex min-w-0 flex-1 flex-col">
           <ReconnectBanner />
           <div className="min-h-0 flex-1">
-            <Outlet />
+            <Outlet context={actions} />
           </div>
         </div>
       </div>
       <Overlays overlay={overlay} setOverlay={setOverlay} focusedKey={here.project?.key} />
     </>
-  )
-}
-
-/** The boards scroll on a dotted page. */
-export function BoardMain() {
-  return (
-    <main className="paper flex h-full flex-col gap-6 overflow-auto px-7 py-6">
-      <Outlet />
-    </main>
   )
 }
