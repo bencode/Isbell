@@ -1,6 +1,6 @@
-// Where each view lives. Project keys and pane ids contain ':' and '/', so they are encoded.
+// Where each view lives. Pane ids contain ':' and '/', so they are encoded; project keys need not be.
 
-export const projectHref = (projectKey: string) => `/p/${encodeURIComponent(projectKey)}`
+export const projectHref = (projectKey: string) => `/p/${projectKey}`
 
 export const terminalHref = (mid: string, paneId: string) => `/t/${mid}/${encodeURIComponent(paneId)}`
 
@@ -12,8 +12,7 @@ export const projectFilesHref = (projectKey: string, rel = '') =>
   `${projectHref(projectKey)}/files${tail(rel)}`
 
 /** The page at `rel` under a project's root, on its own in the window. */
-export const pageHref = (projectKey: string, rel: string) =>
-  `/v/${encodeURIComponent(projectKey)}${tail(rel)}`
+export const pageHref = (projectKey: string, rel: string) => `/v/${projectKey}${tail(rel)}`
 
 export const sessionHref = (mid: string, paneId: string) => `/s/${mid}/${encodeURIComponent(paneId)}`
 

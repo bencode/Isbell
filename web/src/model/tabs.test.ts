@@ -1,43 +1,90 @@
 import { describe, expect, it } from 'vitest'
-import { closeTab, MAX_TABS, noTabs, openTab, pinTab, showTab, type Tabs, tabKey } from './tabs'
+import {
+  close,
+  drawn,
+  MAX_TABS,
+  nextShown,
+  noTabs,
+  pin,
+  restore,
+  type Tabs,
+  tabOf,
+  visit,
+  withTab,
+} from './tabs'
 
-const rels = (tabs: Tabs) => tabs.open.map(tab => tab.rel)
-const openAll = (tabs: Tabs, files: string[]) => files.reduce((acc, rel) => openTab(acc, 'p', rel), tabs)
-const pinAll = (files: string[]) =>
-  files.reduce((acc, rel) => pinTab(openTab(acc, 'p', rel), tabKey('p', rel)), noTabs)
+const ids = (tabs: Tabs) => tabs.open.map(tab => tab.id)
+const pinned = (names: string[]) => names.reduce((acc, id) => pin(visit(acc, id), id), noTabs)
+const any = () => true
 
-describe('file tabs', () => {
-  it('turns the preview to the next file instead of adding a tab', () => {
-    const tabs = openAll(noTabs, ['a.ts', 'b.ts'])
-    expect(rels(tabs)).toEqual(['b.ts'])
-    expect(tabs.active).toBe(tabKey('p', 'b.ts'))
+describe('tabs', () => {
+  it('shows a tab in the place of the preview, and a pinned one beside it', () => {
+    const tabs = visit(visit(noTabs, 'a'), 'b')
+    expect(tabs.open).toEqual([{ id: 'b', pinned: false }])
+    expect(ids(visit(pinned(['a']), 'b'))).toEqual(['a', 'b'])
   })
 
-  it('shows a file already open instead of opening it again', () => {
-    const tabs = openTab(pinAll(['a.ts', 'b.ts']), 'p', 'a.ts')
-    expect(rels(tabs)).toEqual(['a.ts', 'b.ts'])
-    expect(tabs.active).toBe(tabKey('p', 'a.ts'))
+  it('shows an open tab where it is, and showing it again changes nothing', () => {
+    const tabs = visit(pinned(['a', 'b']), 'a')
+    expect(ids(tabs)).toEqual(['a', 'b'])
+    expect(tabs.used).toEqual(['a', 'b'])
+    expect(visit(tabs, 'a')).toBe(tabs)
+    expect(visit(tabs, null)).toBe(tabs)
   })
 
-  it('opens a new preview beside a pinned tab', () => {
-    expect(rels(openTab(pinAll(['a.ts']), 'p', 'b.ts'))).toEqual(['a.ts', 'b.ts'])
+  it('draws a tab not yet saved where it will stand, taking none away', () => {
+    const tabs = visit(pinned(['a']), 'p')
+    expect(drawn(tabs, 'b').map(tab => tab.id)).toEqual(['a', 'b', 'p'])
+    expect(ids(visit(tabs, 'b'))).toEqual(['a', 'b'])
+    expect(drawn(tabs, 'a')).toBe(tabs.open)
   })
 
-  it('closes the tab shown longest ago past the limit, never the one shown', () => {
-    const files = Array.from({ length: MAX_TABS }, (_, i) => `${i}.ts`)
-    // The first opened, shown again, then the page: the second is now the one shown longest ago.
-    const full = showTab(showTab(pinAll(files), tabKey('p', '0.ts')), null)
-    const tabs = openTab(full, 'p', 'new.ts')
+  it('closes the tab shown longest ago beyond the limit, never the one shown', () => {
+    const names = Array.from({ length: MAX_TABS }, (_, i) => String(i))
+    const full = visit(pinned(names), '0')
+    const tabs = visit(full, 'new')
     expect(tabs.open).toHaveLength(MAX_TABS)
-    expect(rels(tabs)).not.toContain('1.ts')
-    expect(rels(tabs)).toContain('0.ts')
-    expect(tabs.active).toBe(tabKey('p', 'new.ts'))
+    expect(ids(tabs)).toContain('0')
+    expect(ids(tabs)).toContain('new')
+    expect(ids(tabs)).not.toContain('1')
+    expect(new Set(tabs.used)).toEqual(new Set(ids(tabs)))
   })
 
-  it('shows the page on closing the tab shown', () => {
-    const tabs = openTab(noTabs, 'p', 'a.ts')
-    const closed = closeTab(tabs, tabKey('p', 'a.ts'))
-    expect(closed.open).toEqual([])
-    expect(closed.active).toBeNull()
+  it('goes right, else left, else to the page on closing the tab shown', () => {
+    const tabs = pinned(['a', 'b', 'c'])
+    expect(nextShown(tabs, 'b')).toBe('c')
+    expect(nextShown(tabs, 'c')).toBe('b')
+    expect(nextShown(close(close(tabs, 'a'), 'b'), 'c')).toBeNull()
+  })
+
+  it('reads back only well-formed tabs, once each, with one preview', () => {
+    const saved = {
+      open: [
+        { id: 'a', pinned: true },
+        { id: 'a', pinned: true },
+        { id: 'x', pinned: false },
+        { id: 'y', pinned: false },
+        { id: 'gone', pinned: true },
+        { id: 3 },
+      ],
+      used: ['y', 'x', 'a', 'nope'],
+    }
+    const tabs = restore(saved, id => id !== 'gone')
+    expect(tabs.open).toEqual([
+      { id: 'a', pinned: true },
+      { id: 'x', pinned: false },
+    ])
+    expect(tabs.used).toEqual(['x', 'a'])
+    expect(restore([{ project: 'p', rel: 'a.ts' }], any)).toEqual(noTabs)
+  })
+
+  it('names the tab in the query readably, and reads it back as it was', () => {
+    const id = 'file/isbell-1x3f9a/web/src/a b#c&d%e+f/中.ts'
+    const search = withTab('?x=1', id)
+    expect(search.startsWith('?x=1&tab=file/isbell-1x3f9a/web/src/')).toBe(true)
+    expect(tabOf(search, any)).toBe(id)
+    expect(withTab(search, null)).toBe('?x=1')
+    expect(withTab('', null)).toBe('')
+    expect(tabOf(search, () => false)).toBeNull()
   })
 })

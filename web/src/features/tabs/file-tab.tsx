@@ -2,25 +2,26 @@
 // scroll kept for the tab rather than for the page beneath.
 
 import { useCallback } from 'react'
+import type { Params } from 'react-router'
 import { useI18n } from '../../core/i18n'
 import { useProjects, useSpaceView } from '../../core/space'
 import { projectsSettled } from '../../model/space'
-import { type FileTab, tabKey } from '../../model/tabs'
 import { projectFilesHref } from '../../utils/hrefs'
 import { ScrollScope } from '../files/file-page'
 import { Preview } from '../files/preview'
 
-export function FileTabPane({ tab }: { tab: FileTab }) {
+/** `params`: the project's key and the file's path in it, from the tab's id. */
+export function FileTabPane({ id, params: { key = '', '*': rel = '' } }: { id: string; params: Params }) {
   const t = useI18n()
   const view = useSpaceView()
-  const project = useProjects().find(p => p.key === tab.project)
-  const hrefOf = useCallback((to: string) => projectFilesHref(tab.project, to), [tab.project])
+  const project = useProjects().find(p => p.key === key)
+  const hrefOf = useCallback((to: string) => projectFilesHref(key, to), [key])
   if (!project)
     return <p className="m-6 text-muted">{projectsSettled(view) ? t('tabs.gone') : t('board.loading')}</p>
   return (
-    <ScrollScope value={`tab:${tabKey(tab.project, tab.rel)}`}>
+    <ScrollScope value={`tab:${id}`}>
       <div className="flex h-full">
-        <Preview mid={project.mid} project={project} rel={tab.rel} hrefOf={hrefOf} />
+        <Preview mid={project.mid} project={project} rel={rel} hrefOf={hrefOf} />
       </div>
     </ScrollScope>
   )

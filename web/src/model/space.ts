@@ -7,7 +7,7 @@ import { type DirectLink, openDirect, type Path } from './direct'
 import { repoRootOf } from './files/repo'
 import { type Caller, shells as fetchShells, type Shell } from './herdr'
 import type { Identity } from './identity'
-import { projectKey, type Repos } from './projects'
+import { dirKey, type Repos } from './projects'
 import { isNewer, type MachineState, readState } from './state'
 import type { Opened, StreamEvents } from './streams'
 
@@ -55,7 +55,7 @@ export type SpaceView = {
   machines: MachineEntry[]
   shells: Shell[]
   repos: Repos
-  /** Directories, by `projectKey(mid, cwd)`, whose repository is still being looked up; until it is
+  /** Directories, by `dirKey(mid, cwd)`, whose repository is still being looked up; until it is
    * found, each stands as a project of its own. */
   looking: ReadonlySet<string>
   /** Whether some machine's shells are still being pulled for the first time since the snapshot. */
@@ -204,7 +204,7 @@ export function createSpace(url: string, id: Identity): Space {
     if (!m?.online || !m.state.caps.methods.includes('isbell.file.list')) return
     const cwds = [...m.state.agents.map(a => a.cwd), ...(shells.get(mid) ?? []).map(s => s.cwd)]
     for (const cwd of new Set(cwds.filter((cwd): cwd is string => Boolean(cwd)))) {
-      const key = projectKey(mid, cwd)
+      const key = dirKey(mid, cwd)
       if (asked.has(key)) continue
       asked.add(key)
       looking.add(key)

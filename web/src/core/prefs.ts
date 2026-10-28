@@ -7,7 +7,8 @@ import {
   type ReadingAppearance,
   readingAppearance,
 } from '../components/renderers/markdown/appearance'
-import type { Seen } from '../model/projects'
+import { projectKey, type Seen } from '../model/projects'
+import { noTabs, type Tabs } from '../model/tabs'
 
 export type Prefs = {
   notify: boolean
@@ -45,8 +46,8 @@ export type Local = {
   recentAgents: string[]
   layout: Layout
   reader: Reader
-  /** The files pinned in tabs, by project key and path in it. */
-  tabs: { project: string; rel: string }[]
+  /** The tabs open beside the page, read back by `restore` in model/tabs. */
+  tabs: Tabs
 }
 
 const DEFAULTS: Local = {
@@ -63,7 +64,7 @@ const DEFAULTS: Local = {
     wrap: false,
   },
   reader: { ...DEFAULT_APPEARANCE, outline: true },
-  tabs: [],
+  tabs: noTabs,
 }
 
 const FIELDS = Object.keys(DEFAULTS) as (keyof Local)[]
@@ -97,8 +98,19 @@ function write(field: keyof Local, value: unknown) {
 const loaded = Object.fromEntries(FIELDS.map(f => [f, read(f)])) as Local
 // The reading settings are checked one by one: an old or broken value falls back alone.
 const savedReader: Record<string, unknown> = isRecord(loaded.reader) ? loaded.reader : {}
+// Project keys were `mid:path` once (new ones have no ':'); what was kept by them moves to the keys
+// the same projects have now.
+const rekeyed = <T>(byProject: Record<string, T>) =>
+  Object.fromEntries(
+    Object.entries(byProject).map(([key, value]) => {
+      const at = key.indexOf(':')
+      return [at < 0 ? key : projectKey(key.slice(0, at), key.slice(at + 1)), value]
+    }),
+  )
 let current: Local = {
   ...loaded,
+  lastAgent: rekeyed(loaded.lastAgent),
+  layout: { ...loaded.layout, files: rekeyed(loaded.layout.files) },
   reader: { ...readingAppearance(savedReader), outline: savedReader.outline !== false },
 }
 const listeners = new Set<() => void>()

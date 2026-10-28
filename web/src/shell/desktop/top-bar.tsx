@@ -1,40 +1,46 @@
-// The bar atop every page on a computer, kept out of the pages so it stays while a file tab hides
-// them: the project's (or every agent's), with the file tabs in it.
+// The bar atop every page on a computer, kept out of the pages so it stays while a tab hides them:
+// the project's (or every agent's), with the tabs in it, the page itself first among them.
 
-import { useMatch, useParams } from 'react-router'
-import { showTab } from '../../core/tabs'
+import { useMatch } from 'react-router'
+import { useI18n } from '../../core/i18n'
 import { AllHeader, ProjectHeader } from '../../features/board/project-header'
-import { TabBar } from '../../features/tabs/tab-bar'
+import { PageTab, TabBar } from '../../features/tabs/tab-bar'
 import type { Project } from '../../model/projects'
+import type { TabEntry } from '../../model/tabs'
 import { peekHref } from '../../utils/hrefs'
 
-/** `tabShown`: a file tab is showing, so neither of the project's views is. */
+/** `open` and `active`: the tabs, and the one shown (null: the page). */
 export function TopBar({
   project,
-  tabShown,
+  open,
+  active,
   onNew,
 }: {
   project: Project | undefined
-  tabShown: boolean
+  open: TabEntry[]
+  active: string | null
   onNew: () => void
 }) {
-  const { mid, pane } = useParams()
+  const t = useI18n()
   const files = useMatch('/p/:key/files/*')
   const terminal = useMatch('/t/:mid/:pane')
-  const tabs = <TabBar />
-  if (!project) return <AllHeader tabs={tabs} onNew={onNew} />
-  const view = terminal ? undefined : files ? 'files' : 'agents'
+  const tabs = <TabBar open={open} active={active} />
+  const title = project?.name ?? t('all.title')
+  const pageTab = open.length ? { pageTab: <PageTab title={title} shown={active === null} /> } : {}
+  if (!project) return <AllHeader tabs={tabs} onNew={onNew} {...pageTab} />
+  // Beneath a tab, neither of the project's views is the one shown.
+  const view = terminal || active !== null ? undefined : files ? 'files' : 'agents'
   // From an agent's terminal, Agents leads back to the board with the agent open beside it.
-  const agent = terminal && project.sessions.some(s => s.mid === mid && s.paneId === pane)
+  const at = terminal?.params
+  const agent = at && project.sessions.find(s => s.mid === at.mid && s.paneId === at.pane)
   return (
     <ProjectHeader
       project={project}
       tabs={tabs}
       onNew={onNew}
+      {...pageTab}
       {...(view === undefined ? {} : { current: view })}
-      // Beneath a file tab, the page's own view shows it again as it was, without going anywhere.
-      reveal={tabShown ? () => showTab(null) : undefined}
-      {...(agent && mid && pane ? { agentsHref: peekHref(project.key, mid, pane) } : {})}
+      {...(agent ? { agentsHref: peekHref(project.key, agent.mid, agent.paneId) } : {})}
     />
   )
 }

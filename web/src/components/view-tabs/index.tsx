@@ -9,20 +9,7 @@ const VIEW =
 
 type View = { key: string; href: string; icon: ReactNode; label: string }
 
-/** `reveal`: the current view is hidden beneath something else, such as a file tab; it is not
- * marked, and choosing it calls `reveal` instead of following its link. */
-export function ViewTabs({
-  label,
-  views,
-  current,
-  reveal,
-}: {
-  label: string
-  views: View[]
-  current: string
-  reveal?: (() => void) | undefined
-}) {
-  const shown = reveal ? '' : current
+export function ViewTabs({ label, views, current }: { label: string; views: View[]; current: string }) {
   return (
     <nav
       aria-label={label}
@@ -32,16 +19,8 @@ export function ViewTabs({
         <Link
           key={v.key}
           to={v.href}
-          aria-current={v.key === shown ? 'page' : undefined}
-          onClick={
-            reveal && v.key === current
-              ? e => {
-                  e.preventDefault()
-                  reveal()
-                }
-              : undefined
-          }
-          className={`${VIEW} ${v.key === shown ? 'index-card bg-raised text-text' : 'text-muted hover:text-text'}`}
+          aria-current={v.key === current ? 'page' : undefined}
+          className={`${VIEW} ${v.key === current ? 'index-card bg-raised text-text' : 'text-muted hover:text-text'}`}
         >
           {v.icon}
           {v.label}
