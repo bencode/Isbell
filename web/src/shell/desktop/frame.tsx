@@ -58,7 +58,6 @@ export function AppFrame() {
     machines: view.machines,
     status: view.status,
     here,
-    onNew: () => setOverlay('session'),
     onSettings: () => setOverlay('settings'),
   }
   return (

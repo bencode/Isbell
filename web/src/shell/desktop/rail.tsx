@@ -1,7 +1,7 @@
 // The sidebar folded to a rail of icons: projects by their initial, no sessions. Each icon is
 // named for screen readers by hidden text beside it, so a badge is still read with its name.
 
-import { ChevronsRight, LayoutGrid, Plus, Search, Settings2, SquareTerminal } from 'lucide-react'
+import { ChevronsRight, LayoutGrid, Search, Settings2, SquareTerminal } from 'lucide-react'
 import { Link } from 'react-router'
 import { useI18n } from '../../core/i18n'
 import { toggleRail } from '../../core/prefs'
@@ -16,7 +16,7 @@ const ITEM =
 const ON = 'bg-accent-soft! text-text'
 const CORNER = 'absolute -top-1 -right-1.5 h-4 min-w-4 text-[10px]'
 
-export function Rail({ projects, status, here, onNew, onSettings }: SideProps) {
+export function Rail({ projects, status, here, onSettings }: SideProps) {
   const t = useI18n()
   const total = needs(projects).length
   return (
@@ -27,10 +27,6 @@ export function Rail({ projects, status, here, onNew, onSettings }: SideProps) {
       <span className="inline-flex size-9 items-center justify-center" title="Isbell">
         <SquareTerminal size={20} className="text-accent" aria-hidden="true" />
       </span>
-      <button type="button" onClick={onNew} title={t('app.newSession')} className={`${ITEM} text-accent!`}>
-        <Plus size={18} />
-        <span className="sr-only">{t('app.newSession')}</span>
-      </button>
       <button type="button" disabled title={t('side.searchSoon')} className={ITEM}>
         <Search size={17} />
         <span className="sr-only">{t('side.search')}</span>

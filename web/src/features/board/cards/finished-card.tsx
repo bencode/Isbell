@@ -10,7 +10,7 @@ import type { Reading } from '../../../model/screen/types'
 import { Composer } from '../../pane/composer'
 import { Reply } from '../../pane/reply'
 import { useReading } from '../../pane/use-reading'
-import { Card, CardHead, HEAD_BUTTON, lastReply, SentNote, useSent } from './card'
+import { Card, CardHead, headButton, lastReply, SentNote, useSent } from './card'
 
 export function FinishedCard({ placed, now, scoped }: { placed: Placed; now: number; scoped: boolean }) {
   const t = useI18n()
@@ -31,7 +31,7 @@ export function FinishedCard({ placed, now, scoped }: { placed: Placed; now: num
             onClick={() => markSeen(paneKey(mid, paneId), session.statusSince)}
             aria-label={t('card.markRead')}
             title={t('card.markRead')}
-            className={`${HEAD_BUTTON} hover:text-ok`}
+            className={`${headButton()} hover:text-ok`}
           >
             <Check size={15} />
           </button>

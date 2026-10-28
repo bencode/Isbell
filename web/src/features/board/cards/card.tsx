@@ -52,9 +52,10 @@ export function CardHead({
   )
 }
 
-/** A small icon button for a card's head, where words would crowd it. */
-export const HEAD_BUTTON =
-  'inline-flex size-6 flex-none cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-faint no-underline hover:bg-raised-2 focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-default disabled:opacity-50'
+/** A small icon button for a card's head, where words would crowd it; `on` while what it opens is
+ * open. Its colours are one or the other, since classes setting the same one do not override. */
+export const headButton = (on = false) =>
+  `inline-flex size-6 flex-none cursor-pointer items-center justify-center rounded-md border-0 no-underline focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-default disabled:opacity-50 ${on ? 'bg-accent-soft text-accent' : 'bg-transparent text-faint hover:bg-raised-2'}`
 
 /** The one way into a session from its card, beside the board: the card itself is for acting on it
  * in place. On the session open beside the board, it closes it. */
@@ -69,7 +70,7 @@ export function OpenButton({ session }: { session: Session }) {
       aria-label={label}
       aria-pressed={open}
       title={label}
-      className={`${HEAD_BUTTON} ${open ? 'bg-accent-soft text-accent' : 'hover:text-accent'}`}
+      className={`${headButton(open)} ${open ? '' : 'hover:text-accent'}`}
     >
       <MessageSquareText size={14} />
     </Link>

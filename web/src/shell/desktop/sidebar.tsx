@@ -1,6 +1,6 @@
-// The sidebar every page keeps: a way to start something, the projects by the machine they are on,
-// with what needs you in each, and the state of the machines and the relay. The agents themselves
-// are on the board. Folded into a rail, see rail.tsx.
+// The sidebar every page keeps: the projects by the machine they are on, with what needs you in
+// each, a way to start in a new directory, and the state of the machines and the relay. The agents
+// themselves are on the board. Folded into a rail, see rail.tsx.
 
 import {
   ChevronDown,
@@ -28,7 +28,6 @@ export type SideProps = {
   machines: MachineEntry[]
   status: ConnStatus
   here: Here
-  onNew: () => void
   onSettings: () => void
 }
 
@@ -42,7 +41,6 @@ export function Sidebar({
   machines,
   status,
   here,
-  onNew,
   onSettings,
   onNewDir,
 }: SideProps & { onNewDir: () => void }) {
@@ -56,10 +54,6 @@ export function Sidebar({
       <div className="flex items-center gap-2 px-3.5 pt-3 pb-2">
         <SquareTerminal size={20} className="text-accent" aria-hidden="true" />
         <span className="flex-1 text-[15px] font-bold">Isbell</span>
-        <Button variant="primary" size="small" onClick={onNew}>
-          <Plus size={15} />
-          {t('app.newSession')}
-        </Button>
       </div>
       <button
         type="button"
@@ -92,7 +86,8 @@ export function Sidebar({
         </button>
       </div>
       <div className="min-h-0 flex-1 overflow-auto px-2 pb-2">
-        {byName(machines).map(m => (
+        {/* In the order of the projects, so the number keys count down the sidebar. */}
+        {machines.map(m => (
           <MachineGroup
             key={m.state.machine.id}
             entry={m}
@@ -116,14 +111,6 @@ export function Sidebar({
     </nav>
   )
 }
-
-/** Machines in the order their projects are, so the number keys count down the sidebar. */
-const byName = (machines: MachineEntry[]) =>
-  [...machines].sort(
-    (a, b) =>
-      a.state.machine.name.localeCompare(b.state.machine.name) ||
-      a.state.machine.id.localeCompare(b.state.machine.id),
-  )
 
 /** A machine's name heading its projects, with its state; folded to the heading on a click. */
 function MachineGroup({ entry, projects, here }: { entry: MachineEntry; projects: Project[]; here: Here }) {
