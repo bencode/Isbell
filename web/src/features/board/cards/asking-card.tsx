@@ -14,7 +14,7 @@ import { Card, CardHead, SentNote, useSent } from './card'
 /** The detail lines a card shows before "Show all". */
 const DETAIL = 3
 
-export function AskingCard({ placed, now }: { placed: Placed; now: number }) {
+export function AskingCard({ placed, now, scoped }: { placed: Placed; now: number; scoped: boolean }) {
   const t = useI18n()
   const { session } = placed
   const { mid, paneId } = session
@@ -30,7 +30,7 @@ export function AskingCard({ placed, now }: { placed: Placed; now: number }) {
 
   return (
     <Card ask sent={!!sent}>
-      <CardHead placed={placed} now={now} />
+      <CardHead placed={placed} now={now} scoped={scoped} />
       {sent ? (
         <SentNote
           what={sent}

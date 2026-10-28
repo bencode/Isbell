@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { Outlet, useMatch, useNavigate, useParams } from 'react-router'
 import { useLocal } from '../../core/prefs'
 import { useProjects, useSpaceView } from '../../core/space'
+import type { BoardActions } from '../../features/board/agents-page'
 import { projectHref } from '../../utils/hrefs'
 import { useShortcuts } from '../../utils/shortcuts'
 import { hereOf, type Overlay, Overlays, ReconnectBanner } from '../common'
@@ -44,6 +45,7 @@ export function AppFrame() {
     overlay === null && board,
   )
 
+  const actions: BoardActions = { openNew: () => setOverlay('session') }
   const side = {
     projects,
     machines: view.machines,
@@ -59,20 +61,11 @@ export function AppFrame() {
         <div className="flex min-w-0 flex-1 flex-col">
           <ReconnectBanner />
           <div className="min-h-0 flex-1">
-            <Outlet />
+            <Outlet context={actions} />
           </div>
         </div>
       </div>
       <Overlays overlay={overlay} setOverlay={setOverlay} focusedKey={here.project?.key} />
     </>
-  )
-}
-
-/** The boards scroll on a dotted page. */
-export function BoardMain() {
-  return (
-    <main className="paper flex h-full flex-col gap-6 overflow-auto px-7 py-6">
-      <Outlet />
-    </main>
   )
 }

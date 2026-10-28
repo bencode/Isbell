@@ -1,6 +1,7 @@
 // What every card on the board shares: its frame, its head, and the note it keeps once answered
 // until the agent moves on.
 
+import { PanelRightOpen } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { Link } from 'react-router'
 import { useI18n } from '../../../core/i18n'
@@ -25,25 +26,41 @@ export function Card({ ask, sent, children }: { ask?: boolean; sent?: boolean; c
   )
 }
 
-/** The agent's name, where it runs, how long it has been so, and the way to its page. */
-export function CardHead({ placed: { session, project }, now }: { placed: Placed; now: number }) {
-  const t = useI18n()
+/** The agent's name, where it runs unless the board is all one project's, how long it has been so,
+ * and the button that opens it. */
+export function CardHead({
+  placed: { session, project },
+  now,
+  scoped,
+}: {
+  placed: Placed
+  now: number
+  scoped: boolean
+}) {
   return (
-    <div className="flex items-baseline gap-2">
+    <div className="flex items-center gap-2">
       <b className="truncate font-semibold">{session.name}</b>
       <span className="min-w-0 flex-1 truncate text-xs text-faint">
-        {project.name} · {project.machine}
+        {scoped ? null : `${project.name} · ${project.machine}`}
       </span>
       <span className="flex-none text-xs text-faint">{since(session.statusSince, now)}</span>
-      <Link
-        to={sessionHref(session.mid, session.paneId)}
-        aria-label={t('card.open')}
-        title={t('card.open')}
-        className="flex-none text-[13px] text-faint no-underline hover:text-accent"
-      >
-        ↗
-      </Link>
+      <OpenButton session={session} />
     </div>
+  )
+}
+
+/** The one way into a session from its card: the card itself is for acting on it in place. */
+export function OpenButton({ session }: { session: Session }) {
+  const t = useI18n()
+  return (
+    <Link
+      to={sessionHref(session.mid, session.paneId)}
+      aria-label={t('card.open')}
+      title={t('card.open')}
+      className="inline-flex size-6 flex-none items-center justify-center rounded-md text-faint no-underline hover:bg-raised-2 hover:text-accent focus-visible:outline-2 focus-visible:outline-accent"
+    >
+      <PanelRightOpen size={14} />
+    </Link>
   )
 }
 

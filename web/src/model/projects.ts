@@ -52,7 +52,8 @@ const trimSlash = (path: string) => (path.length > 1 ? path.replace(/\/+$/, '') 
 const tildify = (path: string, home: string | undefined) =>
   home && (path === home || path.startsWith(`${home}/`)) ? `~${path.slice(home.length)}` : path
 
-/** Ordered by name, so a project keeps its place (and its number key) as its sessions change. */
+/** Ordered by machine, then by name, so a project keeps its place (and its number key) as its
+ * sessions change, and the projects of a machine stand together. */
 export function deriveProjects(
   machines: MachineEntry[],
   shells: Shell[],
@@ -95,13 +96,18 @@ export function deriveProjects(
     })
     .sort(
       (a, b) =>
-        a.name.localeCompare(b.name) || a.machine.localeCompare(b.machine) || a.path.localeCompare(b.path),
+        a.machine.localeCompare(b.machine) ||
+        a.mid.localeCompare(b.mid) ||
+        a.name.localeCompare(b.name) ||
+        a.path.localeCompare(b.path),
     )
 }
 
-/** Blocked sessions first, then finished ones not yet looked at; newest first within each. */
+/** Blocked sessions first, then finished ones not yet looked at; newest first within each. Only on
+ * machines that are online: what an offline one last reported cannot be answered. */
 export const needs = (projects: Project[]): Session[] =>
   projects
+    .filter(p => p.online)
     .flatMap(p => p.sessions)
     .filter(s => s.status === 'blocked' || s.unread)
     .sort(

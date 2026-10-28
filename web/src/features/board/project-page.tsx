@@ -1,13 +1,11 @@
-import { SquareTerminal } from 'lucide-react'
 import { Link, useParams } from 'react-router'
 import { useI18n } from '../../core/i18n'
 import { useProjects, useSpaceView } from '../../core/space'
 import { lanes, type Project } from '../../model/projects'
 import { projectsSettled } from '../../model/space'
-import { terminalHref } from '../../utils/hrefs'
 import { useNow } from '../../utils/time'
 import { Lanes } from './lanes'
-import { ProjectTabs } from './project-tabs'
+import { ShellStrip } from './shell-strip'
 
 /** The project the board is focused on, from the route. */
 function useFocused(projects: Project[]): Project | undefined {
@@ -15,27 +13,7 @@ function useFocused(projects: Project[]): Project | undefined {
   return key ? projects.find(p => p.key === key) : undefined
 }
 
-/** The plain shells running in a project; each opens in a terminal. */
-function Shells({ project }: { project: Project }) {
-  if (!project.shells.length) return null
-  return (
-    <div className="flex flex-wrap gap-2">
-      {project.shells.map(s => (
-        <Link
-          key={s.paneId}
-          to={terminalHref(s.mid, s.paneId)}
-          className="inline-flex h-8 items-center gap-2 rounded-lg border border-line bg-raised px-3 font-mono text-[12.5px] text-muted no-underline hover:text-text"
-        >
-          <SquareTerminal size={13} />
-          {s.paneId} · {project.display}
-          {s.cwd.slice(project.path.length)}
-        </Link>
-      ))}
-    </div>
-  )
-}
-
-/** One project's agents on the home's lanes; `stacked` lays the lanes one under another. */
+/** One project's agents on the home's lanes, on a phone; `stacked` lays the lanes one under another. */
 export function ProjectView({ stacked = false }: { stacked?: boolean }) {
   const t = useI18n()
   const view = useSpaceView()
@@ -69,19 +47,13 @@ function Focused({ project, stacked }: { project: Project; stacked: boolean }) {
         {project.online ? null : (
           <span className="rounded-full border border-line px-2 text-xs text-muted">{t('side.offline')}</span>
         )}
-        {/* Phones have no files view. */}
-        {stacked ? null : (
-          <span className="ml-auto self-center">
-            <ProjectTabs projectKey={project.key} current="overview" />
-          </span>
-        )}
       </div>
-      <Shells project={project} />
       {project.sessions.length ? (
-        <Lanes lanes={lanes([project])} now={now} stacked={stacked} />
+        <Lanes lanes={lanes([project])} now={now} stacked={stacked} scoped />
       ) : (
         <p className="m-0 text-muted">{project.online ? t('project.none') : t('project.offline')}</p>
       )}
+      <ShellStrip project={project} />
     </>
   )
 }

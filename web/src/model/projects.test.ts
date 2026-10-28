@@ -76,6 +76,11 @@ test('needs lists blocked sessions first, then unread ones, newest first', () =>
   expect(needs(projects).map(s => s.paneId)).toEqual(['blocked', 'done-new', 'done-old'])
 })
 
+test('needs leaves out the sessions on machines that are offline', () => {
+  const projects = deriveProjects([machine([agent('blocked', '/srv/b', 'blocked', 2)], false)], [], {}, {})
+  expect(needs(projects)).toEqual([])
+})
+
 const ids = (lane: { session: { paneId: string } }[]) => lane.map(p => p.session.paneId)
 
 test('the lanes hold who asks, who finished unseen and who works, the longest waiting first', () => {

@@ -1,10 +1,9 @@
 import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router'
-import { AllAgents } from '../../features/board/all-page'
-import { ProjectView } from '../../features/board/project-page'
+import { AgentsPage } from '../../features/board/agents-page'
 import { SessionPage } from '../../features/pane/session-page'
 import { LazyFiles, LazyTerminal, Loading } from '../common'
-import { AppFrame, BoardMain } from './frame'
+import { AppFrame } from './frame'
 import { DesktopPane } from './pane'
 
 // A page on its own in the window, opened in a tab of its own; it loads only there.
@@ -18,10 +17,8 @@ export function DesktopRoutes() {
   return (
     <Routes>
       <Route element={<AppFrame />}>
-        <Route element={<BoardMain />}>
-          <Route index element={<AllAgents />} />
-          <Route path="p/:key" element={<ProjectView />} />
-        </Route>
+        <Route index element={<AgentsPage />} />
+        <Route path="p/:key" element={<AgentsPage />} />
         <Route path="s/:mid/:pane" element={<SessionPage layout={DesktopPane} />} />
         <Route path="t/:mid/:pane" element={<LazyTerminal layout={DesktopPane} />} />
         <Route path="f/:mid/:pane/*" element={<LazyFiles layout={DesktopPane} />} />

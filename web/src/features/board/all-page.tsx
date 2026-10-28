@@ -37,7 +37,8 @@ export function AllAgents({ stacked = false }: { stacked?: boolean }) {
   )
 }
 
-function NoMachines() {
+/** No machine in the space yet: how to add one. */
+export function NoMachines() {
   const t = useI18n()
   const { key } = useLocal()
   return (
