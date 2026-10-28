@@ -50,8 +50,9 @@ export function FilePage({
   const t = useI18n()
   return (
     <section className="flex min-w-0 flex-1 flex-col">
-      <header className="flex min-h-[48px] flex-none flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-5 py-2">
-        <b className="truncate">{shell.name}</b>
+      {/* One line: where the file is gives way first, cut short, before its name or the tools. */}
+      <header className="flex min-h-[48px] flex-none items-center gap-3 border-b border-line px-5 py-2">
+        <b className="max-w-2/5 flex-none truncate">{shell.name}</b>
         <Facts where={shell.where} file={shell.file} />
         <span className="flex-1" />
         {tools}
@@ -86,7 +87,7 @@ export function FilePage({
 function Facts({ where, file }: { where: string; file: FileRead | undefined }) {
   const now = useNow()
   return (
-    <span className="min-w-0 truncate font-mono text-[11.5px] text-faint">
+    <span className="min-w-0 flex-[0_1_auto] truncate font-mono text-[11.5px] text-faint" title={where}>
       {where}
       {file ? ` · ${formatSize(file.size)}` : ''}
       {file?.mtime === undefined ? '' : ` · ${since(file.mtime, now)}`}

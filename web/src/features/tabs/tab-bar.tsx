@@ -73,10 +73,13 @@ function Tab({ tab, shown }: { tab: TabEntry; shown: boolean }) {
         className={LINK}
       >
         <found.kind.Icon size={14} className="flex-none" />
-        <span className={`min-w-[3.5em] flex-[0_1_auto] truncate font-medium ${tab.pinned ? '' : 'italic'}`}>
-          {name}
+        {/* Where it is from gives way first; the name is cut only once that is gone. */}
+        <span className="flex min-w-0 flex-[0_1_auto] items-center gap-1.5">
+          <span className={`max-w-full flex-none truncate font-medium ${tab.pinned ? '' : 'pr-0.5 italic'}`}>
+            {name}
+          </span>
+          <span className="min-w-0 flex-[0_1_auto] truncate text-[11.5px] text-faint">{where}</span>
         </span>
-        <span className="min-w-0 flex-[0_6_auto] truncate text-[11.5px] text-faint">{where}</span>
       </Link>
       {tab.pinned ? null : (
         <button
