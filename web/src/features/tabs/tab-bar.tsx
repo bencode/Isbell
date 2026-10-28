@@ -19,12 +19,22 @@ const LINK =
 const ICON =
   'inline-flex size-[18px] flex-none cursor-pointer items-center justify-center rounded-[4px] border-0 bg-transparent p-0 text-faint hover:bg-line hover:text-text focus-visible:outline-2 focus-visible:outline-accent'
 
-/** The page beneath the tabs, as the first of them: never closed, and back to it on a click. */
-export function PageTab({ title, shown }: { title: string; shown: boolean }) {
+/** The page beneath the tabs, as the first of them: never closed, and back to it on a click. `hint`:
+ * what the page's title said beside it, such as where the project is. */
+export function PageTab({
+  title,
+  hint,
+  shown,
+}: {
+  title: string
+  hint?: string | undefined
+  shown: boolean
+}) {
   const { href } = useTabActions()
   return (
     <Link
       to={href(null)}
+      title={hint}
       aria-current={shown ? 'page' : undefined}
       className={`${TAB} flex-none pr-2.5 text-[13.5px] font-semibold no-underline focus-visible:outline-2 focus-visible:outline-accent ${shown ? SHOWN : HIDDEN}`}
     >
