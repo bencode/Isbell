@@ -18,8 +18,8 @@ type Props = {
   wrap: boolean
   /** The label of the text, and the search panel's words by CodeMirror's English ones. */
   labels: { source: string; phrases: Record<string, string> }
-  /** Where the text starts scrolled, and where it has been scrolled to. */
-  scroll: { top: number; onScroll: (top: number) => void }
+  /** Where the text is scrolled to each time it shows, and where it has been scrolled to. */
+  scroll: { at: () => number; onScroll: (top: number) => void }
   ref?: Ref<CodeRendererHandle>
 }
 
@@ -68,7 +68,7 @@ export function CodeRenderer({ text, name, wrap, labels, scroll, ref }: Props) {
       }),
     })
     view.current = made
-    made.scrollDOM.scrollTop = scroll.top
+    made.scrollDOM.scrollTop = scroll.at()
     const onScroll = () => scroll.onScroll(made.scrollDOM.scrollTop)
     made.scrollDOM.addEventListener('scroll', onScroll, { passive: true })
     let live = true

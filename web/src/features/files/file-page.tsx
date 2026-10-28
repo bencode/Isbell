@@ -4,7 +4,7 @@
 // is not shown.
 
 import { Download, RotateCw } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { createContext, type ReactNode, useContext } from 'react'
 import { useLocation } from 'react-router'
 import { Button } from '../../components/button'
 import { useI18n } from '../../core/i18n'
@@ -94,13 +94,20 @@ function Facts({ where, file }: { where: string; file: FileRead | undefined }) {
   )
 }
 
-/** Scroll positions by history entry, for this tab's life. */
+/** Scroll positions by history entry, or by the scope a file tab gives, for this tab's life. */
 const scrolls = new Map<string, number>()
 
-/** This history entry's scroll: where it was when last shown, and where it is now. Remount the view by `key`, so it starts at `top` again for a new entry. */
+/** Where the views in it keep their scroll instead of by history entry: a file tab, which shows
+ * over whatever entry is current. */
+export const ScrollScope = createContext<string | null>(null)
+
+/** This history entry's scroll: where it was when last shown (read each time the view shows, as an
+ * Activity shows it again), and where it is now. Remount the view by `key`, so it starts at `at()`
+ * again for a new entry. */
 export function useHistoryScroll() {
-  const { key } = useLocation()
-  return { key, top: scrolls.get(key) ?? 0, onScroll: (top: number) => scrolls.set(key, top) }
+  const { key: entry } = useLocation()
+  const key = useContext(ScrollScope) ?? entry
+  return { key, at: () => scrolls.get(key) ?? 0, onScroll: (top: number) => scrolls.set(key, top) }
 }
 
 export function Reading() {

@@ -5,6 +5,7 @@ import { Check } from 'lucide-react'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { errorText, useI18n } from '../../../core/i18n'
 import { markSeen } from '../../../core/prefs'
+import { PathRoot } from '../../../core/tabs'
 import { type Placed, paneKey } from '../../../model/projects'
 import type { Reading } from '../../../model/screen/types'
 import { Composer } from '../../pane/composer'
@@ -50,7 +51,9 @@ export function FinishedCard({ placed, now, scoped }: { placed: Placed; now: num
           {text === null ? (
             <p className="m-0 text-[13px] text-muted">{t('session.reading')}</p>
           ) : (
-            <LastReply reading={reading} text={text} />
+            <PathRoot value={{ project: placed.project, cwd: session.cwd ?? placed.project.path }}>
+              <LastReply reading={reading} text={text} />
+            </PathRoot>
           )}
           {error ? <p className="m-0 text-[13px] text-danger">{errorText(t, error)}</p> : null}
           <Composer mid={mid} paneId={paneId} onSent={markSent} compact />

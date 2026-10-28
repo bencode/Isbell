@@ -45,6 +45,8 @@ export type Local = {
   recentAgents: string[]
   layout: Layout
   reader: Reader
+  /** The files pinned in tabs, by project key and path in it. */
+  tabs: { project: string; rel: string }[]
 }
 
 const DEFAULTS: Local = {
@@ -61,6 +63,7 @@ const DEFAULTS: Local = {
     wrap: false,
   },
   reader: { ...DEFAULT_APPEARANCE, outline: true },
+  tabs: [],
 }
 
 const FIELDS = Object.keys(DEFAULTS) as (keyof Local)[]
