@@ -8,7 +8,6 @@ import { useProjects, useSpaceView } from '../../core/space'
 import type { Project } from '../../model/projects'
 import { projectsSettled } from '../../model/space'
 import { projectFilesHref } from '../../utils/hrefs'
-import { ProjectHeader } from '../board/project-header'
 import { FilesSplit } from './files-split'
 
 export function ProjectFiles() {
@@ -36,7 +35,6 @@ function Browse({ project, rel }: { project: Project; rel: string }) {
   const isDir = rel.endsWith('/')
   return (
     <div className="flex h-full flex-col">
-      <ProjectHeader project={project} current="files" />
       <FilesSplit
         mid={project.mid}
         project={project}

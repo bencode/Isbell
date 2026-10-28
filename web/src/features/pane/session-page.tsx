@@ -10,6 +10,7 @@ import { errorText, useI18n } from '../../core/i18n'
 import { attachCommand, connectionFacts, paneFacts } from '../../core/pane-facts'
 import { markSeen, rememberView } from '../../core/prefs'
 import { RELAY_URL, useProjects, useSpaceView } from '../../core/space'
+import { PathRoot } from '../../core/tabs'
 import { type Project, paneKey, type Session } from '../../model/projects'
 import { machineOf } from '../../model/space'
 import { settled } from '../../model/state'
@@ -146,15 +147,17 @@ function SessionView({
               </p>
             ) : null}
             {reading ? (
-              <Turns
-                reading={reading}
-                status={session.status}
-                statusSince={session.statusSince}
-                terminal={terminal}
-                onEarlier={canPage ? earlier : undefined}
-                paging={paging}
-                more={more}
-              />
+              <PathRoot value={{ project, cwd: session.cwd ?? project.path }}>
+                <Turns
+                  reading={reading}
+                  status={session.status}
+                  statusSince={session.statusSince}
+                  terminal={terminal}
+                  onEarlier={canPage ? earlier : undefined}
+                  paging={paging}
+                  more={more}
+                />
+              </PathRoot>
             ) : text === null ? (
               <p className="m-0 text-muted">{t('session.reading')}</p>
             ) : (

@@ -15,11 +15,7 @@ import { PeekPane } from '../pane/peek-pane'
 import { SessionPage } from '../pane/session-page'
 import { NoMachines } from './all-page'
 import { Lanes } from './lanes'
-import { AllHeader, ProjectHeader } from './project-header'
 import { ShellStrip } from './shell-strip'
-
-/** What the frame around the board lets it open. */
-export type BoardActions = { openNew: () => void }
 
 const NOTE = 'm-6 flex flex-col items-start gap-3 text-muted'
 
@@ -61,7 +57,6 @@ function Board({ project, all }: { project: Project | undefined; all: Project[] 
   const empty = !project ? t('all.empty') : project.online ? t('project.none') : t('project.offline')
   return (
     <div className="flex h-full flex-col">
-      {project ? <ProjectHeader project={project} current="agents" /> : <AllHeader />}
       {/* Always the same panels first, so the lanes keep what is being written on them as a session
           opens and closes beside them. */}
       <Group

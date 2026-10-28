@@ -15,21 +15,24 @@ import {
 
 export type Loaded<T> = { data?: T; error?: unknown }
 
-/** What `load` gives; a new `load` (its inputs changed) starts over. */
+/** What `load` gives; a new `load` (its inputs changed) starts over. What was loaded is kept with
+ * the load it came from, so a view hidden and shown again (an Activity) keeps it instead of reading
+ * it again. */
 function useLoaded<T>(load: () => Promise<T>): Loaded<T> {
-  const [loaded, setLoaded] = useState<Loaded<T>>({})
+  const [{ by, ...loaded }, setLoaded] = useState<Loaded<T> & { by?: () => Promise<T> }>({})
+  const done = by === load
   useEffect(() => {
+    if (done) return
     let live = true
-    setLoaded({})
     load().then(
-      data => live && setLoaded({ data }),
-      (error: unknown) => live && setLoaded({ error }),
+      data => live && setLoaded({ data, by: load }),
+      (error: unknown) => live && setLoaded({ error, by: load }),
     )
     return () => {
       live = false
     }
-  }, [load])
-  return loaded
+  }, [load, done])
+  return done ? loaded : {}
 }
 
 export function useListing(mid: string, path: string): Loaded<Listing> {

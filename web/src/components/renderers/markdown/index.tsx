@@ -39,8 +39,8 @@ type Props = {
     /** Hears whether there are headings enough for an outline, and where it would go. */
     onState: (state: { available: boolean; layout: OutlineLayout }) => void
   }
-  /** Where the document starts scrolled, and where it has been scrolled to. */
-  scroll: { top: number; onScroll: (top: number) => void }
+  /** Where the document is scrolled to each time it shows, and where it has been scrolled to. */
+  scroll: { at: () => number; onScroll: (top: number) => void }
 }
 
 export function MarkdownRenderer({ text, appearance, link, image, labels, outline, scroll }: Props) {
@@ -52,7 +52,7 @@ export function MarkdownRenderer({ text, appearance, link, image, labels, outlin
   const [headings, setHeadings] = useState<Heading[]>([])
   const [width, setWidth] = useState(0)
   const layout: OutlineLayout = width >= BESIDE_MIN_PX ? 'beside' : 'over'
-  const startAt = useRef(scroll.top)
+  const startAt = useRef(scroll.at)
   const { onState, onOpenChange } = outline
 
   // Parsing is the costly part; it is done again only when what it depends on changes.
@@ -86,9 +86,10 @@ export function MarkdownRenderer({ text, appearance, link, image, labels, outlin
     if (article.current) setHeadings(headingsIn(article.current))
   }, [])
 
-  // Back where this history entry was last read; the document is there to scroll to.
+  // Back where this history entry was last read, each time it shows; the document is there to
+  // scroll to.
   useLayoutEffect(() => {
-    if (scroller) scroller.scrollTop = startAt.current
+    if (scroller) scroller.scrollTop = startAt.current()
   }, [scroller])
 
   useLayoutEffect(() => {

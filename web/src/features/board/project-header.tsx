@@ -1,29 +1,32 @@
 // The bar atop a project's views, the same on each so moving between them keeps it still: the
-// project, where it is, a way to start a task there, and its views. On all agents, what the space
-// holds.
+// project, where it is, the open file tabs, a way to start a task there, and its views. On all
+// agents, what the space holds.
 
 import { Plus } from 'lucide-react'
-import type { ComponentProps } from 'react'
-import { useOutletContext } from 'react-router'
+import type { ComponentProps, ReactNode } from 'react'
 import { Button } from '../../components/button'
 import { useI18n } from '../../core/i18n'
 import { useProjects, useSpaceView } from '../../core/space'
 import type { Project } from '../../model/projects'
-import type { BoardActions } from './agents-page'
 import { ProjectTabs } from './project-tabs'
 
 const BAR = 'flex h-[52px] flex-none items-center gap-2.5 border-b border-line pr-3 pl-5'
 
-/** `tabs`: which view this is, and where Agents leads; see `ProjectTabs`. */
+/** `tabs`: the open file tabs, between what the bar says and its buttons. `onNew`: opens New. */
+type Bar = { tabs: ReactNode; onNew: () => void }
+
+/** `views`: which view this is, where Agents leads and how a hidden view shows; see `ProjectTabs`. */
 export function ProjectHeader({
   project,
-  ...tabs
-}: { project: Project } & Omit<ComponentProps<typeof ProjectTabs>, 'projectKey'>) {
+  tabs,
+  onNew,
+  ...views
+}: { project: Project } & Bar & Omit<ComponentProps<typeof ProjectTabs>, 'projectKey'>) {
   const t = useI18n()
   return (
     <header className={BAR}>
       <h1 className="m-0 flex-none text-[15px] font-semibold">{project.name}</h1>
-      <span className="min-w-0 truncate font-mono text-xs text-faint">{project.display}</span>
+      <span className="min-w-0 shrink-[4] truncate font-mono text-xs text-faint">{project.display}</span>
       <span className="flex-none rounded-md border border-line px-1.5 text-xs text-muted">
         {project.machine}
       </span>
@@ -32,14 +35,14 @@ export function ProjectHeader({
           {t('side.offline')}
         </span>
       )}
-      <span className="flex-1" />
-      <NewTask />
-      <ProjectTabs projectKey={project.key} {...tabs} />
+      {tabs}
+      <NewTask onNew={onNew} />
+      <ProjectTabs projectKey={project.key} {...views} />
     </header>
   )
 }
 
-export function AllHeader() {
+export function AllHeader({ tabs, onNew }: Bar) {
   const t = useI18n()
   const view = useSpaceView()
   const projects = useProjects()
@@ -48,21 +51,19 @@ export function AllHeader() {
   return (
     <header className={BAR}>
       <h1 className="m-0 flex-none text-[15px] font-semibold">{t('all.title')}</h1>
-      <span className="min-w-0 truncate text-[12.5px] text-faint">
+      <span className="min-w-0 shrink-[4] truncate text-[12.5px] text-faint">
         {t('all.summary', { projects: projects.length, machines: view.machines.length, online, agents })}
       </span>
-      <span className="flex-1" />
-      <NewTask />
+      {tabs}
+      <NewTask onNew={onNew} />
     </header>
   )
 }
 
-/** Opens New on the project the page is in, if any. */
-function NewTask() {
+function NewTask({ onNew }: { onNew: () => void }) {
   const t = useI18n()
-  const { openNew } = useOutletContext<BoardActions>()
   return (
-    <Button size="small" onClick={openNew}>
+    <Button size="small" onClick={onNew}>
       <Plus size={14} />
       {t('project.newTask')}
     </Button>

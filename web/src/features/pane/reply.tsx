@@ -1,11 +1,12 @@
-// What the agent said in a turn: its text and lists as written, tool calls folded to a line each
-// that opens onto their output, and a way to copy the words.
+// What the agent said in a turn: its text and lists as written, the paths in them opening the files,
+// tool calls folded to a line each that opens onto their output, and a way to copy the words.
 
-import { ChevronRight, Copy } from 'lucide-react'
+import { ChevronRight, Copy, FileText } from 'lucide-react'
 import { useState } from 'react'
 import { useI18n } from '../../core/i18n'
 import type { Block } from '../../model/screen/types'
 import { keyed } from '../../utils/keyed'
+import { MentionText, useMentions } from './mention-text'
 
 type Action = Extract<Block, { kind: 'action' }>
 
@@ -28,7 +29,7 @@ export function Reply({ blocks }: { blocks: Block[] }) {
       <List key={key} items={run.items} start={run.start} />
     ) : run.kind === 'text' ? (
       <p key={key} className="m-0 leading-[1.65] break-words whitespace-pre-wrap">
-        {run.text}
+        <MentionText text={run.text} />
       </p>
     ) : null,
   )
@@ -37,7 +38,7 @@ export function Reply({ blocks }: { blocks: Block[] }) {
 function List({ items, start }: { items: string[]; start: number | undefined }) {
   const lis = keyed(items, item => item).map(([k, item]) => (
     <li key={k} className="break-words">
-      {item}
+      <MentionText text={item} />
     </li>
   ))
   return start === undefined ? (
@@ -62,32 +63,51 @@ const runKey = (run: Block | Action[]) =>
 const EDIT = /^(.*?)\s*\((\+\d+) (-\d+)\)$/
 
 function ActionRow({ action }: { action: Action }) {
+  const t = useI18n()
   const [open, setOpen] = useState(false)
   const output = action.output.length > 0
   // A call such as Explored names its targets in its output.
   const target = action.target || action.output[0] || ''
   const edit = EDIT.exec(target)
+  const shown = edit?.[1] ?? target
+  // A call on one file, such as an edit or a read, opens it.
+  const mentions = useMentions()
+  const [file] = mentions?.find(shown) ?? []
+  const opens = typeof file === 'object' && file.text === shown && !file.dir ? file : null
   return (
     <div className="border-line not-first:border-t">
-      <button
-        type="button"
-        disabled={!output}
-        aria-expanded={output ? open : undefined}
-        onClick={() => setOpen(o => !o)}
-        className="flex w-full items-center gap-2 border-0 bg-transparent px-2.5 py-1.5 text-left text-[12.5px] text-text enabled:cursor-pointer enabled:hover:bg-raised-2 focus-visible:outline-2 focus-visible:outline-accent"
-      >
-        <ChevronRight
-          size={13}
-          className={`flex-none text-faint transition-transform ${open ? 'rotate-90' : ''} ${output ? '' : 'invisible'}`}
-        />
-        <span className="min-w-[52px] flex-none text-muted">{action.verb}</span>
-        <span className="min-w-0 flex-1 truncate font-mono text-xs">{edit ? edit[1] : target}</span>
-        {edit ? (
-          <span className="flex-none font-mono text-xs">
-            <span className="text-ok">{edit[2]}</span> <span className="text-danger">{edit[3]}</span>
-          </span>
+      <div className="flex items-center">
+        <button
+          type="button"
+          disabled={!output}
+          aria-expanded={output ? open : undefined}
+          onClick={() => setOpen(o => !o)}
+          className="flex min-w-0 flex-1 items-center gap-2 border-0 bg-transparent px-2.5 py-1.5 text-left text-[12.5px] text-text enabled:cursor-pointer enabled:hover:bg-raised-2 focus-visible:outline-2 focus-visible:outline-accent"
+        >
+          <ChevronRight
+            size={13}
+            className={`flex-none text-faint transition-transform ${open ? 'rotate-90' : ''} ${output ? '' : 'invisible'}`}
+          />
+          <span className="min-w-[52px] flex-none text-muted">{action.verb}</span>
+          <span className="min-w-0 flex-1 truncate font-mono text-xs">{shown}</span>
+          {edit ? (
+            <span className="flex-none font-mono text-xs">
+              <span className="text-ok">{edit[2]}</span> <span className="text-danger">{edit[3]}</span>
+            </span>
+          ) : null}
+        </button>
+        {opens ? (
+          <button
+            type="button"
+            onClick={() => mentions?.open(opens)}
+            aria-label={t('files.openFile')}
+            title={t('files.openFile')}
+            className="mr-1.5 inline-flex size-[22px] flex-none cursor-pointer items-center justify-center rounded-[5px] border-0 bg-transparent p-0 text-faint hover:bg-raised-2 hover:text-accent focus-visible:outline-2 focus-visible:outline-accent"
+          >
+            <FileText size={14} />
+          </button>
         ) : null}
-      </button>
+      </div>
       {open ? (
         <pre className="m-0 overflow-auto bg-raised-2 py-2 pr-3 pl-[33px] font-mono text-xs leading-normal whitespace-pre-wrap text-muted">
           {action.output.join('\n')}
