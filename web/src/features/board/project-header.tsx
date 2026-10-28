@@ -1,6 +1,6 @@
 // The bar atop a project's views, the same on each so moving between them keeps it still: the
-// project and where it is (under the page's tab, while tabs are open), whether it is offline, the
-// open tabs, a way to start a task there, and its views. On all agents, the title and the tabs; what
+// project and where it is (under the page's tab, while tabs are open), the open tabs, whether it is
+// offline, a way to start a task there, and its views. On all agents, the title and the tabs; what
 // the space holds is in the sidebar and on the lanes.
 
 import { Plus } from 'lucide-react'
@@ -26,20 +26,23 @@ export function ProjectHeader({
   ...views
 }: { project: Project } & Bar & Omit<ComponentProps<typeof ProjectTabs>, 'projectKey'>) {
   const t = useI18n()
+  const offline = project.online ? null : (
+    <span className="flex-none rounded-full border border-line px-2 text-xs text-muted">
+      {t('side.offline')}
+    </span>
+  )
   return (
     <header className={BAR}>
+      {/* While tabs are open nothing stands between them: whether it is offline goes after them. */}
       {pageTab ?? (
         <>
           <h1 className={TITLE}>{project.name}</h1>
           <span className="min-w-0 shrink-[4] truncate font-mono text-xs text-faint">{project.display}</span>
+          {offline}
         </>
       )}
-      {project.online ? null : (
-        <span className="flex-none rounded-full border border-line px-2 text-xs text-muted">
-          {t('side.offline')}
-        </span>
-      )}
       {tabs}
+      {pageTab ? offline : null}
       <NewTask onNew={onNew} />
       <ProjectTabs projectKey={project.key} {...views} />
     </header>

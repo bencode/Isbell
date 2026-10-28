@@ -32,11 +32,11 @@ const KINDS: TabKind[] = [
 
 export const fileTabId = (projectKey: string, rel: string) => `file/${projectKey}/${rel}`
 
-/** The kind of tab `id` names, and what its pattern took from it. */
+/** The kind of tab `id` names, and what its pattern took from it; each part must name something. */
 export function kindOf(id: string) {
   for (const kind of KINDS) {
     const match = matchPath(kind.pattern, `/${id}`)
-    if (match) return { kind, params: match.params }
+    if (match && Object.values(match.params).every(Boolean)) return { kind, params: match.params }
   }
   return undefined
 }
