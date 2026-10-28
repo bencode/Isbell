@@ -1,36 +1,15 @@
 import { lazy, Suspense } from 'react'
-import { Navigate, Route, Routes } from 'react-router'
-import { AgentsPage } from '../../features/board/agents-page'
-import { LazyTerminal, Loading } from '../common'
+import { Route, Routes } from 'react-router'
+import { TabsProvider } from '../../core/tabs'
+import { isTab } from '../../features/tabs/kinds'
 import { AppFrame } from './frame'
-import { DesktopPane } from './pane'
 
 // A page on its own in the window, opened in a tab of its own; it loads only there.
 const PageView = lazy(() => import('../../features/files/page-view').then(m => ({ default: m.PageView })))
-// A project's files bring the same libraries as a pane's.
-const ProjectFiles = lazy(() =>
-  import('../../features/files/project-files').then(m => ({ default: m.ProjectFiles })),
-)
 
 export function DesktopRoutes() {
   return (
     <Routes>
-      <Route element={<AppFrame />}>
-        {/* One page, so opening a session beside the board and closing it keeps the board as it is. */}
-        <Route index element={<AgentsPage />} />
-        <Route path="s/:mid/:pane" element={<AgentsPage />} />
-        <Route path="p/:key" element={<AgentsPage />} />
-        <Route path="p/:key/s/:mid/:pane" element={<AgentsPage />} />
-        <Route path="t/:mid/:pane" element={<LazyTerminal layout={DesktopPane} />} />
-        <Route
-          path="p/:key/files/*"
-          element={
-            <Suspense fallback={<Loading />}>
-              <ProjectFiles />
-            </Suspense>
-          }
-        />
-      </Route>
       {/* Outside the frame: the page alone. */}
       <Route
         path="v/:key/*"
@@ -40,7 +19,15 @@ export function DesktopRoutes() {
           </Suspense>
         }
       />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {/* The frame picks the page (see pages.tsx) and the tab shown over it from the address. */}
+      <Route
+        path="*"
+        element={
+          <TabsProvider isTab={isTab}>
+            <AppFrame />
+          </TabsProvider>
+        }
+      />
     </Routes>
   )
 }

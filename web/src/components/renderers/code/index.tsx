@@ -68,7 +68,14 @@ export function CodeRenderer({ text, name, wrap, labels, scroll, ref }: Props) {
       }),
     })
     view.current = made
-    made.scrollDOM.scrollTop = scroll.at()
+    // Its lines' heights are guesses until measured; set before then, the same pixels land lower.
+    const top = scroll.at()
+    made.requestMeasure({
+      read: () => null,
+      write: () => {
+        made.scrollDOM.scrollTop = top
+      },
+    })
     const onScroll = () => scroll.onScroll(made.scrollDOM.scrollTop)
     made.scrollDOM.addEventListener('scroll', onScroll, { passive: true })
     let live = true

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import type { Shell } from './herdr'
-import { deriveProjects, judgeDir, lanes, needs } from './projects'
+import { deriveProjects, judgeDir, lanes, needs, projectKey } from './projects'
 import type { MachineEntry } from './space'
 import type { Agent } from './state'
 
@@ -128,4 +128,20 @@ test('a typed directory is a full path, with ~ as the home its projects show', (
   expect(judgeDir(projects, MID, '~/work/new-tool/')).toEqual({ kind: 'dir', dir: '/Users/me/work/new-tool' })
   expect(judgeDir(projects, MID, 'work/x').kind).toBe('bad')
   expect(judgeDir(projects, MID, '  ').kind).toBe('none')
+})
+
+test('a project key stands in an address as it is, and tells apart projects of one name', () => {
+  const keys = [
+    projectKey(MID, '/Users/me/work/isbell'),
+    projectKey(MID, '/Users/me/old/isbell'),
+    projectKey('fedcba9876543210', '/Users/me/work/isbell'),
+    projectKey(MID, '/Users/me/work/my app.v2'),
+    projectKey(MID, '/'),
+    projectKey(MID, '/Users/me/项目'),
+  ]
+  expect(keys.every(k => /^[A-Za-z\d-]+$/.test(k))).toBe(true)
+  expect(new Set(keys).size).toBe(keys.length)
+  expect(keys[0]).toMatch(/^isbell-/)
+  expect(keys[3]).toMatch(/^my-app-v2-/)
+  expect(keys[4]).toMatch(/^[a-z\d]+$/)
 })

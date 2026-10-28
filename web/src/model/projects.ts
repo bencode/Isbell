@@ -37,14 +37,32 @@ export type Project = {
 export type Seen = Record<string, number>
 
 export const paneKey = (mid: string, paneId: string) => `${mid}/${paneId}`
-export const projectKey = (mid: string, path: string) => `${mid}:${path}`
+/** A directory on a machine, as the repositories found for directories are kept. */
+export const dirKey = (mid: string, dir: string) => `${mid}:${dir}`
+
+/** FNV-1a, 32 bits, in base 36. */
+const hash = (text: string) =>
+  [...text]
+    .reduce((h, c) => Math.imul(h ^ (c.codePointAt(0) ?? 0), 0x01000193) >>> 0, 0x811c9dc5)
+    .toString(36)
+
+/** A project's key, plain enough to stand in an address as it is: its directory's name, in letters,
+ * digits and '-', and a hash of the machine and the path, which tells apart projects of one name. */
+export function projectKey(mid: string, path: string) {
+  const slug = (path.split('/').pop() ?? '')
+    .replace(/[^A-Za-z\d]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 32)
+  const tail = hash(dirKey(mid, path))
+  return slug ? `${slug}-${tail}` : tail
+}
 
 const HOME = /^\/(?:Users|home)\/[^/]+/
 
 /** The home directory as it shows in a machine's paths, if any does. */
 export const homeOf = (paths: string[]): string | undefined => paths.map(p => HOME.exec(p)?.[0]).find(Boolean)
 
-/** The repository roots found for the directories machines report, by `projectKey(mid, cwd)`. */
+/** The repository roots found for the directories machines report, by `dirKey(mid, cwd)`. */
 export type Repos = Readonly<Record<string, string>>
 
 const trimSlash = (path: string) => (path.length > 1 ? path.replace(/\/+$/, '') : path)
@@ -63,7 +81,7 @@ export function deriveProjects(
   return machines
     .flatMap(({ state, online }) => {
       const mid = state.machine.id
-      const rootOf = (cwd: string | undefined) => (cwd ? (repos[projectKey(mid, cwd)] ?? trimSlash(cwd)) : '')
+      const rootOf = (cwd: string | undefined) => (cwd ? (repos[dirKey(mid, cwd)] ?? trimSlash(cwd)) : '')
       const agents = state.agents.map(a => ({ ...a, cwd: trimSlash(a.cwd ?? ''), root: rootOf(a.cwd) }))
       const mine = shells
         .filter(s => s.mid === mid)
