@@ -3,6 +3,7 @@
 mod calls;
 mod direct;
 mod file;
+mod git;
 mod herdr;
 mod link;
 mod monitor;

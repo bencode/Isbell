@@ -20,11 +20,12 @@ pub enum Method {
     FileRead,
     FileWrite,
     FileUpload,
+    GitWorktrees,
     RtcOffer,
 }
 
 impl Method {
-    const ALL: [Method; 10] = [
+    const ALL: [Method; 11] = [
         Method::Herdr,
         Method::StartAgent,
         Method::History,
@@ -34,6 +35,7 @@ impl Method {
         Method::FileRead,
         Method::FileWrite,
         Method::FileUpload,
+        Method::GitWorktrees,
         Method::RtcOffer,
     ];
 
@@ -48,6 +50,7 @@ impl Method {
             Method::FileRead => "isbell.file.read",
             Method::FileWrite => "isbell.file.write",
             Method::FileUpload => "isbell.file.upload",
+            Method::GitWorktrees => "isbell.git.worktrees",
             Method::RtcOffer => "isbell.rtc.offer",
         }
     }
@@ -225,6 +228,7 @@ mod tests {
         assert!(methods.iter().any(|m| m == "isbell.rtc.offer"), "clients look for direct links");
         assert!(methods.iter().any(|m| m == "isbell.agent.history"), "clients look for paging");
         assert!(methods.iter().any(|m| m == "isbell.file.list"), "clients look for the files view");
+        assert!(methods.iter().any(|m| m == "isbell.git.worktrees"), "clients look for worktrees");
         assert!(!methods.iter().any(|m| m == "herdr"));
     }
 }

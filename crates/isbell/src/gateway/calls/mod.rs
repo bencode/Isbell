@@ -23,7 +23,7 @@ use super::herdr::HerdrError;
 use super::link::Link;
 use super::stream::Input;
 use super::terminal;
-use super::{HerdrSlot, direct, file, nudge, rpc};
+use super::{HerdrSlot, direct, file, git, nudge, rpc};
 
 /// What reaches the calls: a frame from a caller, or the end of a direct caller's link.
 pub enum ToCalls {
@@ -131,6 +131,10 @@ impl Calls {
             Method::FileUpload => {
                 let open = file::open_upload(p, self.uploads.clone());
                 self.stream(link, id, open, file::pump_write);
+            }
+            Method::GitWorktrees => {
+                self.tasks
+                    .spawn(async move { link.send(response_frame(id, git::worktrees(p).await)) });
             }
             Method::RtcOffer => {
                 let (ice, inbox) = (self.ice.clone(), self.inbox.clone());

@@ -3,6 +3,7 @@
 
 import { Fragment, useContext } from 'react'
 import { FileOpener, PathRoot } from '../../core/tabs'
+import { useFilesRoots } from '../../core/worktrees'
 import { type Mention, mentions } from '../../model/files/mentions'
 import { keyed } from '../../utils/keyed'
 
@@ -10,10 +11,12 @@ import { keyed } from '../../utils/keyed'
 export function useMentions() {
   const root = useContext(PathRoot)
   const open = useContext(FileOpener)
+  // Paths may lead into the project's other worktrees too, where they can be opened.
+  const { roots } = useFilesRoots(open ? root?.project : undefined)
   if (!root || !open) return null
   return {
-    find: (text: string) => mentions(text, root.project, root.cwd),
-    open: (m: Mention) => open(root.project, m.rel, m.dir),
+    find: (text: string) => mentions(text, roots, root.cwd),
+    open: (m: Mention) => open(m.root, m.rel, m.dir),
   }
 }
 

@@ -38,8 +38,8 @@ export function AppFrame() {
   const { open, active } = useTabRoute()
   const page = usePageLocation()
   const { href } = useTabActions()
-  const openPath: OpenPath = (project, rel, dir) =>
-    navigate(dir ? projectFilesHref(project.key, `${rel}/`) : href(fileTabId(project.key, rel)))
+  const openPath: OpenPath = (key, rel, dir) =>
+    navigate(dir ? projectFilesHref(key, `${rel}/`) : href(fileTabId(key, rel)))
 
   // Esc closes the uppermost of what is open over the board: a tab, then a session beside it.
   useShortcuts(

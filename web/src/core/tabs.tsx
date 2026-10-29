@@ -85,8 +85,8 @@ export function useTabActions() {
   }
 }
 
-/** Opens a path in a project: a file in a tab, a directory in the project's files. */
-export type OpenPath = (project: Project, rel: string, dir: boolean) => void
+/** Opens a path under the root `key` names: a file in a tab, a directory in the project's files. */
+export type OpenPath = (key: string, rel: string, dir: boolean) => void
 export const FileOpener = createContext<OpenPath | null>(null)
 
 /** The project a reply's paths lead into, read from the agent's directory. */

@@ -5,21 +5,20 @@ import { useEffect, useMemo } from 'react'
 import { useParams } from 'react-router'
 import { HtmlRenderer } from '../../components/renderers/html'
 import { useI18n } from '../../core/i18n'
-import { useProjects, useSpace, useSpaceView } from '../../core/space'
+import { useSpace } from '../../core/space'
+import { useRootOf } from '../../core/worktrees'
 import { assetReader } from '../../model/files/assets'
 import { join, nameOf } from '../../model/files/paths'
 import { PREVIEW_MAX, read } from '../../model/files/remote'
-import { projectsSettled } from '../../model/space'
 
 export function PageView() {
   const t = useI18n()
   const params = useParams()
   const rel = params['*'] ?? ''
   const { openStream } = useSpace()
-  const view = useSpaceView()
-  const project = useProjects().find(p => p.key === params.key)
+  const { project, root: at, settled } = useRootOf(params.key ?? '')
   const mid = project?.mid ?? ''
-  const root = project?.path
+  const root = at?.path
   const asset = useMemo(
     () => (root ? assetReader(under => read(openStream, mid, join(root, under), PREVIEW_MAX)) : undefined),
     [openStream, mid, root],
@@ -29,16 +28,20 @@ export function PageView() {
     document.title = nameOf(rel)
   }, [rel])
 
-  // Until the projects settle, one not found may yet appear.
+  // Until the projects and worktrees settle, one not found may yet appear.
   const note = !project
-    ? projectsSettled(view)
+    ? settled
       ? t('project.gone')
       : t('board.loading')
     : !project.online
       ? t('files.offline')
-      : !asset
-        ? t('files.noRoot')
-        : undefined
+      : !at
+        ? settled
+          ? t('files.branchGone')
+          : t('board.loading')
+        : !asset
+          ? t('files.noRoot')
+          : undefined
   if (note || !asset) return <p className="m-6 text-muted">{note}</p>
   return (
     <div className="flex h-screen flex-col">

@@ -24,7 +24,7 @@ pub use self::write::{open_upload, open_write, pump_write};
 const STALLED_FOR: Duration = Duration::from_secs(5 * 60);
 
 /// `path` when it is absolute; the methods take no relative paths.
-fn absolute_path(path: &str) -> Result<&Path, RpcError> {
+pub(super) fn absolute_path(path: &str) -> Result<&Path, RpcError> {
     let path = Path::new(path);
     match path.is_absolute() {
         true => Ok(path),
