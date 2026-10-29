@@ -6,8 +6,8 @@ import { lanes } from '../../model/projects'
 import { useNow } from '../../utils/time'
 import { Lanes } from './lanes'
 
-/** Every agent on one board, by what it is doing; `stacked` lays the lanes one under another. */
-export function AllAgents({ stacked = false }: { stacked?: boolean }) {
+/** Every agent on one board, by what it is doing; on a `phone`, under the bar that names it. */
+export function AllAgents({ phone = false }: { phone?: boolean }) {
   const t = useI18n()
   const view = useSpaceView()
   const projects = useProjects()
@@ -20,16 +20,18 @@ export function AllAgents({ stacked = false }: { stacked?: boolean }) {
   const agents = projects.reduce((n, p) => n + p.sessions.length, 0)
   return (
     <>
-      <div className="flex flex-wrap items-baseline gap-3">
-        <h1 className="m-0 text-[23px] font-bold after:mt-1 after:block after:h-[3px] after:w-7 after:rounded-sm after:bg-accent after:content-['']">
-          {t('all.title')}
-        </h1>
-        <span className="text-muted">
-          {t('all.summary', { projects: projects.length, machines: view.machines.length, online, agents })}
-        </span>
-      </div>
+      {phone ? null : (
+        <div className="flex flex-wrap items-baseline gap-3">
+          <h1 className="m-0 text-[23px] font-bold after:mt-1 after:block after:h-[3px] after:w-7 after:rounded-sm after:bg-accent after:content-['']">
+            {t('all.title')}
+          </h1>
+          <span className="text-muted">
+            {t('all.summary', { projects: projects.length, machines: view.machines.length, online, agents })}
+          </span>
+        </div>
+      )}
       {agents ? (
-        <Lanes lanes={lanes(projects)} now={now} stacked={stacked} />
+        <Lanes lanes={lanes(projects)} now={now} phone={phone} />
       ) : (
         <p className="m-0 text-muted">{t('all.empty')}</p>
       )}

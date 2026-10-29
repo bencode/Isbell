@@ -34,6 +34,8 @@ export type Layout = {
   wrap: boolean
   /** Whether the agents standing by that have long been still show, at the foot of their lane. */
   stale: boolean
+  /** Whether Safari on an iPhone still shows how to add Isbell to the home screen. */
+  installTip: boolean
 }
 
 /** How documents read in the files view. */
@@ -70,6 +72,7 @@ const DEFAULTS: Local = {
     branches: {},
     wrap: false,
     stale: false,
+    installTip: true,
   },
   reader: { ...DEFAULT_APPEARANCE, outline: true },
   tabs: noTabs,
@@ -193,6 +196,7 @@ export function openBranch(project: string, root: string) {
 
 export const toggleWrap = () => updateLocal(l => ({ layout: { ...l.layout, wrap: !l.layout.wrap } }))
 export const toggleStale = () => updateLocal(l => ({ layout: { ...l.layout, stale: !l.layout.stale } }))
+export const dismissInstallTip = () => updateLocal(l => ({ layout: { ...l.layout, installTip: false } }))
 
 export const setReader = (change: Partial<Reader>) =>
   updateLocal(l => ({ reader: { ...l.reader, ...change } }))

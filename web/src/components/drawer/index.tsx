@@ -17,7 +17,7 @@ export function Drawer({ open, onOpenChange, label, children }: DrawerProps) {
         <Dialog.Backdrop className="fixed inset-0 z-40 bg-scrim" />
         <Dialog.Popup
           aria-label={label}
-          className="fixed inset-y-0 left-0 z-50 flex w-[min(320px,86vw)] flex-col border-r border-line bg-side index-card-lifted outline-none"
+          className="fixed inset-y-0 left-0 z-50 flex w-[min(320px,86vw)] flex-col border-r pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] border-line bg-side index-card-lifted outline-none"
         >
           {children}
         </Dialog.Popup>

@@ -6,6 +6,7 @@ import { type ReactNode, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useI18n } from '../../../core/i18n'
 import type { Placed, Session } from '../../../model/projects'
+import { tailLines } from '../../../model/screen'
 import type { Block, Reading } from '../../../model/screen/types'
 import { boardHref, peekHref } from '../../../utils/hrefs'
 import { since } from '../../../utils/time'
@@ -16,6 +17,22 @@ export const lastTurn = (reading: Reading | null): { prompt?: string; reply: Blo
 
 /** What the agent said last: the turn still going, or else the last one ended. */
 export const lastReply = (reading: Reading | null): Block[] | undefined => lastTurn(reading)?.reply
+
+/** The last paragraph of what the agent said last. */
+export const lastWords = (reading: Reading | null): string | undefined =>
+  lastReply(reading)
+    ?.filter((b): b is Extract<Block, { kind: 'text' }> => b.kind === 'text')
+    .at(-1)?.text
+
+/** The last `n` lines of what a working agent is doing: of the turn going on, even while it has
+ * said nothing yet (the one before would pass for it), or of its screen when not read as turns. */
+export const workingTail = (reading: Reading | null, text: string | null, n: number): string[] =>
+  reading
+    ? tailLines(reading.live ? reading.live.reply : (reading.turns.at(-1)?.reply ?? []), n)
+    : (text ?? '')
+        .split('\n')
+        .filter(l => l.trim())
+        .slice(-n)
 
 /** `sent` fades the card while what was sent takes effect. */
 export function Card({ ask, sent, children }: { ask?: boolean; sent?: boolean; children: ReactNode }) {

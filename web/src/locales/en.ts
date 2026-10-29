@@ -38,6 +38,7 @@ export const en = {
 
   'all.title': 'All agents',
   'all.summary': 'Agents: {agents} · projects: {projects} · machines: {machines}, {online} online',
+  'all.short': '{agents} agents · {online} online',
   'all.empty': 'Nothing is running. Start a session (n), or add a project (a).',
   'board.loading': 'Connecting…',
   'needs.title': 'Needs you',
@@ -311,6 +312,7 @@ export const en = {
   'leave.body': 'This browser forgets the key. To come back, paste it again.',
   'leave.confirm': 'Leave',
 
+  'install.tip': 'Add Isbell to your Home Screen to open it like an app: tap Share, then Add to Home Screen.',
   'join.title': 'Join your space',
   'join.body': 'Paste the key printed by isbell space show on any of your machines.',
   'join.key': 'Space key',

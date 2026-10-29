@@ -5,12 +5,11 @@ import { Power } from 'lucide-react'
 import { useState } from 'react'
 import { errorText, useI18n } from '../../../core/i18n'
 import type { Placed } from '../../../model/projects'
-import type { Block } from '../../../model/screen/types'
 import { since } from '../../../utils/time'
 import { Composer } from '../../pane/composer'
 import { EndPane } from '../../pane/end-pane-dialog'
 import { useReading } from '../../pane/use-reading'
-import { lastReply, OpenButton, SentNote, useSent } from './card'
+import { lastWords, OpenButton, SentNote, useSent } from './card'
 
 const GO =
   'h-[26px] flex-none cursor-pointer rounded-md border border-line-strong bg-raised px-2.5 text-xs text-accent hover:bg-raised-2'
@@ -113,12 +112,10 @@ function Continue({ placed: { session }, onSent }: { placed: Placed; onSent: (wh
   const { mid, paneId } = session
   // A settled agent is read once.
   const { reading, error } = useReading(mid, paneId, session)
-  const last = lastReply(reading)
-    ?.filter((b): b is Extract<Block, { kind: 'text' }> => b.kind === 'text')
-    .at(-1)
+  const last = lastWords(reading)
   return (
     <div className="flex flex-col gap-2 pt-1.5 pb-1">
-      {last ? <p className="m-0 line-clamp-2 text-[12.5px] text-muted">{last.text}</p> : null}
+      {last ? <p className="m-0 line-clamp-2 text-[12.5px] text-muted">{last}</p> : null}
       {error ? <p className="m-0 text-[12.5px] text-danger">{errorText(t, error)}</p> : null}
       <Composer mid={mid} paneId={paneId} onSent={onSent} compact />
     </div>
