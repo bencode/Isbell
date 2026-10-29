@@ -26,6 +26,8 @@ export function NameEditor({ session }: { session: Session }) {
   useEffect(() => {
     if (given === current) setGiven(undefined)
   }, [given, current])
+  // The agent's name as far as the page knows: the one just given counts before the state says it.
+  const known = given === undefined ? current : given
 
   const leave = () => {
     setDraft(null)
@@ -35,7 +37,7 @@ export function NameEditor({ session }: { session: Session }) {
   const save = async () => {
     if (draft === null || problem || busy) return
     const name = draft || null
-    if (name === current) return leave()
+    if (name === known) return leave()
     setBusy(true)
     setError(undefined)
     try {
@@ -50,11 +52,11 @@ export function NameEditor({ session }: { session: Session }) {
   }
 
   if (draft === null) {
-    const name = given === undefined ? session.name : (given ?? shownName(undefined, session.kind, paneId))
+    const name = given === undefined ? session.name : (known ?? shownName(undefined, session.kind, paneId))
     return (
       <button
         type="button"
-        onClick={() => setDraft(current ?? '')}
+        onClick={() => setDraft(known ?? '')}
         title={t('name.rename')}
         className="-ml-1 min-w-0 cursor-text truncate rounded-md border-0 bg-transparent px-1 py-0.5 text-left font-semibold text-text hover:bg-raised-2 focus-visible:outline-2 focus-visible:outline-accent"
       >
