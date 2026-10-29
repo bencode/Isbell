@@ -1,15 +1,17 @@
-// A pane page on a phone: one bar (back up, the name and where, the other view, the facts, more),
-// then the page. The facts rise in a sheet; ending the pane sits in the more menu.
+// A pane page on a phone: one bar (back up, the name and where, stop while it works, the other view,
+// the project's files, more), then the page. The facts rise in a sheet; they and ending the pane sit
+// in the more menu.
 
-import { ChevronLeft, Info, MessageSquare, MoreHorizontal, SquareTerminal } from 'lucide-react'
+import { ChevronLeft, FolderOpen, MessageSquare, MoreHorizontal, SquareTerminal } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { StatusChip } from '../../components/chip'
 import { DropdownMenu } from '../../components/menu'
 import { Sheet } from '../../components/sheet'
 import { useI18n } from '../../core/i18n'
+import { StopButton } from '../../features/pane/pane-bar'
 import type { PaneParts } from '../../features/pane/pane-layout'
-import { projectHref, sessionHref, terminalHref } from '../../utils/hrefs'
+import { projectFilesHref, projectHref, sessionHref, terminalHref } from '../../utils/hrefs'
 
 // A finger-sized icon button, in the bar's ink.
 const ICON =
@@ -43,21 +45,30 @@ export function MobilePane({ found, mid, paneId, view, onEnd, facts, children }:
             </span>
           </span>
         </div>
+        {session?.status === 'working' ? <StopButton session={session} className={ICON} /> : null}
         {session ? (
           <Link to={other.href} aria-label={other.label} title={other.label} className={ICON}>
             {other.icon}
           </Link>
         ) : null}
-        <button type="button" onClick={() => setSheet(true)} aria-label={t('info.toggle')} className={ICON}>
-          <Info size={20} />
-        </button>
+        <Link
+          to={projectFilesHref(project.key)}
+          aria-label={t('project.files')}
+          title={t('project.files')}
+          className={ICON}
+        >
+          <FolderOpen size={20} />
+        </Link>
         <DropdownMenu
           trigger={
             <button type="button" aria-label={t('pane.more')} className={ICON}>
               <MoreHorizontal size={20} />
             </button>
           }
-          items={[{ label: t(session ? 'session.end' : 'terminal.end'), onClick: onEnd, danger: true }]}
+          items={[
+            { label: t('info.toggle'), onClick: () => setSheet(true) },
+            { label: t(session ? 'session.end' : 'terminal.end'), onClick: onEnd, danger: true },
+          ]}
         />
       </header>
       <div className="flex min-h-0 flex-1 flex-col">{children}</div>

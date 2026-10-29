@@ -34,8 +34,8 @@ export type FileViewProps = {
   /** Reads a file under the root (root-relative), for the documents that show more than themselves:
    * a document's images, a page's files. */
   asset: (rel: string) => Promise<Blob>
-  /** The file alone in a tab of its own. */
-  apartHref: string
+  /** The file alone in a tab of its own; none where it is on its own already. */
+  apartHref?: string | undefined
 }
 
 export function FilePage({

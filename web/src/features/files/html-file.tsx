@@ -30,7 +30,7 @@ export function HtmlFile({ shell, text, rel, asset, apartHref }: FileViewProps) 
       />
       {mode === 'source' ? (
         <SourceTools source={source} />
-      ) : (
+      ) : apartHref ? (
         <a
           href={apartHref}
           target="_blank"
@@ -41,7 +41,7 @@ export function HtmlFile({ shell, text, rel, asset, apartHref }: FileViewProps) 
         >
           <ExternalLink size={15} />
         </a>
-      )}
+      ) : null}
     </>
   )
   return (

@@ -27,7 +27,14 @@ const VIEWS: Record<FileKind, ComponentType<FileViewProps>> = {
 }
 
 /** `root`: the directory `rel` is under, the project's own or another of its worktrees. */
-type Props = { mid: string; root: FilesRoot; rel: string; hrefOf: (rel: string) => string }
+type Props = {
+  mid: string
+  root: FilesRoot
+  rel: string
+  hrefOf: (rel: string) => string
+  /** On its own on the screen already: no way to open it apart. */
+  alone?: boolean
+}
 
 export function Preview(props: Props) {
   const t = useI18n()
@@ -37,7 +44,7 @@ export function Preview(props: Props) {
   return <Read key={round} {...props} again={() => setRound(r => r + 1)} />
 }
 
-function Read({ mid, root, rel, hrefOf, again }: Props & { again: () => void }) {
+function Read({ mid, root, rel, hrefOf, alone, again }: Props & { again: () => void }) {
   const t = useI18n()
   const { openStream } = useSpace()
   const path = join(root.path, rel)
@@ -77,7 +84,7 @@ function Read({ mid, root, rel, hrefOf, again }: Props & { again: () => void }) 
         rel={rel}
         hrefOf={hrefOf}
         asset={asset}
-        apartHref={pageHref(root.key, rel)}
+        apartHref={alone ? undefined : pageHref(root.key, rel)}
       />
     )
   }

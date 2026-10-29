@@ -3,11 +3,11 @@
 
 import { Group, Panel, useDefaultLayout } from 'react-resizable-panels'
 import { ResizeHandle } from '../../components/resize-handle'
-import { useI18n } from '../../core/i18n'
+import { type T, useI18n } from '../../core/i18n'
 import { useSpaceView } from '../../core/space'
 import type { FilesRoot } from '../../model/files/worktrees'
 import type { Project } from '../../model/projects'
-import { machineOf } from '../../model/space'
+import { type MachineEntry, machineOf } from '../../model/space'
 import { Preview } from './preview'
 import { Tree } from './tree'
 
@@ -27,13 +27,14 @@ type Props = {
   hrefOf: (rel: string) => string
 }
 
-export function FilesSplit({ mid, project, roots, root, dir, rel, hrefOf }: Props) {
-  const t = useI18n()
-  const machine = machineOf(useSpaceView().machines, mid)
-  // The tree's width, the same for every project.
-  const split = useDefaultLayout({ id: 'isbell.files-split', panelIds: PANELS, storage: localStorage })
-
-  const note = !project.online
+/** Why a project's files cannot be browsed, if they cannot. */
+export const filesNote = (
+  t: T,
+  project: Project,
+  machine: MachineEntry | undefined,
+  root: FilesRoot | undefined,
+): string | undefined =>
+  !project.online
     ? t('files.offline')
     : !machine?.state.caps.methods.includes('isbell.file.list')
       ? t('files.old')
@@ -42,6 +43,14 @@ export function FilesSplit({ mid, project, roots, root, dir, rel, hrefOf }: Prop
         : !root
           ? t('files.branchGone')
           : undefined
+
+export function FilesSplit({ mid, project, roots, root, dir, rel, hrefOf }: Props) {
+  const t = useI18n()
+  const machine = machineOf(useSpaceView().machines, mid)
+  // The tree's width, the same for every project.
+  const split = useDefaultLayout({ id: 'isbell.files-split', panelIds: PANELS, storage: localStorage })
+
+  const note = filesNote(t, project, machine, root)
   if (note || !root) return <p className="m-6 text-muted">{note}</p>
   return (
     <Group
