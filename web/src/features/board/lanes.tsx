@@ -112,7 +112,7 @@ function Standing({
         const rows = offline.filter(p => p.project.mid === mid)
         return (
           <div key={mid} className="flex flex-col gap-1.5">
-            <h3 className="m-0 px-0.5 pt-1.5 text-[11px] font-semibold tracking-[0.04em] text-faint uppercase">
+            <h3 className="m-0 px-0.5 pt-1.5 text-xs font-semibold text-faint">
               {t('lane.offline', { machine: rows[0]?.project.machine ?? mid })}
             </h3>
             {rows.map(p => row(p))}

@@ -135,9 +135,7 @@ function MachineGroup({ entry, projects, here }: { entry: MachineEntry; projects
         className="group flex h-7 cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent px-2 text-left hover:bg-raised focus-visible:outline-2 focus-visible:outline-accent"
       >
         <MachineDot online={online} ready={herdr === 'ready'} />
-        <span className="min-w-0 truncate text-[11px] font-semibold tracking-[0.06em] text-faint uppercase">
-          {state.machine.name}
-        </span>
+        <span className="min-w-0 truncate text-[12.5px] font-semibold text-muted">{state.machine.name}</span>
         {note ? <span className="min-w-0 truncate text-[11px] text-faint">· {note}</span> : null}
         <span className="flex-1" />
         {folded && n ? <AskBadge n={n} label={t('side.asking', { n })} /> : null}
