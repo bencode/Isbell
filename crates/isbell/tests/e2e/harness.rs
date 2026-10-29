@@ -76,6 +76,7 @@ impl Harness {
             // Host candidates only: everything runs on this machine.
             ice: vec![],
             uploads: self.dir.path().join("uploads"),
+            push: self.dir.path().join("push.json"),
         }))
     }
 }

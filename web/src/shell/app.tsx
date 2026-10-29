@@ -3,6 +3,7 @@ import { Button } from '../components/button'
 import { ErrorBoundary } from '../components/error-boundary'
 import { useI18n } from '../core/i18n'
 import { updateLocal, useLocal } from '../core/prefs'
+import { usePushSync } from '../core/push'
 import { SpaceProvider, useProjects, useSpaceView } from '../core/space'
 import { Join, takeKeyFromLink } from '../features/join/join-page'
 import { Loading } from './common'
@@ -50,6 +51,7 @@ function Connected({ onRejected }: { onRejected: () => void }) {
   const view = useSpaceView()
   const projects = useProjects()
   useNotifications(projects, view.loaded)
+  usePushSync()
   const rejected = view.status === 'rejected'
   useEffect(() => {
     if (rejected) onRejected()

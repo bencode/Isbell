@@ -21,6 +21,7 @@ use self::route::{Inbound, Method, route};
 use self::streams::{Emit, Streams, close_caller, feed, register, serve_stream};
 use super::herdr::HerdrError;
 use super::link::Link;
+use super::push::Push;
 use super::stream::Input;
 use super::terminal;
 use super::{HerdrSlot, direct, file, git, nudge, rpc};
@@ -52,6 +53,7 @@ pub struct Calls {
     ice: Vec<String>,
     /// Where files sent for agents go.
     uploads: PathBuf,
+    push: Arc<Push>,
     /// The calls' own inbox, for the frames of direct links.
     inbox: mpsc::UnboundedSender<ToCalls>,
 }
@@ -62,9 +64,19 @@ impl Calls {
         refresh: mpsc::Sender<()>,
         ice: Vec<String>,
         uploads: PathBuf,
+        push: Arc<Push>,
         inbox: mpsc::UnboundedSender<ToCalls>,
     ) -> Calls {
-        Calls { tasks: JoinSet::new(), streams: Arc::default(), slot, refresh, ice, uploads, inbox }
+        Calls {
+            tasks: JoinSet::new(),
+            streams: Arc::default(),
+            slot,
+            refresh,
+            ice,
+            uploads,
+            push,
+            inbox,
+        }
     }
 
     /// Acts on one frame from `link`'s caller: a call starts a task, stream input feeds its stream.
@@ -136,6 +148,12 @@ impl Calls {
                 self.tasks
                     .spawn(async move { link.send(response_frame(id, git::worktrees(p).await)) });
             }
+            Method::PushKey => link.send(response_frame(id, Ok(self.push.key()))),
+            Method::PushSubscribe => {
+                let push = Arc::clone(&self.push);
+                // Off the calls' task: keeping a subscription writes a file.
+                self.tasks.spawn_blocking(move || link.send(response_frame(id, push.subscribe(p))));
+            }
             Method::RtcOffer => {
                 let (ice, inbox) = (self.ice.clone(), self.inbox.clone());
                 self.tasks.spawn(direct::serve(link, id, p, ice, inbox));
@@ -183,7 +201,9 @@ mod tests {
         let (inbox, inbox_rx) = mpsc::unbounded_channel();
         let (refresh, _refresh_rx) = mpsc::channel(1);
         let uploads = dir.path().join("uploads");
-        let calls = Calls::new(HerdrSlot::default(), refresh, vec![], uploads, inbox.clone());
+        let identity = isbell_proto::identity::Identity::generate();
+        let push = Arc::new(Push::new(&identity, dir.path().join("push.json"), ""));
+        let calls = Calls::new(HerdrSlot::default(), refresh, vec![], uploads, push, inbox.clone());
         let streams = Arc::clone(&calls.streams);
         let _calls = crate::AbortOnDrop(tokio::spawn(run(calls, inbox_rx)));
 

@@ -3,6 +3,7 @@
 //! ```text
 //! dir         = $ISBELL_CONFIG_DIR | $XDG_CONFIG_HOME/isbell | $HOME/.config/isbell
 //! key         : the space key string (0600)
+//! push.json   : the phones subscribed to this machine's pushes (0600)
 //! config.toml : relay = "…"; stun = ["stun:host:port", …]; uploads = "/abs/dir";
 //!               [machine] id, name (machine is created by the first `gateway run`)
 //! ```
@@ -104,6 +105,10 @@ impl Paths {
 
     fn key_file(&self) -> PathBuf {
         self.dir.join("key")
+    }
+
+    pub fn push_file(&self) -> PathBuf {
+        self.dir.join("push.json")
     }
 
     fn config_file(&self) -> PathBuf {

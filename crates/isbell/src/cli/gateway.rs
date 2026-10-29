@@ -52,6 +52,7 @@ async fn run_gateway(mut ctx: Ctx) -> Result<(), CliError> {
         machine: machine.info(),
         ice: ctx.config.stun(),
         uploads: ctx.config.uploads(),
+        push: ctx.paths.push_file(),
     };
     match gateway::run(opts).await {
         // A clean exit, so a service manager leaves the machine to the other gateway.

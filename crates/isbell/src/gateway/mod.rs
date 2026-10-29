@@ -7,6 +7,7 @@ mod git;
 mod herdr;
 mod link;
 mod monitor;
+mod push;
 mod rpc;
 mod state;
 mod stream;
@@ -23,6 +24,7 @@ use tokio::sync::{mpsc, watch};
 
 use self::calls::Calls;
 use self::herdr::Herdr;
+use self::push::Push;
 use self::state::Reporter;
 use crate::relay::RelayError;
 use crate::{AbortOnDrop, now_ms};
@@ -35,6 +37,8 @@ pub struct GatewayOptions {
     pub ice: Vec<String>,
     /// Where files sent for agents go.
     pub uploads: PathBuf,
+    /// Where the phones subscribed to pushes are kept.
+    pub push: PathBuf,
 }
 
 /// Shared between the monitor (which discovers herdr) and the calls.
@@ -60,9 +64,12 @@ pub async fn run(opts: GatewayOptions) -> Result<(), GatewayError> {
     let reporter = Reporter { machine: opts.machine.clone(), caps, boot: now_ms() };
     let monitor = monitor::run(reporter, Arc::clone(&slot), states, refresh.clone(), refresh_rx);
     let mut monitor = AbortOnDrop(tokio::spawn(monitor));
+    let push = Arc::new(Push::new(&opts.identity, opts.push.clone(), &opts.relay));
+    let _push = AbortOnDrop(tokio::spawn(push::run(Arc::clone(&push), states_rx.clone())));
     let (inbox, inbox_rx) = mpsc::unbounded_channel();
     tracing::info!(uploads = %opts.uploads.display(), "files sent for agents go here");
-    let calls = Calls::new(slot, refresh, opts.ice.clone(), opts.uploads.clone(), inbox.clone());
+    let calls =
+        Calls::new(slot, refresh, opts.ice.clone(), opts.uploads.clone(), push, inbox.clone());
     let _calls = AbortOnDrop(tokio::spawn(calls::run(calls, inbox_rx)));
     tokio::select! {
         result = uplink::run(&opts, inbox, states_rx) => Ok(result?),
