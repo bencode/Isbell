@@ -10,9 +10,12 @@ import type { Block, Reading } from '../../../model/screen/types'
 import { boardHref, peekHref } from '../../../utils/hrefs'
 import { since } from '../../../utils/time'
 
+/** The turn still going, or else the last one ended. */
+export const lastTurn = (reading: Reading | null): { prompt?: string; reply: Block[] } | undefined =>
+  reading?.live?.reply.length ? reading.live : reading?.turns.at(-1)
+
 /** What the agent said last: the turn still going, or else the last one ended. */
-export const lastReply = (reading: Reading | null): Block[] | undefined =>
-  reading?.live?.reply.length ? reading.live.reply : reading?.turns.at(-1)?.reply
+export const lastReply = (reading: Reading | null): Block[] | undefined => lastTurn(reading)?.reply
 
 /** `sent` fades the card while what was sent takes effect. */
 export function Card({ ask, sent, children }: { ask?: boolean; sent?: boolean; children: ReactNode }) {
