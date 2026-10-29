@@ -1,5 +1,6 @@
-// The bar over a pane, beside the board or on its terminal page: its name and state, the project
-// where the page around does not say it, then the facts in a popover and a way to end it.
+// The bar over a pane, beside the board or on its terminal page: its name (an agent's renamed in
+// place) and state, the project where the page around does not say it, then the facts in a popover
+// and a way to end it.
 
 import { Popover } from '@base-ui/react/popover'
 import { Info, Power } from 'lucide-react'
@@ -7,6 +8,7 @@ import type { ReactNode } from 'react'
 import { StatusChip } from '../../components/chip'
 import { useI18n } from '../../core/i18n'
 import type { Found } from '../../model/projects'
+import { NameEditor } from './name-editor'
 
 /** An icon button on the bar. */
 export const BAR_ICON =
@@ -29,7 +31,7 @@ export function PaneBar({ found: { project, name, pane }, onEnd, facts, showProj
   const session = 'session' in pane ? pane.session : undefined
   return (
     <header className="flex h-11 flex-none items-center gap-1 border-b border-line pr-2 pl-4">
-      <b className="truncate font-semibold">{name}</b>
+      {session ? <NameEditor session={session} /> : <b className="truncate font-semibold">{name}</b>}
       {session ? (
         <span className="ml-1.5 flex-none">
           <StatusChip status={session.status} label={t(`status.${session.status}`)} />

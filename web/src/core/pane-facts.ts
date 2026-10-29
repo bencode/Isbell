@@ -10,10 +10,11 @@ import { shellArg } from '../utils/shell'
 import { since } from '../utils/time'
 import { errorText, type T } from './i18n'
 
-/** How to reach a pane by hand: an agent by its name, as the session page shows it; a shell by its pane. */
+/** How to reach a pane by hand: an agent by its name in herdr, a shell or an agent without one by its
+ * pane. */
 export const attachCommand = (project: Project, pane: Pane) =>
   `isbell terminal attach --control ${shellArg(
-    `${project.machine}/${'session' in pane ? pane.session.name : pane.shell.paneId}`,
+    `${project.machine}/${'session' in pane ? (pane.session.herdrName ?? pane.session.paneId) : pane.shell.paneId}`,
   )}`
 
 /** Mirrors components/info-panel's InfoGroup, which core cannot import. */

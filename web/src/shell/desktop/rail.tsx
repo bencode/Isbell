@@ -40,7 +40,7 @@ export function Rail({ projects, status, here, onSettings }: SideProps) {
       <div className="flex min-h-0 flex-1 flex-col items-center gap-1 overflow-auto pt-1">
         {projects.map(p => {
           const label = `${p.name} · ${p.machine}`
-          const n = asking(p)
+          const n = p.online ? asking(p) : 0
           return (
             <Link
               key={p.key}

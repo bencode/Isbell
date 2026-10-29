@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import type { Shell } from './herdr'
-import { deriveProjects, judgeDir, lanes, needs, projectKey } from './projects'
+import { deriveProjects, judgeDir, lanes, needs, projectKey, STALE_MS, splitStale } from './projects'
 import type { MachineEntry } from './space'
 import type { Agent } from './state'
 
@@ -50,6 +50,16 @@ describe('deriveProjects', () => {
       ['~/work/isbell', ['p2', 'p3'], ['s1']],
       ['~/work', ['p1'], []],
     ])
+  })
+
+  test('an agent without a name in herdr is called by its kind and pane, and has none to go by', () => {
+    const { name: _, ...unnamed } = agent('w1A:p1', '/srv/a')
+    const [named, plain] =
+      deriveProjects([machine([agent('w2:p1', '/srv/a'), { ...unnamed, kind: 'codex' }])], [], {}, {})[0]
+        ?.sessions ?? []
+    expect([named?.name, named?.herdrName]).toEqual(['w2:p1', 'w2:p1'])
+    expect(plain?.name).toBe('codex · 1A')
+    expect(plain).not.toHaveProperty('herdrName')
   })
 
   test('a finished session is unread until looked at after it finished', () => {
@@ -144,4 +154,22 @@ test('a project key stands in an address as it is, and tells apart projects of o
   expect(keys[0]).toMatch(/^isbell-/)
   expect(keys[3]).toMatch(/^my-app-v2-/)
   expect(keys[4]).toMatch(/^[a-z\d]+$/)
+})
+
+test('agents standing by are put aside once still for a day', () => {
+  const now = 10 * STALE_MS
+  const projects = deriveProjects(
+    [
+      machine([
+        agent('fresh', '/srv/a', 'idle', now - STALE_MS + 1),
+        agent('still', '/srv/a', 'idle', now - STALE_MS),
+      ]),
+    ],
+    [],
+    {},
+    {},
+  )
+  const { recent, stale } = splitStale(lanes(projects).standing, now)
+  expect(recent.map(p => p.session.paneId)).toEqual(['fresh'])
+  expect(stale.map(p => p.session.paneId)).toEqual(['still'])
 })

@@ -1,11 +1,14 @@
 // An agent standing by: finished and seen, idle, or of unknown status; or on a machine that is
-// offline. A row of two lines, opened to give it its next step.
+// offline. A row of two lines, opened to give it its next step, or, long still, ended.
 
+import { Power } from 'lucide-react'
+import { useState } from 'react'
 import { errorText, useI18n } from '../../../core/i18n'
 import type { Placed } from '../../../model/projects'
 import type { Block } from '../../../model/screen/types'
 import { since } from '../../../utils/time'
 import { Composer } from '../../pane/composer'
+import { EndPane } from '../../pane/end-pane-dialog'
 import { useReading } from '../../pane/use-reading'
 import { lastReply, OpenButton, SentNote, useSent } from './card'
 
@@ -19,6 +22,7 @@ export function StandingRow({
   open,
   onOpen,
   onClose,
+  endable,
 }: {
   placed: Placed
   now: number
@@ -27,10 +31,13 @@ export function StandingRow({
   open: boolean
   onOpen: () => void
   onClose: () => void
+  /** Long still, so it offers to end it. */
+  endable: boolean
 }) {
   const t = useI18n()
   const { session, project } = placed
   const { sent, markSent, unsend } = useSent(session)
+  const [ending, setEnding] = useState(false)
   const unknown = session.status === 'unknown'
   const frame = !project.online
     ? 'border-line opacity-60'
@@ -48,6 +55,17 @@ export function StandingRow({
           {unknown ? '?' : t(`status.${session.status}`)}
         </span>
         <span className="ml-auto flex-none text-[11.5px] text-faint">{since(session.statusSince, now)}</span>
+        {endable ? (
+          <button
+            type="button"
+            onClick={() => setEnding(true)}
+            aria-label={t('session.end')}
+            title={t('session.end')}
+            className="inline-flex size-6 flex-none cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-faint hover:bg-raised-2 hover:text-danger focus-visible:outline-2 focus-visible:outline-accent"
+          >
+            <Power size={13} />
+          </button>
+        ) : null}
         <OpenButton session={session} />
       </div>
       <div className="flex min-h-[26px] min-w-0 items-center gap-1.5">
@@ -69,6 +87,20 @@ export function StandingRow({
             markSent(what)
             onClose()
           }}
+        />
+      ) : null}
+      {endable ? (
+        <EndPane
+          open={ending}
+          onOpenChange={setEnding}
+          mid={session.mid}
+          paneId={session.paneId}
+          name={session.name}
+          machine={project.machine}
+          path={project.display}
+          agent
+          // The row leaves the lane once the machine says the pane is gone.
+          onEnded={() => setEnding(false)}
         />
       ) : null}
     </div>
