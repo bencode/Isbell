@@ -1,12 +1,16 @@
 // A session's screen as turns: one card per turn, headed by what was asked, then the reply with
 // its tool calls folded to a line each; the turn still going ends with what the agent is doing.
 
+import { useContext } from 'react'
 import { Link } from 'react-router'
 import { useI18n } from '../../core/i18n'
+import { PathRoot } from '../../core/tabs'
+import { splitUploads } from '../../model/files/uploads'
 import type { Block, Reading, Turn } from '../../model/screen/types'
 import { type AgentStatus, settled } from '../../model/state'
 import { keyed } from '../../utils/keyed'
 import { since, useNow } from '../../utils/time'
+import { PromptImages } from './prompt-images'
 import { CopyReply, Reply } from './reply'
 
 export function Turns({
@@ -152,16 +156,22 @@ function LiveTurn({
   )
 }
 
+/** What was asked, with the images sent along shown rather than their paths on the machine. */
 function Asked({ prompt, when }: { prompt: string; when: string }) {
+  const mid = useContext(PathRoot)?.project.mid
+  const { text, images } = splitUploads(prompt)
   return (
-    <header className="flex items-baseline gap-2.5 border-b border-line px-4 pt-3 pb-2.5">
-      <span aria-hidden="true" className="flex-none font-mono font-medium text-accent">
-        ›
-      </span>
-      <h3 className="m-0 min-w-0 flex-1 text-sm font-semibold break-words whitespace-pre-wrap">{prompt}</h3>
-      {when ? (
-        <span className="flex-none font-mono text-[11.5px] whitespace-nowrap text-faint">{when}</span>
-      ) : null}
+    <header className="flex flex-col gap-2 border-b border-line px-4 pt-3 pb-2.5">
+      <div className="flex items-baseline gap-2.5">
+        <span aria-hidden="true" className="flex-none font-mono font-medium text-accent">
+          ›
+        </span>
+        <h3 className="m-0 min-w-0 flex-1 text-sm font-semibold break-words whitespace-pre-wrap">{text}</h3>
+        {when ? (
+          <span className="flex-none font-mono text-[11.5px] whitespace-nowrap text-faint">{when}</span>
+        ) : null}
+      </div>
+      {mid && images.length ? <PromptImages mid={mid} paths={images} /> : null}
     </header>
   )
 }
