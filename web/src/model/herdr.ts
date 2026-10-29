@@ -79,6 +79,10 @@ export const prompt = (call: Caller, mid: string, paneId: string, text: string) 
 export const sendKeys = (call: Caller, mid: string, paneId: string, keys: string[]) =>
   herdr(call, mid, 'agent.send_keys', { target: paneId, keys })
 
+/** Gives the agent `name` in herdr, or takes its name away for null. */
+export const renameAgent = (call: Caller, mid: string, paneId: string, name: string | null) =>
+  herdr(call, mid, 'agent.rename', { target: paneId, name })
+
 export const closePane = (call: Caller, mid: string, paneId: string) =>
   herdr(call, mid, 'pane.close', { pane_id: paneId })
 

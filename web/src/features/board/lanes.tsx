@@ -1,10 +1,12 @@
 // The board's four lanes: who asks, who finished unseen, who works, and who stands by. Every agent
 // is in exactly one, and moves from lane to lane as its status changes.
 
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { useI18n } from '../../core/i18n'
+import { toggleStale, useLocal } from '../../core/prefs'
 import type { Lanes as LaneSet, Placed } from '../../model/projects'
-import { paneKey } from '../../model/projects'
+import { paneKey, splitStale } from '../../model/projects'
 import { AskingCard } from './cards/asking-card'
 import { FinishedCard } from './cards/finished-card'
 import { RunningCard } from './cards/running-card'
@@ -51,7 +53,8 @@ export function Lanes({ lanes, now, stacked, scoped = false }: Props) {
   )
 }
 
-/** The rest, latest first, each opened to give it its next step; then the offline ones by machine. */
+/** The rest, latest first, each opened to give it its next step; those still for a day folded at
+ * the foot, each with a way to end it; then the offline ones by machine. */
 function Standing({
   standing,
   offline,
@@ -66,9 +69,11 @@ function Standing({
   const t = useI18n()
   // One row open at a time.
   const [open, setOpen] = useState<string | null>(null)
+  const showStale = useLocal().layout.stale
+  const { recent, stale } = splitStale(standing, now)
   // By machine id: two machines may share a name.
   const machines = [...new Set(offline.map(p => p.project.mid))]
-  const row = (p: Placed) => (
+  const row = (p: Placed, endable = false) => (
     <StandingRow
       key={keyOf(p)}
       placed={p}
@@ -77,8 +82,10 @@ function Standing({
       open={open === keyOf(p)}
       onOpen={() => setOpen(keyOf(p))}
       onClose={() => setOpen(null)}
+      endable={endable}
     />
   )
+  const Chevron = showStale ? ChevronDown : ChevronRight
   return (
     <Lane
       title={t('lane.standing')}
@@ -86,7 +93,21 @@ function Standing({
       hint={t('lane.latest')}
       count={standing.length + offline.length}
     >
-      {standing.map(row)}
+      {recent.map(p => row(p))}
+      {stale.length ? (
+        <>
+          <button
+            type="button"
+            onClick={toggleStale}
+            aria-expanded={showStale}
+            className="flex h-7 flex-none cursor-pointer items-center gap-1.5 rounded-md border-0 bg-transparent px-0.5 text-left text-[11px] font-semibold tracking-[0.04em] text-faint uppercase hover:text-text focus-visible:outline-2 focus-visible:outline-accent"
+          >
+            <Chevron size={13} className="flex-none" />
+            {t('lane.stale', { n: stale.length })}
+          </button>
+          {showStale ? stale.map(p => row(p, true)) : null}
+        </>
+      ) : null}
       {machines.map(mid => {
         const rows = offline.filter(p => p.project.mid === mid)
         return (
@@ -94,7 +115,7 @@ function Standing({
             <h3 className="m-0 px-0.5 pt-1.5 text-[11px] font-semibold tracking-[0.04em] text-faint uppercase">
               {t('lane.offline', { machine: rows[0]?.project.machine ?? mid })}
             </h3>
-            {rows.map(row)}
+            {rows.map(p => row(p))}
           </div>
         )
       })}

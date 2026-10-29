@@ -2,6 +2,7 @@
 // agent or a shell is running. A directory's root is the git repository it is in, or the directory
 // itself when it is in none; only the pane's own directory decides, never the panes around it.
 
+import { shownName } from './agent-name'
 import type { Shell } from './herdr'
 import type { MachineEntry } from './space'
 import type { AgentStatus } from './state'
@@ -9,7 +10,10 @@ import type { AgentStatus } from './state'
 export type Session = {
   mid: string
   paneId: string
+  /** What it is called on the page; see `shownName`. */
   name: string
+  /** Its name in herdr, when it has one: what the CLI and renaming go by. */
+  herdrName?: string
   kind?: string
   status: AgentStatus
   /** Milliseconds on the gateway's clock. */
@@ -101,7 +105,8 @@ export function deriveProjects(
           .map(a => ({
             mid,
             paneId: a.paneId,
-            name: a.name ?? a.paneId,
+            name: shownName(a.name, a.kind, a.paneId),
+            ...(a.name ? { herdrName: a.name } : {}),
             ...(a.cwd ? { cwd: a.cwd } : {}),
             ...(a.kind ? { kind: a.kind } : {}),
             status: a.status,
@@ -164,6 +169,15 @@ export function lanes(projects: Project[]): Lanes {
     offline: placed.filter(p => !p.project.online).reverse(),
   }
 }
+
+/** How long an agent standing by stays still before it is put aside. */
+export const STALE_MS = 24 * 60 * 60 * 1000
+
+/** Agents standing by, split by whether they have been still for STALE_MS. */
+export const splitStale = (standing: Placed[], now: number) => ({
+  recent: standing.filter(p => now - p.session.statusSince < STALE_MS),
+  stale: standing.filter(p => now - p.session.statusSince >= STALE_MS),
+})
 
 export type Pane = { session: Session } | { shell: Shell }
 

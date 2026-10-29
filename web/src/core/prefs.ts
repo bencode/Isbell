@@ -28,6 +28,8 @@ export type Layout = {
   files: Record<string, string[]>
   /** Whether long lines of source wrap. */
   wrap: boolean
+  /** Whether the agents standing by that have long been still show, at the foot of their lane. */
+  stale: boolean
 }
 
 /** How documents read in the files view. */
@@ -62,6 +64,7 @@ const DEFAULTS: Local = {
     terminal: [],
     files: {},
     wrap: false,
+    stale: false,
   },
   reader: { ...DEFAULT_APPEARANCE, outline: true },
   tabs: noTabs,
@@ -162,6 +165,7 @@ export function openDirs(project: string, wanted: string[]) {
 }
 
 export const toggleWrap = () => updateLocal(l => ({ layout: { ...l.layout, wrap: !l.layout.wrap } }))
+export const toggleStale = () => updateLocal(l => ({ layout: { ...l.layout, stale: !l.layout.stale } }))
 
 export const setReader = (change: Partial<Reader>) =>
   updateLocal(l => ({ reader: { ...l.reader, ...change } }))
