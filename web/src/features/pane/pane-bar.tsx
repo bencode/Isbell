@@ -69,7 +69,7 @@ export function PaneBar({ found: { project, name, pane }, onEnd, facts, showProj
 }
 
 /** Esc interrupts the turn going on, in the agents Isbell runs; the status says when it took. */
-function StopButton({ session }: { session: Session }) {
+export function StopButton({ session, className = BAR_ICON }: { session: Session; className?: string }) {
   const t = useI18n()
   const stop = useAnswer(session.mid, session.paneId, () => undefined)
   return (
@@ -79,7 +79,7 @@ function StopButton({ session }: { session: Session }) {
       disabled={stop.busy}
       aria-label={t('card.stop')}
       title={stop.error ?? t('card.stopHint')}
-      className={`${BAR_ICON} hover:text-danger!`}
+      className={`${className} hover:text-danger!`}
     >
       <Square size={13} fill="currentColor" />
     </button>

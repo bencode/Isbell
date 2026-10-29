@@ -1,13 +1,15 @@
 // The frame around every page on a phone: one column clear of the notch and the home indicator, a
 // bar over the boards, the projects in a drawer, and the same overlays as on a computer.
 
-import { ChevronLeft, Menu, Plus } from 'lucide-react'
+import { ChevronLeft, FolderOpen, Menu, Plus } from 'lucide-react'
 import { useState } from 'react'
-import { Outlet, useNavigate, useOutletContext, useParams } from 'react-router'
+import { Link, Outlet, useNavigate, useOutletContext, useParams } from 'react-router'
 import { Drawer } from '../../components/drawer'
 import { useI18n } from '../../core/i18n'
 import { useProjects, useSpaceView } from '../../core/space'
+import { FileOpener, type OpenPath } from '../../core/tabs'
 import { needs } from '../../model/projects'
+import { projectFilesHref } from '../../utils/hrefs'
 import { useVisibleArea } from '../../utils/viewport'
 import { hereOf, type Overlay, Overlays, ReconnectBanner } from '../common'
 import { AskBadge } from '../marks'
@@ -23,6 +25,7 @@ const ICON =
 
 export function MobileFrame() {
   const t = useI18n()
+  const navigate = useNavigate()
   const view = useSpaceView()
   const projects = useProjects()
   const here = hereOf(projects, useParams())
@@ -35,6 +38,8 @@ export function MobileFrame() {
     setOverlay(next)
   }
   const actions: FrameActions = { openDrawer: () => setDrawer(true), openNew: () => setOverlay('session') }
+  // A path in a reply opens on the files page: a folder listed, a file read.
+  const openPath: OpenPath = (key, rel, dir) => navigate(projectFilesHref(key, dir ? `${rel}/` : rel))
   // The home indicator is under the page only while the keyboard is down.
   const keyboard = !!area && area.top + area.height < window.innerHeight - 1
   return (
@@ -45,7 +50,9 @@ export function MobileFrame() {
       >
         <ReconnectBanner />
         <div className="min-h-0 flex-1">
-          <Outlet context={actions} />
+          <FileOpener value={openPath}>
+            <Outlet context={actions} />
+          </FileOpener>
         </div>
       </div>
       <Drawer open={drawer} onOpenChange={setDrawer} label={t('side.projects')}>
@@ -107,6 +114,16 @@ export function MobileBoard() {
           <span className="truncate text-base font-bold">{title}</span>
           {sub ? <span className="min-w-0 truncate text-xs text-faint">{sub}</span> : null}
         </span>
+        {key ? (
+          <Link
+            to={projectFilesHref(key)}
+            aria-label={t('project.files')}
+            title={t('project.files')}
+            className={ICON}
+          >
+            <FolderOpen size={20} />
+          </Link>
+        ) : null}
         <button
           type="button"
           onClick={openNew}
