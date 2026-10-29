@@ -1,6 +1,6 @@
 //! Files of this machine, at any absolute path: a directory listed one level at a time, files
 //! searched by path, and a file read or written as a stream no faster than the other side grants
-//! credit.
+//! credit; a file sent for an agent is written where the gateway keeps such files.
 
 mod list;
 mod read;
@@ -17,7 +17,7 @@ use isbell_proto::frame::RpcError;
 pub use self::list::list;
 pub use self::read::{open_read, pump_read};
 pub use self::search::search;
-pub use self::write::{open_write, pump_write};
+pub use self::write::{open_upload, open_write, pump_write};
 
 /// A peer that sent nothing for this long, while the other side waits on it, has gone away: over
 /// the relay the gateway is not told when a caller disconnects.

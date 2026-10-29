@@ -22,15 +22,23 @@ export type StreamEvents = {
   data: (frame: DataFrame) => void
   /** Once, when the far side ends the stream or the link is lost; not after `close`. */
   end: (error?: RpcError) => void
+  /** Bytes the far side lets this side send, on a stream this side writes. */
+  credit?: (n: number) => void
 }
 
 export type Stream = {
-  send: (k: 'input' | 'resize' | 'ping', size?: { cols: number; rows: number }, body?: Uint8Array) => void
+  send: (
+    k: 'input' | 'resize' | 'ping' | 'chunk',
+    size?: { cols: number; rows: number },
+    body?: Uint8Array,
+  ) => void
   grant: (n: number) => void
   /** Counts body bytes the consumer has handled; grants them back once they reach WINDOW/2. */
   consumed: (n: number) => void
   /** Ends the stream from this side; on a terminal, the pane stays. */
   close: () => void
+  /** Says this side sent all it had, and still hears how the far side ends: a write's outcome. */
+  finish: () => void
 }
 
 export type Opened = { result: unknown; stream: Stream }
@@ -93,6 +101,7 @@ export function createRouter(send: (frame: Frame) => void, routed: boolean): Rou
         out({ t: 'end', id, ...route(mid) })
         streams.delete(id)
       },
+      finish: () => out({ t: 'end', id, ...route(mid) }),
     }
   }
 
@@ -124,7 +133,8 @@ export function createRouter(send: (frame: Frame) => void, routed: boolean): Rou
         const { full, cols, rows } = h
         const size = cols && rows ? { cols, rows } : {}
         streams.get(h.id)?.events.data({ full: full === true, ...size, body: body ?? new Uint8Array() })
-      } else if (h.t === 'end') {
+      } else if (h.t === 'credit') streams.get(h.id)?.events.credit?.(h.n)
+      else if (h.t === 'end') {
         const s = streams.get(h.id)
         streams.delete(h.id)
         s?.events.end(h.e)

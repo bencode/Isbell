@@ -7,6 +7,7 @@
 mod route;
 mod streams;
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use isbell_proto::frame::{Frame, RpcError};
@@ -49,6 +50,8 @@ pub struct Calls {
     refresh: mpsc::Sender<()>,
     /// STUN servers for direct links.
     ice: Vec<String>,
+    /// Where files sent for agents go.
+    uploads: PathBuf,
     /// The calls' own inbox, for the frames of direct links.
     inbox: mpsc::UnboundedSender<ToCalls>,
 }
@@ -58,9 +61,10 @@ impl Calls {
         slot: HerdrSlot,
         refresh: mpsc::Sender<()>,
         ice: Vec<String>,
+        uploads: PathBuf,
         inbox: mpsc::UnboundedSender<ToCalls>,
     ) -> Calls {
-        Calls { tasks: JoinSet::new(), streams: Arc::default(), slot, refresh, ice, inbox }
+        Calls { tasks: JoinSet::new(), streams: Arc::default(), slot, refresh, ice, uploads, inbox }
     }
 
     /// Acts on one frame from `link`'s caller: a call starts a task, stream input feeds its stream.
@@ -124,6 +128,10 @@ impl Calls {
             }
             Method::FileRead => self.stream(link, id, file::open_read(p), file::pump_read),
             Method::FileWrite => self.stream(link, id, file::open_write(p), file::pump_write),
+            Method::FileUpload => {
+                let open = file::open_upload(p, self.uploads.clone());
+                self.stream(link, id, open, file::pump_write);
+            }
             Method::RtcOffer => {
                 let (ice, inbox) = (self.ice.clone(), self.inbox.clone());
                 self.tasks.spawn(direct::serve(link, id, p, ice, inbox));
@@ -170,7 +178,8 @@ mod tests {
         std::fs::write(&path, b"# notes").unwrap();
         let (inbox, inbox_rx) = mpsc::unbounded_channel();
         let (refresh, _refresh_rx) = mpsc::channel(1);
-        let calls = Calls::new(HerdrSlot::default(), refresh, vec![], inbox.clone());
+        let uploads = dir.path().join("uploads");
+        let calls = Calls::new(HerdrSlot::default(), refresh, vec![], uploads, inbox.clone());
         let streams = Arc::clone(&calls.streams);
         let _calls = crate::AbortOnDrop(tokio::spawn(run(calls, inbox_rx)));
 

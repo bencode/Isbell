@@ -3,6 +3,7 @@
 //! left half written.
 
 use std::io::ErrorKind;
+use std::os::unix::fs::DirBuilderExt;
 use std::path::{Path, PathBuf};
 
 use isbell_proto::flow::{Grants, WINDOW};
@@ -13,12 +14,18 @@ use tokio::fs::{File, OpenOptions};
 use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc;
 
-use super::{STALLED_FOR, absolute_path, io_error};
+use super::{STALLED_FOR, absolute_path, blocking, io_error};
 use crate::gateway::stream::{Input, Output};
 
 #[derive(Deserialize)]
 struct WriteRequest {
     path: String,
+    size: u64,
+}
+
+#[derive(Deserialize)]
+struct UploadRequest {
+    name: String,
     size: u64,
 }
 
@@ -28,6 +35,8 @@ pub struct Target {
     temp: PathBuf,
     file: File,
     received: Received,
+    /// An upload's own directory, removed with the temporary file when the write fails.
+    own: Option<PathBuf>,
 }
 
 /// How much of the announced size arrived.
@@ -71,11 +80,49 @@ pub async fn open_write(p: Value) -> Result<(Target, Value), RpcError> {
     if tokio::fs::metadata(&path).await.is_ok_and(|meta| meta.is_dir()) {
         return Err(RpcError::new("not_a_file", format!("{} is a directory", path.display())));
     }
+    Ok((open_at(path, req.size).await?, json!({})))
+}
+
+/// A file sent to this machine for an agent: put under `dir` in a directory of its own, both
+/// readable by this user alone, by the last part of its name. Answers with its absolute path.
+pub async fn open_upload(p: Value, dir: PathBuf) -> Result<(Target, Value), RpcError> {
+    let req: UploadRequest = serde_json::from_value(p).map_err(RpcError::bad_request)?;
+    let own = blocking(move || own_dir(&dir).map_err(io_error)).await?;
+    let path = own.join(upload_name(&req.name));
+    match open_at(path.clone(), req.size).await {
+        Ok(target) => Ok((Target { own: Some(own), ..target }, json!({"path": path}))),
+        Err(err) => {
+            remove_dir(&own).await;
+            Err(err)
+        }
+    }
+}
+
+/// The last part of `name` without control characters; `file` when nothing of it is left.
+fn upload_name(name: &str) -> String {
+    let last = Path::new(name).file_name().map(|n| n.to_string_lossy()).unwrap_or_default();
+    let clean: String = last.chars().filter(|c| !c.is_control()).collect();
+    match clean.as_str() {
+        "" | "." | ".." => "file".into(),
+        _ => clean,
+    }
+}
+
+/// A new directory under `dir`, which is made when missing.
+fn own_dir(dir: &Path) -> std::io::Result<PathBuf> {
+    std::fs::DirBuilder::new().recursive(true).mode(0o700).create(dir)?;
+    let own = dir.join(format!("{:08x}", rand::random::<u32>()));
+    std::fs::DirBuilder::new().mode(0o700).create(&own)?;
+    Ok(own)
+}
+
+/// Creates the temporary file next to `path` that `size` bytes go to.
+async fn open_at(path: PathBuf, size: u64) -> Result<Target, RpcError> {
     let temp = temp_path(&path);
     let file =
         OpenOptions::new().write(true).create_new(true).open(&temp).await.map_err(io_error)?;
-    let received = Received { bytes: 0, size: req.size, grants: Grants::default() };
-    Ok((Target { path, temp, file, received }, json!({})))
+    let received = Received { bytes: 0, size, grants: Grants::default() };
+    Ok(Target { path, temp, file, received, own: None })
 }
 
 /// The file a symlink points to, so writing through it updates that file (as `cp` does) and the
@@ -100,7 +147,7 @@ pub async fn pump_write(
     input: mpsc::Receiver<Input>,
     mut emit: impl FnMut(Output),
 ) {
-    let Target { path, temp, file, received } = target;
+    let Target { path, temp, file, received, own } = target;
     emit(Output::Credit(WINDOW));
     let stored = match receive(file, received, input, &mut emit).await {
         Ok(file) => commit(file, &temp, &path).await,
@@ -108,6 +155,9 @@ pub async fn pump_write(
     };
     if stored.is_err() {
         remove(&temp).await;
+        if let Some(own) = own {
+            remove_dir(&own).await;
+        }
     }
     emit(Output::End(stored.err()));
 }
@@ -152,6 +202,12 @@ async fn commit(file: File, temp: &Path, path: &Path) -> Result<(), RpcError> {
 async fn remove(temp: &Path) {
     if let Err(err) = tokio::fs::remove_file(temp).await {
         tracing::warn!(%err, temp = %temp.display(), "cannot remove a partial write");
+    }
+}
+
+async fn remove_dir(dir: &Path) {
+    if let Err(err) = tokio::fs::remove_dir(dir).await {
+        tracing::warn!(%err, dir = %dir.display(), "cannot remove a failed upload's directory");
     }
 }
 
@@ -237,6 +293,49 @@ mod tests {
         assert_eq!(out.last(), Some(&Output::End(None)));
         assert!(std::fs::symlink_metadata(&link).unwrap().file_type().is_symlink());
         assert_eq!(std::fs::read(&real).unwrap(), b"new");
+    }
+
+    #[test]
+    fn an_upload_is_named_by_the_last_part_of_its_name() {
+        assert_eq!(upload_name("shot.png"), "shot.png");
+        assert_eq!(upload_name("../../etc/x"), "x");
+        assert_eq!(upload_name("a\u{7}b.txt"), "ab.txt");
+        for nothing in ["", "..", "a/..", "/"] {
+            assert_eq!(upload_name(nothing), "file", "{nothing:?}");
+        }
+    }
+
+    #[tokio::test]
+    async fn an_upload_lands_in_a_private_directory_of_its_own() {
+        let dir = tempfile::tempdir().unwrap();
+        let uploads = dir.path().join("isbell-uploads");
+        let p = json!({"name": "shot.png", "size": 3});
+        let (target, r) = open_upload(p, uploads.clone()).await.unwrap();
+        let (tx, rx) = mpsc::channel(2);
+        tx.send(Input::Chunk(b"png".to_vec())).await.unwrap();
+        tx.send(Input::Close).await.unwrap();
+        pump_write(target, rx, |_| {}).await;
+
+        let path = PathBuf::from(r["path"].as_str().unwrap());
+        assert_eq!(std::fs::read(&path).unwrap(), b"png");
+        assert_eq!(path.file_name().unwrap(), "shot.png");
+        let own = path.parent().unwrap();
+        assert_eq!(own.parent().unwrap(), uploads);
+        for d in [uploads.as_path(), own] {
+            assert_eq!(std::fs::metadata(d).unwrap().permissions().mode() & 0o777, 0o700);
+        }
+    }
+
+    #[tokio::test]
+    async fn a_failed_upload_leaves_nothing_behind() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = json!({"name": "shot.png", "size": 10});
+        let (target, _) = open_upload(p, dir.path().to_owned()).await.unwrap();
+        let (tx, rx) = mpsc::channel(2);
+        tx.send(Input::Chunk(b"png".to_vec())).await.unwrap();
+        tx.send(Input::Close).await.unwrap();
+        pump_write(target, rx, |_| {}).await;
+        assert!(names(dir.path()).is_empty(), "{:?}", names(dir.path()));
     }
 
     #[tokio::test]

@@ -1,7 +1,8 @@
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
+import type { RpcError } from '../frame'
 import type { Space } from '../space'
 import type { Stream, StreamEvents } from '../streams'
-import { read } from './remote'
+import { read, upload } from './remote'
 
 /** A space whose file stream answers `result` and then, once credit comes, sends `chunks`. */
 function serving(result: unknown, chunks: number[][], end?: { code: string; msg: string }) {
@@ -20,6 +21,7 @@ function serving(result: unknown, chunks: number[][], end?: { code: string; msg:
     close: () => {
       seen.closed = true
     },
+    finish: () => {},
   }
   const open = (async (_mid, _m, _p, _timeout, e) => {
     events = e
@@ -54,4 +56,44 @@ test('a file over the limit is closed unread, or as soon as it grows past it', a
 test('a read the machine ends with an error fails with it', async () => {
   const { open } = serving({ size: 1 }, [], { code: 'io_error', msg: 'disk' })
   await expect(read(open, 'm', '/a.md', 100)).rejects.toMatchObject({ code: 'io_error' })
+})
+
+/** A space whose upload stream grants `credit` at once, ends with `end` once finished, and keeps the
+ * size of each chunk sent. */
+function taking(credit: number, end?: RpcError) {
+  const sent: number[] = []
+  let events: StreamEvents | undefined
+  const stream: Stream = {
+    send: (_k, _size, body) => sent.push(body?.length ?? 0),
+    grant: () => {},
+    consumed: () => {},
+    close: () => {},
+    finish: () => events?.end(end),
+  }
+  const open = (async (_mid, _m, _p, _timeout, e) => {
+    events = e
+    queueMicrotask(() => e.credit?.(credit))
+    return { result: { path: '/t/1f/a.png' }, stream, via: 'relay' }
+  }) as Space['openStream']
+  return { open, sent, more: (n: number) => events?.credit?.(n) }
+}
+
+test('an upload sends chunks only as credit allows, and resolves to where the file landed', async () => {
+  const { open, sent, more } = taking(70 << 10)
+  const progress: number[] = []
+  const done = upload(open, 'm', 'a.png', new Uint8Array(100 << 10), n => progress.push(n))
+  await vi.waitFor(() => expect(sent).toEqual([63 << 10]))
+  await new Promise(resolve => setTimeout(resolve, 100))
+  expect(sent).toHaveLength(1)
+  more(63 << 10)
+  expect(await done).toBe('/t/1f/a.png')
+  expect(sent).toEqual([63 << 10, 37 << 10])
+  expect(progress).toEqual([63 << 10, 100 << 10])
+})
+
+test('an upload the machine ends with an error fails with it', async () => {
+  const { open } = taking(1 << 20, { code: 'io_error', msg: 'disk full' })
+  await expect(upload(open, 'm', 'a.png', new Uint8Array(10), () => {})).rejects.toMatchObject({
+    code: 'io_error',
+  })
 })

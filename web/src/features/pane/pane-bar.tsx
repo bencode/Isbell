@@ -1,13 +1,14 @@
 // The bar over a pane, beside the board or on its terminal page: its name (an agent's renamed in
-// place) and state, the project where the page around does not say it, then the facts in a popover
-// and a way to end it.
+// place) and state, the project where the page around does not say it, a way to stop an agent at
+// work, then the facts in a popover and a way to end it.
 
 import { Popover } from '@base-ui/react/popover'
-import { Info, Power } from 'lucide-react'
+import { Info, Power, Square } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { StatusChip } from '../../components/chip'
 import { useI18n } from '../../core/i18n'
-import type { Found } from '../../model/projects'
+import type { Found, Session } from '../../model/projects'
+import { useAnswer } from './asking'
 import { NameEditor } from './name-editor'
 
 /** An icon button on the bar. */
@@ -39,6 +40,7 @@ export function PaneBar({ found: { project, name, pane }, onEnd, facts, showProj
       ) : null}
       {showProject ? <span className="ml-2 truncate text-[12.5px] text-faint">{project.name}</span> : null}
       <span className="flex-1" />
+      {session?.status === 'working' ? <StopButton session={session} /> : null}
       {before}
       <Popover.Root>
         <Popover.Trigger aria-label={t('info.toggle')} title={t('info.toggle')} className={BAR_ICON}>
@@ -63,5 +65,23 @@ export function PaneBar({ found: { project, name, pane }, onEnd, facts, showProj
       </button>
       {after}
     </header>
+  )
+}
+
+/** Esc interrupts the turn going on, in the agents Isbell runs; the status says when it took. */
+function StopButton({ session }: { session: Session }) {
+  const t = useI18n()
+  const stop = useAnswer(session.mid, session.paneId, () => undefined)
+  return (
+    <button
+      type="button"
+      onClick={() => void stop.press('esc')}
+      disabled={stop.busy}
+      aria-label={t('card.stop')}
+      title={stop.error ?? t('card.stopHint')}
+      className={`${BAR_ICON} hover:text-danger!`}
+    >
+      <Square size={13} fill="currentColor" />
+    </button>
   )
 }
