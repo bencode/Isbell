@@ -40,7 +40,7 @@ export function MobileFrame() {
   return (
     <>
       <div
-        className={`fixed inset-x-0 flex flex-col px-[env(safe-area-inset-left)] pt-[env(safe-area-inset-top)] ${keyboard ? '' : 'pb-[env(safe-area-inset-bottom)]'}`}
+        className={`fixed inset-x-0 flex flex-col pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] ${keyboard ? '' : 'pb-[env(safe-area-inset-bottom)]'}`}
         style={area ? { top: area.top, height: area.height } : { top: 0, bottom: 0 }}
       >
         <ReconnectBanner />

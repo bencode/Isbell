@@ -17,7 +17,7 @@ export function Sheet({ open, onOpenChange, title, closeLabel, children }: Sheet
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-40 bg-scrim" />
-        <Dialog.Popup className="fixed inset-x-0 bottom-0 z-50 flex max-h-[80dvh] flex-col rounded-t-2xl pb-[env(safe-area-inset-bottom)] border-t border-line bg-raised index-card-lifted outline-none">
+        <Dialog.Popup className="fixed inset-x-0 bottom-0 z-50 flex max-h-[80dvh] flex-col rounded-t-2xl border-t border-line bg-raised pb-[env(safe-area-inset-bottom)] index-card-lifted outline-none">
           <div className="flex flex-none items-center gap-3 py-2 pr-2 pl-5">
             <Dialog.Title className="m-0 min-w-0 flex-1 truncate text-base font-semibold">
               {title}
