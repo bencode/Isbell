@@ -16,6 +16,7 @@ async function terminalOver(via: Via) {
     grant: () => {},
     consumed: () => {},
     close: () => {},
+    finish: () => {},
   }
   const space = { openStream: async () => ({ result: {}, stream, via }) } as unknown as Space
   const terminal = await openTerminal(

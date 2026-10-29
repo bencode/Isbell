@@ -13,6 +13,7 @@ mod terminal;
 mod uplink;
 mod workspace;
 
+use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
 use isbell_proto::identity::Identity;
@@ -31,6 +32,8 @@ pub struct GatewayOptions {
     pub machine: MachineInfo,
     /// STUN servers for direct links.
     pub ice: Vec<String>,
+    /// Where files sent for agents go.
+    pub uploads: PathBuf,
 }
 
 /// Shared between the monitor (which discovers herdr) and the calls.
@@ -57,7 +60,8 @@ pub async fn run(opts: GatewayOptions) -> Result<(), GatewayError> {
     let monitor = monitor::run(reporter, Arc::clone(&slot), states, refresh.clone(), refresh_rx);
     let mut monitor = AbortOnDrop(tokio::spawn(monitor));
     let (inbox, inbox_rx) = mpsc::unbounded_channel();
-    let calls = Calls::new(slot, refresh, opts.ice.clone(), inbox.clone());
+    tracing::info!(uploads = %opts.uploads.display(), "files sent for agents go here");
+    let calls = Calls::new(slot, refresh, opts.ice.clone(), opts.uploads.clone(), inbox.clone());
     let _calls = AbortOnDrop(tokio::spawn(calls::run(calls, inbox_rx)));
     tokio::select! {
         result = uplink::run(&opts, inbox, states_rx) => Ok(result?),

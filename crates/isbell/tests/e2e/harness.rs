@@ -23,7 +23,7 @@ pub struct Harness {
     pub terminal_log: PathBuf,
     pub id: Identity,
     pub machine: MachineInfo,
-    _dir: tempfile::TempDir,
+    dir: tempfile::TempDir,
 }
 
 impl Harness {
@@ -64,7 +64,7 @@ impl Harness {
             version: "0".into(),
         };
         let id = Identity::generate();
-        Harness { relay, forwarder, url, herdr, terminal_log, id, machine, _dir: dir }
+        Harness { relay, forwarder, url, herdr, terminal_log, id, machine, dir }
     }
 
     /// Starts a gateway process for the test machine.
@@ -75,6 +75,7 @@ impl Harness {
             machine: self.machine.clone(),
             // Host candidates only: everything runs on this machine.
             ice: vec![],
+            uploads: self.dir.path().join("uploads"),
         }))
     }
 }

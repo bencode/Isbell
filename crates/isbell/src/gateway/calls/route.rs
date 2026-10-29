@@ -19,11 +19,12 @@ pub enum Method {
     FileSearch,
     FileRead,
     FileWrite,
+    FileUpload,
     RtcOffer,
 }
 
 impl Method {
-    const ALL: [Method; 9] = [
+    const ALL: [Method; 10] = [
         Method::Herdr,
         Method::StartAgent,
         Method::History,
@@ -32,6 +33,7 @@ impl Method {
         Method::FileSearch,
         Method::FileRead,
         Method::FileWrite,
+        Method::FileUpload,
         Method::RtcOffer,
     ];
 
@@ -45,6 +47,7 @@ impl Method {
             Method::FileSearch => "isbell.file.search",
             Method::FileRead => "isbell.file.read",
             Method::FileWrite => "isbell.file.write",
+            Method::FileUpload => "isbell.file.upload",
             Method::RtcOffer => "isbell.rtc.offer",
         }
     }

@@ -20,7 +20,13 @@ const direct = vi.hoisted(() => ({
   open: (): Promise<DirectLink> => Promise.reject(new Error('no direct link set up')),
 }))
 
-const stream: Stream = { send: () => {}, grant: () => {}, consumed: () => {}, close: () => {} }
+const stream: Stream = {
+  send: () => {},
+  grant: () => {},
+  consumed: () => {},
+  close: () => {},
+  finish: () => {},
+}
 
 vi.mock('./connection', () => ({
   connect: (_url: string, _id: unknown, on: ConnectionEvents) => {

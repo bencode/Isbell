@@ -54,3 +54,23 @@ test('losing the link ends an open stream once, and nothing more is sent on it',
   stream.close()
   expect(sent.length).toBe(before)
 })
+
+test("a write hears the far side's credit, and how it ends after this side finished", async () => {
+  const { sent, router, ends, frame } = setup()
+  const credits: number[] = []
+  const events: StreamEvents = { data: () => {}, end: e => ends.push(e), credit: n => credits.push(n) }
+  const opening = router.open('m1', 'isbell.file.upload', { name: 'a.png', size: 2 }, 1000, events)
+  router.handle(frame({ t: 'res', id: 1, ok: true, r: { path: '/t/a.png' } }))
+  const { stream } = await opening
+  router.handle(frame({ t: 'credit', id: 1, n: WINDOW }))
+  expect(credits).toEqual([WINDOW])
+
+  stream.send('chunk', undefined, new Uint8Array([1, 2]))
+  stream.finish()
+  expect(sent.slice(-2)).toEqual([
+    { t: 'data', id: 1, k: 'chunk', mid: 'm1' },
+    { t: 'end', id: 1, mid: 'm1' },
+  ])
+  router.handle(frame({ t: 'end', id: 1 }))
+  expect(ends).toEqual([undefined])
+})
