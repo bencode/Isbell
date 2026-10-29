@@ -1,5 +1,6 @@
-// Where to go next, under ⌘K: the next agent that needs you, those that do, a new task, the projects;
-// typed into, every agent and project by name. Only going places and starting work, nothing else.
+// Where to go next, under ⌘K: the next agent that needs you, those that do, a new task; typed into,
+// every agent and project by name (the sidebar already lists the projects). Only going places and
+// starting work, nothing else.
 
 import { Autocomplete } from '@base-ui/react/autocomplete'
 import { Dialog } from '@base-ui/react/dialog'
@@ -53,7 +54,6 @@ export function CommandPalette({ open, onOpenChange, projects, scope, at, onNew 
         ...(next ? [{ label: t('palette.next'), items: [{ kind: 'next', placed: next } as const] }] : []),
         { label: t('palette.needs'), items: [...here.asking, ...here.finished].map(agent) },
         { label: t('project.newTask'), items: [{ kind: 'new' } as const] },
-        { label: t('palette.projects'), items: boards },
       ]
 
   const close = (open: boolean) => {
