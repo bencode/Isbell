@@ -71,7 +71,8 @@ export type Repos = Readonly<Record<string, string>>
 
 const trimSlash = (path: string) => (path.length > 1 ? path.replace(/\/+$/, '') : path)
 
-const tildify = (path: string, home: string | undefined) =>
+/** `path` with the home directory written `~`. */
+export const tildify = (path: string, home: string | undefined) =>
   home && (path === home || path.startsWith(`${home}/`)) ? `~${path.slice(home.length)}` : path
 
 /** Ordered by machine, then by name, so a project keeps its place (and its number key) as its

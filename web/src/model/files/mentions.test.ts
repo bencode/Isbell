@@ -1,9 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import { mentions } from './mentions'
+import type { FilesRoot } from './worktrees'
 
-const project = { path: '/Users/me/work/app', display: '~/work/app' }
-const found = (text: string, cwd = project.path) =>
-  mentions(text, project, cwd).flatMap(p => (typeof p === 'string' ? [] : [p.rel + (p.dir ? '/' : '')]))
+const project: FilesRoot = {
+  key: 'app-1',
+  path: '/Users/me/work/app',
+  display: '~/work/app',
+  branch: 'main',
+  own: true,
+}
+const worktree = (path: string, branch: string): FilesRoot => ({
+  key: `app-1@${branch}`,
+  path,
+  display: path.replace('/Users/me', '~'),
+  branch,
+  own: false,
+})
+const found = (text: string, cwd = project.path, roots = [project]) =>
+  mentions(text, roots, cwd).flatMap(p => (typeof p === 'string' ? [] : [p.rel + (p.dir ? '/' : '')]))
 
 describe('mentions', () => {
   it('finds paths with a directory and an extension, as written around them', () => {
@@ -15,8 +29,12 @@ describe('mentions', () => {
   })
 
   it('keeps the text whole and leaves the line out of the path', () => {
-    const pieces = mentions('at src/a.ts:12:3.', project, project.path)
-    expect(pieces).toEqual(['at ', { text: 'src/a.ts:12:3', rel: 'src/a.ts', dir: false }, '.'])
+    const pieces = mentions('at src/a.ts:12:3.', [project], project.path)
+    expect(pieces).toEqual([
+      'at ',
+      { text: 'src/a.ts:12:3', root: 'app-1', rel: 'src/a.ts', dir: false },
+      '.',
+    ])
   })
 
   it('reads relative paths from the agent directory, and none above the root or from outside it', () => {
@@ -29,6 +47,21 @@ describe('mentions', () => {
   it('takes absolute paths inside the project only', () => {
     expect(found('/Users/me/work/app/src/a.ts and ~/work/app/b.md')).toEqual(['src/a.ts', 'b.md'])
     expect(found('/Users/me/work/other/a.ts and /etc/hosts')).toEqual([])
+  })
+
+  it('leads into the other worktrees too, the deepest where they nest', () => {
+    const roots = [
+      project,
+      worktree('/Users/me/work/app.wt/feat', 'feat'),
+      worktree(`${project.path}/.wt/fix`, 'fix'),
+    ]
+    const at = (text: string) =>
+      mentions(text, roots, project.path).flatMap(p => (typeof p === 'string' ? [] : [`${p.root}:${p.rel}`]))
+    expect(at('/Users/me/work/app.wt/feat/a.ts ~/work/app/.wt/fix/b.md /Users/me/work/app/c.ts')).toEqual([
+      'app-1@feat:a.ts',
+      'app-1@fix:b.md',
+      'app-1:c.ts',
+    ])
   })
 
   it('takes a bare name only with a plain file extension', () => {

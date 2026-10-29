@@ -5,6 +5,7 @@ import { Group, Panel, useDefaultLayout } from 'react-resizable-panels'
 import { ResizeHandle } from '../../components/resize-handle'
 import { useI18n } from '../../core/i18n'
 import { useSpaceView } from '../../core/space'
+import type { FilesRoot } from '../../model/files/worktrees'
 import type { Project } from '../../model/projects'
 import { machineOf } from '../../model/space'
 import { Preview } from './preview'
@@ -15,6 +16,10 @@ const PANELS = ['tree', 'file']
 type Props = {
   mid: string
   project: Project
+  /** Where the project's files may be browsed: its own directory, then its other worktrees. */
+  roots: FilesRoot[]
+  /** The one the address names; none when that worktree is gone. */
+  root: FilesRoot | undefined
   /** The directory the tree opens down to, relative to the root ('' for none). */
   dir: string
   /** The file read, relative to the root. */
@@ -22,7 +27,7 @@ type Props = {
   hrefOf: (rel: string) => string
 }
 
-export function FilesSplit({ mid, project, dir, rel, hrefOf }: Props) {
+export function FilesSplit({ mid, project, roots, root, dir, rel, hrefOf }: Props) {
   const t = useI18n()
   const machine = machineOf(useSpaceView().machines, mid)
   // The tree's width, the same for every project.
@@ -34,8 +39,10 @@ export function FilesSplit({ mid, project, dir, rel, hrefOf }: Props) {
       ? t('files.old')
       : !project.path
         ? t('files.noRoot')
-        : undefined
-  if (note) return <p className="m-6 text-muted">{note}</p>
+        : !root
+          ? t('files.branchGone')
+          : undefined
+  if (note || !root) return <p className="m-6 text-muted">{note}</p>
   return (
     <Group
       orientation="horizontal"
@@ -52,12 +59,12 @@ export function FilesSplit({ mid, project, dir, rel, hrefOf }: Props) {
         maxSize="50%"
         groupResizeBehavior="preserve-pixel-size"
       >
-        <Tree mid={mid} project={project} dir={dir} current={rel} hrefOf={hrefOf} />
+        <Tree mid={mid} project={project} roots={roots} root={root} dir={dir} current={rel} />
       </Panel>
       <ResizeHandle label={t('files.resize')} />
       <Panel id="file" className="flex" minSize="320px">
         {/* Keyed, so each file starts with its own view mode and scroll. */}
-        <Preview key={rel} mid={mid} project={project} rel={rel} hrefOf={hrefOf} />
+        <Preview key={rel} mid={mid} root={root} rel={rel} hrefOf={hrefOf} />
       </Panel>
     </Group>
   )

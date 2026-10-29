@@ -5,14 +5,21 @@ import { Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { errorText, useI18n } from '../../core/i18n'
 import { matchParts, type PathNode, pathTree } from '../../model/files/path-tree'
-import type { Project } from '../../model/projects'
+import type { FilesRoot } from '../../model/files/worktrees'
+import { projectFilesHref } from '../../utils/hrefs'
 import { FileRow, FolderRow } from './rows'
 import { useSearch } from './use-remote'
 
 const PAUSE_MS = 300
 
 /** The search box; `onQuery` hears the trimmed text once typing pauses, and '' when it is cleared. */
-export function SearchBox({ onQuery }: { onQuery: (query: string) => void }) {
+export function SearchBox({
+  onQuery,
+  placeholder,
+}: {
+  onQuery: (query: string) => void
+  placeholder?: string | undefined
+}) {
   const t = useI18n()
   const [text, setText] = useState('')
   useEffect(() => {
@@ -31,7 +38,7 @@ export function SearchBox({ onQuery }: { onQuery: (query: string) => void }) {
         }}
         // The machine takes up to 200 characters.
         maxLength={200}
-        placeholder={t('files.search')}
+        placeholder={placeholder ?? t('files.search')}
         aria-label={t('files.search')}
         className="min-w-0 flex-1 border-0 bg-transparent text-[13px] outline-none"
       />
@@ -40,14 +47,15 @@ export function SearchBox({ onQuery }: { onQuery: (query: string) => void }) {
 }
 
 export function SearchResults({
-  where: { mid, project, current, hrefOf },
+  where: { mid, root, current },
   query,
 }: {
-  where: { mid: string; project: Project; current: string; hrefOf: (rel: string) => string }
+  where: { mid: string; root: FilesRoot; current: string }
   query: string
 }) {
   const t = useI18n()
-  const { data, error } = useSearch(mid, project.path, query)
+  const { data, error } = useSearch(mid, root.path, query)
+  const hrefOf = (rel: string) => projectFilesHref(root.key, rel)
   const tree = useMemo(() => (data ? pathTree(data.paths) : []), [data])
   // Folders the reader closed; every other folder of the results shows open.
   const [closed, setClosed] = useState<ReadonlySet<string>>(new Set())

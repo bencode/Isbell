@@ -24,8 +24,12 @@ export type Layout = {
   folded: string[]
   /** Agent panes (by paneKey) last seen in their terminal, most recent first; any other opens in chat. */
   terminal: string[]
-  /** The folders open in each project's files tree (relative to its root), by project key. */
+  /** The folders open in each files tree (relative to its root), by root key: a project's own key
+   * for its directory, or another worktree's. */
   files: Record<string, string[]>
+  /** The worktrees open in each project's files tree, by root key, by project key; without one,
+   * just the project's own directory. */
+  branches: Record<string, string[]>
   /** Whether long lines of source wrap. */
   wrap: boolean
   /** Whether the agents standing by that have long been still show, at the foot of their lane. */
@@ -63,6 +67,7 @@ const DEFAULTS: Local = {
     folded: [],
     terminal: [],
     files: {},
+    branches: {},
     wrap: false,
     stale: false,
   },
@@ -101,13 +106,14 @@ function write(field: keyof Local, value: unknown) {
 const loaded = Object.fromEntries(FIELDS.map(f => [f, read(f)])) as Local
 // The reading settings are checked one by one: an old or broken value falls back alone.
 const savedReader: Record<string, unknown> = isRecord(loaded.reader) ? loaded.reader : {}
-// Project keys were `mid:path` once (new ones have no ':'); what was kept by them moves to the keys
-// the same projects have now.
+// Project keys were `mid:path` once (a root key may hold ':', but never before an absolute path);
+// what was kept by them moves to the keys the same projects have now.
+const LEGACY_KEY = /^([^@:]+):(\/.*)$/
 const rekeyed = <T>(byProject: Record<string, T>) =>
   Object.fromEntries(
     Object.entries(byProject).map(([key, value]) => {
-      const at = key.indexOf(':')
-      return [at < 0 ? key : projectKey(key.slice(0, at), key.slice(at + 1)), value]
+      const legacy = LEGACY_KEY.exec(key)
+      return [legacy ? projectKey(legacy[1] ?? '', legacy[2] ?? '') : key, value]
     }),
   )
 let current: Local = {
@@ -152,16 +158,37 @@ const withOpenDirs = (project: string, change: (dirs: string[]) => string[]) =>
     layout: { ...l.layout, files: { ...l.layout.files, [project]: change(l.layout.files[project] ?? []) } },
   }))
 
-/** Opens or closes a folder in a project's files tree. */
-export const toggleDir = (project: string, dir: string) =>
-  withOpenDirs(project, dirs => (dirs.includes(dir) ? dirs.filter(d => d !== dir) : [...dirs, dir]))
+/** Opens or closes a folder in a files tree, by its root's key. */
+export const toggleDir = (root: string, dir: string) =>
+  withOpenDirs(root, dirs => (dirs.includes(dir) ? dirs.filter(d => d !== dir) : [...dirs, dir]))
 
-/** Opens these folders in a project's files tree, keeping the ones already open. */
-export function openDirs(project: string, wanted: string[]) {
-  const open = getLocal().layout.files[project]
+/** Opens these folders in a files tree, by its root's key, keeping the ones already open. */
+export function openDirs(root: string, wanted: string[]) {
+  const open = getLocal().layout.files[root]
   // Opening a file whose folders are open already saves nothing.
   if (open && wanted.every(d => open.includes(d))) return
-  withOpenDirs(project, dirs => [...dirs, ...wanted.filter(d => !dirs.includes(d))])
+  withOpenDirs(root, dirs => [...dirs, ...wanted.filter(d => !dirs.includes(d))])
+}
+
+/** The worktrees open in a project's files tree, by root key. */
+export const openBranches = (layout: Layout, project: string) => layout.branches[project] ?? [project]
+
+const withOpenBranches = (project: string, change: (open: string[]) => string[]) =>
+  updateLocal(l => ({
+    layout: {
+      ...l.layout,
+      branches: { ...l.layout.branches, [project]: change(openBranches(l.layout, project)) },
+    },
+  }))
+
+/** Opens or closes a worktree in a project's files tree. */
+export const toggleBranch = (project: string, root: string) =>
+  withOpenBranches(project, open => (open.includes(root) ? open.filter(r => r !== root) : [...open, root]))
+
+/** Opens a worktree in a project's files tree. */
+export function openBranch(project: string, root: string) {
+  if (!openBranches(getLocal().layout, project).includes(root))
+    withOpenBranches(project, open => [...open, root])
 }
 
 export const toggleWrap = () => updateLocal(l => ({ layout: { ...l.layout, wrap: !l.layout.wrap } }))

@@ -1,10 +1,12 @@
 // A machine's files through its gateway: a directory one level at a time, files searched by path,
-// a file read as a stream, and a file sent for an agent. Paths sent are absolute.
+// a repository's worktrees, a file read as a stream, and a file sent for an agent. Paths sent are
+// absolute.
 
 import type { RpcError } from '../frame'
 import type { Caller } from '../herdr'
 import type { Space } from '../space'
 import { CallError, WINDOW } from '../streams'
+import type { Worktree } from './worktrees'
 
 export type Entry = { name: string; kind: 'dir' | 'file' | 'other'; size?: number; mtime?: number }
 /** `total` counts the directory's entries; more than `entries` when the listing was cut. */
@@ -30,6 +32,10 @@ const CHUNK_EVERY_MS = 40
 
 export const list = async (call: Caller, mid: string, path: string) =>
   (await call(mid, 'isbell.file.list', { path }, CALL_TIMEOUT_MS)) as Listing
+
+export const worktrees = async (call: Caller, mid: string, path: string) =>
+  ((await call(mid, 'isbell.git.worktrees', { path }, CALL_TIMEOUT_MS)) as { worktrees: Worktree[] })
+    .worktrees
 
 export const search = async (call: Caller, mid: string, root: string, query: string) =>
   (await call(mid, 'isbell.file.search', { root, query }, CALL_TIMEOUT_MS)) as Found

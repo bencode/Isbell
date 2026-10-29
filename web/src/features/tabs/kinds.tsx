@@ -1,10 +1,11 @@
-// The kinds of tab, each with the pattern its ids match (a file's is `file/<project>/<rel>`): what
+// The kinds of tab, each with the pattern its ids match (a file's is `file/<root key>/<rel>`): what
 // one shows, and what it says in the bar. Another kind of tab is another line in KINDS.
 
 import { FileText, type LucideIcon } from 'lucide-react'
 import { type ComponentType, lazy } from 'react'
 import { matchPath, type Params } from 'react-router'
 import { nameOf } from '../../model/files/paths'
+import { parseRootKey } from '../../model/files/worktrees'
 import type { Project } from '../../model/projects'
 
 type TabKind = {
@@ -24,13 +25,18 @@ const KINDS: TabKind[] = [
     Icon: FileText,
     Pane: FilePane,
     label: ({ key = '', '*': rel = '' }, projects) => {
-      const project = projects.find(p => p.key === key)
-      return { name: nameOf(rel), where: project?.name ?? key, full: `${project?.display ?? key}/${rel}` }
+      const at = parseRootKey(key)
+      const project = projects.find(p => p.key === at.project)
+      const [name, display] = [project?.name ?? at.project, project?.display ?? at.project]
+      return at.branch === undefined
+        ? { name: nameOf(rel), where: name, full: `${display}/${rel}` }
+        : { name: nameOf(rel), where: `${name} · ${at.branch}`, full: `${display}@${at.branch}/${rel}` }
     },
   },
 ]
 
-export const fileTabId = (projectKey: string, rel: string) => `file/${projectKey}/${rel}`
+/** A file's tab, by the key of the root it is under. */
+export const fileTabId = (key: string, rel: string) => `file/${key}/${rel}`
 
 /** The kind of tab `id` names, and what its pattern took from it; each part must name something. */
 export function kindOf(id: string) {

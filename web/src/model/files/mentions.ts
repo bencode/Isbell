@@ -1,11 +1,12 @@
 // The paths an agent mentions in what it says, found in the text so they can be opened. A word is a
-// path only when it reads unmistakably as one, and only one leading into the project counts; whether
-// the file is there is left to opening it.
+// path only when it reads unmistakably as one, and only one leading into the project, or another of
+// its worktrees, counts; whether the file is there is left to opening it.
 
-import type { Project } from '../projects'
-import { relative, resolveLink } from './paths'
+import { resolveLink } from './paths'
+import { type FilesRoot, rootHolding } from './worktrees'
 
-export type Mention = { text: string; rel: string; dir: boolean }
+/** `root`: the key of the root the path leads into; `rel`, where it leads in it. */
+export type Mention = { text: string; root: string; rel: string; dir: boolean }
 export type Piece = string | Mention
 
 // What words are cut at, the separators kept: spaces, quotes, brackets and the punctuation around a
@@ -20,14 +21,14 @@ const KNOWN =
 // Library names such as Node.js read as files otherwise.
 const LIBRARY = /^[A-Z][a-z]+\.js$/
 
-/** `text` cut into plain runs and the paths in it that lead into `project`, as read from `cwd`. */
-export function mentions(text: string, project: Pick<Project, 'path' | 'display'>, cwd: string): Piece[] {
+/** `text` cut into plain runs and the paths in it that lead into one of `roots`, as read from `cwd`. */
+export function mentions(text: string, roots: FilesRoot[], cwd: string): Piece[] {
   return text
     .split(SEPARATOR)
     .flatMap(word => {
       const tail = TRAILING.exec(word)?.[0] ?? ''
       const body = word.slice(0, word.length - tail.length)
-      const at = mentionOf(body, project, cwd)
+      const at = mentionOf(body, roots, cwd)
       return at ? [at, tail] : [word]
     })
     .reduce<Piece[]>((acc, piece) => {
@@ -38,12 +39,12 @@ export function mentions(text: string, project: Pick<Project, 'path' | 'display'
     }, [])
 }
 
-function mentionOf(text: string, project: Pick<Project, 'path' | 'display'>, cwd: string) {
+function mentionOf(text: string, roots: FilesRoot[], cwd: string): Mention | undefined {
   const path = text.replace(LINE, '')
   if (!looksLikePath(path)) return undefined
   const dir = path.endsWith('/')
-  const rel = resolve(path.replace(/\/+$/, ''), project, cwd)
-  return rel ? { text, rel, dir } : undefined
+  const at = resolve(path.replace(/\/+$/, ''), roots, cwd)
+  return at?.rel ? { text, root: at.root.key, rel: at.rel, dir } : undefined
 }
 
 function looksLikePath(path: string) {
@@ -53,13 +54,13 @@ function looksLikePath(path: string) {
   return EXTENSION.test(name) || path.endsWith('/') || /^(?:\.{1,2}|~)?\//.test(path)
 }
 
-/** Where `path` leads under the project's root, or undefined when it leads outside it. */
-function resolve(path: string, project: Pick<Project, 'path' | 'display'>, cwd: string) {
-  if (path.startsWith('/')) return relative(project.path, path)
-  if (path.startsWith('~/')) return relative(project.display, path)
-  // From outside the project, a relative path cannot be told to lead into it.
-  const from = relative(project.path, cwd)
-  if (from === undefined) return undefined
-  const link = resolveLink(from ? `${from}/_` : '_', path)
-  return link.kind === 'file' ? link.rel : undefined
+/** The root `path` leads into and where in it, or undefined when it leads outside them all. */
+function resolve(path: string, roots: FilesRoot[], cwd: string) {
+  if (path.startsWith('/')) return rootHolding(roots, path)
+  if (path.startsWith('~/')) return rootHolding(roots, path, r => r.display)
+  // From outside the roots, a relative path cannot be told to lead into one; nor above its own.
+  const from = rootHolding(roots, cwd)
+  if (!from) return undefined
+  const link = resolveLink(from.rel ? `${from.rel}/_` : '_', path)
+  return link.kind === 'file' ? { root: from.root, rel: link.rel } : undefined
 }

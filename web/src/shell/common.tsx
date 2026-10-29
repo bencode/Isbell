@@ -9,13 +9,14 @@ import { useSpace, useSpaceView } from '../core/space'
 import { NewSession } from '../features/new-session/new-session-panel'
 import type { PaneLayout } from '../features/pane/pane-layout'
 import { LeaveSpace, Settings } from '../features/settings/settings-dialog'
+import { parseRootKey } from '../model/files/worktrees'
 import { locate, type Project, paneKey } from '../model/projects'
 
 /** Where the route points: a project's board, or a pane (by `paneKey`) inside some project. */
 export type Here = { project: Project | undefined; pane: string | undefined }
 
 export const hereOf = (projects: Project[], { key, mid, pane }: Readonly<Params>): Here => {
-  if (key) return { project: projects.find(p => p.key === key), pane: undefined }
+  if (key) return { project: projects.find(p => p.key === parseRootKey(key).project), pane: undefined }
   if (mid && pane) return { project: locate(projects, mid, pane)?.project, pane: paneKey(mid, pane) }
   return { project: undefined, pane: undefined }
 }
