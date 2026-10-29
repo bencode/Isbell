@@ -119,7 +119,6 @@ export const zh: Record<Key, string> = {
   'dir.entries': '{n} 项',
   'dir.missing': '这台机器上没有这个目录。',
 
-  'pane.chat': '对话',
   'pane.terminal': '终端',
   'files.offline': '机器离线。',
   'files.old': '这台机器上的 isbell 太旧，看不了文件。请在那台机器上更新。',

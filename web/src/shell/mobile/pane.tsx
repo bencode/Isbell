@@ -1,8 +1,8 @@
-// A pane page on a phone: one bar (back up, the name and where, stop while it works, the other view,
-// the project's files, more), then the page. The facts rise in a sheet; they and ending the pane sit
-// in the more menu.
+// A pane page on a phone: one bar (back up, the name and where, stop while it works, the project's
+// files, more), then the page. The facts rise in a sheet; they and ending the pane sit in the more
+// menu. The terminal is for the computer: a session's page links to it only where chat cannot do.
 
-import { ChevronLeft, FolderOpen, MessageSquare, MoreHorizontal, SquareTerminal } from 'lucide-react'
+import { ChevronLeft, FolderOpen, MoreHorizontal } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { StatusChip } from '../../components/chip'
@@ -11,7 +11,7 @@ import { Sheet } from '../../components/sheet'
 import { useI18n } from '../../core/i18n'
 import { StopButton } from '../../features/pane/pane-bar'
 import type { PaneParts } from '../../features/pane/pane-layout'
-import { projectFilesHref, projectHref, sessionHref, terminalHref } from '../../utils/hrefs'
+import { projectFilesHref, projectHref, sessionHref } from '../../utils/hrefs'
 
 // A finger-sized icon button, in the bar's ink.
 const ICON =
@@ -25,9 +25,6 @@ export function MobilePane({ found, mid, paneId, view, onEnd, facts, children }:
   const terminal = view === 'terminal'
   // Up, not back: a page opened from a notification has nothing to go back to.
   const up = terminal && session ? sessionHref(mid, paneId) : projectHref(project.key)
-  const other = terminal
-    ? { href: sessionHref(mid, paneId), icon: <MessageSquare size={20} />, label: t('pane.chat') }
-    : { href: terminalHref(mid, paneId), icon: <SquareTerminal size={20} />, label: t('pane.terminal') }
   // The terminal's bar takes its night page (NIGHT in use-terminal.ts).
   const bar = terminal ? 'border-[#222b3b] bg-term text-[#e9e5d9]' : 'border-line bg-bg text-text'
   return (
@@ -46,11 +43,6 @@ export function MobilePane({ found, mid, paneId, view, onEnd, facts, children }:
           </span>
         </div>
         {session?.status === 'working' ? <StopButton session={session} className={ICON} /> : null}
-        {session ? (
-          <Link to={other.href} aria-label={other.label} title={other.label} className={ICON}>
-            {other.icon}
-          </Link>
-        ) : null}
         <Link
           to={projectFilesHref(project.key)}
           aria-label={t('project.files')}

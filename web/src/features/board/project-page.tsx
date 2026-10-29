@@ -57,7 +57,7 @@ function Focused({ project, phone }: { project: Project; phone: boolean }) {
       ) : (
         <p className="m-0 text-muted">{project.online ? t('project.none') : t('project.offline')}</p>
       )}
-      <ShellStrip project={project} />
+      {phone ? null : <ShellStrip project={project} />}
     </>
   )
 }

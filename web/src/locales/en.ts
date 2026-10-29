@@ -118,7 +118,6 @@ export const en = {
   'dir.entries': '{n} entries',
   'dir.missing': 'No such directory on this machine.',
 
-  'pane.chat': 'Chat',
   'pane.terminal': 'Terminal',
   'files.offline': 'The machine is offline.',
   'files.old': "This machine's isbell is too old to show files. Update it there.",
