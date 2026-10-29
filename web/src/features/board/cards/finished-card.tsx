@@ -1,11 +1,12 @@
 // An agent that finished and was not looked at since: what it was asked and the end of what it
 // said, a follow-up, and ✓ to mark it read.
 
-import { Check } from 'lucide-react'
+import { Check, Paperclip } from 'lucide-react'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { errorText, useI18n } from '../../../core/i18n'
 import { markSeen } from '../../../core/prefs'
 import { PathRoot } from '../../../core/tabs'
+import { splitUploads } from '../../../model/files/uploads'
 import { type Placed, paneKey } from '../../../model/projects'
 import type { Reading } from '../../../model/screen/types'
 import { Composer } from '../../pane/composer'
@@ -74,6 +75,7 @@ const FADE = '[mask-image:linear-gradient(to_bottom,black_70%,transparent)]'
  * the session. A screen not read as turns shows its last lines. */
 function LastReply({ reading, text }: { reading: Reading | null; text: string }) {
   const turn = lastTurn(reading)
+  const asked = turn?.prompt ? splitUploads(turn.prompt) : undefined
   const box = useRef<HTMLDivElement>(null)
   const [cut, setCut] = useState(false)
   // Whether it runs past the card, measured once laid out at the card's height.
@@ -90,9 +92,15 @@ function LastReply({ reading, text }: { reading: Reading | null; text: string })
     )
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
-      {turn.prompt ? (
-        <p className="m-0 truncate text-[12.5px] text-faint" title={turn.prompt}>
-          › {turn.prompt}
+      {asked ? (
+        <p className="m-0 flex min-w-0 items-center gap-1.5 text-[12.5px] text-faint" title={asked.text}>
+          <span className="min-w-0 truncate">› {asked.text}</span>
+          {asked.images.length ? (
+            <span className="inline-flex flex-none items-center gap-0.5">
+              <Paperclip size={11} />
+              {asked.images.length}
+            </span>
+          ) : null}
         </p>
       ) : null}
       <div
