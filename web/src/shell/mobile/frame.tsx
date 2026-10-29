@@ -61,7 +61,7 @@ export function MobileFrame() {
           machines={view.machines}
           status={view.status}
           here={here}
-          onNew={() => fromDrawer('session')}
+          onNewDir={() => fromDrawer('newDir')}
           onSettings={() => fromDrawer('settings')}
           onGo={() => setDrawer(false)}
         />
