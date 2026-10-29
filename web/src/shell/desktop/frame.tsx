@@ -1,6 +1,7 @@
 // The frame around every page on a computer: the sidebar (or its rail), a strip while the relay
-// reconnects, the bar atop the page, and the overlays (new, settings) that any part of it can open.
-// A tab named in the address (`?tab=`) shows in place of the page, which stays as it was beneath it.
+// reconnects, the bar atop the page, and the overlays (new, settings, the palette) that any part of
+// it can open. A tab named in the address (`?tab=`) shows in place of the page, which stays as it was
+// beneath it.
 
 import { Activity, Suspense, useState } from 'react'
 import { useMatch, useNavigate } from 'react-router'
@@ -8,9 +9,10 @@ import { useLocal } from '../../core/prefs'
 import { useProjects, useSpaceView } from '../../core/space'
 import { FileOpener, type OpenPath, usePageLocation, useTabActions, useTabRoute } from '../../core/tabs'
 import { fileTabId, TabPane } from '../../features/tabs/kinds'
-import { boardHref, projectFilesHref, projectHref } from '../../utils/hrefs'
-import { useShortcuts } from '../../utils/shortcuts'
+import { boardHref, projectFilesHref } from '../../utils/hrefs'
+import { useCommandKey, useShortcuts } from '../../utils/shortcuts'
 import { hereOf, Loading, type Overlay, Overlays, ReconnectBanner } from '../common'
+import { CommandPalette } from './command-palette'
 import { PageRoutes } from './pages'
 import { Rail } from './rail'
 import { Sidebar } from './sidebar'
@@ -31,7 +33,7 @@ export function AppFrame() {
   const rail = useLocal().layout.rail
   const navigate = useNavigate()
   const [overlay, setOverlay] = useState<Overlay | null>(null)
-  // Single keys belong to the boards; on a session or a terminal they are typing.
+  // Esc belongs to the boards and the tabs; on a terminal it is the agent's.
   const board = peek || boards.some(Boolean)
   const { open, active } = useTabRoute()
   const page = usePageLocation()
@@ -39,28 +41,21 @@ export function AppFrame() {
   const openPath: OpenPath = (project, rel, dir) =>
     navigate(dir ? projectFilesHref(project.key, `${rel}/`) : href(fileTabId(project.key, rel)))
 
-  const step = (by: number) => {
-    if (!projects.length) return
-    const i = here.project ? projects.indexOf(here.project) : by > 0 ? -1 : 0
-    const next = projects[(i + by + projects.length) % projects.length]
-    if (next) navigate(projectHref(next.key))
-  }
-  const numbers = Object.fromEntries(
-    projects.slice(0, 9).map((p, i) => [String(i + 1), () => navigate(projectHref(p.key))]),
-  )
+  // Esc closes the uppermost of what is open over the board: a tab, then a session beside it.
   useShortcuts(
     {
-      ...numbers,
-      n: () => setOverlay('session'),
-      a: () => setOverlay('newDir'),
-      ',': () => setOverlay('settings'),
-      '0': () => navigate('/'),
-      esc: () => navigate(active !== null ? href(null) : peek ? boardHref(params.key) : '/'),
-      ']': () => step(1),
-      '[': () => step(-1),
+      esc: () => {
+        if (active !== null) navigate(href(null))
+        else if (peek) navigate(boardHref(params.key))
+      },
     },
     overlay === null && (board || active !== null),
   )
+  const [palette, setPalette] = useState(false)
+  useCommandKey(() => {
+    if (overlay === null) setPalette(true)
+  })
+  const at = (allPeek ?? projectPeek)?.params
 
   const side = {
     projects,
@@ -68,6 +63,7 @@ export function AppFrame() {
     status: view.status,
     here,
     onSettings: () => setOverlay('settings'),
+    onCommand: () => setPalette(true),
   }
   return (
     <>
@@ -93,6 +89,14 @@ export function AppFrame() {
         </FileOpener>
       </div>
       <Overlays overlay={overlay} setOverlay={setOverlay} focusedKey={here.project?.key} />
+      <CommandPalette
+        open={palette}
+        onOpenChange={setPalette}
+        projects={projects}
+        scope={here.project}
+        at={at?.mid && at.pane ? { mid: at.mid, paneId: at.pane } : undefined}
+        onNew={() => setOverlay('session')}
+      />
     </>
   )
 }

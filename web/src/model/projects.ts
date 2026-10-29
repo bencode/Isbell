@@ -179,6 +179,14 @@ export const splitStale = (standing: Placed[], now: number) => ({
   stale: standing.filter(p => now - p.session.statusSince >= STALE_MS),
 })
 
+/** The agent to see to after `at`: down the asking lane, then the finished one, in the board's order
+ * (the longest waiting first), around to the top; the first when `at` is not among them. */
+export function nextNeeding(l: Lanes, at: { mid: string; paneId: string } | undefined): Placed | undefined {
+  const list = [...l.asking, ...l.finished]
+  const i = list.findIndex(p => p.session.mid === at?.mid && p.session.paneId === at.paneId)
+  return list[i < 0 ? 0 : (i + 1) % list.length]
+}
+
 export type Pane = { session: Session } | { shell: Shell }
 
 export type Found = { project: Project; name: string; pane: Pane }

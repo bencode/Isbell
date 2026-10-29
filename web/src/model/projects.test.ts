@@ -1,6 +1,15 @@
 import { describe, expect, test } from 'vitest'
 import type { Shell } from './herdr'
-import { deriveProjects, judgeDir, lanes, needs, projectKey, STALE_MS, splitStale } from './projects'
+import {
+  deriveProjects,
+  judgeDir,
+  lanes,
+  needs,
+  nextNeeding,
+  projectKey,
+  STALE_MS,
+  splitStale,
+} from './projects'
 import type { MachineEntry } from './space'
 import type { Agent } from './state'
 
@@ -172,4 +181,29 @@ test('agents standing by are put aside once still for a day', () => {
   const { recent, stale } = splitStale(lanes(projects).standing, now)
   expect(recent.map(p => p.session.paneId)).toEqual(['fresh'])
   expect(stale.map(p => p.session.paneId)).toEqual(['still'])
+})
+
+test('the next agent to see to goes down who asks, then who finished, and around', () => {
+  const l = lanes(
+    deriveProjects(
+      [
+        machine([
+          agent('done', '/srv/a', 'done', 1),
+          agent('asks-new', '/srv/a', 'blocked', 3),
+          agent('asks-old', '/srv/a', 'blocked', 2),
+          agent('works', '/srv/a', 'working', 4),
+        ]),
+      ],
+      [],
+      {},
+      {},
+    ),
+  )
+  const after = (paneId?: string) => nextNeeding(l, paneId ? { mid: MID, paneId } : undefined)?.session.paneId
+  expect(after()).toBe('asks-old')
+  expect(after('asks-old')).toBe('asks-new')
+  expect(after('asks-new')).toBe('done')
+  expect(after('done')).toBe('asks-old')
+  expect(after('works')).toBe('asks-old')
+  expect(nextNeeding(lanes([]), undefined)).toBeUndefined()
 })

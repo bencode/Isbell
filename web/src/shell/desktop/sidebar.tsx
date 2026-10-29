@@ -20,6 +20,7 @@ import type { ConnStatus } from '../../model/connection'
 import { needs, type Project } from '../../model/projects'
 import type { MachineEntry } from '../../model/space'
 import { projectHref } from '../../utils/hrefs'
+import { COMMAND_KEY } from '../../utils/shortcuts'
 import type { Here } from '../common'
 import { AskBadge, asking, MachineDot, RelayStatus } from '../marks'
 
@@ -29,6 +30,8 @@ export type SideProps = {
   status: ConnStatus
   here: Here
   onSettings: () => void
+  /** Opens the palette. */
+  onCommand: () => void
 }
 
 const ROW =
@@ -42,6 +45,7 @@ export function Sidebar({
   status,
   here,
   onSettings,
+  onCommand,
   onNewDir,
 }: SideProps & { onNewDir: () => void }) {
   const t = useI18n()
@@ -57,13 +61,12 @@ export function Sidebar({
       </div>
       <button
         type="button"
-        disabled
-        title={t('side.searchSoon')}
-        className="mx-2.5 mb-2 flex h-8 items-center gap-2 rounded-md border border-line bg-raised px-2.5 text-left text-[13px] text-faint"
+        onClick={onCommand}
+        className="mx-2.5 mb-2 flex h-8 cursor-pointer items-center gap-2 rounded-md border border-line bg-raised px-2.5 text-left text-[13px] text-faint hover:border-line-strong hover:text-text focus-visible:outline-2 focus-visible:outline-accent"
       >
         <Search size={15} />
         <span className="flex-1 truncate">{t('side.search')}</span>
-        <kbd className="rounded border border-line px-1 font-mono text-[11px]">⌘K</kbd>
+        <kbd className="rounded border border-line px-1 font-mono text-[11px]">{COMMAND_KEY}</kbd>
       </button>
       <div className="px-2">
         <Link to="/" className={`${ROW} ${here.project || here.pane ? '' : ON}`}>
@@ -132,9 +135,7 @@ function MachineGroup({ entry, projects, here }: { entry: MachineEntry; projects
         className="group flex h-7 cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent px-2 text-left hover:bg-raised focus-visible:outline-2 focus-visible:outline-accent"
       >
         <MachineDot online={online} ready={herdr === 'ready'} />
-        <span className="min-w-0 truncate text-[11px] font-semibold tracking-[0.06em] text-faint uppercase">
-          {state.machine.name}
-        </span>
+        <span className="min-w-0 truncate text-[12.5px] font-semibold text-muted">{state.machine.name}</span>
         {note ? <span className="min-w-0 truncate text-[11px] text-faint">· {note}</span> : null}
         <span className="flex-1" />
         {folded && n ? <AskBadge n={n} label={t('side.asking', { n })} /> : null}
