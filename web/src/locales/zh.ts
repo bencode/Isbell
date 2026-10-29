@@ -40,6 +40,7 @@ export const zh: Record<Key, string> = {
 
   'all.title': '全部 agent',
   'all.summary': '{agents} 个 agent · {projects} 个项目 · {machines} 台机器，{online} 台在线',
+  'all.short': '{agents} 个 · {online} 台在线',
   'all.empty': '没有在跑的。新建一个会话（n），或添加一个项目（a）。',
   'board.loading': '正在连接……',
   'needs.title': '等你处理',
@@ -308,6 +309,7 @@ export const zh: Record<Key, string> = {
   'leave.body': '这个浏览器会忘掉密钥。要回来，再粘贴一次即可。',
   'leave.confirm': '退出',
 
+  'install.tip': '加到主屏幕，像 App 一样打开：点底部的「分享」→「添加到主屏幕」。',
   'join.title': '加入你的空间',
   'join.body': '粘贴任意一台机器上 isbell space show 打印的密钥。',
   'join.key': '空间密钥',

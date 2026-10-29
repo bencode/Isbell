@@ -4,11 +4,10 @@
 import { Square } from 'lucide-react'
 import { errorText, useI18n } from '../../../core/i18n'
 import type { Placed } from '../../../model/projects'
-import { tailLines } from '../../../model/screen'
 import { since } from '../../../utils/time'
 import { useAnswer } from '../../pane/asking'
 import { useReading } from '../../pane/use-reading'
-import { headButton, OpenButton } from './card'
+import { headButton, OpenButton, workingTail } from './card'
 
 const TAIL = 3
 
@@ -26,15 +25,7 @@ export function RunningCard({
   const { reading, text, error } = useReading(session.mid, session.paneId, session)
   // Esc interrupts the turn going on, in the agents Isbell runs; the status says when it took.
   const stop = useAnswer(session.mid, session.paneId, () => undefined)
-  // The turn going on, even while it has said nothing yet: the one before would pass for it.
-  const blocks = reading?.live ? reading.live.reply : (reading?.turns.at(-1)?.reply ?? [])
-  // A screen not read as turns shows as it is.
-  const lines = reading
-    ? tailLines(blocks, TAIL)
-    : (text ?? '')
-        .split('\n')
-        .filter(l => l.trim())
-        .slice(-TAIL)
+  const lines = workingTail(reading, text, TAIL)
   const tail = lines.join('\n')
   return (
     <div className="flex flex-col gap-1.5 rounded-lg border border-line bg-raised px-3 py-2.5">

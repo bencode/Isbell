@@ -13,8 +13,8 @@ export function MobileRoutes() {
     <Routes>
       <Route element={<MobileFrame />}>
         <Route element={<MobileBoard />}>
-          <Route index element={<AllAgents stacked />} />
-          <Route path="p/:key" element={<ProjectView stacked />} />
+          <Route index element={<AllAgents phone />} />
+          <Route path="p/:key" element={<ProjectView phone />} />
         </Route>
         <Route path="s/:mid/:pane" element={<SessionPage layout={MobilePane} />} />
         {/* Where a card on a project's board opens its session. */}

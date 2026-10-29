@@ -1,5 +1,5 @@
-// The frame around every page on a phone: one column, a bar over the boards, the projects in a
-// drawer, and the same overlays as on a computer.
+// The frame around every page on a phone: one column clear of the notch and the home indicator, a
+// bar over the boards, the projects in a drawer, and the same overlays as on a computer.
 
 import { ChevronLeft, Menu, Plus } from 'lucide-react'
 import { useState } from 'react'
@@ -11,6 +11,7 @@ import { needs } from '../../model/projects'
 import { useVisibleArea } from '../../utils/viewport'
 import { hereOf, type Overlay, Overlays, ReconnectBanner } from '../common'
 import { AskBadge } from '../marks'
+import { InstallTip } from './install-tip'
 import { MobileNav } from './nav'
 
 /** What the frame lends the bar of the page inside it. */
@@ -34,10 +35,12 @@ export function MobileFrame() {
     setOverlay(next)
   }
   const actions: FrameActions = { openDrawer: () => setDrawer(true), openNew: () => setOverlay('session') }
+  // The home indicator is under the page only while the keyboard is down.
+  const keyboard = !!area && area.top + area.height < window.innerHeight - 1
   return (
     <>
       <div
-        className="fixed inset-x-0 flex flex-col"
+        className={`fixed inset-x-0 flex flex-col pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] ${keyboard ? '' : 'pb-[env(safe-area-inset-bottom)]'}`}
         style={area ? { top: area.top, height: area.height } : { top: 0, bottom: 0 }}
       >
         <ReconnectBanner />
@@ -62,18 +65,27 @@ export function MobileFrame() {
 }
 
 /**
- * The boards under a bar: the drawer on All projects, the way back up on a project, and New. The
- * board's own heading names the page, so the bar does not repeat it.
+ * The boards under a bar that names them, with the drawer on All projects and the way back up on a
+ * project, and New at its end, where it covers nothing.
  */
 export function MobileBoard() {
   const t = useI18n()
   const { openDrawer, openNew } = useOutletContext<FrameActions>()
   const navigate = useNavigate()
-  const total = needs(useProjects()).length
-  const inProject = useParams().key !== undefined
+  const view = useSpaceView()
+  const projects = useProjects()
+  const total = needs(projects).length
+  const { key } = useParams()
+  const inProject = key !== undefined
+  const project = projects.find(p => p.key === key)
+  const agents = projects.reduce((n, p) => n + p.sessions.length, 0)
+  const online = view.machines.filter(m => m.online).length
+  const [title, sub] = inProject
+    ? [project?.name, project && `${project.machine}${project.online ? '' : ` · ${t('side.offline')}`}`]
+    : [t('all.title'), view.machines.length ? t('all.short', { agents, online }) : undefined]
   return (
     <div className="flex h-full flex-col">
-      <header className="flex h-[52px] flex-none items-center justify-between border-b border-line px-1.5">
+      <header className="flex h-[52px] flex-none items-center gap-1 border-b border-line px-1.5">
         {inProject ? (
           <button
             type="button"
@@ -91,11 +103,21 @@ export function MobileBoard() {
             ) : null}
           </button>
         )}
-        <button type="button" onClick={openNew} aria-label={t('app.newSession')} className={ICON}>
-          <Plus size={22} />
+        <span className="flex min-w-0 flex-1 items-baseline gap-2">
+          <span className="truncate text-base font-bold">{title}</span>
+          {sub ? <span className="min-w-0 truncate text-xs text-faint">{sub}</span> : null}
+        </span>
+        <button
+          type="button"
+          onClick={openNew}
+          className="inline-flex h-11 flex-none cursor-pointer items-center gap-1 rounded-lg border-0 bg-transparent px-2.5 text-sm font-semibold text-accent active:bg-raised-2 focus-visible:outline-2 focus-visible:outline-accent"
+        >
+          <Plus size={18} />
+          {t('app.newSession')}
         </button>
       </header>
       <main className="paper flex min-h-0 flex-1 flex-col gap-6 overflow-auto px-4 py-4">
+        <InstallTip />
         <Outlet />
       </main>
     </div>

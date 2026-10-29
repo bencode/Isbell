@@ -113,6 +113,9 @@ body,
 
 body {
   margin: 0;
+  /* Opened from a phone's home screen, the page reaches under the status bar and the home indicator. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
   background: var(--bg);
   color: var(--text);
   font: 14px / 1.5 var(--font-sans);

@@ -13,8 +13,8 @@ function useFocused(projects: Project[]): Project | undefined {
   return key ? projects.find(p => p.key === key) : undefined
 }
 
-/** One project's agents on the home's lanes, on a phone; `stacked` lays the lanes one under another. */
-export function ProjectView({ stacked = false }: { stacked?: boolean }) {
+/** One project's agents on the home's lanes; on a `phone`, under the bar that names it. */
+export function ProjectView({ phone = false }: { phone?: boolean }) {
   const t = useI18n()
   const view = useSpaceView()
   const projects = useProjects()
@@ -30,26 +30,30 @@ export function ProjectView({ stacked = false }: { stacked?: boolean }) {
       </div>
     )
   // Keyed so the lanes start over for each project.
-  return <Focused key={project.key} project={project} stacked={stacked} />
+  return <Focused key={project.key} project={project} phone={phone} />
 }
 
-function Focused({ project, stacked }: { project: Project; stacked: boolean }) {
+function Focused({ project, phone }: { project: Project; phone: boolean }) {
   const t = useI18n()
   const now = useNow()
   return (
     <>
-      <div className="flex flex-wrap items-baseline gap-2.5">
-        <h1 className="m-0 text-[23px] font-bold after:mt-1 after:block after:h-[3px] after:w-7 after:rounded-sm after:bg-accent after:content-['']">
-          {project.name}
-        </h1>
-        <span className="font-mono text-xs text-faint">{project.display}</span>
-        <span className="rounded-md border border-line px-1.5 text-xs text-muted">{project.machine}</span>
-        {project.online ? null : (
-          <span className="rounded-full border border-line px-2 text-xs text-muted">{t('side.offline')}</span>
-        )}
-      </div>
+      {phone ? null : (
+        <div className="flex flex-wrap items-baseline gap-2.5">
+          <h1 className="m-0 text-[23px] font-bold after:mt-1 after:block after:h-[3px] after:w-7 after:rounded-sm after:bg-accent after:content-['']">
+            {project.name}
+          </h1>
+          <span className="font-mono text-xs text-faint">{project.display}</span>
+          <span className="rounded-md border border-line px-1.5 text-xs text-muted">{project.machine}</span>
+          {project.online ? null : (
+            <span className="rounded-full border border-line px-2 text-xs text-muted">
+              {t('side.offline')}
+            </span>
+          )}
+        </div>
+      )}
       {project.sessions.length ? (
-        <Lanes lanes={lanes([project])} now={now} stacked={stacked} scoped />
+        <Lanes lanes={lanes([project])} now={now} phone={phone} scoped />
       ) : (
         <p className="m-0 text-muted">{project.online ? t('project.none') : t('project.offline')}</p>
       )}

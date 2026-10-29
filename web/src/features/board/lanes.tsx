@@ -7,6 +7,7 @@ import { useI18n } from '../../core/i18n'
 import { toggleStale, useLocal } from '../../core/prefs'
 import type { Lanes as LaneSet, Placed } from '../../model/projects'
 import { paneKey, splitStale } from '../../model/projects'
+import { AgentRow } from './cards/agent-row'
 import { AskingCard } from './cards/asking-card'
 import { FinishedCard } from './cards/finished-card'
 import { RunningCard } from './cards/running-card'
@@ -21,34 +22,61 @@ type Props = {
   stacked?: boolean
   /** All of one project's, so the cards need not say which. */
   scoped?: boolean
+  /** A phone's board: stacked, the empty lanes left out, and the agents not waiting on you in rows
+   * that open their sessions. */
+  phone?: boolean
 }
 
-export function Lanes({ lanes, now, stacked, scoped = false }: Props) {
+export function Lanes({ lanes, now, stacked, scoped = false, phone = false }: Props) {
   const t = useI18n()
   return (
     <div
       className={
-        stacked
-          ? 'flex flex-col gap-4'
-          : 'grid min-h-0 flex-1 grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,0.95fr)_minmax(0,0.95fr)] gap-3'
+        phone
+          ? 'flex flex-col gap-5'
+          : stacked
+            ? 'flex flex-col gap-4'
+            : 'grid min-h-0 flex-1 grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,0.95fr)_minmax(0,0.95fr)] gap-3'
       }
     >
-      <Lane title={t('lane.asking')} dot="bg-warn" hint={t('lane.oldest')} count={lanes.asking.length}>
+      <Lane
+        title={t('lane.asking')}
+        dot="bg-warn"
+        hint={t('lane.oldest')}
+        count={lanes.asking.length}
+        phone={phone}
+      >
         {lanes.asking.map(p => (
           <AskingCard key={keyOf(p)} placed={p} now={now} scoped={scoped} />
         ))}
       </Lane>
-      <Lane title={t('lane.finished')} dot="bg-ok" hint={t('lane.markRead')} count={lanes.finished.length}>
+      <Lane
+        title={t('lane.finished')}
+        dot="bg-ok"
+        hint={t('lane.markRead')}
+        count={lanes.finished.length}
+        phone={phone}
+      >
         {lanes.finished.map(p => (
           <FinishedCard key={keyOf(p)} placed={p} now={now} scoped={scoped} />
         ))}
       </Lane>
-      <Lane title={t('lane.running')} dot="bg-accent" hint={t('lane.watch')} count={lanes.running.length}>
-        {lanes.running.map(p => (
-          <RunningCard key={keyOf(p)} placed={p} now={now} scoped={scoped} />
-        ))}
+      <Lane
+        title={t('lane.running')}
+        dot="bg-accent"
+        hint={t('lane.watch')}
+        count={lanes.running.length}
+        phone={phone}
+      >
+        {lanes.running.map(p =>
+          phone ? (
+            <AgentRow key={keyOf(p)} placed={p} now={now} scoped={scoped} running />
+          ) : (
+            <RunningCard key={keyOf(p)} placed={p} now={now} scoped={scoped} />
+          ),
+        )}
       </Lane>
-      <Standing standing={lanes.standing} offline={lanes.offline} now={now} scoped={scoped} />
+      <Standing standing={lanes.standing} offline={lanes.offline} now={now} scoped={scoped} phone={phone} />
     </div>
   )
 }
@@ -60,11 +88,13 @@ function Standing({
   offline,
   now,
   scoped,
+  phone,
 }: {
   standing: Placed[]
   offline: Placed[]
   now: number
   scoped: boolean
+  phone: boolean
 }) {
   const t = useI18n()
   // One row open at a time.
@@ -73,18 +103,21 @@ function Standing({
   const { recent, stale } = splitStale(standing, now)
   // By machine id: two machines may share a name.
   const machines = [...new Set(offline.map(p => p.project.mid))]
-  const row = (p: Placed, endable = false) => (
-    <StandingRow
-      key={keyOf(p)}
-      placed={p}
-      now={now}
-      scoped={scoped}
-      open={open === keyOf(p)}
-      onOpen={() => setOpen(keyOf(p))}
-      onClose={() => setOpen(null)}
-      endable={endable}
-    />
-  )
+  const row = (p: Placed, endable = false) =>
+    phone ? (
+      <AgentRow key={keyOf(p)} placed={p} now={now} scoped={scoped} />
+    ) : (
+      <StandingRow
+        key={keyOf(p)}
+        placed={p}
+        now={now}
+        scoped={scoped}
+        open={open === keyOf(p)}
+        onOpen={() => setOpen(keyOf(p))}
+        onClose={() => setOpen(null)}
+        endable={endable}
+      />
+    )
   const Chevron = showStale ? ChevronDown : ChevronRight
   return (
     <Lane
@@ -92,6 +125,7 @@ function Standing({
       dot="bg-faint"
       hint={t('lane.latest')}
       count={standing.length + offline.length}
+      phone={phone}
     >
       {recent.map(p => row(p))}
       {stale.length ? (
@@ -128,15 +162,29 @@ function Lane({
   dot,
   hint,
   count,
+  phone,
   children,
 }: {
   title: string
   dot: string
   hint: string
   count: number
+  phone: boolean
   children: ReactNode
 }) {
   const t = useI18n()
+  if (phone)
+    return count ? (
+      <section className="flex flex-col gap-2">
+        <h2 className="m-0 flex items-center gap-2 px-0.5 text-sm font-semibold">
+          <span className={`size-2 rounded-full ${dot}`} />
+          {title}
+          <span className="font-normal text-faint">{count}</span>
+          <span className="ml-auto text-xs font-normal text-faint">{hint}</span>
+        </h2>
+        {children}
+      </section>
+    ) : null
   return (
     <section className="flex min-h-0 flex-col rounded-xl border border-line bg-side/70">
       <h2 className="m-0 flex flex-none items-center gap-2 border-b border-line px-3.5 py-2.5 text-sm font-semibold">
