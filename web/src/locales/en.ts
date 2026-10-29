@@ -59,8 +59,6 @@ export const en = {
   'card.again': 'Answer again',
   'card.showAll': 'Show all {n} lines',
   'card.markRead': 'Mark read',
-  'card.all': 'Show all',
-  'card.less': 'Show less',
   'card.stop': 'Stop',
   'card.stopHint': 'Stop: press Esc in its terminal',
   'shells.title': 'Terminals {n}',

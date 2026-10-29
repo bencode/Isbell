@@ -1,5 +1,5 @@
-// An agent that finished and was not looked at since: the end of what it said, all of it when asked,
-// a follow-up, and ✓ to mark it read.
+// An agent that finished and was not looked at since: what it was asked and the end of what it
+// said, a follow-up, and ✓ to mark it read.
 
 import { Check } from 'lucide-react'
 import { useLayoutEffect, useRef, useState } from 'react'
@@ -11,7 +11,7 @@ import type { Reading } from '../../../model/screen/types'
 import { Composer } from '../../pane/composer'
 import { Reply } from '../../pane/reply'
 import { useReading } from '../../pane/use-reading'
-import { Card, CardHead, headButton, lastReply, SentNote, useSent } from './card'
+import { Card, CardHead, headButton, lastTurn, SentNote, useSent } from './card'
 
 export function FinishedCard({ placed, now, scoped }: { placed: Placed; now: number; scoped: boolean }) {
   const t = useI18n()
@@ -63,49 +63,44 @@ export function FinishedCard({ placed, now, scoped }: { placed: Placed; now: num
   )
 }
 
-/** The lines of a screen not read as turns that the card shows until asked for all. */
+/** The lines of a screen not read as turns that the card shows. */
 const TAIL = 6
+/** The blocks of the last reply the card shows: where an answer comes to its point. */
+const SHOWN = 2
+/** Fades out the foot of a reply cut short. */
+const FADE = '[mask-image:linear-gradient(to_bottom,black_70%,transparent)]'
 
-/** The end of what the agent said last, scrolled to its end with the rest above it; or all of it,
- * when it runs longer than the card shows and is asked for. */
+/** What was asked and the end of the answer, cut short past the card's height; all of it reads in
+ * the session. A screen not read as turns shows its last lines. */
 function LastReply({ reading, text }: { reading: Reading | null; text: string }) {
-  const t = useI18n()
-  const blocks = lastReply(reading)
-  const lines = text.trimEnd().split('\n')
+  const turn = lastTurn(reading)
   const box = useRef<HTMLDivElement>(null)
-  const [long, setLong] = useState(false)
-  const [all, setAll] = useState(false)
+  const [cut, setCut] = useState(false)
   // Whether it runs past the card, measured once laid out at the card's height.
   useLayoutEffect(() => {
     const el = box.current
-    if (el && !all) setLong(el.scrollHeight > el.clientHeight + 1 || (!blocks?.length && lines.length > TAIL))
+    if (el) setCut(el.scrollHeight > el.clientHeight + 1)
   })
-  const height = all ? '' : 'max-h-28'
+  // A line too long to wrap, such as a rule drawn across the screen, is cut at the card's edge.
+  if (!turn?.reply.length)
+    return (
+      <pre className="m-0 overflow-hidden rounded-md bg-bg px-2.5 py-2 font-mono text-[11.5px] leading-snug whitespace-pre-wrap">
+        {text.trimEnd().split('\n').slice(-TAIL).join('\n')}
+      </pre>
+    )
   return (
-    <div className="flex flex-col items-start gap-1">
-      {blocks?.length ? (
-        // A reversed column starts scrolled to its end.
-        <div ref={box} className={`flex w-full flex-col-reverse overflow-auto text-[13px] ${height}`}>
-          <div className="flex flex-col gap-2">
-            <Reply blocks={blocks} />
-          </div>
-        </div>
-      ) : (
-        <div ref={box} className={`w-full overflow-auto ${height}`}>
-          <pre className="m-0 rounded-md bg-bg px-2.5 py-2 font-mono text-[11.5px] leading-snug whitespace-pre-wrap">
-            {(all ? lines : lines.slice(-TAIL)).join('\n')}
-          </pre>
-        </div>
-      )}
-      {long || all ? (
-        <button
-          type="button"
-          onClick={() => setAll(!all)}
-          className="cursor-pointer border-0 bg-transparent p-0 text-xs text-faint hover:text-accent"
-        >
-          {t(all ? 'card.less' : 'card.all')}
-        </button>
+    <div className="flex min-w-0 flex-col gap-1.5">
+      {turn.prompt ? (
+        <p className="m-0 truncate text-[12.5px] text-faint" title={turn.prompt}>
+          › {turn.prompt}
+        </p>
       ) : null}
+      <div
+        ref={box}
+        className={`flex max-h-28 flex-col gap-2 overflow-hidden text-[13px] ${cut ? FADE : ''}`}
+      >
+        <Reply blocks={turn.reply.slice(-SHOWN)} />
+      </div>
     </div>
   )
 }

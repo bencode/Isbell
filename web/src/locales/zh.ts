@@ -61,8 +61,6 @@ export const zh: Record<Key, string> = {
   'card.again': '重新回答',
   'card.showAll': '展开全部 {n} 行',
   'card.markRead': '标为已读',
-  'card.all': '展开全部',
-  'card.less': '收起',
   'card.stop': '停止',
   'card.stopHint': '停止：相当于在它的终端里按 Esc',
   'shells.title': '终端 {n}',
