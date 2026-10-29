@@ -1,6 +1,5 @@
 // Where to go next, under ⌘K: the next agent that needs you, those that do, a new task; typed into,
-// every agent and project by name (the sidebar already lists the projects). Only going places and
-// starting work, nothing else.
+// every agent, by its name or its project's. Only going places and starting work, nothing else.
 
 import { Autocomplete } from '@base-ui/react/autocomplete'
 import { Dialog } from '@base-ui/react/dialog'
@@ -8,14 +7,9 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useI18n } from '../../core/i18n'
 import { lanes, nextNeeding, type Placed, type Project } from '../../model/projects'
-import { boardHref, peekHref } from '../../utils/hrefs'
+import { peekHref } from '../../utils/hrefs'
 
-type Command =
-  | { kind: 'next'; placed: Placed }
-  | { kind: 'agent'; placed: Placed }
-  | { kind: 'new' }
-  /** undefined: every agent's board. */
-  | { kind: 'board'; project: Project | undefined }
+type Command = { kind: 'next'; placed: Placed } | { kind: 'agent'; placed: Placed } | { kind: 'new' }
 
 type Group = { label: string; items: Command[] }
 
@@ -41,14 +35,12 @@ export function CommandPalette({ open, onOpenChange, projects, scope, at, onNew 
   const here = scope ? lanes([scope]) : all
   const next = nextNeeding(here, at)
   const agent = (placed: Placed): Command => ({ kind: 'agent', placed })
-  const boards: Command[] = [undefined, ...projects].map(project => ({ kind: 'board', project }))
   const groups: Group[] = query
     ? [
         {
           label: t('palette.agents'),
           items: [...all.asking, ...all.finished, ...all.running, ...all.standing, ...all.offline].map(agent),
         },
-        { label: t('palette.projects'), items: boards },
       ]
     : [
         ...(next ? [{ label: t('palette.next'), items: [{ kind: 'next', placed: next } as const] }] : []),
@@ -63,17 +55,12 @@ export function CommandPalette({ open, onOpenChange, projects, scope, at, onNew 
   const run = (c: Command) => {
     close(false)
     if (c.kind === 'new') return onNew()
-    if (c.kind === 'board') return navigate(boardHref(c.project?.key))
     const { session, project } = c.placed
     // On every agent's board a session opens beside it; on a project's, beside its own project's.
     navigate(peekHref(scope ? project.key : undefined, session.mid, session.paneId))
   }
   const textOf = (c: Command) =>
-    c.kind === 'new'
-      ? t('project.newTask')
-      : c.kind === 'board'
-        ? (c.project?.name ?? t('side.all'))
-        : `${c.placed.session.name} ${c.placed.project.name}`
+    c.kind === 'new' ? t('project.newTask') : `${c.placed.session.name} ${c.placed.project.name}`
 
   return (
     <Dialog.Root open={open} onOpenChange={close}>
@@ -122,23 +109,12 @@ export function CommandPalette({ open, onOpenChange, projects, scope, at, onNew 
 }
 
 const keyOf = (c: Command) =>
-  c.kind === 'new'
-    ? 'new'
-    : c.kind === 'board'
-      ? `board:${c.project?.key ?? ''}`
-      : `${c.kind}:${c.placed.session.mid}/${c.placed.session.paneId}`
+  c.kind === 'new' ? 'new' : `${c.kind}:${c.placed.session.mid}/${c.placed.session.paneId}`
 
-/** An agent with its state and project; a project with its machine. */
+/** An agent with its state and project. */
 function Line({ command: c }: { command: Command }) {
   const t = useI18n()
   if (c.kind === 'new') return <span className="font-medium">{t('project.newTask')}</span>
-  if (c.kind === 'board')
-    return (
-      <>
-        <span className="truncate font-medium">{c.project?.name ?? t('side.all')}</span>
-        {c.project ? <span className="truncate text-xs text-faint">{c.project.machine}</span> : null}
-      </>
-    )
   const { session, project } = c.placed
   return (
     <>
