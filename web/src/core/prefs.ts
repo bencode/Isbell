@@ -12,6 +12,8 @@ import { noTabs, type Tabs } from '../model/tabs'
 
 export type Prefs = {
   notify: boolean
+  /** Pushes to this iPhone, with Isbell closed (core/push). */
+  push: boolean
   theme: 'system' | 'light' | 'dark'
   lang: 'system' | 'en' | 'zh'
 }
@@ -60,7 +62,7 @@ export type Local = {
 
 const DEFAULTS: Local = {
   key: null,
-  prefs: { notify: false, theme: 'system', lang: 'system' },
+  prefs: { notify: false, push: false, theme: 'system', lang: 'system' },
   seen: {},
   lastAgent: {},
   recentAgents: [],

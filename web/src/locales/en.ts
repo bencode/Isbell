@@ -330,6 +330,11 @@ export const en = {
   'join.gateway': "Let your browser reach that machine's agents.",
   'join.then': 'Then paste the key above. The key stays in this browser and on your machines.',
 
+  'settings.push': 'Push to this iPhone',
+  'settings.pushHint': 'When an agent asks or is done, even with Isbell closed.',
+  'settings.pushInstall': 'Add Isbell to the Home Screen and open it from there to turn pushes on.',
+  'settings.pushNoMachine': 'No machine online can push yet: update isbell on them.',
+  'settings.pushFailed': 'Could not turn pushes on: {msg}',
   'notify.blocked': '{name} needs you',
   'notify.done': '{name} finished',
 

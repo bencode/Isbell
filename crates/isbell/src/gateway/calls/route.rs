@@ -21,11 +21,13 @@ pub enum Method {
     FileWrite,
     FileUpload,
     GitWorktrees,
+    PushKey,
+    PushSubscribe,
     RtcOffer,
 }
 
 impl Method {
-    const ALL: [Method; 11] = [
+    const ALL: [Method; 13] = [
         Method::Herdr,
         Method::StartAgent,
         Method::History,
@@ -36,6 +38,8 @@ impl Method {
         Method::FileWrite,
         Method::FileUpload,
         Method::GitWorktrees,
+        Method::PushKey,
+        Method::PushSubscribe,
         Method::RtcOffer,
     ];
 
@@ -51,6 +55,8 @@ impl Method {
             Method::FileWrite => "isbell.file.write",
             Method::FileUpload => "isbell.file.upload",
             Method::GitWorktrees => "isbell.git.worktrees",
+            Method::PushKey => "isbell.push.key",
+            Method::PushSubscribe => "isbell.push.subscribe",
             Method::RtcOffer => "isbell.rtc.offer",
         }
     }

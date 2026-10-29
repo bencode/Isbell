@@ -327,6 +327,11 @@ export const zh: Record<Key, string> = {
   'join.gateway': '让浏览器能连到这台机器上的 agent。',
   'join.then': '然后把密钥粘贴到上面。密钥只保存在这个浏览器和你的机器上。',
 
+  'settings.push': '推送到这台 iPhone',
+  'settings.pushHint': '有 agent 在问你或做完时，Isbell 关着也能收到。',
+  'settings.pushInstall': '把 Isbell 加到主屏幕，从主屏幕打开后才能开启推送。',
+  'settings.pushNoMachine': '在线的机器都还不能推送，请在机器上更新 isbell。',
+  'settings.pushFailed': '没能开启推送：{msg}',
   'notify.blocked': '{name} 在等你',
   'notify.done': '{name} 做完了',
 
