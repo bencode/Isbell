@@ -332,6 +332,7 @@ export const zh: Record<Key, string> = {
   'settings.pushInstall': '把 Isbell 加到主屏幕，从主屏幕打开后才能开启推送。',
   'settings.pushNoMachine': '在线的机器都还不能推送，请在机器上更新 isbell。',
   'settings.pushFailed': '没能开启推送：{msg}',
+  'settings.pushOffFailed': '没能关闭推送：{msg}',
   'notify.blocked': '{name} 在等你',
   'notify.done': '{name} 做完了',
 

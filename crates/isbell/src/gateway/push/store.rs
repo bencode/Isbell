@@ -66,7 +66,9 @@ impl Store {
 
     fn change(&self, edit: impl FnOnce(&mut Vec<Subscription>)) -> io::Result<()> {
         let mut subs = self.subs.lock().expect("push store poisoned");
-        edit(&mut subs);
+        // Changed in a copy, kept only once written, so what is kept is what the file holds.
+        let mut next = subs.clone();
+        edit(&mut next);
         // Written aside and renamed over, so a crash never leaves half a file; readable by its owner
         // alone, as the subscriptions let anyone push to the phones.
         let tmp = self.file.with_extension("json.tmp");
@@ -76,8 +78,10 @@ impl Store {
             .truncate(true)
             .mode(0o600)
             .open(&tmp)?;
-        out.write_all(&serde_json::to_vec_pretty(&*subs).expect("subscriptions serialize"))?;
+        out.write_all(&serde_json::to_vec_pretty(&next).expect("subscriptions serialize"))?;
         out.sync_all()?;
-        fs::rename(&tmp, &self.file)
+        fs::rename(&tmp, &self.file)?;
+        *subs = next;
+        Ok(())
     }
 }

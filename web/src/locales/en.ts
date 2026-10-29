@@ -335,6 +335,7 @@ export const en = {
   'settings.pushInstall': 'Add Isbell to the Home Screen and open it from there to turn pushes on.',
   'settings.pushNoMachine': 'No machine online can push yet: update isbell on them.',
   'settings.pushFailed': 'Could not turn pushes on: {msg}',
+  'settings.pushOffFailed': 'Could not turn pushes off: {msg}',
   'notify.blocked': '{name} needs you',
   'notify.done': '{name} finished',
 

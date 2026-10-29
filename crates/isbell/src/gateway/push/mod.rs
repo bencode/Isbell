@@ -71,8 +71,14 @@ impl Push {
                 Ok(true) => {}
                 Ok(false) => {
                     tracing::info!(endpoint = %sub.endpoint, "a phone unsubscribed; forgetting it");
-                    if let Err(err) = self.store.remove(&sub.endpoint) {
-                        tracing::error!(%err, "cannot forget a push subscription");
+                    let push = Arc::clone(&self);
+                    // Off the runtime: forgetting it writes a file.
+                    match tokio::task::spawn_blocking(move || push.store.remove(&sub.endpoint))
+                        .await
+                    {
+                        Ok(Ok(())) => {}
+                        Ok(Err(err)) => tracing::error!(%err, "cannot forget a push subscription"),
+                        Err(err) => tracing::error!(%err, "forgetting a push subscription failed"),
                     }
                 }
                 Err(err) => tracing::warn!(endpoint = %sub.endpoint, %err, "push not delivered"),
@@ -98,7 +104,11 @@ impl Push {
         match response.status().as_u16() {
             404 | 410 => Ok(false),
             _ if response.status().is_success() => Ok(true),
-            status => Err(format!("{status}: {}", response.text().await.unwrap_or_default())),
+            status => {
+                let body =
+                    response.text().await.unwrap_or_else(|err| format!("(body unreadable: {err})"));
+                Err(format!("{status}: {body}"))
+            }
         }
     }
 }

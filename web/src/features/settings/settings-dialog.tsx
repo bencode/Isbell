@@ -64,8 +64,9 @@ export function Settings({ open, onOpenChange, onLeave }: Props & { onLeave: () 
     setPushProblem(undefined)
     try {
       if (!on) {
-        setPrefs({ push: false })
+        // Off only once unsubscribed: a failure leaves it on, as the phone still gets pushes.
         await turnOffPush()
+        setPrefs({ push: false })
         return
       }
       const mids = pushMachines(machines)
@@ -75,7 +76,7 @@ export function Settings({ open, onOpenChange, onLeave }: Props & { onLeave: () 
       setPrefs({ push: granted })
     } catch (err) {
       console.error('could not turn pushes', on ? 'on' : 'off', err)
-      setPushProblem(t('settings.pushFailed', { msg: errorText(t, err) }))
+      setPushProblem(t(on ? 'settings.pushFailed' : 'settings.pushOffFailed', { msg: errorText(t, err) }))
     }
   }
 
@@ -99,7 +100,8 @@ export function Settings({ open, onOpenChange, onLeave }: Props & { onLeave: () 
             </Button>
           </Row>
         ) : null}
-        <p className="m-0 text-[12.5px] text-muted">{t('settings.closedNote')}</p>
+        {/* Where pushes can be had, their row says what reaches a closed Isbell instead. */}
+        {support === 'no' ? <p className="m-0 text-[12.5px] text-muted">{t('settings.closedNote')}</p> : null}
         {support === 'no' ? null : (
           <Row
             label={t('settings.push')}
