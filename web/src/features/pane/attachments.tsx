@@ -16,8 +16,8 @@ export type Attachment = {
   error?: string
 }
 
-/** Files added for machine `mid`; `enabled` once its gateway takes them. */
-export function useAttachments(mid: string, enabled: boolean) {
+/** Files added for machine `mid`, named `machine`; `enabled` once its gateway takes them. */
+export function useAttachments(mid: string, machine: string, enabled: boolean) {
   const t = useI18n()
   const space = useSpace()
   const [items, setItems] = useState<Attachment[]>([])
@@ -38,7 +38,7 @@ export function useAttachments(mid: string, enabled: boolean) {
 
   const add = (files: File[]) => {
     if (!files.length) return
-    if (!enabled) return setProblem(t('upload.unsupported'))
+    if (!enabled) return setProblem(t('upload.unsupported', { machine }))
     setProblem(undefined)
     const added = files.map(file => {
       ids.current += 1

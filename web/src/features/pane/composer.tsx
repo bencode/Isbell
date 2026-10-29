@@ -8,8 +8,9 @@ import { onSubmitKey } from '../../utils/shortcuts'
 import { Attachments, useAttachments } from './attachments'
 
 /** A reply, or something more the agent should know. `compact`, a card's: one quiet line whose
- * send key lights up once there is something to send. With `uploads` (whether the agent's machine
- * takes files), files pasted, dropped or picked go along, the reply naming where they landed. */
+ * send key lights up once there is something to send. With `uploads`, the agent's machine and
+ * whether it takes files, files pasted, dropped or picked go along, the reply naming where they
+ * landed. */
 export function Composer({
   mid,
   paneId,
@@ -21,14 +22,14 @@ export function Composer({
   paneId: string
   onSent: (text: string) => void
   compact?: boolean
-  uploads?: boolean
+  uploads?: { machine: string; taken: boolean }
 }) {
   const t = useI18n()
   const space = useSpace()
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
-  const files = useAttachments(mid, uploads === true)
+  const files = useAttachments(mid, uploads?.machine ?? '', uploads?.taken === true)
   const picker = useRef<HTMLInputElement>(null)
   const message = [text.trim(), ...files.paths].filter(Boolean).join('\n')
 
@@ -55,14 +56,14 @@ export function Composer({
       onChange={e => setText(e.target.value)}
       onKeyDown={onSubmitKey(() => void send())}
       onPaste={
-        uploads === undefined
-          ? undefined
-          : e => {
+        uploads
+          ? e => {
               const pasted = [...e.clipboardData.files]
               if (!pasted.length) return
               e.preventDefault()
               files.add(pasted)
             }
+          : undefined
       }
       aria-label={t('composer.placeholder')}
       placeholder={t(compact ? 'composer.short' : 'composer.placeholder')}
@@ -70,19 +71,18 @@ export function Composer({
     />
   )
   const ready = !!message && !busy && !files.uploading
-  const drop =
-    uploads === undefined
-      ? {}
-      : {
-          onDragOver: (e: DragEvent) => {
-            if (e.dataTransfer.types.includes('Files')) e.preventDefault()
-          },
-          onDrop: (e: DragEvent) => {
-            if (!e.dataTransfer.files.length) return
-            e.preventDefault()
-            files.add([...e.dataTransfer.files])
-          },
-        }
+  const drop = uploads
+    ? {
+        onDragOver: (e: DragEvent) => {
+          if (e.dataTransfer.types.includes('Files')) e.preventDefault()
+        },
+        onDrop: (e: DragEvent) => {
+          if (!e.dataTransfer.files.length) return
+          e.preventDefault()
+          files.add([...e.dataTransfer.files])
+        },
+      }
+    : {}
   return (
     <div className="flex flex-col gap-1.5">
       {compact ? (
@@ -107,7 +107,7 @@ export function Composer({
           <Attachments items={files.items} onRemove={files.remove} />
           <div className="flex items-end gap-2.5">
             {field}
-            {uploads ? (
+            {uploads?.taken ? (
               <>
                 <input
                   ref={picker}

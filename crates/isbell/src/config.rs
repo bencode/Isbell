@@ -42,9 +42,18 @@ impl Config {
         self.stun.clone().unwrap_or_else(default)
     }
 
-    /// Where files sent for agents go; the system's temporary directory unless set.
+    /// Where files sent for agents go: `uploads` when it is absolute, else the system's temporary
+    /// directory, as a relative path would hand agents a path they cannot resolve.
     pub fn uploads(&self) -> PathBuf {
-        self.uploads.clone().unwrap_or_else(|| std::env::temp_dir().join("isbell-uploads"))
+        let temp = || std::env::temp_dir().join("isbell-uploads");
+        match &self.uploads {
+            Some(dir) if dir.is_absolute() => dir.clone(),
+            Some(dir) => {
+                tracing::warn!(dir = %dir.display(), "uploads is not an absolute path; ignoring it");
+                temp()
+            }
+            None => temp(),
+        }
     }
 }
 

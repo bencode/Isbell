@@ -89,7 +89,7 @@ function SessionView({
     more &&
     settled(session.status) &&
     !!machineOf(view.machines, mid)?.state.caps.methods.includes('isbell.agent.history')
-  const uploads = !!machineOf(view.machines, mid)?.state.caps.methods.includes('isbell.file.upload')
+  const taken = !!machineOf(view.machines, mid)?.state.caps.methods.includes('isbell.file.upload')
 
   // The sidebar and the drawer open an agent in the view it was last seen in.
   useEffect(() => {
@@ -194,7 +194,12 @@ function SessionView({
             ) : null}
             {asking && reading?.question ? null : (
               <div className={asking ? 'mt-3' : ''}>
-                <Composer mid={mid} paneId={paneId} onSent={reread} uploads={uploads} />
+                <Composer
+                  mid={mid}
+                  paneId={paneId}
+                  onSent={reread}
+                  uploads={{ machine: project.machine, taken }}
+                />
               </div>
             )}
           </div>

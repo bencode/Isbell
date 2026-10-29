@@ -35,6 +35,8 @@ pub struct Target {
     temp: PathBuf,
     file: File,
     received: Received,
+    /// An upload's own directory, removed with the temporary file when the write fails.
+    own: Option<PathBuf>,
 }
 
 /// How much of the announced size arrived.
@@ -87,7 +89,13 @@ pub async fn open_upload(p: Value, dir: PathBuf) -> Result<(Target, Value), RpcE
     let req: UploadRequest = serde_json::from_value(p).map_err(RpcError::bad_request)?;
     let own = blocking(move || own_dir(&dir).map_err(io_error)).await?;
     let path = own.join(upload_name(&req.name));
-    Ok((open_at(path.clone(), req.size).await?, json!({"path": path})))
+    match open_at(path.clone(), req.size).await {
+        Ok(target) => Ok((Target { own: Some(own), ..target }, json!({"path": path}))),
+        Err(err) => {
+            remove_dir(&own).await;
+            Err(err)
+        }
+    }
 }
 
 /// The last part of `name` without control characters; `file` when nothing of it is left.
@@ -114,7 +122,7 @@ async fn open_at(path: PathBuf, size: u64) -> Result<Target, RpcError> {
     let file =
         OpenOptions::new().write(true).create_new(true).open(&temp).await.map_err(io_error)?;
     let received = Received { bytes: 0, size, grants: Grants::default() };
-    Ok(Target { path, temp, file, received })
+    Ok(Target { path, temp, file, received, own: None })
 }
 
 /// The file a symlink points to, so writing through it updates that file (as `cp` does) and the
@@ -139,7 +147,7 @@ pub async fn pump_write(
     input: mpsc::Receiver<Input>,
     mut emit: impl FnMut(Output),
 ) {
-    let Target { path, temp, file, received } = target;
+    let Target { path, temp, file, received, own } = target;
     emit(Output::Credit(WINDOW));
     let stored = match receive(file, received, input, &mut emit).await {
         Ok(file) => commit(file, &temp, &path).await,
@@ -147,6 +155,9 @@ pub async fn pump_write(
     };
     if stored.is_err() {
         remove(&temp).await;
+        if let Some(own) = own {
+            remove_dir(&own).await;
+        }
     }
     emit(Output::End(stored.err()));
 }
@@ -191,6 +202,12 @@ async fn commit(file: File, temp: &Path, path: &Path) -> Result<(), RpcError> {
 async fn remove(temp: &Path) {
     if let Err(err) = tokio::fs::remove_file(temp).await {
         tracing::warn!(%err, temp = %temp.display(), "cannot remove a partial write");
+    }
+}
+
+async fn remove_dir(dir: &Path) {
+    if let Err(err) = tokio::fs::remove_dir(dir).await {
+        tracing::warn!(%err, dir = %dir.display(), "cannot remove a failed upload's directory");
     }
 }
 
@@ -307,6 +324,18 @@ mod tests {
         for d in [uploads.as_path(), own] {
             assert_eq!(std::fs::metadata(d).unwrap().permissions().mode() & 0o777, 0o700);
         }
+    }
+
+    #[tokio::test]
+    async fn a_failed_upload_leaves_nothing_behind() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = json!({"name": "shot.png", "size": 10});
+        let (target, _) = open_upload(p, dir.path().to_owned()).await.unwrap();
+        let (tx, rx) = mpsc::channel(2);
+        tx.send(Input::Chunk(b"png".to_vec())).await.unwrap();
+        tx.send(Input::Close).await.unwrap();
+        pump_write(target, rx, |_| {}).await;
+        assert!(names(dir.path()).is_empty(), "{:?}", names(dir.path()));
     }
 
     #[tokio::test]

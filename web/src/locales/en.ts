@@ -271,7 +271,7 @@ export const en = {
   'composer.send': 'Send',
   'upload.attach': 'Attach files',
   'upload.tooLarge': 'Over 20 MB',
-  'upload.unsupported': "This machine's gateway is too old to take files; update it",
+  'upload.unsupported': "{machine}'s gateway is too old to take files; update it",
   'upload.remove': 'Remove',
   'end.title': 'End this session?',
   'end.body': 'This stops {name} and closes its pane on {machine}. What it changed in {path} stays.',

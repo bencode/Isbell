@@ -271,7 +271,7 @@ export const zh: Record<Key, string> = {
   'composer.send': '发送',
   'upload.attach': '添加文件',
   'upload.tooLarge': '超过 20 MB',
-  'upload.unsupported': '这台机器的 gateway 版本太旧，收不了文件，请升级',
+  'upload.unsupported': '{machine} 的 gateway 版本太旧，收不了文件，请升级',
   'upload.remove': '移除',
   'end.title': '结束这个会话？',
   'end.body': '这会停掉 {name}，并关掉它在 {machine} 上的 pane。它在 {path} 里做的改动会保留。',
