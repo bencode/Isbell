@@ -7,6 +7,7 @@ import { useI18n } from '../../core/i18n'
 import { toggleRail } from '../../core/prefs'
 import { needs } from '../../model/projects'
 import { projectHref } from '../../utils/hrefs'
+import { COMMAND_KEY } from '../../utils/shortcuts'
 import { AskBadge, asking, RelayStatus } from '../marks'
 import type { SideProps } from './sidebar'
 
@@ -16,7 +17,7 @@ const ITEM =
 const ON = 'bg-accent-soft! text-text'
 const CORNER = 'absolute -top-1 -right-1.5 h-4 min-w-4 text-[10px]'
 
-export function Rail({ projects, status, here, onSettings }: SideProps) {
+export function Rail({ projects, status, here, onSettings, onCommand }: SideProps) {
   const t = useI18n()
   const total = needs(projects).length
   return (
@@ -27,7 +28,7 @@ export function Rail({ projects, status, here, onSettings }: SideProps) {
       <span className="inline-flex size-9 items-center justify-center" title="Isbell">
         <SquareTerminal size={20} className="text-accent" aria-hidden="true" />
       </span>
-      <button type="button" disabled title={t('side.searchSoon')} className={ITEM}>
+      <button type="button" onClick={onCommand} title={`${t('side.search')} ${COMMAND_KEY}`} className={ITEM}>
         <Search size={17} />
         <span className="sr-only">{t('side.search')}</span>
       </button>
