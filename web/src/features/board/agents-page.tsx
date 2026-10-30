@@ -1,5 +1,5 @@
-// The board on a computer: every agent, or one project's, on the four lanes, and for a project its
-// plain shells below them. `/` shows all of them; `/p/:key` the project's. A session opened from a
+// The board on a computer: every agent, or one project's, on the four lanes, with the plain shells
+// at the foot of the standing one. `/` shows all of them; `/p/:key` the project's. A session opened from a
 // card (`…/s/:mid/:pane`) shows beside the board, which folds into one column meanwhile.
 
 import { Group, Panel, useDefaultLayout } from 'react-resizable-panels'
@@ -16,7 +16,6 @@ import { PeekPane } from '../pane/peek-pane'
 import { SessionPage } from '../pane/session-page'
 import { NoMachines } from './all-page'
 import { Lanes } from './lanes'
-import { ShellStrip } from './shell-strip'
 
 const NOTE = 'm-6 flex flex-col items-start gap-3 text-muted'
 
@@ -78,12 +77,11 @@ function Board({ project, all }: { project: Project | undefined; all: Project[] 
             {...scroll}
             className={`paper flex min-h-0 flex-1 flex-col gap-5 overflow-auto py-5 ${peek ? 'px-4' : 'px-7'}`}
           >
-            {shown.some(p => p.sessions.length) ? (
+            {shown.some(p => p.sessions.length || p.shells.length) ? (
               <Lanes lanes={lanes(shown)} now={now} stacked={peek} scoped={!!project} />
             ) : (
               <p className="m-0 text-muted">{empty}</p>
             )}
-            {project ? <ShellStrip project={project} /> : null}
           </main>
         </Panel>
         {peek ? (

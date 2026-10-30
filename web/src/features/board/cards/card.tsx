@@ -1,10 +1,12 @@
-// What every card on the board shares: its frame, its head, and the note it keeps once answered
-// until the agent moves on.
+// What every card on the board shares: its frame, its head, the note it keeps once answered until
+// the agent moves on, and ending the agent from it.
 
-import { MessageSquareText } from 'lucide-react'
+import { MessageSquareText, Power } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { Link, useParams } from 'react-router'
-import { useI18n } from '../../../core/i18n'
+import { type Ending, endNow, endSoon, undoEnd } from '../../../core/ending'
+import { errorText, useI18n } from '../../../core/i18n'
+import { useSpace } from '../../../core/space'
 import type { Placed, Session } from '../../../model/projects'
 import { tailLines } from '../../../model/screen'
 import type { Block, Reading } from '../../../model/screen/types'
@@ -34,7 +36,7 @@ export const workingTail = (reading: Reading | null, text: string | null, n: num
         .filter(l => l.trim())
         .slice(-n)
 
-/** `sent` fades the card while what was sent takes effect. */
+/** `sent` fades the card while what was sent, or its ending, takes effect. */
 export function Card({ ask, sent, children }: { ask?: boolean; sent?: boolean; children: ReactNode }) {
   const frame = sent
     ? 'border-dashed border-line-strong opacity-60'
@@ -120,6 +122,60 @@ export function SentNote({ what, onAgain }: { what: string; onAgain: () => void 
       >
         {t('card.again')}
       </button>
+    </p>
+  )
+}
+
+/** An agent's pane or a plain shell's. */
+type PaneAt = { mid: string; paneId: string }
+
+/** Ends the agent (or shell) after a moment, in which its card offers to undo it; so it asks nothing. */
+export function EndButton({ pane: { mid, paneId } }: { pane: PaneAt }) {
+  const t = useI18n()
+  const { call } = useSpace()
+  return (
+    <button
+      type="button"
+      onClick={() => endSoon(call, mid, paneId)}
+      aria-label={t('card.end')}
+      title={t('card.end')}
+      className={`${headButton()} hover:text-danger`}
+    >
+      <Power size={13} />
+    </button>
+  )
+}
+
+const LINK = 'cursor-pointer border-0 bg-transparent p-0 text-accent hover:underline'
+
+/** What stands in for the card while the agent (or shell) is being ended: the way to undo it while it may
+ * be, and why it failed, if it did. */
+export function EndingNote({ pane: { mid, paneId }, ending }: { pane: PaneAt; ending: Ending }) {
+  const t = useI18n()
+  const { call } = useSpace()
+  const undo = (
+    <button type="button" onClick={() => undoEnd(mid, paneId)} className={LINK}>
+      {t('end.undo')}
+    </button>
+  )
+  return (
+    <p className="m-0 flex flex-wrap items-baseline gap-x-2 text-[12.5px] text-muted">
+      {ending === 'soon' ? (
+        <>
+          {t('end.soon')}
+          {undo}
+        </>
+      ) : ending === 'closing' ? (
+        t('end.closing')
+      ) : (
+        <>
+          <span className="text-danger">{t('end.failed', { msg: errorText(t, ending.failed) })}</span>
+          <button type="button" onClick={() => void endNow(call, mid, paneId)} className={LINK}>
+            {t('end.retry')}
+          </button>
+          {undo}
+        </>
+      )}
     </p>
   )
 }

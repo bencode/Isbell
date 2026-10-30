@@ -4,14 +4,16 @@
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { useI18n } from '../../core/i18n'
-import { toggleStale, useLocal } from '../../core/prefs'
-import type { Lanes as LaneSet, Placed } from '../../model/projects'
+import { toggleShells, toggleStale, useLocal } from '../../core/prefs'
+import type { Lanes as LaneSet, Placed, PlacedShell } from '../../model/projects'
 import { paneKey, splitStale } from '../../model/projects'
 import { AgentRow } from './cards/agent-row'
 import { AskingCard } from './cards/asking-card'
 import { FinishedCard } from './cards/finished-card'
 import { RunningCard } from './cards/running-card'
 import { StandingRow } from './cards/standing-row'
+import { TerminalRow } from './cards/terminal-row'
+import { EndAll } from './end-all'
 
 const keyOf = ({ session }: Placed) => paneKey(session.mid, session.paneId)
 
@@ -76,22 +78,32 @@ export function Lanes({ lanes, now, stacked, scoped = false, phone = false }: Pr
           ),
         )}
       </Lane>
-      <Standing standing={lanes.standing} offline={lanes.offline} now={now} scoped={scoped} phone={phone} />
+      <Standing
+        standing={lanes.standing}
+        offline={lanes.offline}
+        shells={lanes.shells}
+        now={now}
+        scoped={scoped}
+        phone={phone}
+      />
     </div>
   )
 }
 
-/** The rest, latest first, each opened to give it its next step; those still for a day folded at
- * the foot, each with a way to end it; then the offline ones by machine. */
+/** The rest, latest first, each opened to give it its next step or ended; those still for a day
+ * folded at the foot, then the plain shells (not on a phone), each fold with a way to end all in it;
+ * then the offline ones by machine. */
 function Standing({
   standing,
   offline,
+  shells,
   now,
   scoped,
   phone,
 }: {
   standing: Placed[]
   offline: Placed[]
+  shells: PlacedShell[]
   now: number
   scoped: boolean
   phone: boolean
@@ -99,11 +111,11 @@ function Standing({
   const t = useI18n()
   // One row open at a time.
   const [open, setOpen] = useState<string | null>(null)
-  const showStale = useLocal().layout.stale
+  const layout = useLocal().layout
   const { recent, stale } = splitStale(standing, now)
   // By machine id: two machines may share a name.
   const machines = [...new Set(offline.map(p => p.project.mid))]
-  const row = (p: Placed, endable = false) =>
+  const row = (p: Placed) =>
     phone ? (
       <AgentRow key={keyOf(p)} placed={p} now={now} scoped={scoped} />
     ) : (
@@ -115,33 +127,50 @@ function Standing({
         open={open === keyOf(p)}
         onOpen={() => setOpen(keyOf(p))}
         onClose={() => setOpen(null)}
-        endable={endable}
       />
     )
-  const Chevron = showStale ? ChevronDown : ChevronRight
   return (
     <Lane
       title={t('lane.standing')}
       dot="bg-faint"
       hint={t('lane.latest')}
       count={standing.length + offline.length}
+      empty={!standing.length && !offline.length && (phone || !shells.length)}
       phone={phone}
     >
-      {recent.map(p => row(p))}
+      {recent.map(row)}
       {stale.length ? (
         <>
-          <button
-            type="button"
-            onClick={toggleStale}
-            aria-expanded={showStale}
-            className="flex h-7 flex-none cursor-pointer items-center gap-1.5 rounded-md border-0 bg-transparent px-0.5 text-left text-[11px] font-semibold tracking-[0.04em] text-faint uppercase hover:text-text focus-visible:outline-2 focus-visible:outline-accent"
-          >
-            <Chevron size={13} className="flex-none" />
-            {t('lane.stale', { n: stale.length })}
-          </button>
-          {showStale ? stale.map(p => row(p, true)) : null}
+          <Fold open={layout.stale} onToggle={toggleStale} label={t('lane.stale', { n: stale.length })}>
+            {phone ? null : (
+              <EndAll
+                panes={stale.map(p => p.session)}
+                title={t('end.allTitle', { n: stale.length })}
+                body={t('end.allBody', { names: stale.map(p => p.session.name).join(', ') })}
+              />
+            )}
+          </Fold>
+          {layout.stale ? stale.map(row) : null}
         </>
       ) : null}
+      {phone || !shells.length ? null : (
+        <>
+          <Fold open={layout.shells} onToggle={toggleShells} label={t('lane.shells', { n: shells.length })}>
+            <EndAll
+              panes={shells.map(p => p.shell)}
+              title={t('end.shellsTitle', { n: shells.length })}
+              body={t('end.shellsBody', {
+                panes: shells.map(p => `${p.shell.paneId} (${p.project.name})`).join(', '),
+              })}
+            />
+          </Fold>
+          {layout.shells
+            ? shells.map(p => (
+                <TerminalRow key={paneKey(p.shell.mid, p.shell.paneId)} placed={p} scoped={scoped} />
+              ))
+            : null}
+        </>
+      )}
       {machines.map(mid => {
         const rows = offline.filter(p => p.project.mid === mid)
         return (
@@ -157,11 +186,14 @@ function Standing({
   )
 }
 
+/** `count`: what the lane's title counts; `empty`, whether it holds nothing at all (none counted, by
+ * default). */
 function Lane({
   title,
   dot,
   hint,
   count,
+  empty = count === 0,
   phone,
   children,
 }: {
@@ -169,12 +201,13 @@ function Lane({
   dot: string
   hint: string
   count: number
+  empty?: boolean
   phone: boolean
   children: ReactNode
 }) {
   const t = useI18n()
   if (phone)
-    return count ? (
+    return empty ? null : (
       <section className="flex flex-col gap-2">
         <h2 className="m-0 flex items-center gap-2 px-0.5 text-sm font-semibold">
           <span className={`size-2 rounded-full ${dot}`} />
@@ -184,7 +217,7 @@ function Lane({
         </h2>
         {children}
       </section>
-    ) : null
+    )
   return (
     <section className="flex min-h-0 flex-col rounded-xl border border-line bg-side/70">
       <h2 className="m-0 flex flex-none items-center gap-2 border-b border-line px-3.5 py-2.5 text-sm font-semibold">
@@ -194,8 +227,38 @@ function Lane({
         <span className="ml-auto text-xs font-normal text-faint">{hint}</span>
       </h2>
       <div className="flex min-h-0 flex-col gap-2.5 overflow-auto p-2.5">
-        {count ? children : <p className="m-0 py-4 text-center text-[13px] text-faint">{t('lane.empty')}</p>}
+        {empty ? <p className="m-0 py-4 text-center text-[13px] text-faint">{t('lane.empty')}</p> : children}
       </div>
     </section>
+  )
+}
+
+/** A fold at the foot of a lane: its label, opening or closing what it holds, and what it does to
+ * all of them (`children`). */
+function Fold({
+  open,
+  onToggle,
+  label,
+  children,
+}: {
+  open: boolean
+  onToggle: () => void
+  label: string
+  children: ReactNode
+}) {
+  const Chevron = open ? ChevronDown : ChevronRight
+  return (
+    <div className="flex flex-none items-center gap-1.5">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex h-7 flex-1 cursor-pointer items-center gap-1.5 rounded-md border-0 bg-transparent px-0.5 text-left text-[11px] font-semibold tracking-[0.04em] text-faint uppercase hover:text-text focus-visible:outline-2 focus-visible:outline-accent"
+      >
+        <Chevron size={13} className="flex-none" />
+        {label}
+      </button>
+      {children}
+    </div>
   )
 }

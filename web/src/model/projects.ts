@@ -143,6 +143,9 @@ export const needs = (projects: Project[]): Session[] =>
 export type Placed = { session: Session; project: Project }
 
 /** Every agent, by what it is doing; each is in exactly one lane. */
+/** A plain shell in a project. */
+export type PlacedShell = { shell: Shell; project: Project }
+
 export type Lanes = {
   asking: Placed[]
   finished: Placed[]
@@ -151,6 +154,8 @@ export type Lanes = {
   standing: Placed[]
   /** Everything on machines that are offline, whatever they last reported. */
   offline: Placed[]
+  /** The plain shells on machines that are online, by project. */
+  shells: PlacedShell[]
 }
 
 /** The lanes that wait on you list the longest waiting first; the ones standing, the latest. */
@@ -168,6 +173,9 @@ export function lanes(projects: Project[]): Lanes {
       .filter(p => (has(p, 'done') && !p.session.unread) || has(p, 'idle') || has(p, 'unknown'))
       .reverse(),
     offline: placed.filter(p => !p.project.online).reverse(),
+    shells: projects
+      .filter(p => p.online)
+      .flatMap(project => project.shells.map(shell => ({ shell, project }))),
   }
 }
 
