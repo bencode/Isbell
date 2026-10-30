@@ -13,6 +13,7 @@ import { ancestors, join } from '../../model/files/paths'
 import type { FilesRoot } from '../../model/files/worktrees'
 import type { Project } from '../../model/projects'
 import { projectFilesHref } from '../../utils/hrefs'
+import { useKeptScroll } from '../../utils/kept-scroll'
 import { since, useNow } from '../../utils/time'
 import { FileRow, FolderRow, indent } from './rows'
 import { SearchBox, SearchResults } from './search'
@@ -41,6 +42,7 @@ export function Tree({ mid, project, roots, root, dir, current }: Props) {
   const layout = useLocal().layout
   const [round, setRound] = useState(0)
   const [query, setQuery] = useState('')
+  const scroll = useKeptScroll<HTMLDivElement>()
 
   // The directory asked for, the folders of a file being read and the worktree they are in are
   // always open.
@@ -89,37 +91,39 @@ export function Tree({ mid, project, roots, root, dir, current }: Props) {
           }
         />
       </div>
-      {/* A new round lists every open folder again. */}
-      <div key={round} className="min-h-0 flex-1 overflow-auto px-1.5 py-1.5">
-        {query ? (
-          <SearchResults where={{ mid, root, current }} query={query} />
-        ) : several ? (
-          roots.map(at => {
-            const open = branches.includes(at.key)
-            return (
-              <div key={at.key}>
-                <FolderRow
-                  depth={0}
-                  open={open}
-                  onToggle={() => toggleBranch(project.key, at.key)}
-                  icon={<GitBranch size={14} className="flex-none text-muted" />}
-                  label={at.branch ?? t('files.detached')}
-                  extra={
-                    at.own ? (
-                      <span className="flex-none rounded-[3px] border border-line px-1.5 text-[10.5px] text-faint">
-                        {t('files.here')}
-                      </span>
-                    ) : null
-                  }
-                  title={at.display}
-                />
-                {open ? levelOf(at, 1) : null}
-              </div>
-            )
-          })
-        ) : (
-          levelOf(root, 0)
-        )}
+      <div {...scroll} className="min-h-0 flex-1 overflow-auto px-1.5 py-1.5">
+        {/* A new round lists every open folder again. */}
+        <div key={round}>
+          {query ? (
+            <SearchResults where={{ mid, root, current }} query={query} />
+          ) : several ? (
+            roots.map(at => {
+              const open = branches.includes(at.key)
+              return (
+                <div key={at.key}>
+                  <FolderRow
+                    depth={0}
+                    open={open}
+                    onToggle={() => toggleBranch(project.key, at.key)}
+                    icon={<GitBranch size={14} className="flex-none text-muted" />}
+                    label={at.branch ?? t('files.detached')}
+                    extra={
+                      at.own ? (
+                        <span className="flex-none rounded-[3px] border border-line px-1.5 text-[10.5px] text-faint">
+                          {t('files.here')}
+                        </span>
+                      ) : null
+                    }
+                    title={at.display}
+                  />
+                  {open ? levelOf(at, 1) : null}
+                </div>
+              )
+            })
+          ) : (
+            levelOf(root, 0)
+          )}
+        </div>
       </div>
     </aside>
   )

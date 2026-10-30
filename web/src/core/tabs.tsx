@@ -16,7 +16,7 @@ import { type Location, type To, useLocation, useNavigate } from 'react-router'
 import { useStore } from 'zustand'
 import { createStore, type StoreApi } from 'zustand/vanilla'
 import type { Project } from '../model/projects'
-import { close, drawn, nextShown, pin, restore, type Tabs, tabOf, visit, withTab } from '../model/tabs'
+import { close, drawn, keep, nextShown, pin, restore, type Tabs, tabOf, visit, withTab } from '../model/tabs'
 import { getLocal, updateLocal } from './prefs'
 
 type IsTab = (id: string) => boolean
@@ -67,7 +67,8 @@ export function usePageLocation(): Location {
   return page
 }
 
-/** Where a tab (or the page, for null) is, pinning, and closing; showing goes through the address. */
+/** Where a tab (or the page, for null) is, pinning, keeping one pinned without showing it, and
+ * closing; showing goes through the address. */
 export function useTabActions() {
   const { store } = useTabsScope()
   const { pathname, search } = useLocation()
@@ -76,6 +77,7 @@ export function useTabActions() {
   return {
     href,
     pin: (id: string) => store.setState(tabs => pin(tabs, id)),
+    keep: (id: string) => store.setState(tabs => keep(tabs, id)),
     /** Closing the tab shown shows the one beside it, or the page, in its place in the history. */
     close: (id: string, shown: boolean) => {
       const next = nextShown(store.getState(), id)
@@ -83,6 +85,12 @@ export function useTabActions() {
       if (shown) navigate(href(next), { replace: true })
     },
   }
+}
+
+/** Whether `id` is open and pinned. */
+export function usePinned(id: string): boolean {
+  const { store } = useTabsScope()
+  return useStore(store, tabs => tabs.open.some(tab => tab.id === id && tab.pinned))
 }
 
 /** Opens a path under the root `key` names: a file in a tab, a directory in the project's files. */

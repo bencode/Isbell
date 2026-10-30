@@ -8,6 +8,8 @@ import { useSpaceView } from '../../core/space'
 import type { FilesRoot } from '../../model/files/worktrees'
 import type { Project } from '../../model/projects'
 import { type MachineEntry, machineOf } from '../../model/space'
+import { fileTabId } from '../tabs/kinds'
+import { PinTab } from './pin-tab'
 import { Preview } from './preview'
 import { Tree } from './tree'
 
@@ -73,7 +75,14 @@ export function FilesSplit({ mid, project, roots, root, dir, rel, hrefOf }: Prop
       <ResizeHandle label={t('files.resize')} />
       <Panel id="file" className="flex" minSize="320px">
         {/* Keyed, so each file starts with its own view mode and scroll. */}
-        <Preview key={rel} mid={mid} root={root} rel={rel} hrefOf={hrefOf} />
+        <Preview
+          key={rel}
+          mid={mid}
+          root={root}
+          rel={rel}
+          hrefOf={hrefOf}
+          pin={<PinTab id={fileTabId(root.key, rel)} />}
+        />
       </Panel>
     </Group>
   )

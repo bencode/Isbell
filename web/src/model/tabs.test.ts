@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   close,
   drawn,
+  keep,
   MAX_TABS,
   nextShown,
   noTabs,
@@ -48,6 +49,20 @@ describe('tabs', () => {
     expect(ids(tabs)).toContain('new')
     expect(ids(tabs)).not.toContain('1')
     expect(new Set(tabs.used)).toEqual(new Set(ids(tabs)))
+  })
+
+  it('keeps a tab pinned without showing it, beyond the limit closing the one shown longest ago', () => {
+    const tabs = visit(pinned(['a']), 'p')
+    expect(keep(tabs, 'p').open).toEqual([
+      { id: 'a', pinned: true },
+      { id: 'p', pinned: true },
+    ])
+    expect(keep(tabs, 'b').open).toEqual([...tabs.open, { id: 'b', pinned: true }])
+    const names = Array.from({ length: MAX_TABS }, (_, i) => String(i))
+    const full = keep(pinned(names), 'new')
+    expect(full.open).toHaveLength(MAX_TABS)
+    expect(ids(full)).toContain('new')
+    expect(ids(full)).not.toContain('0')
   })
 
   it('goes right, else left, else to the page on closing the tab shown', () => {

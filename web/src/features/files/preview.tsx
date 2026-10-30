@@ -2,7 +2,7 @@
 // it is neither or too large to show, what it is and a way to download it. The files a document
 // shows beside itself are read for it as it asks.
 
-import { type ComponentType, useMemo, useState } from 'react'
+import { type ComponentType, type ReactNode, useMemo, useState } from 'react'
 import { errorText, useI18n } from '../../core/i18n'
 import { useSpace } from '../../core/space'
 import { assetReader } from '../../model/files/assets'
@@ -34,6 +34,8 @@ type Props = {
   hrefOf: (rel: string) => string
   /** On its own on the screen already: no way to open it apart. */
   alone?: boolean
+  /** See `FileShell`. */
+  pin?: ReactNode
 }
 
 export function Preview(props: Props) {
@@ -44,7 +46,7 @@ export function Preview(props: Props) {
   return <Read key={round} {...props} again={() => setRound(r => r + 1)} />
 }
 
-function Read({ mid, root, rel, hrefOf, alone, again }: Props & { again: () => void }) {
+function Read({ mid, root, rel, hrefOf, alone, pin, again }: Props & { again: () => void }) {
   const t = useI18n()
   const { openStream } = useSpace()
   const path = join(root.path, rel)
@@ -73,6 +75,7 @@ function Read({ mid, root, rel, hrefOf, alone, again }: Props & { again: () => v
     again,
     download,
     saveError,
+    pin,
   }
   if (type && data?.bytes) return <ImageFile shell={shell} bytes={data.bytes} type={type} />
   if (text !== null) {

@@ -39,6 +39,13 @@ export const pin = (tabs: Tabs, id: string): Tabs => ({
   open: tabs.open.map(tab => (tab.id === id ? { ...tab, pinned: true } : tab)),
 })
 
+/** The tabs with `id` pinned, opened if it is not, without showing it. It counts as just shown, so
+ * one more than MAX_TABS closes another: the one shown longest ago. */
+export function keep(tabs: Tabs, id: string): Tabs {
+  if (tabs.open.some(tab => tab.id === id)) return pin(tabs, id)
+  return trim({ open: [...tabs.open, { id, pinned: true }], used: [id, ...tabs.used] }, id)
+}
+
 export const close = (tabs: Tabs, id: string): Tabs => ({
   open: tabs.open.filter(tab => tab.id !== id),
   used: tabs.used.filter(k => k !== id),

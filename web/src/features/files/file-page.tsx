@@ -22,6 +22,8 @@ export type FileShell = {
   again: () => void
   download: () => void
   saveError: string | undefined
+  /** A way to keep the file in a tab, where it is not shown in one. */
+  pin?: ReactNode
 }
 
 /** What a view of one kind of text file is given. */
@@ -56,6 +58,7 @@ export function FilePage({
         <Facts where={shell.where} file={shell.file} />
         <span className="flex-1" />
         {tools}
+        {shell.pin}
         <Button
           size="icon"
           variant="quiet"

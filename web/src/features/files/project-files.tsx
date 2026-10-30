@@ -2,9 +2,10 @@
 // its worktrees, as the address's key names. An address ending in '/' is a directory, opened in the
 // tree with nothing read yet.
 
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import { Link, useParams } from 'react-router'
 import { useI18n } from '../../core/i18n'
+import { rememberFilesAt } from '../../core/prefs'
 import { useRootOf } from '../../core/worktrees'
 import type { FilesRoot } from '../../model/files/worktrees'
 import type { Project } from '../../model/projects'
@@ -36,6 +37,10 @@ function Browse({ project, roots, root, rel }: BrowseProps) {
   const key = root?.key ?? project.key
   const hrefOf = useCallback((to: string) => projectFilesHref(key, to), [key])
   const isDir = rel.endsWith('/')
+  // Where the project's Files leads next time.
+  useEffect(() => {
+    if (root) rememberFilesAt(project.key, root.key, rel)
+  }, [project.key, root, rel])
   return (
     <div className="flex h-full flex-col">
       <FilesSplit
