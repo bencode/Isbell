@@ -1,12 +1,13 @@
 // What every card on the board shares: its frame, its head, the note it keeps once answered until
 // the agent moves on, and ending the agent from it.
 
-import { MessageSquareText, Power } from 'lucide-react'
+import { CircleHelp, ClipboardList, FilePen, MessageSquareText, Power, SquareTerminal } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { type Ending, endNow, endSoon, undoEnd } from '../../../core/ending'
-import { errorText, useI18n } from '../../../core/i18n'
+import { errorText, type Key, type T, useI18n } from '../../../core/i18n'
 import { useSpace } from '../../../core/space'
+import type { AgentNote, ToolUse } from '../../../model/agent-note'
 import type { Placed, Session } from '../../../model/projects'
 import { tailLines } from '../../../model/screen'
 import type { Block, Reading } from '../../../model/screen/types'
@@ -48,30 +49,98 @@ export function Card({ ask, sent, children }: { ask?: boolean; sent?: boolean; c
   )
 }
 
-/** The agent's name, where it runs unless the board is all one project's, how long it has been so,
- * what else the card does in a word (`actions`), and the button that opens it. */
+/** The agent's task, else its name, how long it has been so, what else the card does in a word
+ * (`actions`), and the button that opens it; under them, the agent's name when the task stands in
+ * its place, where it runs unless the board is all one project's, and its mode when not the
+ * default. `title` takes the task's place, which then moves under it. */
 export function CardHead({
   placed: { session, project },
   now,
   scoped,
+  note,
+  title,
+  lead,
   actions,
 }: {
   placed: Placed
   now: number
   scoped: boolean
+  note: AgentNote | undefined
+  title?: ReactNode
+  lead?: ReactNode
   actions?: ReactNode
 }) {
+  const t = useI18n()
+  const task = note?.title
+  const meta = [
+    title ? task : undefined,
+    title || task ? session.name : undefined,
+    scoped ? undefined : `${project.name} · ${project.machine}`,
+  ].filter(Boolean)
   return (
-    <div className="flex items-center gap-1.5">
-      <b className="truncate text-[13.5px] font-semibold">{session.name}</b>
-      <span className="min-w-0 flex-1 truncate text-xs text-faint">
-        {scoped ? null : `${project.name} · ${project.machine}`}
-      </span>
-      <span className="mr-0.5 flex-none text-xs text-faint">{since(session.statusSince, now)}</span>
-      {actions}
-      <OpenButton session={session} />
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <div className="flex items-center gap-1.5">
+        {lead}
+        <b className="min-w-0 flex-1 truncate text-[13.5px] font-semibold">{title ?? task ?? session.name}</b>
+        <span className="mr-0.5 flex-none text-xs text-faint">{since(session.statusSince, now)}</span>
+        {actions}
+        <OpenButton session={session} />
+      </div>
+      {meta.length > 0 || note?.mode ? (
+        <div className="flex min-w-0 items-center gap-1.5 text-xs text-faint">
+          <span className="min-w-0 truncate">{meta.join(' · ')}</span>
+          {note?.mode ? (
+            <span className="flex-none rounded-full border border-accent bg-accent-soft px-1.5 text-[11px] leading-4 text-accent">
+              {modeLabel(t, note.mode)}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   )
+}
+
+const EDITS = new Set(['Edit', 'MultiEdit', 'NotebookEdit'])
+const FILES = new Set(['Read', 'Write', ...EDITS])
+
+/** A tool an agent runs or asks to, in words: what Claude says a command is for, else the command,
+ * or what the tool does to what. */
+export function toolText(t: T, { tool, target }: ToolUse): string {
+  const on = target ?? ''
+  if (tool === 'Bash') return target ?? t('tool.run')
+  if (tool === 'Read') return t('tool.read', { file: on })
+  if (tool === 'Write') return t('tool.write', { file: on })
+  if (EDITS.has(tool)) return t('tool.edit', { file: on })
+  if (tool === 'Grep' || tool === 'Glob') return t('tool.search', { what: on })
+  if (tool === 'WebFetch' || tool === 'WebSearch') return t('tool.web', { what: on })
+  if (tool === 'Agent' || tool === 'Task') return t('tool.agent', { what: on })
+  if (tool === 'ExitPlanMode') return t('tool.plan', { plan: on })
+  return target ? `${tool} ${target}` : tool
+}
+
+/** What kind of thing an agent asks leave for: a command, a file, a plan, or something else. */
+export function ToolMark({ tool }: { tool: string }) {
+  const Icon =
+    tool === 'Bash'
+      ? SquareTerminal
+      : FILES.has(tool)
+        ? FilePen
+        : tool === 'ExitPlanMode'
+          ? ClipboardList
+          : CircleHelp
+  return <Icon size={15} className="flex-none text-warn" />
+}
+
+const MODES: Record<string, Key> = {
+  plan: 'mode.plan',
+  auto: 'mode.auto',
+  acceptEdits: 'mode.acceptEdits',
+  bypassPermissions: 'mode.bypass',
+}
+
+export const modeLabel = (t: T, mode: string) => {
+  const key = MODES[mode]
+  return key ? t(key) : mode
 }
 
 /** A small icon button for a card's head, where words would crowd it; `on` while what it opens is

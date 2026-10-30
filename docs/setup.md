@@ -23,6 +23,12 @@ For the agent doing the setup. Isbell lets its user reach the agents on their Ma
   - another Mac: the user runs `isbell space join <key>` themselves.
 - [ ] Gateway service, from the user's login shell, so it finds herdr and the agents:
       `$SHELL -lc 'isbell gateway install'`.
+- [ ] Optional, if the user runs Claude Code: with their yes, the hook that lets the board show
+      what each Claude is asked and doing:
+      `curl -fsSL https://isbell.fmap.dev/claude-hook.sh -o /tmp/claude-hook.sh && sh /tmp/claude-hook.sh install`.
+      It registers itself in `$CLAUDE_CONFIG_DIR/settings.json`, else `~/.claude/settings.json`;
+      for another config directory (a wrapper such as reclaude keeps its own), add
+      `--config-dir DIR`. Claude sessions already running take it once restarted.
 - [ ] Check:
   - `isbell gateway status` says `running`;
   - `isbell machine list` shows this Mac `online`.
@@ -36,4 +42,5 @@ For the agent doing the setup. Isbell lets its user reach the agents on their Ma
 
 ## Uninstall
 
-`isbell gateway uninstall`, `isbell space leave`, then delete `~/.local/bin/isbell`.
+`isbell gateway uninstall`, `isbell space leave`, then delete `~/.local/bin/isbell`. With the Claude
+hook installed: `sh ~/.isbell/hooks/claude-hook.sh uninstall` (with the same `--config-dir`) first.
