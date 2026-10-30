@@ -24,7 +24,7 @@ export function ProjectHeader({
   pageTab,
   onNew,
   ...views
-}: { project: Project } & Bar & Omit<ComponentProps<typeof ProjectTabs>, 'projectKey'>) {
+}: { project: Project } & Bar & Omit<ComponentProps<typeof ProjectTabs>, 'project'>) {
   const t = useI18n()
   const offline = project.online ? null : (
     <span className="flex-none rounded-full border border-line px-2 text-xs text-muted">
@@ -44,7 +44,7 @@ export function ProjectHeader({
       {tabs}
       {pageTab ? offline : null}
       <NewTask onNew={onNew} />
-      <ProjectTabs projectKey={project.key} {...views} />
+      <ProjectTabs project={project} {...views} />
     </header>
   )
 }

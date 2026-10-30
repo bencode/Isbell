@@ -10,6 +10,7 @@ import { useProjects, useSpaceView } from '../../core/space'
 import { lanes, type Project } from '../../model/projects'
 import { projectsSettled } from '../../model/space'
 import { boardHref } from '../../utils/hrefs'
+import { useKeptScroll } from '../../utils/kept-scroll'
 import { useNow } from '../../utils/time'
 import { PeekPane } from '../pane/peek-pane'
 import { SessionPage } from '../pane/session-page'
@@ -47,6 +48,7 @@ function Board({ project, all }: { project: Project | undefined; all: Project[] 
   const now = useNow()
   const { mid, pane } = useParams()
   const peek = !!(mid && pane)
+  const scroll = useKeptScroll<HTMLElement>()
   // The column's width beside a session, the same on every board.
   const split = useDefaultLayout({
     id: 'isbell.peek-split',
@@ -73,6 +75,7 @@ function Board({ project, all }: { project: Project | undefined; all: Project[] 
           groupResizeBehavior="preserve-pixel-size"
         >
           <main
+            {...scroll}
             className={`paper flex min-h-0 flex-1 flex-col gap-5 overflow-auto py-5 ${peek ? 'px-4' : 'px-7'}`}
           >
             {shown.some(p => p.sessions.length) ? (

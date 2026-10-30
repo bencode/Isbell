@@ -32,6 +32,9 @@ export type Layout = {
   /** The worktrees open in each project's files tree, by root key, by project key; without one,
    * just the project's own directory. */
   branches: Record<string, string[]>
+  /** Where each project's files were last read, by project key: the root's key and the path under
+   * it as the address has it (a directory's ending in '/'). */
+  filesAt: Record<string, { root: string; rel: string }>
   /** Whether long lines of source wrap. */
   wrap: boolean
   /** Whether the agents standing by that have long been still show, at the foot of their lane. */
@@ -72,6 +75,7 @@ const DEFAULTS: Local = {
     terminal: [],
     files: {},
     branches: {},
+    filesAt: {},
     wrap: false,
     stale: false,
     installTip: true,
@@ -194,6 +198,13 @@ export const toggleBranch = (project: string, root: string) =>
 export function openBranch(project: string, root: string) {
   if (!openBranches(getLocal().layout, project).includes(root))
     withOpenBranches(project, open => [...open, root])
+}
+
+/** Notes where a project's files are being read. */
+export function rememberFilesAt(project: string, root: string, rel: string) {
+  const at = current.layout.filesAt[project]
+  if (at?.root === root && at.rel === rel) return
+  updateLocal(l => ({ layout: { ...l.layout, filesAt: { ...l.layout.filesAt, [project]: { root, rel } } } }))
 }
 
 export const toggleWrap = () => updateLocal(l => ({ layout: { ...l.layout, wrap: !l.layout.wrap } }))
