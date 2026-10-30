@@ -36,7 +36,7 @@ describe('codex', () => {
     // Code arrives as plain lines, its indentation kept.
     expect(r.turns[0]?.reply).toContainEqual({ kind: 'text', text: 'def add(a, b):\n    return a + b' })
     expect(r.live).toBeUndefined()
-    expect(r.footer).toEqual({ model: 'GPT-5.6-Sol high', task: '检查 calc.py 并提出修正' })
+    expect(r.footer).toEqual({ model: 'GPT-5.6-Sol high', task: '检查 calc.py 并提出修正', mode: 'Default' })
   })
 
   test('an interrupted turn ends where codex says so', () => {
@@ -103,6 +103,17 @@ describe('codex', () => {
       ],
     })
     expect(r.live?.reply.at(-1)).toMatchObject({ kind: 'action', verb: 'Running' })
+  })
+  test('in Plan mode, the status line ends in it, even after a path cut short', () => {
+    const text = [
+      '› Ask Codex to do anything',
+      '',
+      '  GPT-6.1-Sol high · /private/tmp/scratchpad/mode-te… Plan mode',
+      '  ← for agents · ? for shortcuts',
+    ].join('\n')
+    expect(parseScreen('codex', text, false)?.footer).toEqual({ model: 'GPT-6.1-Sol high', mode: 'Plan' })
+    const wide = text.replace('… Plan mode', '          Plan mode (⇧tab to cycle)')
+    expect(parseScreen('codex', wide, false)?.footer).toEqual({ model: 'GPT-6.1-Sol high', mode: 'Plan' })
   })
 })
 
@@ -193,6 +204,21 @@ describe('claude', () => {
       { kind: 'text', text: 'Done.' },
       { kind: 'text', text: 'Fixed 2 bugs in the parser and added\ntests for both.' },
     ])
+  })
+
+  test("below the box, the mode it is in and the status line of the user's own", () => {
+    const rule = '─'.repeat(40)
+    const box = ['❯ hi', '', '⏺ Hello.', '', '✻ Cooked for 1s', '', rule, '❯ ', rule]
+    const footer = (...below: string[]) => parseScreen('claude', [...box, ...below].join('\n'), false)?.footer
+    expect(
+      footer(
+        '  ➜ web git:(main) | Opus 5.5 | tokens:726.2k',
+        '  ⏸ plan mode on (shift+tab to cycle) · ← 1 agent',
+      ),
+    ).toEqual({ mode: 'plan', line: '➜ web git:(main) | Opus 5.5 | tokens:726.2k' })
+    expect(footer('  ⏵⏵ accept edits on (shift+tab to cycle)')).toEqual({ mode: 'accept edits' })
+    expect(footer('  ⏸ manual mode on · ← 1 agent')).toEqual({ mode: 'manual' })
+    expect(footer('  ? for shortcuts · ← for agents')).toBeUndefined()
   })
 
   test('a permission prompt is a question', () => {

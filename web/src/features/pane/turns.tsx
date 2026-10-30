@@ -42,11 +42,6 @@ export function Turns({
     <>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         {footer?.task ? <span className="text-[15px] font-semibold">{footer.task}</span> : null}
-        {footer?.model ? (
-          <span className="rounded border border-line bg-raised px-1.5 font-mono text-[11.5px] text-muted">
-            {footer.model}
-          </span>
-        ) : null}
         <span className="text-xs text-faint">
           {count === 1 ? t('chat.oneTurn') : t('chat.turns', { n: count })}
         </span>

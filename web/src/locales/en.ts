@@ -273,6 +273,8 @@ export const en = {
   'chat.working': 'Working',
   'chat.waiting': 'Waiting for your answer',
   'chat.unreadable': "This agent's screen can't be read as turns, so it is shown as text.",
+  'status.mode': 'Mode',
+  'status.modeFailed': 'Could not switch to {mode}',
   'composer.short': 'Reply…',
   'composer.placeholder': 'Reply, or add something it should know…',
   'composer.send': 'Send',

@@ -22,6 +22,13 @@ export function parseScreen(kind: string | undefined, text: string, running: boo
   return grammar ? parse(grammar, text, running) : null
 }
 
+/** The modes ⇧Tab steps an agent of `kind` through, and the commands that enter some of them
+ * at once; none if the kind is unknown. */
+export function modesOf(kind: string | undefined): { modes: string[]; enter: Record<string, string> } {
+  const grammar = kind === undefined ? undefined : GRAMMARS.get(kind)
+  return { modes: grammar?.modes ?? [], enter: grammar?.enter ?? {} }
+}
+
 /**
  * Folds a new reading into the one before. A `whole` reading came with the session's history and
  * replaces it. Otherwise it is one screen: the turns it shows that are not yet known follow the

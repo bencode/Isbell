@@ -20,7 +20,11 @@ export type Question = {
   options: { key: string; label: string }[]
 }
 
-export type Footer = { model?: string; task?: string }
+/**
+ * What sits below the input box: the model (with its effort, as Codex shows it), the task, the
+ * mode as the agent names it, and a status line of the user's own (Claude Code's), kept as it is.
+ */
+export type Footer = { model?: string; task?: string; mode?: string; line?: string }
 
 export type Reading = {
   /** The start of the session is still on the screen. */
@@ -60,6 +64,10 @@ export type Grammar = {
   pinned?: boolean
   /** Lines dropped wherever they appear. */
   noise: RegExp[]
+  /** The modes ⇧Tab steps through, as `Footer.mode` names them. */
+  modes?: string[]
+  /** Commands that put the agent in a mode at once, for modes ⇧Tab does not reach reliably. */
+  enter?: Record<string, string>
   /** The item as a tool call, if it is one. */
   action: (head: string, rest: string[]) => Block | undefined
   /** Undefined when the screen does not look like this agent's. */
