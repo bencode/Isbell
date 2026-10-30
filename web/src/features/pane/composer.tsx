@@ -1,5 +1,5 @@
 import { CornerDownLeft, Paperclip } from 'lucide-react'
-import { type DragEvent, useRef, useState } from 'react'
+import { type DragEvent, type ReactNode, useRef, useState } from 'react'
 import { Button } from '../../components/button'
 import { errorText, useI18n } from '../../core/i18n'
 import { useSpace } from '../../core/space'
@@ -10,19 +10,21 @@ import { Attachments, useAttachments } from './attachments'
 /** A reply, or something more the agent should know. `compact`, a card's: one quiet line whose
  * send key lights up once there is something to send. With `uploads`, the agent's machine and
  * whether it takes files, files pasted, dropped or picked go along, the reply naming where they
- * landed. */
+ * landed. `below` goes in the row under it, after the button that picks files. */
 export function Composer({
   mid,
   paneId,
   onSent,
   compact = false,
   uploads,
+  below,
 }: {
   mid: string
   paneId: string
   onSent: (text: string) => void
   compact?: boolean
   uploads?: { machine: string; taken: boolean }
+  below?: ReactNode
 }) {
   const t = useI18n()
   const space = useSpace()
@@ -107,29 +109,6 @@ export function Composer({
           <Attachments items={files.items} onRemove={files.remove} />
           <div className="flex items-end gap-2.5">
             {field}
-            {uploads?.taken ? (
-              <>
-                <input
-                  ref={picker}
-                  type="file"
-                  multiple
-                  hidden
-                  onChange={e => {
-                    files.add([...(e.target.files ?? [])])
-                    e.target.value = ''
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => picker.current?.click()}
-                  aria-label={t('upload.attach')}
-                  title={t('upload.attach')}
-                  className="inline-flex size-8 flex-none cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-muted hover:bg-raised-2 hover:text-text"
-                >
-                  <Paperclip size={16} />
-                </button>
-              </>
-            ) : null}
             <Button variant="primary" onClick={() => void send()} disabled={!ready}>
               {t('composer.send')}
               <span className="font-mono text-[11px] opacity-70">↵</span>
@@ -137,6 +116,34 @@ export function Composer({
           </div>
         </div>
       )}
+      {!compact && (uploads?.taken || below) ? (
+        <div className="flex min-w-0 items-center gap-2.5">
+          {uploads?.taken ? (
+            <>
+              <input
+                ref={picker}
+                type="file"
+                multiple
+                hidden
+                onChange={e => {
+                  files.add([...(e.target.files ?? [])])
+                  e.target.value = ''
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => picker.current?.click()}
+                aria-label={t('upload.attach')}
+                title={t('upload.attach')}
+                className="-ml-1 inline-flex size-6 flex-none cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-muted hover:bg-raised-2 hover:text-text"
+              >
+                <Paperclip size={15} />
+              </button>
+            </>
+          ) : null}
+          {below}
+        </div>
+      ) : null}
       {error ? <p className="m-0 text-[13px] text-danger">{error}</p> : null}
       {files.problem ? <p className="m-0 text-[13px] text-danger">{files.problem}</p> : null}
     </div>

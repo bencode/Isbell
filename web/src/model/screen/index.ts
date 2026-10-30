@@ -6,6 +6,8 @@ import { claude } from './claude'
 import { codex } from './codex'
 import type { Block, Grammar, Question, Reading, Turn } from './types'
 
+export { readPicker } from './picker'
+
 const GRAMMARS = new Map<string, Grammar>([
   ['codex', codex],
   ['claude', claude],
@@ -15,7 +17,8 @@ const GRAMMARS = new Map<string, Grammar>([
  * The screen of an agent of `kind` as turns, or null when the kind is unknown or the screen is not
  * recognised. While the agent is `running`, `text` is its visible screen and an unfinished last
  * turn is its live turn; otherwise the agent stopped without closing it (a declined question,
- * say), and it counts as a turn.
+ * say), and it counts as a turn. One with nothing under its prompt yet was only just sent, and
+ * counts as none.
  */
 export function parseScreen(kind: string | undefined, text: string, running: boolean): Reading | null {
   const grammar = kind === undefined ? undefined : GRAMMARS.get(kind)
@@ -81,10 +84,13 @@ function parse(g: Grammar, text: string, running: boolean): Reading | null {
   const segments = split(g, lines, first, start, pinned)
 
   const last = segments.at(-1)
-  const live = running && last && !last.end ? last : undefined
+  const open = last && !last.end ? last : undefined
+  const live = running ? open : undefined
+  // Read before the agent shows it is working on it; the next reading has it live.
+  const sent = open && open.items.length === 0 ? open : undefined
   // A finished turn shown only in part was read whole before, or is lost from the screen.
   const turns = segments
-    .filter(s => s !== live && s.prompt !== undefined && !s.partial)
+    .filter(s => s !== live && s !== sent && s.prompt !== undefined && !s.partial)
     .map(s => toTurn(g, s))
   const question = bottom.ask && toQuestion(screen.slice(bottom.ask.from, bottom.ask.to))
   return {

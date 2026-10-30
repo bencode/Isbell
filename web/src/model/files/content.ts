@@ -27,6 +27,8 @@ const MEDIA: Record<string, string> = {
   webp: 'image/webp',
   avif: 'image/avif',
   bmp: 'image/bmp',
+  heic: 'image/heic',
+  heif: 'image/heif',
   ico: 'image/x-icon',
   svg: 'image/svg+xml',
   // With a charset, so a page with no <meta charset> does not read as Latin-1.

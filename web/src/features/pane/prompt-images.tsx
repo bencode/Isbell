@@ -18,7 +18,8 @@ export function PromptImages({ mid, paths }: { mid: string; paths: string[] }) {
 }
 
 /** A thumbnail growing to its full width on a tap; its name where it cannot be read, such as once
- * the machine's temporary directory is cleared or past the preview's size. */
+ * the machine's temporary directory is cleared or past the preview's size, or where the browser
+ * cannot show it, as with a HEIC photo outside Safari. */
 function UploadedImage({ mid, path }: { mid: string; path: string }) {
   const { data, error } = useFile(mid, path)
   const bytes = data?.bytes
@@ -28,8 +29,9 @@ function UploadedImage({ mid, path }: { mid: string; path: string }) {
   )
   const src = useObjectUrl(blob)
   const [open, setOpen] = useState(false)
+  const [broken, setBroken] = useState(false)
   const name = nameOf(path)
-  if (error || (data && !bytes))
+  if (error || (data && !bytes) || broken)
     return (
       <span
         title={path}
@@ -51,6 +53,7 @@ function UploadedImage({ mid, path }: { mid: string; path: string }) {
         src={src}
         alt={name}
         title={path}
+        onError={() => setBroken(true)}
         className={open ? 'block h-auto w-full' : 'block h-28 w-auto max-w-56 object-cover'}
       />
     </button>
