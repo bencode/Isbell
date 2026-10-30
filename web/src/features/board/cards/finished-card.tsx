@@ -1,8 +1,9 @@
 // An agent that finished and was not looked at since: what it was asked and the end of what it
-// said, a follow-up, and ✓ to mark it read.
+// said, a follow-up, ✓ to mark it read, and ⏻ to end it.
 
 import { Check, Paperclip } from 'lucide-react'
 import { useLayoutEffect, useRef, useState } from 'react'
+import { useEnding } from '../../../core/ending'
 import { errorText, useI18n } from '../../../core/i18n'
 import { markSeen } from '../../../core/prefs'
 import { PathRoot } from '../../../core/tabs'
@@ -12,7 +13,7 @@ import type { Reading } from '../../../model/screen/types'
 import { Composer } from '../../pane/composer'
 import { Reply } from '../../pane/reply'
 import { useReading } from '../../pane/use-reading'
-import { Card, CardHead, headButton, lastTurn, SentNote, useSent } from './card'
+import { Card, CardHead, EndButton, EndingNote, headButton, lastTurn, SentNote, useSent } from './card'
 
 export function FinishedCard({ placed, now, scoped }: { placed: Placed; now: number; scoped: boolean }) {
   const t = useI18n()
@@ -20,26 +21,34 @@ export function FinishedCard({ placed, now, scoped }: { placed: Placed; now: num
   const { mid, paneId } = session
   const { reading, text, error, reread } = useReading(mid, paneId, session)
   const { sent, markSent, unsend } = useSent(session)
+  const ending = useEnding(mid, paneId)
 
   return (
-    <Card sent={!!sent}>
+    <Card sent={!!sent || !!ending}>
       <CardHead
         placed={placed}
         now={now}
         scoped={scoped}
         actions={
-          <button
-            type="button"
-            onClick={() => markSeen(paneKey(mid, paneId), session.statusSince)}
-            aria-label={t('card.markRead')}
-            title={t('card.markRead')}
-            className={`${headButton()} hover:text-ok`}
-          >
-            <Check size={15} />
-          </button>
+          ending ? null : (
+            <>
+              <EndButton pane={session} />
+              <button
+                type="button"
+                onClick={() => markSeen(paneKey(mid, paneId), session.statusSince)}
+                aria-label={t('card.markRead')}
+                title={t('card.markRead')}
+                className={`${headButton()} hover:text-ok`}
+              >
+                <Check size={15} />
+              </button>
+            </>
+          )
         }
       />
-      {sent ? (
+      {ending ? (
+        <EndingNote pane={session} ending={ending} />
+      ) : sent ? (
         <SentNote
           what={sent}
           onAgain={() => {

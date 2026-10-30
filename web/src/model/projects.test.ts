@@ -115,11 +115,11 @@ test('the lanes hold who asks, who finished unseen and who works, the longest wa
         agent('unknown', '/srv/d', 'unknown', 7),
       ]),
     ],
-    [],
+    [{ mid: MID, paneId: 'shell', cwd: '/srv/a' }],
     { [`${MID}/seen`]: 1 },
     {},
   )
-  const { asking, finished, running, standing, offline } = lanes(projects)
+  const { asking, finished, running, standing, offline, shells } = lanes(projects)
   expect([ids(asking), ids(finished), ids(running)]).toEqual([
     ['asks-early', 'asks-late'],
     ['done'],
@@ -128,17 +128,18 @@ test('the lanes hold who asks, who finished unseen and who works, the longest wa
   // The rest stand by, the latest first.
   expect(ids(standing)).toEqual(['unknown', 'idle', 'seen'])
   expect(offline).toEqual([])
+  expect(shells.map(p => p.shell.paneId)).toEqual(['shell'])
 })
 
-test('every agent of an offline machine is offline, whatever it last reported', () => {
+test('every agent of an offline machine is offline, whatever it last reported, and its shells are not shown', () => {
   const projects = deriveProjects(
     [machine([agent('works', '/srv/a', 'working', 1), agent('asks', '/srv/b', 'blocked', 2)], false)],
-    [],
+    [{ mid: MID, paneId: 'shell', cwd: '/srv/a' }],
     {},
     {},
   )
-  const { asking, running, standing, offline } = lanes(projects)
-  expect([asking, running, standing].flat()).toEqual([])
+  const { asking, running, standing, offline, shells } = lanes(projects)
+  expect([asking, running, standing, shells].flat()).toEqual([])
   expect(ids(offline)).toEqual(['asks', 'works'])
 })
 

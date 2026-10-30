@@ -39,6 +39,8 @@ export type Layout = {
   wrap: boolean
   /** Whether the agents standing by that have long been still show, at the foot of their lane. */
   stale: boolean
+  /** Whether the plain shells show, at the foot of the standing lane. */
+  shells: boolean
   /** Whether Safari on an iPhone still shows how to add Isbell to the home screen. */
   installTip: boolean
 }
@@ -78,6 +80,7 @@ const DEFAULTS: Local = {
     filesAt: {},
     wrap: false,
     stale: false,
+    shells: false,
     installTip: true,
   },
   reader: { ...DEFAULT_APPEARANCE, outline: true },
@@ -209,6 +212,7 @@ export function rememberFilesAt(project: string, root: string, rel: string) {
 
 export const toggleWrap = () => updateLocal(l => ({ layout: { ...l.layout, wrap: !l.layout.wrap } }))
 export const toggleStale = () => updateLocal(l => ({ layout: { ...l.layout, stale: !l.layout.stale } }))
+export const toggleShells = () => updateLocal(l => ({ layout: { ...l.layout, shells: !l.layout.shells } }))
 export const dismissInstallTip = () => updateLocal(l => ({ layout: { ...l.layout, installTip: false } }))
 
 export const setReader = (change: Partial<Reader>) =>

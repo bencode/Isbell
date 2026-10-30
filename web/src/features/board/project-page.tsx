@@ -5,7 +5,6 @@ import { lanes, type Project } from '../../model/projects'
 import { projectsSettled } from '../../model/space'
 import { useNow } from '../../utils/time'
 import { Lanes } from './lanes'
-import { ShellStrip } from './shell-strip'
 
 /** The project the board is focused on, from the route. */
 function useFocused(projects: Project[]): Project | undefined {
@@ -57,7 +56,6 @@ function Focused({ project, phone }: { project: Project; phone: boolean }) {
       ) : (
         <p className="m-0 text-muted">{project.online ? t('project.none') : t('project.offline')}</p>
       )}
-      {phone ? null : <ShellStrip project={project} />}
     </>
   )
 }

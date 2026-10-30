@@ -1,15 +1,13 @@
 // An agent standing by: finished and seen, idle, or of unknown status; or on a machine that is
-// offline. A row of two lines, opened to give it its next step, or, long still, ended.
+// offline. A row of two lines, opened to give it its next step, or ended.
 
-import { Power } from 'lucide-react'
-import { useState } from 'react'
+import { useEnding } from '../../../core/ending'
 import { errorText, useI18n } from '../../../core/i18n'
 import type { Placed } from '../../../model/projects'
 import { since } from '../../../utils/time'
 import { Composer } from '../../pane/composer'
-import { EndPane } from '../../pane/end-pane-dialog'
 import { useReading } from '../../pane/use-reading'
-import { lastWords, OpenButton, SentNote, useSent } from './card'
+import { EndButton, EndingNote, lastWords, OpenButton, SentNote, useSent } from './card'
 
 const GO =
   'h-[26px] flex-none cursor-pointer rounded-md border border-line-strong bg-raised px-2.5 text-xs text-accent hover:bg-raised-2'
@@ -21,7 +19,6 @@ export function StandingRow({
   open,
   onOpen,
   onClose,
-  endable,
 }: {
   placed: Placed
   now: number
@@ -30,19 +27,18 @@ export function StandingRow({
   open: boolean
   onOpen: () => void
   onClose: () => void
-  /** Long still, so it offers to end it. */
-  endable: boolean
 }) {
   const t = useI18n()
   const { session, project } = placed
   const { sent, markSent, unsend } = useSent(session)
-  const [ending, setEnding] = useState(false)
+  const ending = useEnding(session.mid, session.paneId)
   const unknown = session.status === 'unknown'
-  const frame = !project.online
-    ? 'border-line opacity-60'
-    : open
-      ? 'border-accent ring-2 ring-accent-soft'
-      : 'border-line'
+  const frame =
+    !project.online || ending
+      ? 'border-line opacity-60'
+      : open
+        ? 'border-accent ring-2 ring-accent-soft'
+        : 'border-line'
   return (
     <div className={`flex flex-col gap-0.5 rounded-lg border bg-raised px-2.5 py-1.5 text-[13px] ${frame}`}>
       <div className="flex min-w-0 items-center gap-1.5">
@@ -54,24 +50,16 @@ export function StandingRow({
           {unknown ? '?' : t(`status.${session.status}`)}
         </span>
         <span className="ml-auto flex-none text-[11.5px] text-faint">{since(session.statusSince, now)}</span>
-        {endable ? (
-          <button
-            type="button"
-            onClick={() => setEnding(true)}
-            aria-label={t('session.end')}
-            title={t('session.end')}
-            className="inline-flex size-6 flex-none cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-faint hover:bg-raised-2 hover:text-danger focus-visible:outline-2 focus-visible:outline-accent"
-          >
-            <Power size={13} />
-          </button>
-        ) : null}
+        {project.online && !ending ? <EndButton pane={session} /> : null}
         <OpenButton session={session} />
       </div>
       <div className="flex min-h-[26px] min-w-0 items-center gap-1.5">
         <span className="min-w-0 flex-1 truncate text-[11.5px] text-faint">
           {scoped ? null : project.name}
         </span>
-        {!project.online ? null : sent ? (
+        {!project.online ? null : ending ? (
+          <EndingNote pane={session} ending={ending} />
+        ) : sent ? (
           <SentNote what={sent} onAgain={unsend} />
         ) : (
           <button type="button" onClick={open ? onClose : onOpen} className={GO}>
@@ -79,27 +67,13 @@ export function StandingRow({
           </button>
         )}
       </div>
-      {open && !sent ? (
+      {open && !sent && !ending ? (
         <Continue
           placed={placed}
           onSent={what => {
             markSent(what)
             onClose()
           }}
-        />
-      ) : null}
-      {endable ? (
-        <EndPane
-          open={ending}
-          onOpenChange={setEnding}
-          mid={session.mid}
-          paneId={session.paneId}
-          name={session.name}
-          machine={project.machine}
-          path={project.display}
-          agent
-          // The row leaves the lane once the machine says the pane is gone.
-          onEnded={() => setEnding(false)}
         />
       ) : null}
     </div>
