@@ -1,6 +1,8 @@
 // The gateway calls the web client makes: herdr's whitelisted methods, passed through, and
 // Isbell's own `isbell.agent.start` and `isbell.terminal`.
 
+import { type AgentInfo, type AgentNote, noteOf } from './agent-note'
+
 export type Caller = (mid: string, m: string, p: unknown, timeoutMs: number) => Promise<unknown>
 
 /** A pane without an agent: a plain shell. */
@@ -57,6 +59,10 @@ export async function readScreen(
   const lines = text.replace(/\n$/, '').split('\n')
   return lines.length < RECENT_LINES ? text : lines.slice(1).join('\n')
 }
+
+/** What herdr knows of the agent besides its screen. */
+export const agentNote = async (call: Caller, mid: string, paneId: string): Promise<AgentNote> =>
+  noteOf(((await herdr(call, mid, 'agent.get', { target: paneId })) as { agent?: AgentInfo }).agent ?? {})
 
 export type History = { text: string; more: boolean }
 

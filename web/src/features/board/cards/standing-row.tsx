@@ -6,6 +6,7 @@ import { errorText, useI18n } from '../../../core/i18n'
 import type { Placed } from '../../../model/projects'
 import { since } from '../../../utils/time'
 import { Composer } from '../../pane/composer'
+import { useAgentNote } from '../../pane/use-agent-note'
 import { useReading } from '../../pane/use-reading'
 import { EndButton, EndingNote, lastWords, OpenButton, SentNote, useSent } from './card'
 
@@ -30,6 +31,7 @@ export function StandingRow({
 }) {
   const t = useI18n()
   const { session, project } = placed
+  const title = useAgentNote(session, project.online)?.title
   const { sent, markSent, unsend } = useSent(session)
   const ending = useEnding(session.mid, session.paneId)
   const unknown = session.status === 'unknown'
@@ -42,7 +44,7 @@ export function StandingRow({
   return (
     <div className={`flex flex-col gap-0.5 rounded-lg border bg-raised px-2.5 py-1.5 text-[13px] ${frame}`}>
       <div className="flex min-w-0 items-center gap-1.5">
-        <b className="truncate font-semibold">{session.name}</b>
+        <b className="truncate font-semibold">{title ?? session.name}</b>
         <span
           title={unknown ? t('status.unknown') : undefined}
           className="flex-none rounded-[3px] border border-line px-1 text-[10px] font-semibold tracking-[0.05em] text-muted uppercase"
@@ -55,7 +57,7 @@ export function StandingRow({
       </div>
       <div className="flex min-h-[26px] min-w-0 items-center gap-1.5">
         <span className="min-w-0 flex-1 truncate text-[11.5px] text-faint">
-          {scoped ? null : project.name}
+          {[title ? session.name : undefined, scoped ? undefined : project.name].filter(Boolean).join(' · ')}
         </span>
         {!project.online ? null : ending ? (
           <EndingNote pane={session} ending={ending} />

@@ -12,6 +12,7 @@ import { type Placed, paneKey } from '../../../model/projects'
 import type { Reading } from '../../../model/screen/types'
 import { Composer } from '../../pane/composer'
 import { Reply } from '../../pane/reply'
+import { useAgentNote } from '../../pane/use-agent-note'
 import { useReading } from '../../pane/use-reading'
 import { Card, CardHead, EndButton, EndingNote, headButton, lastTurn, SentNote, useSent } from './card'
 
@@ -20,6 +21,7 @@ export function FinishedCard({ placed, now, scoped }: { placed: Placed; now: num
   const { session } = placed
   const { mid, paneId } = session
   const { reading, text, error, reread } = useReading(mid, paneId, session)
+  const note = useAgentNote(session)
   const { sent, markSent, unsend } = useSent(session)
   const ending = useEnding(mid, paneId)
 
@@ -29,6 +31,7 @@ export function FinishedCard({ placed, now, scoped }: { placed: Placed; now: num
         placed={placed}
         now={now}
         scoped={scoped}
+        note={note}
         actions={
           ending ? null : (
             <>

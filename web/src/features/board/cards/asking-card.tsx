@@ -1,5 +1,6 @@
 // An agent waiting for an answer, answered on the card: its question and options, or, when the
-// question could not be read, the end of its screen with keys and a reply.
+// question could not be read, the end of its screen with keys and a reply. When its hook says what
+// it asks leave to run, that heads the card in place of the question's own words.
 
 import { useState } from 'react'
 import { errorText, useI18n } from '../../../core/i18n'
@@ -8,8 +9,9 @@ import type { Question } from '../../../model/screen/types'
 import { terminalHref } from '../../../utils/hrefs'
 import { AnswerElsewhere, Options, ScreenKeys, useAnswer } from '../../pane/asking'
 import { Composer } from '../../pane/composer'
+import { useAgentNote } from '../../pane/use-agent-note'
 import { useReading } from '../../pane/use-reading'
-import { Card, CardHead, SentNote, useSent } from './card'
+import { Card, CardHead, SentNote, ToolMark, toolText, useSent } from './card'
 
 /** The detail lines a card shows before "Show all". */
 const DETAIL = 3
@@ -20,7 +22,9 @@ export function AskingCard({ placed, now, scoped }: { placed: Placed; now: numbe
   const { mid, paneId } = session
   // A blocked agent is read once; the status changing is what reads it again.
   const { reading, text, error, reread } = useReading(mid, paneId, session)
+  const note = useAgentNote(session)
   const { sent, markSent, unsend } = useSent(session)
+  const asking = sent ? undefined : note?.asking
   const question = reading?.question
   // The option's words say more than its key.
   const answered = (key: string) => markSent(question?.options.find(o => o.key === key)?.label ?? key)
@@ -30,7 +34,14 @@ export function AskingCard({ placed, now, scoped }: { placed: Placed; now: numbe
 
   return (
     <Card ask sent={!!sent}>
-      <CardHead placed={placed} now={now} scoped={scoped} />
+      <CardHead
+        placed={placed}
+        now={now}
+        scoped={scoped}
+        note={note}
+        title={asking ? toolText(t, asking) : undefined}
+        lead={asking ? <ToolMark tool={asking.tool} /> : undefined}
+      />
       {sent ? (
         <SentNote
           what={sent}
@@ -43,7 +54,7 @@ export function AskingCard({ placed, now, scoped }: { placed: Placed; now: numbe
         <p className="m-0 text-[13px] text-muted">{t('session.reading')}</p>
       ) : question ? (
         <>
-          <p className="m-0 text-[13.5px] break-words">{question.text}</p>
+          {asking ? null : <p className="m-0 text-[13.5px] break-words">{question.text}</p>}
           <Detail question={question} />
           <Options question={question} busy={answer.busy} onPick={press} />
           <AnswerElsewhere terminal={terminalHref(mid, paneId)} />
