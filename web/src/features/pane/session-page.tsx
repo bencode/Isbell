@@ -20,6 +20,7 @@ import { Asking } from './asking'
 import { Composer } from './composer'
 import { EndPane } from './end-pane-dialog'
 import type { PaneLayout } from './pane-layout'
+import { StatusBar } from './status-bar'
 import { Turns } from './turns'
 import { useLink } from './use-link'
 import { useReading } from './use-reading'
@@ -200,6 +201,16 @@ function SessionView({
                   onSent={reread}
                   uploads={{ machine: project.machine, taken }}
                 />
+                {/* While it asks, ⇧Tab could be taken for an answer. */}
+                {asking ? null : (
+                  <StatusBar
+                    mid={mid}
+                    paneId={paneId}
+                    kind={session.kind}
+                    footer={reading?.footer}
+                    onChanged={reread}
+                  />
+                )}
               </div>
             )}
           </div>

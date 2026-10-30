@@ -6,6 +6,9 @@ import type { Block, Grammar } from './types'
 
 const VERBS =
   /^(Ran|Running|Explored|Exploring|Edited|Editing|Added|Deleted|Updated|Read|Searched|Exited|Waited|Called|Calling)\b\s*(.*)$/
+// In Plan mode the status line ends in this, after a "·" or straight after a cut-off path, with
+// "(⇧tab to cycle)" when there is room.
+const PLAN = /\s+(?:·\s+)?Plan mode(?: \(.*\))?$/
 
 export const codex: Grammar = {
   banner: /^\s*>_ OpenAI Codex/,
@@ -20,6 +23,9 @@ export const codex: Grammar = {
     /^\s+\+ \d+ lines \(.*to expand\)$/,
     /^\s+└ Tip: /,
   ],
+  modes: ['Default', 'Plan'],
+  // ⇧Tab leaves Plan mode, but from Default it often does nothing.
+  enter: { Plan: '/plan' },
   action: (head, rest): Block | undefined => {
     const m = VERBS.exec(head)
     if (!m) return undefined
@@ -38,11 +44,13 @@ export const codex: Grammar = {
     const below = lines.slice(box + 1).filter(Boolean)
     // Below the input box is the status line; anything else means this is not the input box.
     if (!below.every(l => l.startsWith('  '))) return undefined
-    const status = below
-      .find(l => !/for (agents|shortcuts)/.test(l))
-      ?.trim()
-      .split(' · ')
-    const footer = status && status.length > 1 ? { model: status[0] ?? '', ...task(status[2]) } : undefined
+    const found = below.find(l => !/for (agents|shortcuts)/.test(l))?.trim()
+    const plan = !!found && PLAN.test(found)
+    const status = found?.replace(PLAN, '').split(' · ')
+    const footer =
+      status && status.length > 1
+        ? { model: status[0] ?? '', ...task(status[2]), mode: plan ? 'Plan' : 'Default' }
+        : undefined
     return { at: box, ...(footer ? { footer } : {}) }
   },
 }

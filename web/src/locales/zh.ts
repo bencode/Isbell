@@ -273,6 +273,8 @@ export const zh: Record<Key, string> = {
   'chat.working': '工作中',
   'chat.waiting': '等你回答',
   'chat.unreadable': '读不出这个 agent 的对话轮次，下面按原样显示屏幕文本。',
+  'status.mode': '模式',
+  'status.modeFailed': '没能切到 {mode}',
   'composer.short': '回复…',
   'composer.placeholder': '回复，或补充它需要知道的……',
   'composer.send': '发送',
