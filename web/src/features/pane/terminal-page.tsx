@@ -8,9 +8,8 @@ import { Button } from '../../components/button'
 import { InfoFacts } from '../../components/info-panel'
 import { errorText, useI18n } from '../../core/i18n'
 import { attachCommand, connectionFacts, paneFacts } from '../../core/pane-facts'
-import { rememberView } from '../../core/prefs'
 import { RELAY_URL, useProjects, useSpace, useSpaceView } from '../../core/space'
-import { type Found, locate, type Pane, type Project, paneKey } from '../../model/projects'
+import { type Found, locate, type Pane, type Project } from '../../model/projects'
 import { projectsSettled, type Via } from '../../model/space'
 import { projectHref } from '../../utils/hrefs'
 import { TOUCH } from '../../utils/shortcuts'
@@ -21,7 +20,8 @@ import type { PaneLayout } from './pane-layout'
 import { useLink } from './use-link'
 import { useTerminal } from './use-terminal'
 
-export function TerminalPage({ layout }: { layout: PaneLayout }) {
+/** `after`: where to go once the pane is ended or found gone; its project's board unless given. */
+export function TerminalPage({ layout, after }: { layout: PaneLayout; after?: string }) {
   const t = useI18n()
   const params = useParams()
   const mid = params.mid ?? ''
@@ -42,10 +42,19 @@ export function TerminalPage({ layout }: { layout: PaneLayout }) {
     return (
       <div className="m-6 flex flex-col items-start gap-3">
         <p className="m-0 text-muted">{t('terminal.gone')}</p>
-        <Link to="/">{t('project.back')}</Link>
+        <Link to={after ?? '/'}>{t('project.back')}</Link>
       </div>
     )
-  return <Attached key={`${mid}/${paneId}`} layout={layout} mid={mid} paneId={paneId} found={found} />
+  return (
+    <Attached
+      key={`${mid}/${paneId}`}
+      layout={layout}
+      mid={mid}
+      paneId={paneId}
+      found={found}
+      after={after ?? projectHref(found.project.key)}
+    />
+  )
 }
 
 function Attached({
@@ -53,11 +62,13 @@ function Attached({
   mid,
   paneId,
   found,
+  after,
 }: {
   layout: PaneLayout
   mid: string
   paneId: string
   found: Found
+  after: string
 }) {
   const t = useI18n()
   const navigate = useNavigate()
@@ -66,12 +77,6 @@ function Attached({
   const [ending, setEnding] = useState(false)
   const { project, name, pane } = found
   const agent = 'session' in pane
-  const home = projectHref(project.key)
-
-  // The sidebar and the drawer open an agent in the view it was last seen in.
-  useEffect(() => {
-    if (agent) rememberView(paneKey(mid, paneId), 'terminal')
-  }, [agent, mid, paneId])
 
   return (
     <>
@@ -121,7 +126,7 @@ function Attached({
         machine={project.machine}
         path={project.display}
         agent={agent}
-        onEnded={() => navigate(home)}
+        onEnded={() => navigate(after)}
       />
     </>
   )

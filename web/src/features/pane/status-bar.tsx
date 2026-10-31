@@ -117,7 +117,7 @@ export function StatusBar({
         <span className="flex-none text-danger">{t('status.modeFailed', { mode: failed })}</span>
       ) : null}
       {line ? (
-        <span title={line} className="min-w-0 truncate font-mono text-[11.5px]">
+        <span title={line} className="min-w-0 truncate font-mono">
           {line}
         </span>
       ) : null}

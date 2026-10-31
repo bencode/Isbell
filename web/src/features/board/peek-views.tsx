@@ -2,15 +2,18 @@
 // agent's chat or terminal, a shell's terminal. Once shown, the terminal stays attached while the
 // chat shows, until another pane opens.
 
-import { Activity, type ReactNode, useState } from 'react'
+import { Activity, type ComponentType, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router'
 import { useProjects } from '../../core/space'
 import { locate, paneKey } from '../../model/projects'
 import { PeekPane } from '../pane/peek-pane'
 import { SessionPage } from '../pane/session-page'
 
-/** `terminal`: the pane's terminal page, laid out by `PeekPane`. */
-export function PeekViews({ terminal, after }: { terminal: ReactNode; after: string }) {
+/** A pane's terminal page beside the board, laid out by `PeekPane`; `after`, where to go once the
+ * pane is ended. */
+export type PeekTerminal = ComponentType<{ after: string }>
+
+export function PeekViews({ terminal: Terminal, after }: { terminal: PeekTerminal; after: string }) {
   const { mid = '', pane = '' } = useParams()
   const [search] = useSearchParams()
   const found = locate(useProjects(), mid, pane)
@@ -29,7 +32,9 @@ export function PeekViews({ terminal, after }: { terminal: ReactNode; after: str
       )}
       {/* Hidden by its style, not an Activity, which would end its effects and so detach it. */}
       {showTerminal || attached === key ? (
-        <div className={showTerminal ? 'flex min-w-0 flex-1 flex-col' : 'hidden'}>{terminal}</div>
+        <div className={showTerminal ? 'flex min-w-0 flex-1 flex-col' : 'hidden'}>
+          <Terminal after={after} />
+        </div>
       ) : null}
     </>
   )

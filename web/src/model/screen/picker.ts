@@ -64,20 +64,25 @@ function toKey(part: string): { key: string; label: string }[] {
   return m ? [{ key: m[1] ?? '', label: m[2] ?? '' }] : []
 }
 
-/** The lines over the items up to the menu's top rule, or up to a gap of blank lines. */
+/** The lines over the items up to the rule Claude Code draws atop its menus. Codex draws none, and
+ * the conversation can end a blank line above its title: there only the lines next to the items
+ * are the menu's. */
 function headingAbove(lines: string[], first: number): string[] {
   const heading: string[] = []
   let blanks = 0
+  // How many lines the block next to the items has, once a blank line ends it.
+  let next = 0
   for (let i = first - 1; i >= 0 && heading.length < 4 && blanks < 3; i -= 1) {
     const l = lines[i] ?? ''
-    if (RULE.test(l)) break
+    if (RULE.test(l)) return heading
     if (!l.trim()) blanks += 1
     else {
+      if (blanks && heading.length && !next) next = heading.length
       blanks = 0
       heading.unshift(l.trim())
     }
   }
-  return heading
+  return next ? heading.slice(-next) : heading
 }
 
 function lastIndex(lines: string[], test: (l: string) => boolean): number {
