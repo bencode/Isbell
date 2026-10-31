@@ -314,7 +314,7 @@ export const en = {
   'end.failed': 'Could not end it: {msg}',
   'end.closing': 'Ending…',
   'end.undo': 'Undo',
-  'end.soon': 'Ending',
+  'end.soon': 'Ending in {s}s',
 
   'settings.title': 'Settings',
   'settings.local': 'Saved in this browser only. There is no account.',

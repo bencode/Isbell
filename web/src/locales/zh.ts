@@ -314,7 +314,7 @@ export const zh: Record<Key, string> = {
   'end.failed': '没能结束：{msg}',
   'end.closing': '正在结束…',
   'end.undo': '撤销',
-  'end.soon': '即将结束',
+  'end.soon': '{s} 秒后结束',
 
   'settings.title': '设置',
   'settings.local': '只保存在这个浏览器里，没有账号。',
