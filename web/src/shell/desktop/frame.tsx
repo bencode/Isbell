@@ -22,7 +22,7 @@ export function AppFrame() {
   const view = useSpaceView()
   const projects = useProjects()
   // The path is always the page's: a tab is in the query.
-  const params = { ...useMatch('/t/:mid/:pane')?.params, ...useMatch('/p/:key/*')?.params }
+  const params = { ...useMatch('/p/:key/*')?.params }
   // A session open beside every agent's board is on that board, not in its project.
   const allPeek = useMatch('/s/:mid/:pane')
   const here = allPeek ? { project: undefined, pane: undefined } : hereOf(projects, params)
@@ -33,7 +33,8 @@ export function AppFrame() {
   const rail = useLocal().layout.rail
   const navigate = useNavigate()
   const [overlay, setOverlay] = useState<Overlay | null>(null)
-  // Esc belongs to the boards and the tabs; on a terminal it is the agent's.
+  // Esc belongs to the boards and the tabs; in a terminal, which has the focus, the agent's (see
+  // `useShortcuts`).
   const board = peek || boards.some(Boolean)
   const { open, active } = useTabRoute()
   const page = usePageLocation()

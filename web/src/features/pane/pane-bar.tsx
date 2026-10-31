@@ -1,6 +1,6 @@
-// The bar over a pane, beside the board or on its terminal page: its name (an agent's renamed in
-// place) and state, the project where the page around does not say it, a way to stop an agent at
-// work, then the facts in a popover and a way to end it.
+// The bar over a pane beside the board: its name (an agent's renamed in place) and state, the
+// project where the page around does not say it; then, in groups, its views, the facts in a
+// popover, and a way to stop an agent at work and to end it.
 
 import { Popover } from '@base-ui/react/popover'
 import { Info, Power, Square } from 'lucide-react'
@@ -22,16 +22,32 @@ type Props = {
   facts: ReactNode
   /** Says which project; only where the page around does not. */
   showProject: boolean
-  /** Buttons before the facts and after ending. */
-  before?: ReactNode
+  /** Before the name: the way back to the folded lanes. */
+  lead?: ReactNode
+  /** The pane's views, first of the groups on the right. */
+  views?: ReactNode
+  /** After ending: closing. */
   after?: ReactNode
 }
 
-export function PaneBar({ found: { project, name, pane }, onEnd, facts, showProject, before, after }: Props) {
+const DIVIDER = <span aria-hidden className="mx-1 h-[18px] w-px flex-none bg-line" />
+
+export function PaneBar({
+  found: { project, name, pane },
+  onEnd,
+  facts,
+  showProject,
+  lead,
+  views,
+  after,
+}: Props) {
   const t = useI18n()
   const session = 'session' in pane ? pane.session : undefined
   return (
-    <header className="flex h-11 flex-none items-center gap-1 border-b border-line pr-2 pl-4">
+    <header
+      className={`flex h-11 flex-none items-center gap-1 border-b border-line pr-2 ${lead ? 'pl-2' : 'pl-4'}`}
+    >
+      {lead}
       {session ? <NameEditor session={session} /> : <b className="truncate font-semibold">{name}</b>}
       {session ? (
         <span className="ml-1.5 flex-none">
@@ -40,8 +56,8 @@ export function PaneBar({ found: { project, name, pane }, onEnd, facts, showProj
       ) : null}
       {showProject ? <span className="ml-2 truncate text-[12.5px] text-faint">{project.name}</span> : null}
       <span className="flex-1" />
-      {session?.status === 'working' ? <StopButton session={session} /> : null}
-      {before}
+      {views}
+      {views ? DIVIDER : null}
       <Popover.Root>
         <Popover.Trigger aria-label={t('info.toggle')} title={t('info.toggle')} className={BAR_ICON}>
           <Info size={16} />
@@ -54,6 +70,8 @@ export function PaneBar({ found: { project, name, pane }, onEnd, facts, showProj
           </Popover.Positioner>
         </Popover.Portal>
       </Popover.Root>
+      {DIVIDER}
+      {session?.status === 'working' ? <StopButton session={session} /> : null}
       <button
         type="button"
         onClick={onEnd}

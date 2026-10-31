@@ -8,23 +8,14 @@ import { useFilesRoots } from '../../core/worktrees'
 import type { Project } from '../../model/projects'
 import { projectFilesHref, projectHref } from '../../utils/hrefs'
 
-/** `current`: none on a page that is neither, such as a terminal; `agentsHref`, where Agents leads
- * instead of the project's board. */
-export function ProjectTabs({
-  project,
-  current,
-  agentsHref = projectHref(project.key),
-}: {
-  project: Project
-  current?: 'agents' | 'files'
-  agentsHref?: string
-}) {
+/** `current`: none beneath a tab, where neither is the one shown. */
+export function ProjectTabs({ project, current }: { project: Project; current?: 'agents' | 'files' }) {
   const t = useI18n()
   const filesHref = useFilesHref(project)
   const views = [
     {
       key: 'agents',
-      href: agentsHref,
+      href: projectHref(project.key),
       icon: <LayoutGrid size={15} />,
       label: t('project.agents'),
     },
