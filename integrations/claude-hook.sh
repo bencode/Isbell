@@ -133,11 +133,18 @@ if hooks:
 else:
     settings.pop("hooks", None)
 
+# Settings can hold secrets (`env`): the file keeps its mode, and a new one is the owner's alone.
+try:
+    mode = os.stat(path).st_mode & 0o777
+except FileNotFoundError:
+    mode = 0o600
 os.makedirs(os.path.dirname(path), exist_ok=True)
-with open(path + ".isbell-tmp", "w") as f:
+tmp = path + ".isbell-tmp"
+with os.fdopen(os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w") as f:
     json.dump(settings, f, indent=2, ensure_ascii=False)
     f.write("\n")
-os.replace(path + ".isbell-tmp", path)
+os.chmod(tmp, mode)
+os.replace(tmp, path)
 print("%s %s" % ("registered in" if action == "install" else "removed from", path))
 PY
 )
