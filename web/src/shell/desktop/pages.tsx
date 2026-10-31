@@ -28,6 +28,8 @@ const slotOf = (pathname: string): Slot | null =>
 
 type Kept = Partial<Record<Slot, Location>>
 
+const PeekTerminal = ({ after }: { after: string }) => <LazyTerminal layout={PeekPane} after={after} />
+
 /** The location each kept page was last shown at: the same object while its address is the same,
  * so coming back to it neither remounts it nor gives it a new history key. Without a page, the board
  * stays shown as it was. */
@@ -65,11 +67,7 @@ export function PageRoutes({ location }: { location: Location }) {
           <Routes location={kept.board}>
             {/* One page, so opening a session beside the board and closing it keeps the board as it is. */}
             {BOARD.map(path => (
-              <Route
-                key={path}
-                path={path}
-                element={<AgentsPage terminal={<LazyTerminal layout={PeekPane} />} />}
-              />
+              <Route key={path} path={path} element={<AgentsPage terminal={PeekTerminal} />} />
             ))}
           </Routes>
         </Activity>

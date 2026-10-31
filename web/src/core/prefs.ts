@@ -24,8 +24,6 @@ export type Layout = {
   /** Machine ids whose projects are hidden in the sidebar; any other machine shows them. Keys saved
    * when it held projects never match a machine id, so they fold nothing. */
   folded: string[]
-  /** Agent panes (by paneKey) last seen in their terminal, most recent first; any other opens in chat. */
-  terminal: string[]
   /** The folders open in each files tree (relative to its root), by root key: a project's own key
    * for its directory, or another worktree's. */
   files: Record<string, string[]>
@@ -74,7 +72,6 @@ const DEFAULTS: Local = {
   layout: {
     rail: false,
     folded: [],
-    terminal: [],
     files: {},
     branches: {},
     filesAt: {},
@@ -218,22 +215,10 @@ export const dismissInstallTip = () => updateLocal(l => ({ layout: { ...l.layout
 export const setReader = (change: Partial<Reader>) =>
   updateLocal(l => ({ reader: { ...l.reader, ...change } }))
 
-/** How many panes keep their terminal view; panes that ended fall off the end. */
-const TERMINAL_MAX = 50
-
 /** Notes that a finished session was seen as it stood at `since`, which makes it read. */
 export function markSeen(key: string, since: number) {
   if ((current.seen[key] ?? 0) >= since) return
   updateLocal(l => ({ seen: { ...l.seen, [key]: since } }))
-}
-
-/** Notes which view an agent's pane was last seen in. */
-export function rememberView(key: string, view: 'chat' | 'terminal') {
-  const { terminal } = current.layout
-  const rest = terminal.filter(k => k !== key)
-  const next = view === 'terminal' ? [key, ...rest].slice(0, TERMINAL_MAX) : rest
-  if (next.length === terminal.length && next.every((k, i) => k === terminal[i])) return
-  updateLocal(l => ({ layout: { ...l.layout, terminal: next } }))
 }
 
 export const useLocal = () => useSyncExternalStore(subscribe, getLocal)

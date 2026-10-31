@@ -73,10 +73,10 @@ const TerminalPage = lazy(() =>
   import('../features/pane/terminal-page').then(m => ({ default: m.TerminalPage })),
 )
 
-export function LazyTerminal({ layout }: { layout: PaneLayout }) {
+export function LazyTerminal({ layout, after }: { layout: PaneLayout; after?: string }) {
   return (
     <Suspense fallback={<Loading />}>
-      <TerminalPage layout={layout} />
+      <TerminalPage layout={layout} {...(after === undefined ? {} : { after })} />
     </Suspense>
   )
 }

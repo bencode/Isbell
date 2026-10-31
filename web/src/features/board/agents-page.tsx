@@ -4,7 +4,7 @@
 // folds away too, leaving the session the whole width.
 
 import { ChevronsLeft } from 'lucide-react'
-import { type ReactNode, type RefObject, useEffect, useRef, useState } from 'react'
+import { type RefObject, useEffect, useRef, useState } from 'react'
 import { Group, Panel, type PanelSize, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
 import { Link, useParams } from 'react-router'
 import { ResizeHandle } from '../../components/resize-handle'
@@ -19,12 +19,11 @@ import { BAR_ICON } from '../pane/pane-bar'
 import { LanesFoldContext } from '../pane/peek-pane'
 import { NoMachines } from './all-page'
 import { Lanes } from './lanes'
-import { PeekViews } from './peek-views'
+import { type PeekTerminal, PeekViews } from './peek-views'
 
 const NOTE = 'm-6 flex flex-col items-start gap-3 text-muted'
 
-/** `terminal`: a pane's terminal page, for the pane open beside the board. */
-export function AgentsPage({ terminal }: { terminal: ReactNode }) {
+export function AgentsPage({ terminal }: { terminal: PeekTerminal }) {
   const t = useI18n()
   const view = useSpaceView()
   const projects = useProjects()
@@ -54,7 +53,7 @@ function Board({
 }: {
   project: Project | undefined
   all: Project[]
-  terminal: ReactNode
+  terminal: PeekTerminal
 }) {
   const t = useI18n()
   const now = useNow()

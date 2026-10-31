@@ -140,7 +140,12 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
     keyIn.current = key => term.input(barKeyBytes(key, term.modes.applicationCursorKeysMode), true)
     const binary = term.onBinary(s => live?.input(Uint8Array.from(s, c => c.charCodeAt(0))))
     let settle: ReturnType<typeof setTimeout> | undefined
-    const observer = new ResizeObserver(() => {
+    // Shown again after hiding behind the chat, it takes the keys, as it does on opening.
+    let shown = true
+    const observer = new ResizeObserver(([entry]) => {
+      const now = (entry?.contentRect.width ?? 0) > 0
+      if (now && !shown) term.focus()
+      shown = now
       clearTimeout(settle)
       settle = setTimeout(() => {
         fit.fit()

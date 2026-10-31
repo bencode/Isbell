@@ -63,3 +63,10 @@ test('a numbered list in a reply, above the input box, is not a menu', () => {
   expect(readPicker(screen('claude-done'))).toBeUndefined()
   expect(readPicker(screen('codex-done'))).toBeUndefined()
 })
+
+test("Codex's menu under the conversation is titled by its own line, not the last words above it", () => {
+  const p = readPicker(screen('codex-model-picker-history'))
+  expect(p?.heading).toEqual(['Select Model and Effort'])
+  expect(p?.items).toHaveLength(8)
+  expect(p?.cursor).toBe(1)
+})

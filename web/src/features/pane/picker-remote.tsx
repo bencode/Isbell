@@ -123,7 +123,7 @@ export function PickerRemote({
     >
       <Popover.Trigger
         disabled={disabled}
-        className="flex flex-none cursor-pointer items-center gap-1 rounded border border-line bg-raised px-1.5 py-0.5 font-mono text-[11.5px] text-text disabled:cursor-default disabled:opacity-60"
+        className="flex flex-none cursor-pointer items-center gap-1 rounded border border-line bg-raised px-1.5 py-0.5 font-mono text-text disabled:cursor-default disabled:opacity-60"
       >
         {label}
         <ChevronDown size={12} />

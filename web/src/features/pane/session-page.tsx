@@ -8,7 +8,7 @@ import { buttonClass } from '../../components/button'
 import { InfoFacts } from '../../components/info-panel'
 import { errorText, useI18n } from '../../core/i18n'
 import { attachCommand, connectionFacts, paneFacts } from '../../core/pane-facts'
-import { markSeen, rememberView } from '../../core/prefs'
+import { markSeen } from '../../core/prefs'
 import { RELAY_URL, useProjects, useSpaceView } from '../../core/space'
 import { PathRoot } from '../../core/tabs'
 import { type Project, paneKey, type Session } from '../../model/projects'
@@ -91,11 +91,6 @@ function SessionView({
     settled(session.status) &&
     !!machineOf(view.machines, mid)?.state.caps.methods.includes('isbell.agent.history')
   const taken = !!machineOf(view.machines, mid)?.state.caps.methods.includes('isbell.file.upload')
-
-  // The sidebar and the drawer open an agent in the view it was last seen in.
-  useEffect(() => {
-    rememberView(paneKey(mid, paneId), 'chat')
-  }, [mid, paneId])
 
   // Looking at a finished session marks it read.
   useEffect(() => {
