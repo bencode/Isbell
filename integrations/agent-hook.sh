@@ -18,7 +18,7 @@ INSTALLED="$HOME/.isbell/hooks/agent-hook.sh"
 EVENTS="SessionStart UserPromptSubmit PreToolUse PermissionRequest PostToolUse Stop"
 
 REPORT=$(cat <<'PY'
-import json, os, re, socket, sys, time
+import json, os, re, socket, subprocess, sys, time
 
 AGENT = sys.argv[1]
 
@@ -56,6 +56,22 @@ def named(tool, i):
         return "Edit", ", ".join(os.path.basename(f.strip()) for f in files) or None
     return tool, target(tool, i)
 
+def in_codex_daemon():
+    """Whether Codex's shared daemon runs the hook, not the codex in the pane: the daemon serves
+    every session, with the env of the terminal that first started it, so its HERDR_PANE_ID, if
+    any, names some other pane. The nearest codex above the hook says which."""
+    pid = os.getppid()
+    for _ in range(4):
+        ps = subprocess.run(["ps", "-o", "ppid=,command=", "-p", str(pid)], capture_output=True, text=True)
+        parent, _, command = ps.stdout.strip().partition(" ")
+        argv = command.split()
+        if not argv:
+            return False
+        if os.path.basename(argv[0]) == "codex":
+            return argv[1:2] == ["app-server"]
+        pid = int(parent)
+    return False
+
 def collapse(s):
     return re.sub(r"\s+", " ", s).strip() if isinstance(s, str) else None
 
@@ -89,7 +105,7 @@ def tokens(e):
 try:
     e = json.load(sys.stdin)
     # A subagent's events would stand in for what the session itself is doing.
-    found = None if e.get("agent_id") else tokens(e)
+    found = None if e.get("agent_id") or (AGENT == "codex" and in_codex_daemon()) else tokens(e)
     if found is not None:
         # Which agent reported, so what one leaves in a pane says nothing of the next there.
         found["isbell_agent"] = AGENT
