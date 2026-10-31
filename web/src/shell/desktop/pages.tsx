@@ -1,12 +1,15 @@
 // The pages on a computer, each the first tab of the window. They are given their location rather
 // than reading the address, which also names the tab shown over them. The board and a project's
-// files stay as they were while another page shows, each at the address it was last shown at.
+// files stay as they were while another page shows, each at the address it was last shown at. A
+// pane's terminal opens beside the board; its own address (`/t/…`, which links shared with the phone
+// use) leads there.
 
 import { Activity, lazy, Suspense, useLayoutEffect, useRef } from 'react'
-import { type Location, matchPath, Navigate, Route, Routes } from 'react-router'
+import { type Location, matchPath, Navigate, type Params, Route, Routes } from 'react-router'
 import { AgentsPage } from '../../features/board/agents-page'
+import { PeekPane } from '../../features/pane/peek-pane'
+import { peekTerminalHref } from '../../utils/hrefs'
 import { LazyTerminal, Loading } from '../common'
-import { DesktopPane } from './pane'
 
 // A project's files bring the same libraries as a pane's.
 const ProjectFiles = lazy(() =>
@@ -18,6 +21,7 @@ type Slot = 'board' | 'files'
 
 const BOARD = ['/', '/s/:mid/:pane', '/p/:key', '/p/:key/s/:mid/:pane']
 const FILES = '/p/:key/files/*'
+const TERMINAL = '/t/:mid/:pane'
 
 const slotOf = (pathname: string): Slot | null =>
   matchPath(FILES, pathname) ? 'files' : BOARD.some(path => matchPath(path, pathname)) ? 'board' : null
@@ -25,13 +29,14 @@ const slotOf = (pathname: string): Slot | null =>
 type Kept = Partial<Record<Slot, Location>>
 
 /** The location each kept page was last shown at: the same object while its address is the same,
- * so coming back to it neither remounts it nor gives it a new history key. */
-function useKept(page: Location): { shown: Slot | null; kept: Kept } {
+ * so coming back to it neither remounts it nor gives it a new history key. Without a page, the board
+ * stays shown as it was. */
+function useKept(page: Location | null): { shown: Slot | null; kept: Kept } {
   const was = useRef<Kept>({})
-  const shown = slotOf(page.pathname)
+  const shown = page ? slotOf(page.pathname) : was.current.board ? 'board' : null
   const last = shown && was.current[shown]
   const kept =
-    shown === null
+    page === null || shown === null
       ? was.current
       : {
           ...was.current,
@@ -43,8 +48,15 @@ function useKept(page: Location): { shown: Slot | null; kept: Kept } {
   return { shown, kept }
 }
 
+/** The pane's terminal beside the board last shown, or every agent's. */
+const besideTerminal = (board: Location | undefined, { mid = '', pane = '' }: Params) =>
+  peekTerminalHref(board && matchPath('/p/:key/*', board.pathname)?.params.key, mid, pane)
+
 export function PageRoutes({ location }: { location: Location }) {
-  const { shown, kept } = useKept(location)
+  const terminal = matchPath(TERMINAL, location.pathname)?.params
+  // On the way to the terminal, the board stays as it is, rather than hiding and reading every card
+  // again as it shows.
+  const { shown, kept } = useKept(terminal ? null : location)
   const mode = (slot: Slot) => (slot === shown ? 'visible' : 'hidden')
   return (
     <>
@@ -53,7 +65,11 @@ export function PageRoutes({ location }: { location: Location }) {
           <Routes location={kept.board}>
             {/* One page, so opening a session beside the board and closing it keeps the board as it is. */}
             {BOARD.map(path => (
-              <Route key={path} path={path} element={<AgentsPage />} />
+              <Route
+                key={path}
+                path={path}
+                element={<AgentsPage terminal={<LazyTerminal layout={PeekPane} />} />}
+              />
             ))}
           </Routes>
         </Activity>
@@ -72,12 +88,8 @@ export function PageRoutes({ location }: { location: Location }) {
           </Routes>
         </Activity>
       ) : null}
-      {shown === null ? (
-        <Routes location={location}>
-          <Route path="t/:mid/:pane" element={<LazyTerminal layout={DesktopPane} />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      ) : null}
+      {terminal ? <Navigate to={besideTerminal(kept.board, terminal)} replace /> : null}
+      {shown === null && !terminal ? <Navigate to="/" replace /> : null}
     </>
   )
 }

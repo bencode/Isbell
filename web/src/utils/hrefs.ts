@@ -25,3 +25,7 @@ export const boardHref = (projectKey?: string) => (projectKey ? projectHref(proj
 /** A session opened beside the board it is on. */
 export const peekHref = (projectKey: string | undefined, mid: string, paneId: string) =>
   `${projectKey ? projectHref(projectKey) : ''}${sessionHref(mid, paneId)}`
+
+/** A session opened beside the board it is on, in its terminal. */
+export const peekTerminalHref = (projectKey: string | undefined, mid: string, paneId: string) =>
+  `${peekHref(projectKey, mid, paneId)}?view=terminal`

@@ -20,7 +20,8 @@ const keyOf = ({ session }: Placed) => paneKey(session.mid, session.paneId)
 type Props = {
   lanes: LaneSet
   now: number
-  /** One under another as the page scrolls, rather than side by side, each scrolling on its own. */
+  /** One under another as the page scrolls, rather than side by side, each scrolling on its own; the
+   * empty lanes left out. */
   stacked?: boolean
   /** All of one project's, so the cards need not say which. */
   scoped?: boolean
@@ -29,7 +30,7 @@ type Props = {
   phone?: boolean
 }
 
-export function Lanes({ lanes, now, stacked, scoped = false, phone = false }: Props) {
+export function Lanes({ lanes, now, stacked = false, scoped = false, phone = false }: Props) {
   const t = useI18n()
   return (
     <div
@@ -46,6 +47,7 @@ export function Lanes({ lanes, now, stacked, scoped = false, phone = false }: Pr
         dot="bg-warn"
         hint={t('lane.oldest')}
         count={lanes.asking.length}
+        stacked={stacked}
         phone={phone}
       >
         {lanes.asking.map(p => (
@@ -57,6 +59,7 @@ export function Lanes({ lanes, now, stacked, scoped = false, phone = false }: Pr
         dot="bg-ok"
         hint={t('lane.markRead')}
         count={lanes.finished.length}
+        stacked={stacked}
         phone={phone}
       >
         {lanes.finished.map(p => (
@@ -68,6 +71,7 @@ export function Lanes({ lanes, now, stacked, scoped = false, phone = false }: Pr
         dot="bg-accent"
         hint={t('lane.watch')}
         count={lanes.running.length}
+        stacked={stacked}
         phone={phone}
       >
         {lanes.running.map(p =>
@@ -84,6 +88,7 @@ export function Lanes({ lanes, now, stacked, scoped = false, phone = false }: Pr
         shells={lanes.shells}
         now={now}
         scoped={scoped}
+        stacked={stacked}
         phone={phone}
       />
     </div>
@@ -99,6 +104,7 @@ function Standing({
   shells,
   now,
   scoped,
+  stacked,
   phone,
 }: {
   standing: Placed[]
@@ -106,6 +112,7 @@ function Standing({
   shells: PlacedShell[]
   now: number
   scoped: boolean
+  stacked: boolean
   phone: boolean
 }) {
   const t = useI18n()
@@ -136,6 +143,7 @@ function Standing({
       hint={t('lane.latest')}
       count={standing.length + offline.length}
       empty={!standing.length && !offline.length && (phone || !shells.length)}
+      stacked={stacked}
       phone={phone}
     >
       {recent.map(row)}
@@ -187,13 +195,14 @@ function Standing({
 }
 
 /** `count`: what the lane's title counts; `empty`, whether it holds nothing at all (none counted, by
- * default). */
+ * default). Stacked, as on a phone, an empty lane is left out. */
 function Lane({
   title,
   dot,
   hint,
   count,
   empty = count === 0,
+  stacked,
   phone,
   children,
 }: {
@@ -202,10 +211,12 @@ function Lane({
   hint: string
   count: number
   empty?: boolean
+  stacked: boolean
   phone: boolean
   children: ReactNode
 }) {
   const t = useI18n()
+  if (stacked && empty) return null
   if (phone)
     return empty ? null : (
       <section className="flex flex-col gap-2">
