@@ -200,17 +200,20 @@ function SessionView({
                   paneId={paneId}
                   onSent={reread}
                   uploads={{ machine: project.machine, taken }}
+                  below={
+                    // While it asks, ⇧Tab could be taken for an answer.
+                    asking ? null : (
+                      <StatusBar
+                        mid={mid}
+                        paneId={paneId}
+                        kind={session.kind}
+                        status={session.status}
+                        footer={reading?.footer}
+                        onChanged={reread}
+                      />
+                    )
+                  }
                 />
-                {/* While it asks, ⇧Tab could be taken for an answer. */}
-                {asking ? null : (
-                  <StatusBar
-                    mid={mid}
-                    paneId={paneId}
-                    kind={session.kind}
-                    footer={reading?.footer}
-                    onChanged={reread}
-                  />
-                )}
               </div>
             )}
           </div>

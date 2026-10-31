@@ -83,6 +83,24 @@ describe('codex', () => {
     ])
   })
 
+  test('a prompt read before the agent shows it working is no turn yet', () => {
+    const text = [
+      '› hi',
+      '',
+      '• Hello',
+      '',
+      '  Worked for 2s • 10:00',
+      '',
+      '› 能识别？',
+      '  /var/folders/6b/T/isbell-uploads/998b9cea/248.HEIC',
+      '',
+      '› Ask Codex to do anything',
+      '',
+      '  GPT · ~/x',
+    ].join('\n')
+    expect(parseScreen('codex', text, false)?.turns.map(t => t.prompt)).toEqual(['hi'])
+  })
+
   test('an approval is a question whose options answer with their number', () => {
     const r = read('codex', 'codex-asking', true)
     expect(r.question).toEqual({
