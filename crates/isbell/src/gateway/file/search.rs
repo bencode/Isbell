@@ -27,7 +27,7 @@ struct SearchRequest {
 /// and whether the search stopped before the end of the tree.
 pub async fn search(p: Value) -> Result<Value, RpcError> {
     let req: SearchRequest = serde_json::from_value(p).map_err(RpcError::bad_request)?;
-    let root = absolute_path(&req.root)?.to_owned();
+    let root = absolute_path(&req.root)?;
     let needle = needle(&req.query)?;
     let deadline = Instant::now() + SEARCH_FOR;
     let (paths, truncated) = blocking(move || walk(&root, &needle, deadline)).await?;

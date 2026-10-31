@@ -1,6 +1,6 @@
 // The pages on a computer, each the first tab of the window. They are given their location rather
-// than reading the address, which also names the tab shown over them. The board and a project's
-// files stay as they were while another page shows, each at the address it was last shown at. A
+// than reading the address, which also names the tab shown over them. The board, a project's
+// sessions and its files stay as they were while another page shows, each at the address it was last shown at. A
 // pane's terminal opens beside the board; its own address (`/t/…`, which links shared with the phone
 // use) leads there.
 
@@ -15,16 +15,26 @@ import { LazyTerminal, Loading } from '../common'
 const ProjectFiles = lazy(() =>
   import('../../features/files/project-files').then(m => ({ default: m.ProjectFiles })),
 )
+const SessionsPage = lazy(() =>
+  import('../../features/sessions/sessions-page').then(m => ({ default: m.SessionsPage })),
+)
 
 /** The pages kept while another shows: one of each, the last shown. */
-type Slot = 'board' | 'files'
+type Slot = 'board' | 'files' | 'sessions'
 
 const BOARD = ['/', '/s/:mid/:pane', '/p/:key', '/p/:key/s/:mid/:pane']
 const FILES = '/p/:key/files/*'
+const SESSIONS = '/p/:key/sessions'
 const TERMINAL = '/t/:mid/:pane'
 
 const slotOf = (pathname: string): Slot | null =>
-  matchPath(FILES, pathname) ? 'files' : BOARD.some(path => matchPath(path, pathname)) ? 'board' : null
+  matchPath(FILES, pathname)
+    ? 'files'
+    : matchPath(SESSIONS, pathname)
+      ? 'sessions'
+      : BOARD.some(path => matchPath(path, pathname))
+        ? 'board'
+        : null
 
 type Kept = Partial<Record<Slot, Location>>
 
@@ -80,6 +90,20 @@ export function PageRoutes({ location }: { location: Location }) {
               element={
                 <Suspense fallback={<Loading />}>
                   <ProjectFiles />
+                </Suspense>
+              }
+            />
+          </Routes>
+        </Activity>
+      ) : null}
+      {kept.sessions ? (
+        <Activity mode={mode('sessions')}>
+          <Routes location={kept.sessions}>
+            <Route
+              path={SESSIONS}
+              element={
+                <Suspense fallback={<Loading />}>
+                  <SessionsPage />
                 </Suspense>
               }
             />

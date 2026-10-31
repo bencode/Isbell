@@ -17,17 +17,17 @@ struct ReadRequest {
     path: String,
 }
 
-/// Opens the regular file at the absolute `path`; answers with its size and, where known, when it
-/// was last modified.
+/// Opens the regular file at `path` (see `absolute_path`); answers with its size and, where known,
+/// when it was last modified.
 pub async fn open_read(p: Value) -> Result<(File, Value), RpcError> {
     let req: ReadRequest = serde_json::from_value(p).map_err(RpcError::bad_request)?;
     let path = absolute_path(&req.path)?;
     // Checked before opening, which would wait for a writer on a FIFO.
-    let meta = tokio::fs::metadata(path).await.map_err(io_error)?;
+    let meta = tokio::fs::metadata(&path).await.map_err(io_error)?;
     if !meta.is_file() {
         return Err(RpcError::new("not_a_file", format!("{} is not a regular file", req.path)));
     }
-    let file = File::open(path).await.map_err(io_error)?;
+    let file = File::open(&path).await.map_err(io_error)?;
     let mut opened = json!({"size": meta.len()});
     if let Some(mtime) = mtime_ms(&meta) {
         opened["mtime"] = json!(mtime);

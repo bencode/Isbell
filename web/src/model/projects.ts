@@ -1,9 +1,11 @@
 // Projects are derived, never stored: a project is the root of a directory on a machine where an
-// agent or a shell is running. A directory's root is the git repository it is in, or the directory
-// itself when it is in none; only the pane's own directory decides, never the panes around it.
+// agent or a shell is running, or where Isbell's hook recorded a session. A directory's root is the
+// git repository it is in, or the directory itself when it is in none; only the pane's own directory
+// decides, never the panes around it.
 
 import { shownName } from './agent-name'
 import type { Shell } from './herdr'
+import type { Roots } from './sessions'
 import type { MachineEntry } from './space'
 import type { AgentStatus } from './state'
 
@@ -35,7 +37,12 @@ export type Project = {
   name: string
   sessions: Session[]
   shells: Shell[]
+  /** When a session recorded in it was last active, if any was. */
+  updated?: number
 }
+
+/** Whether anything runs in the project; one without is there for the sessions recorded in it. */
+export const hasPanes = (p: Project) => p.sessions.length > 0 || p.shells.length > 0
 
 /** When each session was last looked at: its statusSince at the time, by `paneKey`. */
 export type Seen = Record<string, number>
@@ -75,13 +82,15 @@ const trimSlash = (path: string) => (path.length > 1 ? path.replace(/\/+$/, '') 
 export const tildify = (path: string, home: string | undefined) =>
   home && (path === home || path.startsWith(`${home}/`)) ? `~${path.slice(home.length)}` : path
 
-/** Ordered by machine, then by name, so a project keeps its place (and its number key) as its
- * sessions change, and the projects of a machine stand together. */
+/** Ordered by machine, so the projects of a machine stand together; then those with panes by name,
+ * so each keeps its place as its sessions change; then the rest, the last active first.
+ * `recorded`: the roots of each machine's recorded sessions, by machine id. */
 export function deriveProjects(
   machines: MachineEntry[],
   shells: Shell[],
   seen: Seen,
   repos: Repos,
+  recorded: Readonly<Record<string, Roots>> = {},
 ): Project[] {
   return machines
     .flatMap(({ state, online }) => {
@@ -91,10 +100,12 @@ export function deriveProjects(
       const mine = shells
         .filter(s => s.mid === mid)
         .map(s => ({ shell: { ...s, cwd: trimSlash(s.cwd) }, root: rootOf(s.cwd) }))
-      const roots = [...new Set([...agents.map(a => a.root), ...mine.map(s => s.root)])]
+      const kept = recorded[mid] ?? {}
+      const roots = [...new Set([...agents.map(a => a.root), ...mine.map(s => s.root), ...Object.keys(kept)])]
       const home = homeOf(roots)
       return roots.map(path => ({
         key: projectKey(mid, path),
+        ...(kept[path] ? { updated: kept[path].updated } : {}),
         mid,
         machine: state.machine.name,
         online,
@@ -122,6 +133,8 @@ export function deriveProjects(
       (a, b) =>
         a.machine.localeCompare(b.machine) ||
         a.mid.localeCompare(b.mid) ||
+        Number(hasPanes(b)) - Number(hasPanes(a)) ||
+        (hasPanes(a) ? 0 : (b.updated ?? 0) - (a.updated ?? 0)) ||
         a.name.localeCompare(b.name) ||
         a.path.localeCompare(b.path),
     )

@@ -11,6 +11,9 @@ const tail = (rel: string) => (rel ? `/${rel.split('/').map(encodeURIComponent).
 /** A root key as one segment, its '@' and ':' kept so it reads as written. */
 const keyPart = (key: string) => encodeURIComponent(key).replace(/%40|%3A/g, decodeURIComponent)
 
+/** The sessions recorded in a project, to resume. */
+export const projectSessionsHref = (projectKey: string) => `/p/${projectKey}/sessions`
+
 /** A project's files, at `rel` under the root `key` names (the project's own, or a worktree's). */
 export const projectFilesHref = (key: string, rel = '') => `/p/${keyPart(key)}/files${tail(rel)}`
 

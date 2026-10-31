@@ -10,9 +10,9 @@ import { Link, useParams } from 'react-router'
 import { ResizeHandle } from '../../components/resize-handle'
 import { useI18n } from '../../core/i18n'
 import { useProjects, useSpaceView } from '../../core/space'
-import { lanes, type Project } from '../../model/projects'
+import { hasPanes, lanes, type Project } from '../../model/projects'
 import { projectsSettled } from '../../model/space'
-import { boardHref } from '../../utils/hrefs'
+import { boardHref, projectSessionsHref } from '../../utils/hrefs'
 import { useKeptScroll } from '../../utils/kept-scroll'
 import { useNow } from '../../utils/time'
 import { BAR_ICON } from '../pane/pane-bar'
@@ -71,7 +71,16 @@ function Board({
   const shown = project ? [project] : all
   const laneSet = lanes(shown)
   const asking = laneSet.asking.filter(p => p.session.mid !== mid || p.session.paneId !== pane).length
-  const empty = !project ? t('all.empty') : project.online ? t('project.none') : t('project.offline')
+  // A project with nothing running is there for its recorded sessions.
+  const empty = !project ? (
+    t('all.empty')
+  ) : !project.online ? (
+    t('project.offline')
+  ) : (
+    <>
+      {t('project.noPanes')} <Link to={projectSessionsHref(project.key)}>{t('project.sessions')}</Link>
+    </>
+  )
   return (
     <div className="flex h-full flex-col">
       {/* Always the same panels first, so the lanes keep what is being written on them as a session
@@ -115,7 +124,7 @@ function Board({
               {...scroll}
               className={`paper flex min-h-0 min-w-[280px] flex-1 flex-col gap-5 overflow-auto pb-5 ${peek ? 'px-4 pt-11' : 'px-7 pt-5'}`}
             >
-              {shown.some(p => p.sessions.length || p.shells.length) ? (
+              {shown.some(hasPanes) ? (
                 <Lanes lanes={laneSet} now={now} stacked={peek} scoped={!!project} />
               ) : (
                 <p className="m-0 text-muted">{empty}</p>

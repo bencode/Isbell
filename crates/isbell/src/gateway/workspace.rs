@@ -15,7 +15,8 @@ pub fn resolve_cwd(cwd: &str) -> Result<PathBuf, RpcError> {
     })
 }
 
-fn expand_home(path: &str) -> Option<PathBuf> {
+/// `path` with a leading `~` as this machine's home.
+pub(crate) fn expand_home(path: &str) -> Option<PathBuf> {
     let home = || env_path("HOME");
     match path.strip_prefix('~') {
         Some("") => home(),

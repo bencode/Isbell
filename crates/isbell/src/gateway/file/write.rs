@@ -76,7 +76,7 @@ impl Received {
 /// its directory must exist.
 pub async fn open_write(p: Value) -> Result<(Target, Value), RpcError> {
     let req: WriteRequest = serde_json::from_value(p).map_err(RpcError::bad_request)?;
-    let path = real_path(absolute_path(&req.path)?).await?;
+    let path = real_path(&absolute_path(&req.path)?).await?;
     if tokio::fs::metadata(&path).await.is_ok_and(|meta| meta.is_dir()) {
         return Err(RpcError::new("not_a_file", format!("{} is a directory", path.display())));
     }

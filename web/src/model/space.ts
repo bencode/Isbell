@@ -1,15 +1,18 @@
 // What this client knows of its space, as an external store: each machine's latest state and
-// whether it is online (pushed by the relay), and each machine's plain shells (pulled from herdr,
-// since machine state only lists agents).
+// whether it is online (pushed by the relay), each machine's plain shells (pulled from herdr,
+// since machine state only lists agents), and the projects its recorded sessions ran in (read from
+// the machine's files).
 
 import { type ConnStatus, connect } from './connection'
 import { type DirectLink, openDirect, type Path } from './direct'
+import { read } from './files/remote'
 import { repoRootOf } from './files/repo'
 import { type Caller, shells as fetchShells, type Shell } from './herdr'
 import type { Identity } from './identity'
 import { dirKey, type Repos } from './projects'
+import { parseRoots, type Roots, rootsPath } from './sessions'
 import { isNewer, type MachineState, readState } from './state'
-import type { Opened, StreamEvents } from './streams'
+import { CallError, type Opened, type StreamEvents } from './streams'
 
 export type MachineEntry = { state: MachineState; online: boolean }
 
@@ -26,6 +29,8 @@ const DIRECT_RETRY_MS = 5 * 60_000
 /** How long a stream waits for a direct link being set up before it takes the relay; the link
  * keeps opening, for the streams after it. */
 const DIRECT_WAIT_MS = 4_000
+/** Far above what years of projects take. */
+const ROOTS_MAX = 1 << 20
 
 /** `link`, or undefined once `ms` pass first. */
 const within = <T>(link: Promise<T | undefined>, ms: number): Promise<T | undefined> => {
@@ -58,7 +63,10 @@ export type SpaceView = {
   /** Directories, by `dirKey(mid, cwd)`, whose repository is still being looked up; until it is
    * found, each stands as a project of its own. */
   looking: ReadonlySet<string>
-  /** Whether some machine's shells are still being pulled for the first time since the snapshot. */
+  /** Where each machine's recorded sessions ran, by machine id. */
+  recorded: Readonly<Record<string, Roots>>
+  /** Whether some machine's shells, or where its sessions ran, are still being pulled for the
+   * first time since the snapshot. */
   pulling: boolean
 }
 
@@ -103,6 +111,13 @@ export function createSpace(url: string, id: Identity): Space {
   const looking = new Set<string>()
   // The machines whose first shells, after a snapshot, have not come yet.
   const pulling = new Set<string>()
+  // Where each machine's recorded sessions ran; the machines read now, and those to read once more
+  // after, as states can come faster than reads; the machines whose first read, after a snapshot,
+  // has not come yet.
+  const recorded = new Map<string, Roots>()
+  const reads = new Set<string>()
+  const again = new Set<string>()
+  const reading = new Set<string>()
   const listeners = new Set<() => void>()
   // Per machine: the link being opened or open (undefined once an attempt failed), and the open one.
   const links = new Map<string, Promise<DirectLink | undefined>>()
@@ -124,7 +139,8 @@ export function createSpace(url: string, id: Identity): Space {
       shells: [...shells.values()].flat(),
       repos: Object.fromEntries(repos),
       looking: new Set(looking),
-      pulling: pulling.size > 0,
+      recorded: Object.fromEntries(recorded),
+      pulling: pulling.size > 0 || reading.size > 0,
     }
   }
 
@@ -188,6 +204,12 @@ export function createSpace(url: string, id: Identity): Space {
     return conn.call(mid, m, p, timeoutMs)
   }
 
+  const openStream: Space['openStream'] = async (mid, m, p, timeoutMs, events, transport = 'auto') => {
+    const link = transport === 'auto' ? await within(directTo(mid), DIRECT_WAIT_MS) : undefined
+    if (link) return { ...(await link.open(m, p, timeoutMs, events)), via: link.path }
+    return { ...(await conn.open(mid, m, p, timeoutMs, events)), via: 'relay' }
+  }
+
   const directStatus = (mid: string): DirectStatus => {
     const open = direct.get(mid)
     if (open) return { state: 'open', link: open }
@@ -244,6 +266,36 @@ export function createSpace(url: string, id: Identity): Space {
     }
   }
 
+  const readable = (mid: string) => {
+    const m = machines.get(mid)
+    return m?.online === true && m.state.caps.methods.includes('isbell.file.read')
+  }
+
+  /** Reads where machine `mid`'s recorded sessions ran: none where its hook never recorded one,
+   * or its gateway takes no path under `~`. Asked while a read is out, it reads once more after. */
+  const refreshRecords = async (mid: string) => {
+    if (!readable(mid)) return
+    if (reads.has(mid)) {
+      again.add(mid)
+      return
+    }
+    reads.add(mid)
+    try {
+      const found = await read(openStream, mid, rootsPath, ROOTS_MAX)
+      if (found.bytes) recorded.set(mid, parseRoots(new TextDecoder().decode(found.bytes)))
+      else console.warn('the sessions recorded are too many to list', mid, found.size)
+    } catch (err) {
+      if (err instanceof CallError && (err.code === 'not_found' || err.code === 'bad_request'))
+        recorded.set(mid, {})
+      // The last read stands, so the projects stay as they were.
+      else console.warn('could not read where the sessions recorded ran', mid, err)
+    }
+    reads.delete(mid)
+    reading.delete(mid)
+    changed()
+    if (again.delete(mid)) void refreshRecords(mid)
+  }
+
   const refreshShells = async (mid?: string) => {
     const mids = mid ? [mid] : [...machines.keys()]
     await Promise.all(mids.map(refreshOne))
@@ -265,10 +317,12 @@ export function createSpace(url: string, id: Identity): Space {
       // What is still to be found out is known before anyone sees the space loaded.
       for (const mid of machines.keys()) {
         if (pullable(mid)) pulling.add(mid)
+        if (readable(mid)) reading.add(mid)
         findRepos(mid)
       }
       changed()
       void refreshShells()
+      for (const mid of machines.keys()) void refreshRecords(mid)
     },
     state: value => {
       const state = readState(value)
@@ -286,6 +340,8 @@ export function createSpace(url: string, id: Identity): Space {
       findRepos(mid)
       changed()
       void refreshOne(mid)
+      // A session's turn that ends changes the state, and what it recorded.
+      void refreshRecords(mid)
     },
     presence: (mid, online) => {
       const old = machines.get(mid)
@@ -296,7 +352,10 @@ export function createSpace(url: string, id: Identity): Space {
         direct.get(mid)?.close()
       }
       changed()
-      if (online) void refreshOne(mid)
+      if (online) {
+        void refreshOne(mid)
+        void refreshRecords(mid)
+      }
     },
   })
 
@@ -309,11 +368,7 @@ export function createSpace(url: string, id: Identity): Space {
     call,
     callVia: mid => callLink(mid)?.path ?? 'relay',
     openThenEnd: conn.openThenEnd,
-    openStream: async (mid, m, p, timeoutMs, events, transport = 'auto') => {
-      const link = transport === 'auto' ? await within(directTo(mid), DIRECT_WAIT_MS) : undefined
-      if (link) return { ...(await link.open(m, p, timeoutMs, events)), via: link.path }
-      return { ...(await conn.open(mid, m, p, timeoutMs, events)), via: 'relay' }
-    },
+    openStream,
     directStatus,
     refreshShells,
     reconnectNow: conn.reconnectNow,

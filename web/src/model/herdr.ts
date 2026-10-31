@@ -97,7 +97,7 @@ export type Started = { name: string; paneId: string; promptError?: { code: stri
 export const startAgent = async (
   call: Caller,
   mid: string,
-  p: { cwd: string; kind: string; prompt?: string },
+  p: { cwd: string; kind: string; args?: string[]; prompt?: string },
 ): Promise<Started> => (await call(mid, 'isbell.agent.start', p, START_TIMEOUT_MS)) as Started
 
 /** Opens a shell in `cwd` and lets go of it at once: the shell stays in herdr. */

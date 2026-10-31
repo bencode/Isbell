@@ -14,6 +14,8 @@ export type AgentNote = {
   asking?: ToolUse
   /** Its permission mode, when not the default. */
   mode?: string
+  /** The agent's own id for the session running in the pane. */
+  session?: string
 }
 
 /** The part of herdr's agent info read. */
@@ -52,11 +54,13 @@ export function noteOf(info: AgentInfo): AgentNote {
   const doing = toolUse(token('isbell_tool'), token('isbell_target'))
   const asking = toolUse(token('isbell_wait_tool'), token('isbell_wait_target'))
   const mode = token('isbell_mode')
+  const session = token('isbell_session')
   return {
     ...(title ? { title } : {}),
     ...(asked ? { asked } : {}),
     ...(doing ? { doing } : {}),
     ...(asking ? { asking } : {}),
     ...(mode && mode !== 'default' ? { mode } : {}),
+    ...(session ? { session } : {}),
   }
 }

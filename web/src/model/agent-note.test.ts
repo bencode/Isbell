@@ -39,16 +39,18 @@ test("what Claude's hook left in a pane says nothing of another agent started th
   expect(noteOf({ agent: 'codex', tokens: { isbell_ask: 'old question', isbell_tool: 'Bash' } })).toEqual({})
 })
 
-test("Codex's reports are read for Codex, and not for Claude Code started in its pane after it", () => {
+test("Codex's reports, its session among them, are read for Codex, and not for Claude Code started in its pane after it", () => {
   const tokens = {
     isbell_agent: 'codex',
     isbell_ask: 'fix the build',
     isbell_tool: 'Edit',
     isbell_target: 'main.rs',
+    isbell_session: 'thread-1',
   }
   expect(noteOf({ agent: 'codex', tokens })).toEqual({
     asked: 'fix the build',
     doing: { tool: 'Edit', target: 'main.rs' },
+    session: 'thread-1',
   })
   expect(noteOf({ agent: 'claude', tokens })).toEqual({})
 })

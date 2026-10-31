@@ -1,7 +1,8 @@
 #!/bin/sh
-# Isbell's hook for Claude Code and Codex: tells herdr, for the pane the agent runs in, what the
-# turn was asked, the tool it runs, the tool it asks leave to run, and its permission mode, so
-# Isbell's board can show them. It does nothing outside herdr.
+# Isbell's hook for Claude Code and Codex: records each session in ~/.isbell/sessions, wherever it
+# runs, so Isbell can list it and resume it once its pane is gone; and tells herdr, for the pane the
+# agent runs in, what the turn was asked, the tool it runs, the tool it asks leave to run, and its
+# permission mode, so Isbell's board can show them.
 #
 #   sh agent-hook.sh install   claude|codex [--config-dir DIR]   register it with the agent
 #   sh agent-hook.sh uninstall claude|codex [--config-dir DIR]   remove it
@@ -11,16 +12,20 @@
 # Codex: DIR/hooks.json, DIR being CODEX_HOME, else ~/.codex.
 # The agent runs it as `sh <path> report claude|codex`.
 
-ISBELL_HOOK_VERSION=1
+ISBELL_HOOK_VERSION=2
 INSTALLED="$HOME/.isbell/hooks/agent-hook.sh"
 
 # The events registered, and what each reports.
 EVENTS="SessionStart UserPromptSubmit PreToolUse PermissionRequest PostToolUse Stop"
 
 REPORT=$(cat <<'PY'
-import json, os, re, socket, subprocess, sys, time
+import fcntl, hashlib, json, os, re, socket, subprocess, sys, time
 
 AGENT = sys.argv[1]
+STORE = os.path.expanduser("~/.isbell/sessions")
+# Kept of a session's prompts, and of its sessions newest first, per project.
+PROMPT_MAX = 200
+RECENT_MAX = 50
 
 def target(tool, i):
     """What the tool works on, as one short line."""
@@ -75,6 +80,95 @@ def in_codex_daemon():
 def collapse(s):
     return re.sub(r"\s+", " ", s).strip() if isinstance(s, str) else None
 
+# Neither a home nor a directory above one is a project's root (as web/src/model/files/repo.ts).
+BROAD = re.compile(r"^/(?:root|(?:Users|home)(?:/[^/]+)?)?$")
+
+def root_of(cwd):
+    """The project a directory is in: the deepest repository holding it, or the directory itself."""
+    cwd = cwd.rstrip("/") or "/"
+    d = cwd
+    while not BROAD.match(d):
+        if os.path.lexists(os.path.join(d, ".git")):
+            return d
+        d = os.path.dirname(d)
+    return cwd
+
+def key_of(root):
+    """The project's directory in the store: readable, and unique by the hash of its root."""
+    slug = re.sub(r"[^A-Za-z0-9]+", "-", root)[-48:].strip("-")
+    return "%s-%s" % (slug, hashlib.sha1(root.encode()).hexdigest()[:8])
+
+def load(path, default):
+    """The file's value; `default` when it is not there, or was left unreadable (written over again)."""
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return default
+    except ValueError as err:
+        print("isbell hook: starting %s over, as it cannot be read: %s" % (path, err), file=sys.stderr)
+        return default
+
+def put(path, value):
+    """Writes `value` whole or not at all, readable by the owner alone, as prompts can be private."""
+    os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
+    tmp = path + ".tmp"
+    with os.fdopen(os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w") as f:
+        json.dump(value, f, ensure_ascii=False)
+    os.replace(tmp, path)
+
+def record(e):
+    """Keeps the session, its project, and its place among the project's latest, once it is asked
+    something: a session file, a line in the month it began, the project's recent list, and the
+    roots every project is reached from."""
+    event = e.get("hook_event_name")
+    sid, cwd = e.get("session_id"), e.get("cwd")
+    if event not in ("UserPromptSubmit", "Stop") or e.get("agent_id") or not sid:
+        return
+    # Agents report where they work as an absolute path; another has no project to be found from.
+    if not isinstance(cwd, str) or not cwd.startswith("/"):
+        return
+    prompt = (e.get("prompt") or "") if event == "UserPromptSubmit" else ""
+    # Claude Code submits a background task's end itself; it is not what the session was asked.
+    own = prompt and not prompt.startswith("<task-notification>")
+    asked = collapse(prompt)[:PROMPT_MAX] if own else None
+    now = int(time.time() * 1000)
+    # The store is the owner's alone, and so is everything made inside it.
+    os.makedirs(STORE, mode=0o700, exist_ok=True)
+    root = root_of(cwd)
+    project = os.path.join(STORE, key_of(root))
+    path = os.path.join(project, "sessions", "%s-%s.json" % (AGENT, sid))
+    session = load(path, None)
+    if session is None:
+        if not asked:
+            return
+        session = {"agent": AGENT, "id": sid, "cwd": cwd, "first": asked, "last": asked,
+                   "started": now, "updated": now}
+        line = {k: session[k] for k in ("agent", "id", "cwd", "first", "started")}
+        months = os.path.join(project, "months")
+        os.makedirs(months, mode=0o700, exist_ok=True)
+        month = os.path.join(months, time.strftime("%Y-%m") + ".jsonl")
+        fd = os.open(month, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+        try:
+            os.write(fd, (json.dumps(line, ensure_ascii=False) + "\n").encode())
+        finally:
+            os.close(fd)
+    else:
+        if asked:
+            session["last"] = asked
+        session["updated"] = now
+    put(path, session)
+    # Agents in one project end their turns together: the shared lists change one at a time.
+    with os.fdopen(os.open(os.path.join(STORE, ".lock"), os.O_WRONLY | os.O_CREAT, 0o600), "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        recent_path = os.path.join(project, "recent.json")
+        others = [s for s in load(recent_path, []) if (s.get("agent"), s.get("id")) != (AGENT, sid)]
+        put(recent_path, [session] + others[: RECENT_MAX - 1])
+        roots_path = os.path.join(STORE, "roots.json")
+        roots = load(roots_path, {})
+        roots[root] = {"key": key_of(root), "updated": now}
+        put(roots_path, roots)
+
 CLEAR_TOOL = {"isbell_tool": None, "isbell_target": None}
 CLEAR_WAIT = {"isbell_wait_tool": None, "isbell_wait_target": None}
 
@@ -102,13 +196,31 @@ def tokens(e):
         return {**CLEAR_TOOL, **CLEAR_WAIT}
     return None
 
+def in_herdr():
+    env = os.environ.get
+    return env("HERDR_ENV") == "1" and bool(env("HERDR_PANE_ID")) and bool(env("HERDR_SOCKET_PATH"))
+
 try:
     e = json.load(sys.stdin)
+except ValueError as err:
+    print("isbell hook: %s" % err, file=sys.stderr)
+    sys.exit(0)
+
+try:
+    record(e)
+except Exception as err:
+    # Never in the agent's way: the session is missing from Isbell's list, and its hook output says why.
+    print("isbell hook: cannot record the session: %s" % err, file=sys.stderr)
+
+try:
     # A subagent's events would stand in for what the session itself is doing.
-    found = None if e.get("agent_id") or (AGENT == "codex" and in_codex_daemon()) else tokens(e)
+    skip = not in_herdr() or e.get("agent_id") or (AGENT == "codex" and in_codex_daemon())
+    found = None if skip else tokens(e)
     if found is not None:
         # Which agent reported, so what one leaves in a pane says nothing of the next there.
         found["isbell_agent"] = AGENT
+        # Which session runs in the pane, so Isbell's list can lead to it rather than start it again.
+        found["isbell_session"] = e.get("session_id")
         mode = e.get("permission_mode")
         if mode:
             found["isbell_mode"] = mode
@@ -208,7 +320,6 @@ action="${1:-}"
 agent="${1:-}"
 case "$action" in
   report)
-    [ "${HERDR_ENV:-}" = "1" ] && [ -n "${HERDR_PANE_ID:-}" ] && [ -n "${HERDR_SOCKET_PATH:-}" ] || exit 0
     command -v python3 >/dev/null 2>&1 || exit 0
     python3 -c "$REPORT" "$agent"
     exit 0
@@ -221,6 +332,7 @@ case "$action" in
       cp "$0" "$INSTALLED" || fail "cannot copy itself to $INSTALLED"
     fi
     python3 -c "$SETTINGS" install "$path" "$INSTALLED" "$agent" "$EVENTS" || exit 1
+    echo "Sessions are recorded in ~/.isbell/sessions, for Isbell to list and resume."
     if [ "$agent" = codex ]; then
       echo "Codex asks to trust the new hooks when it next starts: choose Trust all. They report from"
       echo "Codex started with --no-daemon, as Isbell starts it; its shared daemon runs them outside the pane."
