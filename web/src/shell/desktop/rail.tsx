@@ -5,7 +5,7 @@ import { ChevronsRight, LayoutGrid, Search, Settings2, SquareTerminal } from 'lu
 import { Link } from 'react-router'
 import { useI18n } from '../../core/i18n'
 import { toggleRail } from '../../core/prefs'
-import { needs } from '../../model/projects'
+import { hasPanes, needs } from '../../model/projects'
 import { projectHref } from '../../utils/hrefs'
 import { COMMAND_KEY } from '../../utils/shortcuts'
 import { AskBadge, asking, RelayStatus } from '../marks'
@@ -39,7 +39,8 @@ export function Rail({ projects, status, here, onSettings, onCommand }: SideProp
         {total ? <AskBadge n={total} label={t('needs.title')} className={CORNER} /> : null}
       </Link>
       <div className="flex min-h-0 flex-1 flex-col items-center gap-1 overflow-auto pt-1">
-        {projects.map(p => {
+        {/* Those with nothing running stay in the sidebar, or the rail would run on with them. */}
+        {projects.filter(hasPanes).map(p => {
           const label = `${p.name} · ${p.machine}`
           const n = p.online ? asking(p) : 0
           return (

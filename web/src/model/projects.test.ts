@@ -76,6 +76,29 @@ describe('deriveProjects', () => {
     expect(deriveProjects([entry], [], {}, {})[0]?.sessions[0]?.unread).toBe(true)
     expect(deriveProjects([entry], [], { [`${MID}/p1`]: 50 }, {})[0]?.sessions[0]?.unread).toBe(false)
   })
+
+  test('where sessions were recorded is a project too, after those with panes, the last active first', () => {
+    const recorded = {
+      [MID]: {
+        '/srv/old': { key: 'srv-old-1', updated: 1 },
+        '/srv/b': { key: 'srv-b-1', updated: 5 },
+        '/srv/new': { key: 'srv-new-1', updated: 9 },
+      },
+    }
+    const projects = deriveProjects(
+      [machine([agent('p1', '/srv/b'), agent('p2', '/srv/z')])],
+      [],
+      {},
+      {},
+      recorded,
+    )
+    expect(projects.map(p => [p.path, p.sessions.length, p.updated])).toEqual([
+      ['/srv/b', 1, 5],
+      ['/srv/z', 1, undefined],
+      ['/srv/new', 0, 9],
+      ['/srv/old', 0, 1],
+    ])
+  })
 })
 
 test('needs lists blocked sessions first, then unread ones, newest first', () => {

@@ -1,6 +1,6 @@
-//! Files of this machine, at any absolute path: a directory listed one level at a time, files
-//! searched by path, and a file read or written as a stream no faster than the other side grants
-//! credit; a file sent for an agent is written where the gateway keeps such files.
+//! Files of this machine, at any absolute path or one under `~/`: a directory listed one level at a
+//! time, files searched by path, and a file read or written as a stream no faster than the other
+//! side grants credit; a file sent for an agent is written where the gateway keeps such files.
 
 mod list;
 mod read;
@@ -9,10 +9,12 @@ mod write;
 
 use std::fs::{DirEntry, Metadata};
 use std::io::ErrorKind;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, UNIX_EPOCH};
 
 use isbell_proto::frame::RpcError;
+
+use super::workspace::expand_home;
 
 pub use self::list::list;
 pub use self::read::{open_read, pump_read};
@@ -23,13 +25,12 @@ pub use self::write::{open_upload, open_write, pump_write};
 /// the relay the gateway is not told when a caller disconnects.
 const STALLED_FOR: Duration = Duration::from_secs(5 * 60);
 
-/// `path` when it is absolute; the methods take no relative paths.
-pub(super) fn absolute_path(path: &str) -> Result<&Path, RpcError> {
-    let path = Path::new(path);
-    match path.is_absolute() {
-        true => Ok(path),
-        false => Err(RpcError::bad_request(format!("{} is not an absolute path", path.display()))),
-    }
+/// `path` when it is absolute, a leading `~` read as this machine's home; the methods take no
+/// relative paths.
+pub(super) fn absolute_path(path: &str) -> Result<PathBuf, RpcError> {
+    expand_home(path)
+        .filter(|p| p.is_absolute())
+        .ok_or_else(|| RpcError::bad_request(format!("{path} is not an absolute path")))
 }
 
 fn io_error(err: std::io::Error) -> RpcError {
@@ -69,4 +70,21 @@ fn read_dir(path: &Path) -> Result<impl Iterator<Item = DirEntry> + use<>, RpcEr
     Ok(entries.filter_map(|entry| {
         entry.inspect_err(|err| tracing::debug!(%err, "skipping an unreadable entry")).ok()
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::env_path;
+
+    #[test]
+    fn a_path_is_absolute_or_under_the_home() {
+        assert_eq!(absolute_path("/tmp/x").unwrap(), Path::new("/tmp/x"));
+        if let Some(home) = env_path("HOME") {
+            assert_eq!(absolute_path("~/.isbell/x").unwrap(), home.join(".isbell/x"));
+        }
+        for path in ["relative", "~other/x", ""] {
+            assert_eq!(absolute_path(path).unwrap_err().code, "bad_request", "{path}");
+        }
+    }
 }

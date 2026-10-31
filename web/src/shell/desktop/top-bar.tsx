@@ -22,6 +22,7 @@ export function TopBar({
 }) {
   const t = useI18n()
   const files = useMatch('/p/:key/files/*')
+  const sessions = useMatch('/p/:key/sessions')
   const tabs = <TabBar open={open} active={active} />
   const title = project?.name ?? t('all.title')
   const pageTab = open.length
@@ -29,7 +30,7 @@ export function TopBar({
     : {}
   if (!project) return <AllHeader tabs={tabs} onNew={onNew} {...pageTab} />
   // Beneath a tab, neither of the project's views is the one shown.
-  const view = active !== null ? undefined : files ? 'files' : 'agents'
+  const view = active !== null ? undefined : files ? 'files' : sessions ? 'sessions' : 'agents'
   return (
     <ProjectHeader
       project={project}

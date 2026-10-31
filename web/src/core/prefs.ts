@@ -24,6 +24,8 @@ export type Layout = {
   /** Machine ids whose projects are hidden in the sidebar; any other machine shows them. Keys saved
    * when it held projects never match a machine id, so they fold nothing. */
   folded: string[]
+  /** Machine ids whose projects with nothing running all show in the sidebar, not only the latest. */
+  older: string[]
   /** The folders open in each files tree (relative to its root), by root key: a project's own key
    * for its directory, or another worktree's. */
   files: Record<string, string[]>
@@ -72,6 +74,7 @@ const DEFAULTS: Local = {
   layout: {
     rail: false,
     folded: [],
+    older: [],
     files: {},
     branches: {},
     filesAt: {},
@@ -159,6 +162,15 @@ export const toggleFolded = (key: string) =>
         ...l.layout,
         folded: folded.includes(key) ? folded.filter(k => k !== key) : [...folded, key],
       },
+    }
+  })
+
+/** Shows all of a machine's projects with nothing running in the sidebar, or only the latest. */
+export const toggleOlder = (mid: string) =>
+  updateLocal(l => {
+    const { older } = l.layout
+    return {
+      layout: { ...l.layout, older: older.includes(mid) ? older.filter(k => k !== mid) : [...older, mid] },
     }
   })
 

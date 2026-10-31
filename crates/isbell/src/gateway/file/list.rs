@@ -41,7 +41,7 @@ struct Entry {
 /// and whether some were left out.
 pub async fn list(p: Value) -> Result<Value, RpcError> {
     let req: ListRequest = serde_json::from_value(p).map_err(RpcError::bad_request)?;
-    let path = absolute_path(&req.path)?.to_owned();
+    let path = absolute_path(&req.path)?;
     let entries =
         blocking(move || Ok(read_dir(&path)?.map(|entry| entry_of(&entry)).collect())).await?;
     let (entries, total) = listing(entries);

@@ -24,13 +24,17 @@ For the agent doing the setup. Isbell lets its user reach the agents on their Ma
 - [ ] Gateway service, from the user's login shell, so it finds herdr and the agents:
       `$SHELL -lc 'isbell gateway install'`.
 - [ ] Optional, if the user runs Claude Code or Codex: with their yes, the hook that lets the board
-      show what each agent is asked and doing. Fetch it once:
+      show what each agent is asked and doing, and records each session in `~/.isbell/sessions` so
+      a project's Sessions can resume it after its pane is closed. A machine with an older hook
+      gets this by installing again. Fetch it once:
       `curl -fsSL https://isbell.fmap.dev/agent-hook.sh -o /tmp/agent-hook.sh`, then for each agent
       the user runs:
   - Claude Code: `sh /tmp/agent-hook.sh install claude`. It registers itself in
     `$CLAUDE_CONFIG_DIR/settings.json`, else `~/.claude/settings.json`; for another config
     directory (a wrapper such as reclaude keeps its own), add `--config-dir DIR`. Sessions already
-    running take it once restarted.
+    running take it once restarted. Claude Code deletes a session's transcript after
+    `cleanupPeriodDays` (30 by default), and a deleted one cannot be resumed: ask the user whether
+    to raise it in that `settings.json`.
   - Codex: `sh /tmp/agent-hook.sh install codex`, into `$CODEX_HOME/hooks.json`, else
     `~/.codex/hooks.json`. Tell the user that Codex asks to trust the new hooks when it next
     starts (choose Trust all), and that they report only from Codex started with `--no-daemon`:
@@ -51,4 +55,4 @@ For the agent doing the setup. Isbell lets its user reach the agents on their Ma
 `isbell gateway uninstall`, `isbell space leave`, then delete `~/.local/bin/isbell`. With the agent
 hook installed, first `sh ~/.isbell/hooks/agent-hook.sh uninstall claude` (with the same
 `--config-dir`) and `… uninstall codex` for each agent it was installed for, then delete
-`~/.isbell/hooks`.
+`~/.isbell/hooks`, and `~/.isbell/sessions` unless the user keeps the sessions' records.

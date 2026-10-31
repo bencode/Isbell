@@ -35,11 +35,11 @@ struct Worktree {
 pub async fn worktrees(p: Value) -> Result<Value, RpcError> {
     let req: WorktreesRequest = serde_json::from_value(p).map_err(RpcError::bad_request)?;
     let path = absolute_path(&req.path)?;
-    let listed = match list(path).await? {
+    let listed = match list(&path).await? {
         Some(stdout) => parse(&stdout),
         None => Vec::new(),
     };
-    let here = tokio::fs::canonicalize(path).await.ok();
+    let here = tokio::fs::canonicalize(&path).await.ok();
     let mut found = Vec::new();
     for (path, branch) in listed {
         // A worktree whose directory cannot be resolved is not there to browse.
