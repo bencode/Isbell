@@ -39,6 +39,20 @@ test("what Claude's hook left in a pane says nothing of another agent started th
   expect(noteOf({ agent: 'codex', tokens: { isbell_ask: 'old question', isbell_tool: 'Bash' } })).toEqual({})
 })
 
+test("Codex's reports are read for Codex, and not for Claude Code started in its pane after it", () => {
+  const tokens = {
+    isbell_agent: 'codex',
+    isbell_ask: 'fix the build',
+    isbell_tool: 'Edit',
+    isbell_target: 'main.rs',
+  }
+  expect(noteOf({ agent: 'codex', tokens })).toEqual({
+    asked: 'fix the build',
+    doing: { tool: 'Edit', target: 'main.rs' },
+  })
+  expect(noteOf({ agent: 'claude', tokens })).toEqual({})
+})
+
 test('the terminal title is the task, unless it only names the agent or its directory', () => {
   const title = (agent: string, title: string) =>
     noteOf({ agent, cwd: '/Users/me/work/Isbell', terminal_title_stripped: title }).title

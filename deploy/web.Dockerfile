@@ -16,5 +16,6 @@ COPY --from=build /src/dist /srv
 COPY --from=build /src/preview /srv-preview
 # Served at /install.sh, so installing and upgrading is one command.
 COPY install.sh /srv/install.sh
-# Served at /claude-hook.sh, so Claude Code can tell the board what it is doing (docs/setup.md).
-COPY integrations/claude-hook.sh /srv/claude-hook.sh
+# Served at /agent-hook.sh, so Claude Code and Codex can tell the board what they are doing
+# (docs/setup.md).
+COPY integrations/agent-hook.sh /srv/agent-hook.sh

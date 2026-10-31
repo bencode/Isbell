@@ -1,5 +1,5 @@
 // What herdr knows of an agent besides its screen: the title it gives its terminal, and what
-// Isbell's hook in it (integrations/claude-hook.sh) reports as it works.
+// Isbell's hook in it (integrations/agent-hook.sh) reports as it works.
 
 export type ToolUse = { tool: string; target?: string }
 
@@ -43,9 +43,10 @@ const toolUse = (tool: string | undefined, target: string | undefined): ToolUse 
   tool ? (target ? { tool, target } : { tool }) : undefined
 
 export function noteOf(info: AgentInfo): AgentNote {
-  // Only Claude Code has the hook yet; what it left in a pane outlives it there, as when Codex
-  // starts in the pane next.
-  const token = (name: string) => (info.agent === 'claude' ? info.tokens?.[name] || undefined : undefined)
+  // What an agent's hook left in a pane outlives it there, so it is read only for the agent that
+  // reported it; the hook's first version, for Claude Code alone, did not say which.
+  const ours = (info.tokens?.isbell_agent ?? 'claude') === info.agent
+  const token = (name: string) => (ours ? info.tokens?.[name] || undefined : undefined)
   const title = titleOf(info)
   const asked = token('isbell_ask')
   const doing = toolUse(token('isbell_tool'), token('isbell_target'))
