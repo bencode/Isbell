@@ -12,7 +12,7 @@ import type { Placed, Session } from '../../../model/projects'
 import { tailLines } from '../../../model/screen'
 import type { Block, Reading } from '../../../model/screen/types'
 import { boardHref, peekHref } from '../../../utils/hrefs'
-import { since } from '../../../utils/time'
+import { since, useNow } from '../../../utils/time'
 
 /** The turn still going, or else the last one ended. */
 export const lastTurn = (reading: Reading | null): { prompt?: string; reply: Block[] } | undefined =>
@@ -229,9 +229,9 @@ export function EndingNote({ pane: { mid, paneId }, ending }: { pane: PaneAt; en
   )
   return (
     <p className="m-0 flex flex-wrap items-baseline gap-x-2 text-[12.5px] text-muted">
-      {ending === 'soon' ? (
+      {typeof ending === 'object' && 'due' in ending ? (
         <>
-          {t('end.soon')}
+          <Countdown due={ending.due} />
           {undo}
         </>
       ) : ending === 'closing' ? (
@@ -247,4 +247,11 @@ export function EndingNote({ pane: { mid, paneId }, ending }: { pane: PaneAt; en
       )}
     </p>
   )
+}
+
+/** The seconds left before an ending closes the pane, counted down. */
+function Countdown({ due }: { due: number }) {
+  const t = useI18n()
+  const now = useNow(250)
+  return <>{t('end.soon', { s: Math.max(1, Math.ceil((due - now) / 1000)) })}</>
 }

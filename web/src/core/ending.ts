@@ -9,9 +9,9 @@ import { paneKey } from '../model/projects'
 /** How long an ending can still be undone before the pane closes. */
 export const UNDO_MS = 5000
 
-/** 'soon' until it closes (undoable), 'closing' once asked (until the machine reports the pane gone
- * and its card leaves), or why it failed. */
-export type Ending = 'soon' | 'closing' | { failed: unknown }
+/** When it closes, until then (undoable); 'closing' once asked (until the machine reports the pane
+ * gone and its card leaves); or why it failed. */
+export type Ending = { due: number } | 'closing' | { failed: unknown }
 
 /** By paneKey. */
 const endings = new Map<string, Ending>()
@@ -36,7 +36,7 @@ const subscribe = (listener: () => void) => {
 /** Closes the agent's pane after UNDO_MS; asked again, it waits that long afresh. */
 export function endSoon(call: Caller, mid: string, paneId: string) {
   const key = paneKey(mid, paneId)
-  settle(key, 'soon')
+  settle(key, { due: Date.now() + UNDO_MS })
   timers.set(
     key,
     setTimeout(() => void endNow(call, mid, paneId), UNDO_MS),
