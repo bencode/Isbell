@@ -67,3 +67,15 @@ test('a call gives up when the connection does not come back in time', async () 
     vi.useRealTimers()
   }
 })
+
+test('a call on a closed connection fails at once and dials nothing, even mid-backoff', async () => {
+  const conn = connect(URL, parseKey(vectors.identity.key), silent)
+  const ws = FakeSocket.last
+  // Dropped: a retry waits out its backoff.
+  ws.onclose?.({ code: 1006 })
+  conn.close()
+  await expect(conn.call('m1', 'herdr', {}, 1000)).rejects.toEqual(
+    new CallError('disconnected', 'not connected to the relay'),
+  )
+  expect(FakeSocket.last).toBe(ws)
+})

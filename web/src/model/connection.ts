@@ -42,6 +42,7 @@ export function connect(url: string, id: Identity, on: ConnectionEvents): Connec
   let ready = false
   let attempt = 0
   let retry: ReturnType<typeof setTimeout> | undefined
+  // Closed here, or refused by the relay: it does not dial again, and a call fails at once.
   let closed = false
   // Calls waiting for the connection, let go once the snapshot arrives.
   const waiters = new Set<() => void>()
@@ -65,6 +66,7 @@ export function connect(url: string, id: Identity, on: ConnectionEvents): Connec
       socket = undefined
       router.fail(() => true, 'disconnected', 'lost the connection to the relay')
       if (event.code === CLOSE_AUTH_FAILED) {
+        closed = true
         on.status('rejected')
         return
       }
@@ -113,6 +115,7 @@ export function connect(url: string, id: Identity, on: ConnectionEvents): Connec
 
   const whenConnected = (): Promise<void> => {
     if (ready && socket?.readyState === WebSocket.OPEN) return Promise.resolve()
+    if (closed) return Promise.reject(new CallError('disconnected', 'not connected to the relay'))
     return new Promise((resolve, reject) => {
       const go = () => {
         clearTimeout(timer)
@@ -150,6 +153,7 @@ export function connect(url: string, id: Identity, on: ConnectionEvents): Connec
     close: () => {
       closed = true
       clearTimeout(retry)
+      retry = undefined
       socket?.close()
     },
   }
