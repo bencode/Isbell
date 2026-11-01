@@ -8,6 +8,9 @@ import { CallError, createRouter, type Router } from './streams'
 /** Close code the relay uses when the key does not verify. */
 const CLOSE_AUTH_FAILED = 4003
 const BACKOFF_MS = [1_000, 2_000, 4_000, 8_000, 16_000, 30_000]
+/** How long a call made while the connection is down waits for it, as when the page comes back
+ * from the background and dials again. */
+const READY_WAIT_MS = 5_000
 
 export type ConnStatus = 'connecting' | 'open' | 'reconnecting' | 'rejected'
 
@@ -40,6 +43,8 @@ export function connect(url: string, id: Identity, on: ConnectionEvents): Connec
   let attempt = 0
   let retry: ReturnType<typeof setTimeout> | undefined
   let closed = false
+  // Calls waiting for the connection, let go once the snapshot arrives.
+  const waiters = new Set<() => void>()
 
   const send = (frame: Frame) => socket?.send(encode(frame))
   const router = createRouter(send, true)
@@ -85,6 +90,8 @@ export function connect(url: string, id: Identity, on: ConnectionEvents): Connec
     } else if (h.t === 'snapshot') {
       attempt = 0
       ready = true
+      for (const go of waiters) go()
+      waiters.clear()
       on.snapshot(h.machines)
       on.status('open')
     } else if (h.t === 'state') {
@@ -98,34 +105,48 @@ export function connect(url: string, id: Identity, on: ConnectionEvents): Connec
     // auth_ok needs nothing; the router ignores what is not for a call or stream.
   }
 
-  const connected = () => {
-    if (ready && socket?.readyState === WebSocket.OPEN) return
-    throw new CallError('disconnected', 'not connected to the relay')
+  const reconnectNow = () => {
+    if (retry === undefined) return
+    clearTimeout(retry)
+    dial()
+  }
+
+  const whenConnected = (): Promise<void> => {
+    if (ready && socket?.readyState === WebSocket.OPEN) return Promise.resolve()
+    return new Promise((resolve, reject) => {
+      const go = () => {
+        clearTimeout(timer)
+        resolve()
+      }
+      const timer = setTimeout(() => {
+        waiters.delete(go)
+        reject(new CallError('disconnected', 'not connected to the relay'))
+      }, READY_WAIT_MS)
+      waiters.add(go)
+      // A retry waiting out its backoff dials now: someone is waiting on it.
+      reconnectNow()
+    })
   }
 
   dial()
 
   return {
     call: async (mid, m, p, timeoutMs) => {
-      connected()
+      await whenConnected()
       return router.call(mid, m, p, timeoutMs)
     },
     open: async (mid, m, p, timeoutMs, events) => {
-      connected()
+      await whenConnected()
       return router.open(mid, m, p, timeoutMs, events)
     },
     openThenEnd: async (mid, m, p, timeoutMs) => {
-      connected()
+      await whenConnected()
       const { result, stream } = await router.open(mid, m, p, timeoutMs, { data: () => {}, end: () => {} })
       stream.close()
       return result
     },
     failMachine: mid => router.fail(m => m === mid, 'machine_offline', 'the machine restarted'),
-    reconnectNow: () => {
-      if (retry === undefined) return
-      clearTimeout(retry)
-      dial()
-    },
+    reconnectNow,
     close: () => {
       closed = true
       clearTimeout(retry)

@@ -1,6 +1,6 @@
 // How Codex (0.164) draws its screen: "› " before what was asked, "• " before each reply item,
 // "Worked for 7s • 19:30" closing a turn, and the input box with the status line at the bottom,
-// where an approval takes their place while it waits.
+// where an approval takes their place while it waits, as does asking to trust a new folder.
 
 import type { Block, Grammar } from './types'
 
@@ -35,9 +35,11 @@ export const codex: Grammar = {
   },
   bottom: lines => {
     const box = lastIndex(lines, l => /^› /.test(l) && !/^› \d+\. /.test(l))
-    const hint = lastIndex(lines, l => /^\s+Press enter to confirm/.test(l))
+    const hint = lastIndex(lines, l => /^\s+(?:Press enter to confirm|enter continue · esc \w+$)/.test(l))
     if (hint > box) {
-      const from = lastIndex(lines.slice(0, hint), l => /^\s+(Would you like|Do you want|Allow)\b/.test(l))
+      const from = lastIndex(lines.slice(0, hint), l =>
+        /^\s+(?:(?:Would you like|Do you want|Allow)\b|Folder access$)/.test(l),
+      )
       return from < 0 ? undefined : { at: from, ask: { from, to: hint } }
     }
     if (box < 0) return undefined

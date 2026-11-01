@@ -176,9 +176,15 @@ function toQuestion(region: string[]): Question | undefined {
     const m = OPTION.exec(l)
     return m ? [{ key: m[1] ?? '', label: m[2] ?? '' }] : []
   })
-  const text = lines.find(l => l.endsWith('?') && !OPTION.test(l))
-  if (!options.length || text === undefined) return undefined
-  return { text, detail: lines.filter(l => l !== text && !OPTION.test(l)), options }
+  // The question on a line of its own, or else heading a line that goes on to say more (Codex's
+  // "Trust this folder? Codex can read, …"), the rest staying in the detail.
+  const asked = lines.filter(l => !OPTION.test(l))
+  const line = asked.find(l => l.endsWith('?')) ?? asked.find(l => l.includes('? '))
+  if (!options.length || line === undefined) return undefined
+  const text = line.endsWith('?') ? line : line.slice(0, line.indexOf('? ') + 1)
+  const rest = line.slice(text.length).trim()
+  const detail = asked.flatMap(l => (l !== line ? [l] : rest ? [rest] : []))
+  return { text, detail, options }
 }
 
 /** Reply lines sit two columns in, under the item's marker. */
