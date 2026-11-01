@@ -1,18 +1,20 @@
 #!/bin/sh
-# Isbell's hook for Claude Code and Codex: records each session in ~/.isbell/sessions, wherever it
-# runs, so Isbell can list it and resume it once its pane is gone; and tells herdr, for the pane the
-# agent runs in, what the turn was asked, the tool it runs, the tool it asks leave to run, and its
-# permission mode, so Isbell's board can show them.
+# Isbell's hook for Claude Code, Codex and pi: records each session in ~/.isbell/sessions, wherever
+# it runs, so Isbell can list it and resume it once its pane is gone; and tells herdr, for the pane
+# the agent runs in, what the turn was asked, the tool it runs, the tool it asks leave to run, and
+# its permission mode, so Isbell's board can show them.
 #
-#   sh agent-hook.sh install   claude|codex [--config-dir DIR]   register it with the agent
-#   sh agent-hook.sh uninstall claude|codex [--config-dir DIR]   remove it
-#   sh agent-hook.sh status    claude|codex [--config-dir DIR]   say whether it is registered and current
+#   sh agent-hook.sh install   claude|codex|pi [--config-dir DIR]   register it with the agent
+#   sh agent-hook.sh uninstall claude|codex|pi [--config-dir DIR]   remove it
+#   sh agent-hook.sh status    claude|codex|pi [--config-dir DIR]   say whether it is registered and current
 #
 # Claude Code: DIR/settings.json, DIR being CLAUDE_CONFIG_DIR, else ~/.claude.
 # Codex: DIR/hooks.json, DIR being CODEX_HOME, else ~/.codex.
-# The agent runs it as `sh <path> report claude|codex`.
+# pi: DIR/extensions/isbell-agent-hook.ts, DIR being PI_CODING_AGENT_DIR, else ~/.pi/agent.
+# The agent runs it as `sh <path> report claude|codex|pi`; pi's extension tells it pi's events as
+# Claude Code tells its hooks.
 
-ISBELL_HOOK_VERSION=2
+ISBELL_HOOK_VERSION=3
 INSTALLED="$HOME/.isbell/hooks/agent-hook.sh"
 
 # The events registered, and what each reports.
@@ -296,6 +298,74 @@ print("%s %s" % ("registered in" if action == "install" else "removed from", pat
 PY
 )
 
+# pi's extension, written out by install.
+pi_extension() {
+  cat <<'TS'
+// Isbell's hook for pi, written by agent-hook.sh (install pi); installing again overwrites it.
+// pi's events, told as Claude Code tells its hooks, go to the same agent-hook.sh, which records the
+// session and tells herdr what the turn was asked and the tool it runs.
+// @ts-nocheck
+import { spawn } from "node:child_process";
+import os from "node:os";
+import path from "node:path";
+
+const HOOK = path.join(os.homedir(), ".isbell/hooks/agent-hook.sh");
+// pi's tools by the names the board knows them by (Claude Code's).
+const TOOLS = { bash: "Bash", read: "Read", write: "Write", edit: "Edit", grep: "Grep", find: "Glob" };
+
+// One report at a time, in the order pi's events came, as an agent runs its hooks.
+let queue = Promise.resolve();
+
+function report(ctx, event) {
+  // A session pi keeps no file of (--no-session) cannot be resumed: it is told to herdr, not recorded.
+  const kept = ctx.sessionManager.getSessionFile?.();
+  const e = { ...event, cwd: ctx.cwd, session_id: kept ? ctx.sessionManager.getSessionId() : undefined };
+  const ran = queue.then(() => run(e));
+  queue = ran;
+  // What the hook says went wrong shows on pi's screen, when it has one. Off the queue: a context
+  // pi has since replaced may throw, and the reports after it still go.
+  ran.then(err => {
+    if (err && ctx.hasUI) ctx.ui.notify("isbell hook: " + err, "warning");
+  });
+}
+
+/** Runs the hook with the event; what it says went wrong, if anything. */
+function run(e) {
+  return new Promise(resolve => {
+    // Its output stays off pi's screen.
+    const child = spawn("sh", [HOOK, "report", "pi"], { stdio: ["pipe", "ignore", "pipe"] });
+    let err = "";
+    child.stderr.on("data", d => (err += d));
+    child.on("error", x => resolve(String(x)));
+    child.on("close", () => resolve(err.trim()));
+    child.stdin.end(JSON.stringify(e));
+  });
+}
+
+// The file a tool works on, where Claude Code's tools give it.
+const toolInput = args =>
+  args && typeof args === "object" && "path" in args ? { ...args, file_path: args.path } : args;
+
+export default function (pi) {
+  pi.on("session_start", (_e, ctx) => report(ctx, { hook_event_name: "SessionStart" }));
+  pi.on("input", (e, ctx) => {
+    // What an extension sends in is not what the session was asked.
+    if (e.source !== "extension") report(ctx, { hook_event_name: "UserPromptSubmit", prompt: e.text });
+  });
+  pi.on("tool_execution_start", (e, ctx) => {
+    // A call another tool made stands in for that tool.
+    if (e.parentToolCallId) return;
+    const tool_name = TOOLS[e.toolName] ?? e.toolName;
+    report(ctx, { hook_event_name: "PreToolUse", tool_name, tool_input: toolInput(e.args) });
+  });
+  pi.on("tool_execution_end", (e, ctx) => {
+    if (!e.parentToolCallId) report(ctx, { hook_event_name: "PostToolUse" });
+  });
+  pi.on("agent_settled", (_e, ctx) => report(ctx, { hook_event_name: "Stop" }));
+}
+TS
+}
+
 fail() {
   echo "agent-hook: $*" >&2
   exit 1
@@ -306,7 +376,8 @@ config_file() {
   case "${1:-}" in
     claude) file=settings.json default="${CLAUDE_CONFIG_DIR:-$HOME/.claude}" ;;
     codex) file=hooks.json default="${CODEX_HOME:-$HOME/.codex}" ;;
-    *) fail "name the agent: claude or codex" ;;
+    pi) file=extensions/isbell-agent-hook.ts default="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}" ;;
+    *) fail "name the agent: claude, codex or pi" ;;
   esac
   case "${2:-}" in
     --config-dir) [ -n "${3:-}" ] || fail "--config-dir needs a directory"; echo "$3/$file" ;;
@@ -331,9 +402,19 @@ case "$action" in
     if [ "$(cd "$(dirname "$0")" && pwd)/$(basename "$0")" != "$INSTALLED" ]; then
       cp "$0" "$INSTALLED" || fail "cannot copy itself to $INSTALLED"
     fi
-    python3 -c "$SETTINGS" install "$path" "$INSTALLED" "$agent" "$EVENTS" || exit 1
+    if [ "$agent" = pi ]; then
+      # pi loads every extension in the directory; the file is written whole or not at all.
+      mkdir -p "$(dirname "$path")" || fail "cannot create $(dirname "$path")"
+      pi_extension >"$path.tmp" && mv "$path.tmp" "$path" || fail "cannot write $path"
+      echo "registered in $path"
+    else
+      python3 -c "$SETTINGS" install "$path" "$INSTALLED" "$agent" "$EVENTS" || exit 1
+    fi
     echo "Sessions are recorded in ~/.isbell/sessions, for Isbell to list and resume."
-    if [ "$agent" = codex ]; then
+    if [ "$agent" = pi ]; then
+      echo "pi sessions started from now on report; running ones do once restarted. For its status on"
+      echo "the board, herdr's own integration: herdr integration install pi."
+    elif [ "$agent" = codex ]; then
       echo "Codex asks to trust the new hooks when it next starts: choose Trust all. They report from"
       echo "Codex started with --no-daemon, as Isbell starts it; its shared daemon runs them outside the pane."
     else
@@ -343,8 +424,13 @@ case "$action" in
   uninstall)
     command -v python3 >/dev/null 2>&1 || fail "python3 is needed"
     path=$(config_file "$@") || exit 1
-    # The script stays: the other agent may still run it.
-    python3 -c "$SETTINGS" uninstall "$path" "$INSTALLED" "$agent" "$EVENTS" || exit 1
+    # The script stays: the other agents may still run it.
+    if [ "$agent" = pi ]; then
+      rm -f "$path" || fail "cannot remove $path"
+      echo "removed from $(dirname "$path")"
+    else
+      python3 -c "$SETTINGS" uninstall "$path" "$INSTALLED" "$agent" "$EVENTS" || exit 1
+    fi
     ;;
   status)
     command -v python3 >/dev/null 2>&1 || fail "python3 is needed"
@@ -356,10 +442,14 @@ case "$action" in
     else
       echo "not installed: no $INSTALLED"
     fi
-    python3 -c "$SETTINGS" status "$path" "$INSTALLED" "$agent" "$EVENTS"
+    if [ "$agent" = pi ]; then
+      [ -f "$path" ] && echo "registered in $path" || { echo "not registered in $path"; exit 1; }
+    else
+      python3 -c "$SETTINGS" status "$path" "$INSTALLED" "$agent" "$EVENTS"
+    fi
     ;;
   *)
-    sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
     [ -n "$action" ] && exit 1
     ;;
 esac

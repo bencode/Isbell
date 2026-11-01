@@ -123,6 +123,7 @@ export const zh: Record<Key, string> = {
   'ns.typeDir': '输入一个目录',
   'ns.installed': '{machine} 上已安装',
   'ns.noAgents': '{machine} 上没有找到 agent',
+  'ns.noChatAgents': '{machine} 上没有 Claude Code、Codex 或 pi；其他 agent 在终端里打开',
   'ns.task': '要它做什么？',
   'ns.placeholder': '目标、约束，以及怎样算做完。',
   'ns.starts': '在 {machine} 的 {path} 启动 {agent}',

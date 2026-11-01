@@ -77,9 +77,14 @@ export const parseMonth = (text: string): MonthLine[] =>
     .filter(isLine)
     .sort((a, b) => b.started - a.started)
 
+const RESUME = new Map<string, (id: string) => string[]>([
+  ['claude', id => ['--resume', id]],
+  ['codex', id => ['resume', id]],
+  ['pi', id => ['--session', id]],
+])
+
 /** How the agent resumes the session, after its own command; none for an agent Isbell cannot. */
-export const resumeArgs = (agent: string, id: string): string[] | undefined =>
-  agent === 'claude' ? ['--resume', id] : agent === 'codex' ? ['resume', id] : undefined
+export const resumeArgs = (agent: string, id: string): string[] | undefined => RESUME.get(agent)?.(id)
 
 const two = (n: number) => String(n).padStart(2, '0')
 
