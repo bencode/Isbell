@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { createServer, type Server } from 'node:http'
 import { extname, join } from 'node:path'
@@ -33,5 +34,16 @@ const previewOrigin = (): Plugin => ({
   },
 })
 
+/** The version of isbell in the repository's Cargo.toml, which the app tells machines to upgrade to. */
+function isbellVersion(): string {
+  const cargo = readFileSync(new URL('../Cargo.toml', import.meta.url), 'utf8')
+  const version = /\[workspace\.package\][^[]*?\nversion = "([^"]+)"/.exec(cargo)?.[1]
+  if (!version) throw new Error('no [workspace.package] version in ../Cargo.toml')
+  return version
+}
+
 // biome-ignore lint/style/noDefaultExport: Vite reads the default export.
-export default defineConfig({ plugins: [react(), tailwindcss(), previewOrigin()] })
+export default defineConfig({
+  plugins: [react(), tailwindcss(), previewOrigin()],
+  define: { __ISBELL_VERSION__: JSON.stringify(isbellVersion()) },
+})

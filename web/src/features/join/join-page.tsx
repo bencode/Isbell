@@ -7,6 +7,7 @@ import { Command } from '../../components/command'
 import { type Key, uiLabels, useI18n } from '../../core/i18n'
 import { updateLocal } from '../../core/prefs'
 import { KeyError, parseKey } from '../../model/identity'
+import { INSTALL } from '../../model/upgrade'
 
 /** Takes a key from a `#k=` link and clears it from the address bar and history at once. */
 export function takeKeyFromLink(): string | null {
@@ -112,7 +113,7 @@ function NewHere() {
             {t('join.readme')}
           </a>
           <div className="mt-1.5">
-            <Command text="curl -fsSL https://isbell.fmap.dev/install.sh | sh" labels={labels} />
+            <Command text={INSTALL} labels={labels} />
           </div>
         </li>
         <li>

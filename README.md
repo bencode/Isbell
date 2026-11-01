@@ -76,7 +76,8 @@ curl -fsSL https://isbell.fmap.dev/install.sh | sh
 ```
 
 - Installs the latest release to `~/.local/bin/isbell`, after checking its checksum.
-- Run it again to upgrade; it restarts the gateway service too.
+- Run it again to upgrade, or from 0.3.0 on `isbell upgrade`; either restarts the gateway service
+  too. The web app marks a machine on an older version in the sidebar.
 - Offers herdr's own installer when herdr is missing.
 - `ISBELL_VERSION=v0.1.0` before `sh` installs that release instead, to go back to it.
 - Macs with Apple silicon only, for now.

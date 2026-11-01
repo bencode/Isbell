@@ -1,14 +1,20 @@
 // The projects by the machine they are on, as the computer's sidebar and the phone's drawer list
 // them: each machine's name heading its projects with its state, folded to the heading on a tap.
 // After the projects with something running, the computer's sidebar lists those with only recorded
-// sessions, the latest few, the rest a click away.
+// sessions, the latest few, the rest a click away. A machine running an older isbell than this app
+// says so under its name, with the command that upgrades it.
 
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ArrowUpCircle, ChevronDown, ChevronRight } from 'lucide-react'
+import { useState } from 'react'
 import { Link } from 'react-router'
-import { useI18n } from '../core/i18n'
+import { Command } from '../components/command'
+import { Modal } from '../components/dialog'
+import { uiLabels, useI18n } from '../core/i18n'
 import { toggleFolded, toggleOlder, useLocal } from '../core/prefs'
 import { hasPanes, type Project } from '../model/projects'
 import type { MachineEntry } from '../model/space'
+import type { MachineInfo } from '../model/state'
+import { behind, INSTALL, NEWEST } from '../model/upgrade'
 import { projectHref, projectSessionsHref } from '../utils/hrefs'
 import type { Here } from './common'
 import { AskBadge, asking, MachineDot } from './marks'
@@ -65,6 +71,7 @@ function MachineGroup({ entry, projects, here, touch, onGo }: GroupProps) {
   // Folded, the heading still says how many ask.
   const n = online ? projects.reduce((sum, p) => sum + asking(p), 0) : 0
   const Chevron = folded ? ChevronRight : ChevronDown
+  const upgrade = online && behind(state.machine.version)
   return (
     <section className="mt-3 flex flex-col first:mt-1">
       <button
@@ -83,6 +90,7 @@ function MachineGroup({ entry, projects, here, touch, onGo }: GroupProps) {
           className={`flex-none text-faint ${touch ? '' : 'opacity-0 group-hover:opacity-100'}`}
         />
       </button>
+      {upgrade ? <UpgradeRow machine={state.machine} /> : null}
       {folded ? null : (
         <>
           {[...running, ...shown].map(p => (
@@ -141,5 +149,33 @@ function ProjectRow({
       ) : null}
       {n ? <AskBadge n={n} label={t('side.asking', { n })} /> : null}
     </Link>
+  )
+}
+
+/** Under a machine on an older isbell: the version to upgrade to, and on a click how. */
+function UpgradeRow({ machine }: { machine: MachineInfo }) {
+  const t = useI18n()
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex min-h-[26px] cursor-pointer items-center gap-1.5 rounded-md border-0 bg-transparent px-2 text-left text-[12.5px] text-accent hover:bg-raised focus-visible:outline-2 focus-visible:outline-accent"
+      >
+        <ArrowUpCircle size={13} className="flex-none" />
+        {t('side.upgrade', { version: NEWEST })}
+      </button>
+      <Modal
+        open={open}
+        onOpenChange={setOpen}
+        title={t('upgrade.title', { machine: machine.name })}
+        closeLabel={t('close')}
+      >
+        <p className="m-0 text-muted">{t('upgrade.body', { from: machine.version, to: NEWEST })}</p>
+        <Command text={INSTALL} labels={uiLabels(t)} />
+        <p className="m-0 text-[13px] text-faint">{t('upgrade.after', { to: NEWEST })}</p>
+      </Modal>
+    </>
   )
 }

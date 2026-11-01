@@ -8,6 +8,8 @@ COPY web/package.json web/pnpm-lock.yaml ./
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 COPY web ./
+# The app is built with isbell's version, which vite.config.ts reads from ../Cargo.toml.
+COPY Cargo.toml /Cargo.toml
 RUN pnpm build
 
 FROM caddy:2-alpine
