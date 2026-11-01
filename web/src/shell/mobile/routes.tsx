@@ -8,6 +8,7 @@ import { SessionRoute } from '../../features/pane/session-page'
 import { LazyTerminal, Loading } from '../common'
 import { MobileBoard } from './board'
 import { FixedPage, MobileFrame } from './frame'
+import { PhoneNewSession } from './new-session'
 import { MobilePane } from './pane'
 import { PhoneSession } from './session'
 
@@ -30,6 +31,8 @@ export function MobileRoutes() {
         <Route path="s/:mid/:pane" element={phoneSession} />
         {/* Where a card on a project's board opens its session. */}
         <Route path="p/:key/s/:mid/:pane" element={phoneSession} />
+        <Route path="new" element={<PhoneNewSession />} />
+        <Route path="p/:key/new" element={<PhoneNewSession />} />
         {/* Not rebuilt to scroll with the page yet: the fixed column that scrolls inside. */}
         <Route element={<FixedPage />}>
           <Route path="t/:mid/:pane" element={<LazyTerminal layout={MobilePane} />} />
