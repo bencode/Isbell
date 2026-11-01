@@ -25,6 +25,9 @@ type Props = {
 
 const ROW =
   'flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 text-text no-underline active:bg-raised focus-visible:outline-2 focus-visible:outline-accent'
+// All agents, a card of one row, as each machine's projects are below it.
+const ALL =
+  'flex min-h-11 items-center gap-2.5 px-3 text-text no-underline active:bg-raised-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent'
 
 export function MobileNav({ projects, machines, status, here, onNewDir, onSettings, onGo }: Props) {
   const t = useI18n()
@@ -35,13 +38,19 @@ export function MobileNav({ projects, machines, status, here, onNewDir, onSettin
         <SquareTerminal size={20} className="text-accent" aria-hidden="true" />
         <span className="text-base font-bold">Isbell</span>
       </div>
-      <div className="min-h-0 flex-1 overflow-auto px-2 pb-2">
-        <Link to="/" onClick={onGo} className={`${ROW} ${here.project || here.pane ? '' : 'bg-accent-soft'}`}>
-          <LayoutGrid size={17} className="text-muted" />
-          <span className="flex-1 font-medium">{t('side.all')}</span>
-          {total ? <AskBadge n={total} label={t('needs.title')} /> : null}
-        </Link>
-        <div className="flex items-center justify-between pt-3 pr-0.5 pl-2.5">
+      <div className="min-h-0 flex-1 overflow-auto px-3 pb-2">
+        <div className="mt-1 overflow-hidden rounded-xl border border-line bg-raised">
+          <Link
+            to="/"
+            onClick={onGo}
+            className={`${ALL} ${here.project || here.pane ? '' : 'bg-accent-soft'}`}
+          >
+            <LayoutGrid size={17} className="text-muted" />
+            <span className="flex-1 font-medium">{t('side.all')}</span>
+            {total ? <AskBadge n={total} label={t('needs.title')} /> : null}
+          </Link>
+        </div>
+        <div className="flex items-center justify-between pt-3 pr-0.5 pl-1.5">
           <span className="text-[11px] font-semibold tracking-[0.04em] text-faint uppercase">
             {t('side.projects')}
           </span>

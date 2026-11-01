@@ -1,8 +1,9 @@
 // The projects by the machine they are on, as the computer's sidebar and the phone's drawer list
 // them: each machine's name heading its projects with its state, folded to the heading on a tap.
-// After the projects with something running, the computer's sidebar lists those with only recorded
-// sessions, the latest few, the rest a click away. A machine running an older isbell than this app
-// says so under its name, with the command that upgrades it.
+// After the projects with something running come those with only recorded sessions, the latest few,
+// the rest a click away. On a phone, each machine's projects are a grouped list under its name. A
+// machine running an older isbell than this app says so under its name, with the command that
+// upgrades it.
 
 import { ArrowUpCircle, ChevronDown, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
@@ -31,6 +32,8 @@ type Props = {
 
 // The row the page is on.
 const ON = 'bg-accent-soft'
+// A phone's machine: its projects in one card, a line between rows, a row's focus ring drawn inside.
+const GROUP = 'flex flex-col divide-y divide-line overflow-hidden rounded-xl border border-line bg-raised'
 /** The projects with nothing running listed before the rest are folded away. */
 const LATEST = 5
 
@@ -62,9 +65,8 @@ function MachineGroup({ entry, projects, here, touch, onGo }: GroupProps) {
   const id = state.machine.id
   const { folded: foldedIds, older: olderIds } = useLocal().layout
   const folded = foldedIds.includes(id)
-  // A phone lists only what runs.
   const running = projects.filter(hasPanes)
-  const idle = touch ? [] : projects.filter(p => !hasPanes(p))
+  const idle = projects.filter(p => !hasPanes(p))
   const shown = olderIds.includes(id) ? idle : idle.slice(0, LATEST)
   const herdr = state.herdr.status
   const note = !online ? t('side.offline') : herdr === 'ready' ? '' : t(`side.herdr.${herdr}`)
@@ -91,8 +93,8 @@ function MachineGroup({ entry, projects, here, touch, onGo }: GroupProps) {
         />
       </button>
       {upgrade ? <UpgradeRow machine={state.machine} /> : null}
-      {folded ? null : (
-        <>
+      {folded || !projects.length ? null : (
+        <div className={touch ? GROUP : 'contents'}>
           {[...running, ...shown].map(p => (
             <ProjectRow key={p.key} project={p} on={here.project?.key === p.key} touch={touch} onGo={onGo} />
           ))}
@@ -101,14 +103,14 @@ function MachineGroup({ entry, projects, here, touch, onGo }: GroupProps) {
               type="button"
               onClick={() => toggleOlder(id)}
               aria-expanded={idle.length === shown.length}
-              className="flex min-h-[26px] cursor-pointer items-center rounded-md border-0 bg-transparent px-2 text-left text-[12.5px] text-faint hover:bg-raised hover:text-text focus-visible:outline-2 focus-visible:outline-accent"
+              className={`flex cursor-pointer items-center border-0 bg-transparent text-left focus-visible:outline-2 focus-visible:outline-accent ${touch ? 'min-h-10 px-3 text-[13px] text-muted focus-visible:-outline-offset-2 active:bg-raised-2' : 'min-h-[26px] rounded-md px-2 text-[12.5px] text-faint hover:bg-raised hover:text-text'}`}
             >
               {idle.length > shown.length
                 ? t('side.older', { n: idle.length - shown.length })
                 : t('side.fewer')}
             </button>
           ) : null}
-        </>
+        </div>
       )}
     </section>
   )
@@ -132,7 +134,7 @@ function ProjectRow({
   const working = p.online && p.sessions.some(s => s.status === 'working')
   const idle = !hasPanes(p)
   const size = touch
-    ? 'min-h-11 rounded-lg px-2.5 active:bg-raised'
+    ? 'min-h-11 px-3 focus-visible:-outline-offset-2 active:bg-raised-2'
     : 'min-h-[30px] rounded-md px-2 hover:bg-raised'
   return (
     <Link
