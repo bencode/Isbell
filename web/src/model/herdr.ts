@@ -37,20 +37,23 @@ export async function shells(call: Caller, mid: string): Promise<Shell[]> {
 const RECENT_LINES = 200
 
 /**
- * The pane's output as plain text: `recent` is its last lines with scrollback, each as the program
- * wrote it rather than wrapped to the pane; `visible` is the screen alone. herdr captures a
- * full-screen agent's scrollback only while the agent is idle or done; read `visible` otherwise.
+ * The pane's output as plain text, or with its colors as SGR sequences when `colored`: `recent` is
+ * its last lines with scrollback, each as the program wrote it rather than wrapped to the pane;
+ * `visible` is the screen alone. herdr captures a full-screen agent's scrollback only while the
+ * agent is idle or done; read `visible` otherwise.
  */
 export async function readScreen(
   call: Caller,
   mid: string,
   paneId: string,
   source: 'recent' | 'visible',
+  colored = false,
 ): Promise<string> {
-  const params =
+  const where =
     source === 'recent'
       ? { target: paneId, source: 'recent_unwrapped', lines: RECENT_LINES }
       : { target: paneId, source }
+  const params = colored ? { ...where, format: 'ansi' } : where
   const r = (await herdr(call, mid, 'agent.read', params)) as { read?: { text?: string } }
   const text = r.read?.text ?? ''
   if (source === 'visible') return text

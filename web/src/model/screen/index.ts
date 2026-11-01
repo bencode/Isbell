@@ -1,9 +1,13 @@
 // An agent's screen read as turns: what was asked, and what came back. Each kind of agent draws
-// its screen its own way; its Grammar says how, and one parser reads them all. Whatever the
-// parser does not recognise, it leaves to the screen text.
+// its screen its own way; for Claude Code and Codex its Grammar says how, and one parser reads
+// them; pi marks its lines only by color, and has a reader of its own. Whatever is not
+// recognised is left to the screen text.
 
+import { stripStyles } from './ansi'
 import { claude } from './claude'
 import { codex } from './codex'
+import { readPi } from './pi'
+import { paragraphs, type Segment, settle } from './turns'
 import type { Block, Grammar, Question, Reading, Turn } from './types'
 
 export { readPicker } from './picker'
@@ -21,9 +25,17 @@ const GRAMMARS = new Map<string, Grammar>([
  * counts as none.
  */
 export function parseScreen(kind: string | undefined, text: string, running: boolean): Reading | null {
+  if (kind === 'pi') return readPi(text, running)
   const grammar = kind === undefined ? undefined : GRAMMARS.get(kind)
   return grammar ? parse(grammar, text, running) : null
 }
+
+/** Kinds whose screen is read with its colors: pi tells what is asked from what it does only by them. */
+export const styled = (kind: string | undefined) => kind === 'pi'
+
+/** The screen as text to show, its colors taken off. */
+export const screenText = (kind: string | undefined, text: string) =>
+  styled(kind) ? stripStyles(text) : text
 
 /** The modes ⇧Tab steps an agent of `kind` through, and the commands that enter some of them
  * at once; none if the kind is unknown. */
@@ -65,13 +77,8 @@ export function tailLines(blocks: Block[], n: number): string[] {
 const turnKey = (t: Turn) => [t.prompt, t.at ?? '', t.took ?? ''].join('\n')
 
 type Item = { head: string; rest: string[] }
-type Segment = {
-  prompt?: string
-  items: Item[]
-  end?: { took?: string; at?: string }
-  /** Only the end of its reply is on the screen. */
-  partial?: boolean
-}
+/** A segment as read off the screen, its reply still in items. */
+type Read = Omit<Segment, 'reply'> & { items: Item[] }
 
 function parse(g: Grammar, text: string, running: boolean): Reading | null {
   const screen = text.split('\n').map(l => l.trimEnd())
@@ -81,35 +88,27 @@ function parse(g: Grammar, text: string, running: boolean): Reading | null {
   const first = lines.findIndex(l => g.prompt.test(l))
   const start = (first < 0 ? lines : lines.slice(0, first)).some(l => g.banner.test(l))
   const pinned = !!g.pinned && running && first >= 0 && lines.slice(0, first).every(l => !l)
-  const segments = split(g, lines, first, start, pinned)
-
-  const last = segments.at(-1)
-  const open = last && !last.end ? last : undefined
-  const live = running ? open : undefined
-  // Read before the agent shows it is working on it; the next reading has it live.
-  const sent = open && open.items.length === 0 ? open : undefined
-  // A finished turn shown only in part was read whole before, or is lost from the screen.
-  const turns = segments
-    .filter(s => s !== live && s !== sent && s.prompt !== undefined && !s.partial)
-    .map(s => toTurn(g, s))
+  const segments = split(g, lines, first, start, pinned).map(({ items, ...s }) => ({
+    ...s,
+    reply: blocks(g, items),
+  }))
+  const { turns, live } = settle(segments, running)
   const question = bottom.ask && toQuestion(screen.slice(bottom.ask.from, bottom.ask.to))
   return {
     start,
     turns,
-    ...(live ? { live: { ...promptOf(live), reply: blocks(g, live.items) } } : {}),
+    ...(live ? { live } : {}),
     ...(question ? { question } : {}),
     ...(bottom.footer ? { footer: bottom.footer } : {}),
   }
 }
-
-const promptOf = (s: Segment) => (s.prompt === undefined ? {} : { prompt: s.prompt })
 
 /**
  * The lines as segments, one per prompt. Lines before the first prompt are the banner, or the end
  * of a turn whose prompt has scrolled off; only a screen with no prompt at all keeps them, as the
  * turn in progress. With the first prompt `pinned`, its turn is partial.
  */
-function split(g: Grammar, lines: string[], first: number, start: boolean, pinned: boolean): Segment[] {
+function split(g: Grammar, lines: string[], first: number, start: boolean, pinned: boolean): Read[] {
   if (first < 0) return start ? [] : [readItems(g, undefined, lines)]
   const starts = lines.flatMap((l, i) => (i >= first && g.prompt.test(l) ? [i] : []))
   return starts.map((from, n) => {
@@ -125,9 +124,9 @@ function split(g: Grammar, lines: string[], first: number, start: boolean, pinne
   })
 }
 
-function readItems(g: Grammar, prompt: string | undefined, lines: string[]): Segment {
+function readItems(g: Grammar, prompt: string | undefined, lines: string[]): Read {
   const items: Item[] = []
-  let end: Segment['end']
+  let end: Read['end']
   for (const [i, line] of lines.entries()) {
     const closing = g.end.exec(line)
     if (closing) {
@@ -162,43 +161,11 @@ const timing = (groups: Record<string, string | undefined> | undefined) => ({
   ...(groups?.at ? { at: groups.at } : {}),
 })
 
-const toTurn = (g: Grammar, s: Segment): Turn => ({
-  prompt: s.prompt ?? '',
-  reply: blocks(g, s.items),
-  ...s.end,
-})
-
 const blocks = (g: Grammar, items: Item[]): Block[] =>
   items.flatMap(item => {
     const action = g.action(item.head, trimBlank(item.rest))
     return action ? [action] : paragraphs([item.head, ...item.rest.map(dedent)])
   })
-
-// A list item: a bullet, or a number such as "3.", then the item.
-const LIST_ITEM = /^(?:[•\-*]|(\d+)\.)\s+(.*)$/
-
-/** Paragraphs split at blank lines; one whose every line is a list item is a list. */
-function paragraphs(lines: string[]): Block[] {
-  const groups = lines.reduce<string[][]>(
-    (acc, line) => {
-      if (line) acc.at(-1)?.push(line)
-      else acc.push([])
-      return acc
-    },
-    [[]],
-  )
-  return groups.filter(p => p.length).map(p => toList(p) ?? { kind: 'text', text: p.join('\n') })
-}
-
-/** The paragraph as a list, numbered when every item is. */
-function toList(p: string[]): Block | undefined {
-  const matches = p.map(l => LIST_ITEM.exec(l))
-  if (!matches.every(m => m)) return undefined
-  const items = matches.map(m => m?.[2] ?? '')
-  const numbers = matches.map(m => m?.[1])
-  const start = numbers.every(n => n !== undefined) ? Number(numbers[0]) : undefined
-  return { kind: 'list', items, ...(start === undefined ? {} : { start }) }
-}
 
 // A numbered option, maybe marked as chosen, maybe with its shortcut such as "(y)" or "(esc)".
 const OPTION = /^(?:[›❯]\s+)?(\d+)\.\s+(.+?)(?:\s\((?:[a-z]|esc)\))?$/
