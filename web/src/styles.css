@@ -143,3 +143,11 @@ body {
 :root[data-shell="phone"] body * {
   overscroll-behavior: contain;
 }
+/* A page that must not move, the terminal (useLockedPage): its own scroller is the only one. */
+:root[data-scroll="locked"],
+:root[data-scroll="locked"] body,
+:root[data-scroll="locked"] #root {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}

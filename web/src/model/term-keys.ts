@@ -1,8 +1,8 @@
 // The keys a touch keyboard lacks, as the bytes a terminal program expects from them.
 
-export type BarKey = 'esc' | 'tab' | 'up' | 'down' | 'left' | 'right' | 'enter'
+export type BarKey = 'esc' | 'interrupt' | 'tab' | 'up' | 'down' | 'left' | 'right' | 'enter'
 
-const PLAIN: Partial<Record<BarKey, string>> = { esc: '\x1b', tab: '\t', enter: '\r' }
+const PLAIN: Partial<Record<BarKey, string>> = { esc: '\x1b', interrupt: '\x03', tab: '\t', enter: '\r' }
 const ARROW: Partial<Record<BarKey, string>> = { up: 'A', down: 'B', right: 'C', left: 'D' }
 
 /** What a key on the bar sends; arrows follow the program's cursor-key mode (DECCKM). */

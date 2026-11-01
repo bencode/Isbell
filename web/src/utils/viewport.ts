@@ -73,3 +73,15 @@ export function useKeyboard(): Keyboard {
   }, [])
   return keyboard
 }
+
+/** While mounted, the document neither scrolls nor bounces, so a scroller on the page has the
+ * gestures to itself. */
+export function useLockedPage() {
+  useEffect(() => {
+    const root = document.documentElement
+    root.dataset.scroll = 'locked'
+    return () => {
+      delete root.dataset.scroll
+    }
+  }, [])
+}

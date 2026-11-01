@@ -294,6 +294,7 @@ export const zh: Record<Key, string> = {
   'terminal.gone': '这个终端已经关闭。',
   'terminal.control': '控制',
   'terminal.keys': '终端按键',
+  'terminal.keyboard': '键盘',
   'via.relay': '中转',
   'via.lan': '直连 · 局域网',
   'via.vpn': '直连 · VPN',
