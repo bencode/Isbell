@@ -6,7 +6,8 @@ import { AllAgents } from '../../features/board/all-page'
 import { ProjectView } from '../../features/board/project-page'
 import { SessionPage } from '../../features/pane/session-page'
 import { LazyTerminal, Loading } from '../common'
-import { MobileBoard, MobileFrame } from './frame'
+import { MobileBoard } from './board'
+import { FixedPage, MobileFrame } from './frame'
 import { MobilePane } from './pane'
 
 // A project's files bring the same libraries as a pane's.
@@ -22,18 +23,21 @@ export function MobileRoutes() {
           <Route index element={<AllAgents phone />} />
           <Route path="p/:key" element={<ProjectView phone />} />
         </Route>
-        <Route path="s/:mid/:pane" element={<SessionPage layout={MobilePane} />} />
-        {/* Where a card on a project's board opens its session. */}
-        <Route path="p/:key/s/:mid/:pane" element={<SessionPage layout={MobilePane} />} />
-        <Route path="t/:mid/:pane" element={<LazyTerminal layout={MobilePane} />} />
-        <Route
-          path="p/:key/files/*"
-          element={
-            <Suspense fallback={<Loading />}>
-              <PhoneFiles />
-            </Suspense>
-          }
-        />
+        {/* Not rebuilt to scroll with the page yet: the fixed column that scrolls inside. */}
+        <Route element={<FixedPage />}>
+          <Route path="s/:mid/:pane" element={<SessionPage layout={MobilePane} />} />
+          {/* Where a card on a project's board opens its session. */}
+          <Route path="p/:key/s/:mid/:pane" element={<SessionPage layout={MobilePane} />} />
+          <Route path="t/:mid/:pane" element={<LazyTerminal layout={MobilePane} />} />
+          <Route
+            path="p/:key/files/*"
+            element={
+              <Suspense fallback={<Loading />}>
+                <PhoneFiles />
+              </Suspense>
+            }
+          />
+        </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

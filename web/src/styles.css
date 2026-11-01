@@ -120,3 +120,26 @@ body {
   color: var(--text);
   font: 14px / 1.5 var(--font-sans);
 }
+
+/* A phone's shell (shell/app.tsx): the page itself scrolls, one scroller to a page, so iOS has no
+   outer one to hand a gesture to and lock the inner one while it bounces. */
+:root[data-shell="phone"] {
+  /* No double-tap zoom, and no delay before a tap. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+/* Tall as what is on them, so a sticky bar stays at the top; each page keeps clear of the notch and
+   the home indicator itself. */
+:root[data-shell="phone"] body,
+:root[data-shell="phone"] #root {
+  height: auto;
+  min-height: 100%;
+}
+:root[data-shell="phone"] body {
+  padding: 0;
+}
+/* Whatever scrolls within the page keeps a gesture that reaches its end, rather than passing it on
+   to the page's bounce. */
+:root[data-shell="phone"] body * {
+  overscroll-behavior: contain;
+}

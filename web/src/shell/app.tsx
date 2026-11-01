@@ -11,6 +11,14 @@ import { useNotifications } from './notify'
 
 /** A phone gets its own shell, decided once at load; by the shorter side, so landscape counts too. */
 const MOBILE = matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600
+if (MOBILE) {
+  // Lets the phone's styles in styles.css apply.
+  document.documentElement.dataset.shell = 'phone'
+  // iOS shows :active only when the page listens for touches.
+  document.addEventListener('touchstart', () => {}, { passive: true })
+  // The boards put the page back where it was themselves (mobile/board.tsx).
+  history.scrollRestoration = 'manual'
+}
 
 // Each shell is loaded only where it is used.
 const Shell = lazy(() =>
