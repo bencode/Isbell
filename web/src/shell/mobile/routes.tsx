@@ -4,16 +4,20 @@ import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router'
 import { AllAgents } from '../../features/board/all-page'
 import { ProjectView } from '../../features/board/project-page'
-import { SessionPage } from '../../features/pane/session-page'
+import { SessionRoute } from '../../features/pane/session-page'
 import { LazyTerminal, Loading } from '../common'
 import { MobileBoard } from './board'
 import { FixedPage, MobileFrame } from './frame'
 import { MobilePane } from './pane'
+import { PhoneSession } from './session'
 
 // A project's files bring the same libraries as a pane's.
 const PhoneFiles = lazy(() =>
   import('../../features/files/phone-files').then(m => ({ default: m.PhoneFiles })),
 )
+
+// A session's page, at either address.
+const phoneSession = <SessionRoute render={found => <PhoneSession {...found} />} />
 
 export function MobileRoutes() {
   return (
@@ -23,11 +27,11 @@ export function MobileRoutes() {
           <Route index element={<AllAgents phone />} />
           <Route path="p/:key" element={<ProjectView phone />} />
         </Route>
+        <Route path="s/:mid/:pane" element={phoneSession} />
+        {/* Where a card on a project's board opens its session. */}
+        <Route path="p/:key/s/:mid/:pane" element={phoneSession} />
         {/* Not rebuilt to scroll with the page yet: the fixed column that scrolls inside. */}
         <Route element={<FixedPage />}>
-          <Route path="s/:mid/:pane" element={<SessionPage layout={MobilePane} />} />
-          {/* Where a card on a project's board opens its session. */}
-          <Route path="p/:key/s/:mid/:pane" element={<SessionPage layout={MobilePane} />} />
           <Route path="t/:mid/:pane" element={<LazyTerminal layout={MobilePane} />} />
           <Route
             path="p/:key/files/*"
