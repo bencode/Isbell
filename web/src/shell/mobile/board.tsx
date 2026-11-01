@@ -16,7 +16,7 @@ import {
 import { useI18n } from '../../core/i18n'
 import { useProjects, useSpaceView } from '../../core/space'
 import { needs } from '../../model/projects'
-import { projectFilesHref } from '../../utils/hrefs'
+import { newHref, projectFilesHref } from '../../utils/hrefs'
 import { ReconnectBanner } from '../common'
 import { AskBadge } from '../marks'
 import type { FrameActions } from './frame'
@@ -71,7 +71,7 @@ function useEntryScroll() {
 export function MobileBoard() {
   useEntryScroll()
   const t = useI18n()
-  const { openDrawer, openNew } = useOutletContext<FrameActions>()
+  const { openDrawer } = useOutletContext<FrameActions>()
   const navigate = useNavigate()
   const view = useSpaceView()
   const projects = useProjects()
@@ -119,14 +119,13 @@ export function MobileBoard() {
               <FolderOpen size={20} />
             </Link>
           ) : null}
-          <button
-            type="button"
-            onClick={openNew}
-            className="inline-flex h-11 flex-none cursor-pointer items-center gap-1 rounded-lg border-0 bg-transparent px-2.5 text-sm font-semibold text-accent active:bg-raised-2 focus-visible:outline-2 focus-visible:outline-accent"
+          <Link
+            to={newHref(key)}
+            className="inline-flex h-11 flex-none items-center gap-1 rounded-lg px-2.5 text-sm font-semibold text-accent no-underline active:bg-raised-2 focus-visible:outline-2 focus-visible:outline-accent"
           >
             <Plus size={18} />
             {t('app.newSession')}
-          </button>
+          </Link>
         </div>
         <ReconnectBanner />
       </header>

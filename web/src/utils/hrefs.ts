@@ -32,3 +32,8 @@ export const peekHref = (projectKey: string | undefined, mid: string, paneId: st
 /** A session opened beside the board it is on, in its terminal. */
 export const peekTerminalHref = (projectKey: string | undefined, mid: string, paneId: string) =>
   `${peekHref(projectKey, mid, paneId)}?view=terminal`
+
+/** New, as a page of its own on a phone: in the project `projectKey` names, or, `dir`, in a directory
+ * that is not one yet. */
+export const newHref = (projectKey?: string, dir = false) =>
+  `${projectKey ? projectHref(projectKey) : ''}/new${dir ? '?dir' : ''}`

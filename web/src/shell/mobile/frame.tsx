@@ -1,6 +1,6 @@
-// The frame around every page on a phone: the projects in a drawer and the same overlays as on a
-// computer. The boards scroll with the page (board.tsx); the pages not rebuilt for that yet sit in a
-// fixed column that scrolls inside.
+// The frame around every page on a phone: the projects in a drawer, and the overlays it shares with a
+// computer's, but New, a page of its own here (new-session.tsx). The boards scroll with the page
+// (board.tsx); the pages not rebuilt for that yet sit in a fixed column that scrolls inside.
 
 import { useState } from 'react'
 import { Outlet, useNavigate, useParams } from 'react-router'
@@ -8,13 +8,13 @@ import { Drawer } from '../../components/drawer'
 import { useI18n } from '../../core/i18n'
 import { useProjects, useSpaceView } from '../../core/space'
 import { FileOpener, type OpenPath } from '../../core/tabs'
-import { projectFilesHref } from '../../utils/hrefs'
+import { newHref, projectFilesHref } from '../../utils/hrefs'
 import { useVisibleArea } from '../../utils/viewport'
 import { hereOf, type Overlay, Overlays, ReconnectBanner } from '../common'
 import { MobileNav } from './nav'
 
 /** What the frame lends the bar of the page inside it. */
-export type FrameActions = { openDrawer: () => void; openNew: () => void }
+export type FrameActions = { openDrawer: () => void }
 
 export function MobileFrame() {
   const t = useI18n()
@@ -28,7 +28,7 @@ export function MobileFrame() {
     setDrawer(false)
     setOverlay(next)
   }
-  const actions: FrameActions = { openDrawer: () => setDrawer(true), openNew: () => setOverlay('session') }
+  const actions: FrameActions = { openDrawer: () => setDrawer(true) }
   // A path in a reply opens on the files page: a folder listed, a file read.
   const openPath: OpenPath = (key, rel, dir) => navigate(projectFilesHref(key, dir ? `${rel}/` : rel))
   return (
@@ -42,7 +42,10 @@ export function MobileFrame() {
           machines={view.machines}
           status={view.status}
           here={here}
-          onNewDir={() => fromDrawer('newDir')}
+          onNewDir={() => {
+            setDrawer(false)
+            navigate(newHref(undefined, true))
+          }}
           onSettings={() => fromDrawer('settings')}
           onGo={() => setDrawer(false)}
         />
