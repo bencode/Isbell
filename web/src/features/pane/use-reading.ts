@@ -1,13 +1,14 @@
 // An agent pane's screen, read as turns. It is read when the page opens, when the session's
 // status changes (the relay pushes it), when the page comes back into view, and on demand after
 // something was sent; while the agent works it is read again 2s after each read returns. Earlier
-// turns come on request, a page of history at a time.
+// turns come on request, a page of history at a time; not for pi, whose screen is read with its
+// colors, which history pages do not keep.
 
 import { useEffect, useRef, useState } from 'react'
 import { useSpace } from '../../core/space'
 import { type History, readHistory, readScreen } from '../../model/herdr'
 import type { Session } from '../../model/projects'
-import { mergeReading, parseScreen } from '../../model/screen'
+import { mergeReading, parseScreen, screenText, styled } from '../../model/screen'
 import { stitch } from '../../model/screen/history'
 import type { Reading } from '../../model/screen/types'
 import { settled } from '../../model/state'
@@ -41,13 +42,15 @@ function readWhole(s: Screen, kind: string | undefined, text: string): Screen {
   const joined = s.lines && stitch(s.lines, fresh)
   const lines = joined ?? fresh
   const reading = parseScreen(kind, lines.join('\n'), false) ?? s.reading
-  return { reading, text, error: undefined, lines, more: joined ? s.more : true }
+  const more = !styled(kind) && (joined ? s.more : true)
+  return { reading, text: screenText(kind, text), error: undefined, lines, more }
 }
 
 /** The screen alone, folded into what was read before. */
 function readVisible(s: Screen, kind: string | undefined, text: string): Screen {
   const next = parseScreen(kind, text, true)
-  return { ...s, reading: next ? mergeReading(s.reading, next, false) : s.reading, text, error: undefined }
+  const reading = next ? mergeReading(s.reading, next, false) : s.reading
+  return { ...s, reading, text: screenText(kind, text), error: undefined }
 }
 
 /** A page further back, joined to the history known; null when the two do not meet. */
@@ -91,7 +94,7 @@ export function useReading(
     const read = () => {
       queue.current = queue.current.then(() => {
         if (!live || document.visibilityState !== 'visible') return
-        return readScreen(space.call, mid, paneId, whole ? 'recent' : 'visible').then(
+        return readScreen(space.call, mid, paneId, whole ? 'recent' : 'visible', styled(kind)).then(
           text => {
             if (live) update(s => (whole ? readWhole(s, kind, text) : readVisible(s, kind, text)))
           },

@@ -54,12 +54,16 @@ async function launch(
     await space.refreshShells(mid)
     return { href: terminalHref(mid, paneId) }
   }
+  const chat = mode === 'chat'
   const started = await startAgent(space.call, mid, {
     cwd: path,
     kind,
-    ...(mode === 'chat' && prompt ? { prompt } : {}),
+    // In its regular mode pi leaves the conversation in the terminal's history for the chat to
+    // read; in a terminal it keeps its full screen.
+    ...(chat && kind === 'pi' ? { args: ['--tui-mode', 'regular'] } : {}),
+    ...(chat && prompt ? { prompt } : {}),
   })
-  return mode === 'chat'
+  return chat
     ? { href: sessionHref(mid, started.paneId), state: { promptError: started.promptError } }
     : { href: terminalHref(mid, started.paneId) }
 }
