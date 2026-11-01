@@ -28,11 +28,23 @@ export type AgentInfo = {
 
 const baseName = (path: string) => path.replace(/\/+$/, '').split('/').at(-1) ?? ''
 
-/** A title naming no task: the agent's own name before it has one, or the directory it is in. */
-const says = (title: string, info: AgentInfo) =>
-  ![info.agent ?? '', 'Claude Code', baseName(info.cwd ?? '')].some(
-    plain => plain.toLowerCase() === title.toLowerCase(),
+/** The command that started the agent, as its terminal is titled until the agent titles it. */
+const command = (title: string, agent: string) => {
+  const [first, ...rest] = title.split(/\s+/)
+  return first === agent && rest.every(word => word.startsWith('-'))
+}
+
+/** A title naming no task: the agent's own name before it has one, the command that started it, or
+ * the directory it is in, alone or after pi's mark. */
+const says = (title: string, info: AgentInfo) => {
+  const dir = baseName(info.cwd ?? '')
+  return (
+    !command(title, info.agent ?? '') &&
+    ![info.agent ?? '', 'Claude Code', dir, `π - ${dir}`].some(
+      plain => plain.toLowerCase() === title.toLowerCase(),
+    )
   )
+}
 
 function titleOf(info: AgentInfo): string | undefined {
   const raw = info.terminal_title_stripped?.trim() ?? ''

@@ -11,6 +11,7 @@ import { FixedPage, MobileFrame } from './frame'
 import { PhoneNewSession } from './new-session'
 import { MobilePane } from './pane'
 import { PhoneSession } from './session'
+import { PhoneSessions } from './sessions'
 
 // A project's files bring the same libraries as a pane's.
 const PhoneFiles = lazy(() =>
@@ -33,6 +34,7 @@ export function MobileRoutes() {
         <Route path="p/:key/s/:mid/:pane" element={phoneSession} />
         <Route path="new" element={<PhoneNewSession />} />
         <Route path="p/:key/new" element={<PhoneNewSession />} />
+        <Route path="p/:key/sessions" element={<PhoneSessions />} />
         {/* Not rebuilt to scroll with the page yet: the fixed column that scrolls inside. */}
         <Route element={<FixedPage />}>
           <Route path="t/:mid/:pane" element={<LazyTerminal layout={MobilePane} />} />
