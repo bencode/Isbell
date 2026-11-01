@@ -307,6 +307,7 @@ export const en = {
   'chat.oneTurn': '1 turn',
   'chat.start': 'Start of the session',
   'chat.earlier': 'Earlier turns are only in the terminal',
+  'chat.afterStop': 'Earlier turns can be read once it stops',
   'chat.showEarlier': 'Show earlier turns',
   'chat.readingEarlier': 'Reading earlier turns…',
   'chat.noEarlier': 'No earlier turns are kept',

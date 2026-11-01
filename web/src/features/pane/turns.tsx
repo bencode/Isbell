@@ -46,7 +46,14 @@ export function Turns({
           {count === 1 ? t('chat.oneTurn') : t('chat.turns', { n: count })}
         </span>
       </div>
-      <Scope start={reading.start} terminal={terminal} onEarlier={onEarlier} paging={paging} more={more} />
+      <Scope
+        start={reading.start}
+        still={settled(status)}
+        terminal={terminal}
+        onEarlier={onEarlier}
+        paging={paging}
+        more={more}
+      />
       {keyed(reading.turns, turn => [turn.prompt, turn.at, turn.took].join('\n')).map(([key, turn]) => (
         <TurnCard key={key} turn={turn} />
       ))}
@@ -60,12 +67,15 @@ export function Turns({
 /** Where the turns shown begin: the start of the session, or a way to what came before. */
 function Scope({
   start,
+  still,
   terminal,
   onEarlier,
   paging,
   more,
 }: {
   start: boolean
+  /** Whether the agent is idle or done, when herdr lets its history be read. */
+  still: boolean
   terminal: string
   onEarlier: (() => void) | undefined
   paging: boolean
@@ -85,6 +95,8 @@ function Scope({
         >
           {paging ? t('chat.readingEarlier') : t('chat.showEarlier')}
         </button>
+      ) : more && !still ? (
+        t('chat.afterStop')
       ) : more ? (
         <span>
           {t('chat.earlier')} ·{' '}
