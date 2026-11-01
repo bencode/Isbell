@@ -307,6 +307,7 @@ export const zh: Record<Key, string> = {
   'chat.oneTurn': '1 轮',
   'chat.start': '会话开头',
   'chat.earlier': '更早的轮次只在终端里',
+  'chat.afterStop': '它停下来后才能读到更早的轮次',
   'chat.showEarlier': '查看更早的轮次',
   'chat.readingEarlier': '正在读取更早的轮次…',
   'chat.noEarlier': '更早的轮次已经读不到了',

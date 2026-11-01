@@ -2,7 +2,9 @@
 // status changes (the relay pushes it), when the page comes back into view, and on demand after
 // something was sent; while the agent works it is read again 2s after each read returns. Earlier
 // turns come on request, a page of history at a time; not for pi, whose screen is read with its
-// colors, which history pages do not keep.
+// colors, which history pages do not keep. What was read is kept for each pane while the app is
+// open, so coming back while the agent works or asks, when only its screen can be read, still shows
+// the turns read before.
 
 import { useEffect, useRef, useState } from 'react'
 import { useSpace } from '../../core/space'
@@ -33,6 +35,9 @@ type Screen = {
 }
 
 const UNREAD: Screen = { reading: null, text: null, error: undefined, lines: null, more: true }
+
+/** What each pane's page last knew, by `mid/paneId`. */
+const kept = new Map<string, Screen>()
 
 const linesOf = (text: string) => text.replace(/\n$/, '').split('\n')
 
@@ -67,12 +72,19 @@ export function useReading(
   session: Pick<Session, 'kind' | 'status' | 'statusSince'>,
 ) {
   const space = useSpace()
+  // A page is keyed by its pane (SessionRoute), so it starts once from what was kept.
+  const key = `${mid}/${paneId}`
+  const [first] = useState(() => {
+    const was = kept.get(key)
+    return was ? { ...was, error: undefined } : UNREAD
+  })
   // The ref holds the screen as of the last read, for reads that follow at once; the state
   // mirrors it for rendering.
-  const known = useRef(UNREAD)
-  const [screen, setScreen] = useState(UNREAD)
+  const known = useRef(first)
+  const [screen, setScreen] = useState(first)
   const update = (f: (s: Screen) => Screen) => {
     known.current = f(known.current)
+    kept.set(key, known.current)
     setScreen(known.current)
   }
   const [paging, setPaging] = useState(false)
