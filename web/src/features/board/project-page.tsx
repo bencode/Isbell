@@ -5,6 +5,7 @@ import { lanes, type Project } from '../../model/projects'
 import { projectsSettled } from '../../model/space'
 import { useNow } from '../../utils/time'
 import { Lanes } from './lanes'
+import { ProjectFacts } from './project-facts'
 
 /** The project the board is focused on, from the route. */
 function useFocused(projects: Project[]): Project | undefined {
@@ -12,7 +13,7 @@ function useFocused(projects: Project[]): Project | undefined {
   return key ? projects.find(p => p.key === key) : undefined
 }
 
-/** One project's agents on the home's lanes; on a `phone`, under the bar that names it. */
+/** One project's agents on the home's lanes; on a `phone`, under the bar that names it and its facts. */
 export function ProjectView({ phone = false }: { phone?: boolean }) {
   const t = useI18n()
   const view = useSpaceView()
@@ -37,7 +38,9 @@ function Focused({ project, phone }: { project: Project; phone: boolean }) {
   const now = useNow()
   return (
     <>
-      {phone ? null : (
+      {phone ? (
+        <ProjectFacts project={project} />
+      ) : (
         <div className="flex flex-wrap items-baseline gap-2.5">
           <h1 className="m-0 text-[23px] font-bold after:mt-1 after:block after:h-[3px] after:w-7 after:rounded-sm after:bg-accent after:content-['']">
             {project.name}

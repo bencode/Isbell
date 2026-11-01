@@ -1,6 +1,6 @@
 // An agent on a phone's board that is not waiting on you, working or standing by, in a row a finger
-// can hit: its name, where, one line of what it is doing or said last, and since when. The row opens
-// its session; a working one can be stopped from it.
+// can hit: its task as its terminal is titled, else its name; where; one line of what it is doing or
+// said last; and since when. The row opens its session; a working one can be stopped from it.
 
 import { Square } from 'lucide-react'
 import { Link } from 'react-router'
@@ -9,6 +9,7 @@ import type { Placed, Session } from '../../../model/projects'
 import { sessionHref } from '../../../utils/hrefs'
 import { since } from '../../../utils/time'
 import { useAnswer } from '../../pane/asking'
+import { useAgentNote } from '../../pane/use-agent-note'
 import { useReading } from '../../pane/use-reading'
 import { lastWords, workingTail } from './card'
 
@@ -28,6 +29,14 @@ export function AgentRow({
   // Esc interrupts the turn going on, in the agents Isbell runs; the status says when it took.
   const stop = useAnswer(session.mid, session.paneId, () => undefined)
   const unknown = session.status === 'unknown'
+  const title = useAgentNote(session, project.online)?.title
+  // Under a title, the name; on every agent's board, where it is.
+  const where = [
+    title ? session.name : undefined,
+    scoped ? undefined : `${project.name} · ${project.machine}`,
+  ]
+    .filter(Boolean)
+    .join(' · ')
   return (
     <div
       className={`flex min-h-[52px] items-center rounded-lg border border-line bg-raised ${project.online ? '' : 'opacity-60'}`}
@@ -49,14 +58,8 @@ export function AgentRow({
           <span className="size-2 flex-none rounded-full border-[1.5px] border-faint" />
         )}
         <span className="flex min-w-0 flex-1 flex-col">
-          <span className="flex min-w-0 items-baseline gap-1.5 text-[13.5px]">
-            <b className="truncate font-semibold">{session.name}</b>
-            {scoped ? null : (
-              <span className="min-w-0 truncate text-xs text-faint">
-                {project.name} · {project.machine}
-              </span>
-            )}
-          </span>
+          <b className="truncate text-[13.5px] font-semibold">{title ?? session.name}</b>
+          {where ? <span className="truncate text-xs text-faint">{where}</span> : null}
           {/* An offline machine's screens cannot be read. */}
           {project.online ? <Line session={session} running={running} /> : null}
           {stop.error ? <span className="truncate text-xs text-danger">{stop.error}</span> : null}

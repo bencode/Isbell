@@ -1,8 +1,8 @@
 // A board on a phone, All projects or one project's, scrolling with the page: a bar that names it
 // stays at the top, with the drawer on All projects and the way back up on a project, and New at
-// its end, where it covers nothing.
+// its end, where it covers nothing. A project's other views are under its bar (project-facts.tsx).
 
-import { ChevronLeft, FolderOpen, Menu, Plus } from 'lucide-react'
+import { ChevronLeft, Menu, Plus } from 'lucide-react'
 import { useLayoutEffect } from 'react'
 import {
   Link,
@@ -16,7 +16,7 @@ import {
 import { useI18n } from '../../core/i18n'
 import { useProjects, useSpaceView } from '../../core/space'
 import { needs } from '../../model/projects'
-import { newHref, projectFilesHref } from '../../utils/hrefs'
+import { newHref } from '../../utils/hrefs'
 import { ReconnectBanner } from '../common'
 import { AskBadge } from '../marks'
 import type { FrameActions } from './frame'
@@ -81,11 +81,14 @@ export function MobileBoard() {
   const project = projects.find(p => p.key === key)
   const agents = projects.reduce((n, p) => n + p.sessions.length, 0)
   const online = view.machines.filter(m => m.online).length
+  // A project's machine is in its facts, under the bar.
   const [title, sub] = inProject
-    ? [project?.name, project && `${project.machine}${project.online ? '' : ` · ${t('side.offline')}`}`]
+    ? [project?.name, undefined]
     : [t('all.title'), view.machines.length ? t('all.short', { agents, online }) : undefined]
   return (
-    <>
+    // The screen's height at least, the paper filling what the bar leaves, so a short board does not
+    // scroll.
+    <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-10 border-b border-line bg-bg pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
         <div className="flex h-[52px] items-center gap-1 px-1.5">
           {inProject ? (
@@ -109,16 +112,6 @@ export function MobileBoard() {
             <span className="truncate text-base font-bold">{title}</span>
             {sub ? <span className="min-w-0 truncate text-xs text-faint">{sub}</span> : null}
           </span>
-          {key ? (
-            <Link
-              to={projectFilesHref(key)}
-              aria-label={t('project.files')}
-              title={t('project.files')}
-              className={ICON}
-            >
-              <FolderOpen size={20} />
-            </Link>
-          ) : null}
           <Link
             to={newHref(key)}
             className="inline-flex h-11 flex-none items-center gap-1 rounded-lg px-2.5 text-sm font-semibold text-accent no-underline active:bg-raised-2 focus-visible:outline-2 focus-visible:outline-accent"
@@ -129,10 +122,10 @@ export function MobileBoard() {
         </div>
         <ReconnectBanner />
       </header>
-      <main className="paper flex min-h-[calc(100dvh-52px)] flex-col gap-6 pt-4 pr-[max(1rem,env(safe-area-inset-right))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))]">
+      <main className="paper flex flex-1 flex-col gap-6 pt-4 pr-[max(1rem,env(safe-area-inset-right))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))]">
         <InstallTip />
         <Outlet />
       </main>
-    </>
+    </div>
   )
 }

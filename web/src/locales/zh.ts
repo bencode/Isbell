@@ -108,6 +108,8 @@ export const zh: Record<Key, string> = {
   'sessions.running': '在跑',
   'sessions.resume': '在原目录开一个新 pane 继续',
   'sessions.jump': '到它的 pane',
+  'sessions.open': '打开',
+  'sessions.resumeShort': '恢复',
   'project.back': '回到全部项目',
 
   'status.blocked': '在问',

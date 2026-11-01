@@ -55,13 +55,16 @@ test("Codex's reports, its session among them, are read for Codex, and not for C
   expect(noteOf({ agent: 'claude', tokens })).toEqual({})
 })
 
-test('the terminal title is the task, unless it only names the agent or its directory', () => {
+test('the terminal title is the task, unless it only names the agent, the command that started it, or its directory', () => {
   const title = (agent: string, title: string) =>
     noteOf({ agent, cwd: '/Users/me/work/Isbell', terminal_title_stripped: title }).title
   expect(title('claude', 'Baton PR #90')).toBe('Baton PR #90')
   expect(title('codex', '切换到新方案 | Isbell')).toBe('切换到新方案')
   expect(title('claude', 'Claude Code')).toBeUndefined()
   expect(title('codex', 'codex')).toBeUndefined()
+  expect(title('codex', 'codex --no-daemon | Isbell')).toBeUndefined()
+  expect(title('codex', 'codex fixes the build | Isbell')).toBe('codex fixes the build')
   expect(title('codex', 'Isbell')).toBeUndefined()
+  expect(title('pi', 'π - Isbell')).toBeUndefined()
   expect(title('claude', ' ')).toBeUndefined()
 })

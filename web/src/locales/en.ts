@@ -108,6 +108,8 @@ export const en = {
   'sessions.running': 'running',
   'sessions.resume': 'Resume it in a new pane, where it ran',
   'sessions.jump': 'Go to its pane',
+  'sessions.open': 'Open',
+  'sessions.resumeShort': 'Resume',
 
   'status.blocked': 'asking',
   'status.working': 'working',
