@@ -1,6 +1,7 @@
 // An agent waiting for an answer, answered on the card: its question and options, or, when the
-// question could not be read, the end of its screen with keys and a reply. When its hook says what
-// it asks leave to run, that heads the card in place of the question's own words.
+// question could not be read, the end of its screen with keys; no reply, as it takes no words until
+// it has its answer. When its hook says what it asks leave to run, that heads the card in place of
+// the question's own words.
 
 import { useState } from 'react'
 import { errorText, useI18n } from '../../../core/i18n'
@@ -8,7 +9,6 @@ import type { Placed } from '../../../model/projects'
 import type { Question } from '../../../model/screen/types'
 import { terminalHref } from '../../../utils/hrefs'
 import { AnswerElsewhere, Options, ScreenKeys, useAnswer } from '../../pane/asking'
-import { Composer } from '../../pane/composer'
 import { useAgentNote } from '../../pane/use-agent-note'
 import { useReading } from '../../pane/use-reading'
 import { Card, CardHead, SentNote, ToolMark, toolText, useSent } from './card'
@@ -62,7 +62,7 @@ export function AskingCard({ placed, now, scoped }: { placed: Placed; now: numbe
       ) : (
         <>
           <ScreenKeys screen={text} lines={6} busy={answer.busy} onPress={press} />
-          <Composer mid={mid} paneId={paneId} onSent={markSent} compact />
+          <AnswerElsewhere terminal={terminalHref(mid, paneId)} />
         </>
       )}
       {failure ? <p className="m-0 text-[13px] text-danger">{failure}</p> : null}
