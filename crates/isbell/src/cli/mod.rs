@@ -8,6 +8,7 @@ mod output;
 mod space;
 mod target;
 mod terminal;
+mod upgrade;
 mod watch;
 
 use clap::{Parser, Subcommand};
@@ -60,6 +61,8 @@ enum Command {
     Terminal(terminal::TerminalCmd),
     /// Stream presence and agent status changes as NDJSON.
     Watch,
+    /// Upgrade isbell to the latest release and restart its gateway service.
+    Upgrade,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
@@ -143,5 +146,6 @@ pub async fn run(cli: Cli) -> Result<(), CliError> {
         Command::File(cmd) => file::run(&ctx, cmd).await,
         Command::Terminal(cmd) => terminal::run(&ctx, cmd).await,
         Command::Watch => watch::run(&ctx).await,
+        Command::Upgrade => upgrade::run(),
     }
 }

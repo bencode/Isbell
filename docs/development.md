@@ -85,6 +85,11 @@ pnpm typecheck && pnpm test && pnpm lint && pnpm build
 
 ## Releasing
 
-- Bump `version` in the root `Cargo.toml`, commit, then push the tag `v<version>`.
+- Release when the gateway or the CLI changed; a change to the web app alone needs none.
+- Bump `version` in the root `Cargo.toml` (the patch for fixes, the minor for features), commit,
+  then push the tag `v<version>`.
 - `.github/workflows/release.yml` builds isbell for Apple silicon and publishes the release that
-  `install.sh` downloads; it fails when the tag and the version differ.
+  `install.sh` and `isbell upgrade` download; it fails when the tag and the version differ.
+- Deploy the web app only once the release is published. The app is built with the version in
+  `Cargo.toml` and tells every machine on an older one to upgrade; deployed first, it would send
+  them to a release that does not exist yet.

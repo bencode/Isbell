@@ -35,6 +35,11 @@ export const zh: Record<Key, string> = {
   'side.shell': 'shell',
   'side.older': '更早 · {n} 个项目',
   'side.fewer': '收起',
+  'side.upgrade': '升级到 {version}',
+  'upgrade.title': '升级 {machine}',
+  'upgrade.body': '这台机器运行的是 isbell {from}，最新是 {to}。在这台机器的终端里运行：',
+  'upgrade.after':
+    '它会替换程序并重启 gateway，agent 不受影响。升到 {to} 之后，以后可以直接运行 isbell upgrade。',
   'side.relay.connecting': '正在连接 relay…',
   'side.relay.open': 'relay 已连接',
   'side.relay.reconnecting': '正在重连…',

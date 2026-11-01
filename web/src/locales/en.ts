@@ -33,6 +33,11 @@ export const en = {
   'side.shell': 'shell',
   'side.older': 'Earlier: {n} more',
   'side.fewer': 'Show fewer',
+  'side.upgrade': 'Upgrade to {version}',
+  'upgrade.title': 'Upgrade {machine}',
+  'upgrade.body': 'This machine runs isbell {from}; the newest is {to}. In a terminal on it, run:',
+  'upgrade.after':
+    'It replaces the program and restarts the gateway; the agents keep running. From {to} on, isbell upgrade does the same.',
   'side.relay.connecting': 'Connecting to the relay…',
   'side.relay.open': 'Relay connected',
   'side.relay.reconnecting': 'Reconnecting…',
