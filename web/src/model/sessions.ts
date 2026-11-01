@@ -80,7 +80,8 @@ export const parseMonth = (text: string): MonthLine[] =>
 const RESUME = new Map<string, (id: string) => string[]>([
   ['claude', id => ['--resume', id]],
   ['codex', id => ['resume', id]],
-  ['pi', id => ['--session', id]],
+  // Resumed into the chat, pi runs in its regular mode, which leaves the conversation for it to read.
+  ['pi', id => ['--tui-mode', 'regular', '--session', id]],
 ])
 
 /** How the agent resumes the session, after its own command; none for an agent Isbell cannot. */

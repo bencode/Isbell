@@ -32,7 +32,7 @@ test("a month's sessions are read line by line, the latest first", () => {
 test('Claude Code, Codex and pi resume a session by its id; other agents are not resumed', () => {
   expect(resumeArgs('claude', 'id1')).toEqual(['--resume', 'id1'])
   expect(resumeArgs('codex', 'id1')).toEqual(['resume', 'id1'])
-  expect(resumeArgs('pi', 'id1')).toEqual(['--session', 'id1'])
+  expect(resumeArgs('pi', 'id1')).toEqual(['--tui-mode', 'regular', '--session', 'id1'])
   expect(resumeArgs('gemini', 'id1')).toBeUndefined()
   expect(resumeArgs('toString', 'id1')).toBeUndefined()
 })
