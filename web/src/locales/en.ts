@@ -122,6 +122,7 @@ export const en = {
   'ns.typeDir': 'Type a directory',
   'ns.installed': 'Installed on {machine}',
   'ns.noAgents': 'No agents found on {machine}',
+  'ns.noChatAgents': 'No Claude Code, Codex or pi on {machine}; others open in Terminal',
   'ns.task': 'What should it do?',
   'ns.placeholder': 'The goal, the constraints, and how to tell it is done.',
   'ns.starts': 'Starts {agent} in {path} on {machine}',

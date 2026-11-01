@@ -23,7 +23,7 @@ For the agent doing the setup. Isbell lets its user reach the agents on their Ma
   - another Mac: the user runs `isbell space join <key>` themselves.
 - [ ] Gateway service, from the user's login shell, so it finds herdr and the agents:
       `$SHELL -lc 'isbell gateway install'`.
-- [ ] Optional, if the user runs Claude Code or Codex: with their yes, the hook that lets the board
+- [ ] Optional, if the user runs Claude Code, Codex or pi: with their yes, the hook that lets the board
       show what each agent is asked and doing, and records each session in `~/.isbell/sessions` so
       a project's Sessions can resume it after its pane is closed. A machine with an older hook
       gets this by installing again. Fetch it once:
@@ -39,6 +39,10 @@ For the agent doing the setup. Isbell lets its user reach the agents on their Ma
     `~/.codex/hooks.json`. Tell the user that Codex asks to trust the new hooks when it next
     starts (choose Trust all), and that they report only from Codex started with `--no-daemon`:
     Isbell starts it so; one started by hand in herdr needs `codex --no-daemon`.
+  - pi: `sh /tmp/agent-hook.sh install pi`. It writes an extension to
+    `$PI_CODING_AGENT_DIR/extensions/`, else `~/.pi/agent/extensions/`, which pi loads when it
+    starts: sessions already running take it once restarted. For pi's status on the board, herdr
+    needs its own integration too: `herdr integration install pi`.
 - [ ] Check:
   - `isbell gateway status` says `running`;
   - `isbell machine list` shows this Mac `online`.
@@ -54,5 +58,5 @@ For the agent doing the setup. Isbell lets its user reach the agents on their Ma
 
 `isbell gateway uninstall`, `isbell space leave`, then delete `~/.local/bin/isbell`. With the agent
 hook installed, first `sh ~/.isbell/hooks/agent-hook.sh uninstall claude` (with the same
-`--config-dir`) and `… uninstall codex` for each agent it was installed for, then delete
+`--config-dir`), `… uninstall codex` and `… uninstall pi` for each agent it was installed for, then delete
 `~/.isbell/hooks`, and `~/.isbell/sessions` unless the user keeps the sessions' records.

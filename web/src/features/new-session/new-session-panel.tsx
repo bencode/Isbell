@@ -12,6 +12,7 @@ import { SelectBox } from '../../components/select'
 import { errorText, useI18n } from '../../core/i18n'
 import { getLocal, updateLocal } from '../../core/prefs'
 import { useProjects, useSpace, useSpaceView } from '../../core/space'
+import { CHAT_AGENTS } from '../../model/agents'
 import { openShell, type Started, startAgent } from '../../model/herdr'
 import { projectKey } from '../../model/projects'
 import { machineOf, type Space } from '../../model/space'
@@ -106,11 +107,13 @@ function Form({ onOpenChange, focusedKey, newDir }: Omit<Props, 'open'>) {
     : []
   const [mode, setMode] = useState<Mode>('chat')
   const chat = mode === 'chat'
+  // A chat is with an agent Isbell is built for; a terminal runs any installed one.
+  const offered = chat ? kinds.filter(k => CHAT_AGENTS.includes(k)) : kinds
   const [chosen, setChosen] = useState<string | null>(null)
   const last = target ? getLocal().lastAgent[projectKey(target.mid, target.path)] : undefined
   // A chat falls back to the agent used last; a terminal opens a plain shell unless an agent is picked.
-  const pickable = chat ? kinds : [...kinds, SHELL]
-  const kind = [chosen, ...(chat ? [last, kinds[0]] : [SHELL])].find(k => k && pickable.includes(k)) ?? null
+  const pickable = chat ? offered : [...offered, SHELL]
+  const kind = [chosen, ...(chat ? [last, offered[0]] : [SHELL])].find(k => k && pickable.includes(k)) ?? null
   const [task, setTask] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
@@ -151,7 +154,7 @@ function Form({ onOpenChange, focusedKey, newDir }: Omit<Props, 'open'>) {
     ? [
         {
           label: t('ns.installed', { machine: machine.name }),
-          options: kinds.map(k => ({ value: k, label: k })),
+          options: offered.map(k => ({ value: k, label: k })),
         },
       ]
     : []
@@ -248,7 +251,9 @@ function Form({ onOpenChange, focusedKey, newDir }: Omit<Props, 'open'>) {
             value={kind}
             onChange={setChosen}
             disabled={!machine}
-            placeholder={machine ? t('ns.noAgents', { machine: machine.name }) : '—'}
+            placeholder={
+              machine ? t(kinds.length ? 'ns.noChatAgents' : 'ns.noAgents', { machine: machine.name }) : '—'
+            }
             groups={[...installed, ...plain]}
           />
         </label>
