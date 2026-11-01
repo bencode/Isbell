@@ -1,9 +1,9 @@
-// A pane page on a phone: one bar (back up, the name and where, stop while it works, the project's
-// files, more), then the page. The facts rise in a sheet; they and ending the pane sit in the more
-// menu. The terminal is for the computer: a session's page links to it only where chat cannot do.
+// A pane page on a phone: one bar (back up, the name and where, stop while it works, on a session's
+// page its terminal, the project's files, more), then the page. The facts rise in a sheet; they and
+// ending the pane sit in the more menu. The terminal is there for whatever chat cannot do.
 // A session's page lays the same bar out itself, to scroll with the page (session.tsx).
 
-import { ChevronLeft, FolderOpen, MoreHorizontal } from 'lucide-react'
+import { ChevronLeft, FolderOpen, MoreHorizontal, SquareTerminal } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { StatusChip } from '../../components/chip'
@@ -12,13 +12,16 @@ import { Sheet } from '../../components/sheet'
 import { useI18n } from '../../core/i18n'
 import { StopButton } from '../../features/pane/pane-bar'
 import type { PaneParts } from '../../features/pane/pane-layout'
-import { projectFilesHref, projectHref, sessionHref } from '../../utils/hrefs'
+import { projectFilesHref, projectHref, sessionHref, terminalHref } from '../../utils/hrefs'
+import { useLockedPage } from '../../utils/viewport'
 
 // A finger-sized icon button, in the bar's ink.
 const ICON =
   'inline-flex size-11 flex-none cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent text-current no-underline opacity-75 active:opacity-100 focus-visible:outline-2 focus-visible:outline-accent'
 
 export function MobilePane({ found, mid, paneId, view, onEnd, facts, children }: PaneParts) {
+  // Only the terminal is laid out here, and it scrolls itself.
+  useLockedPage()
   const t = useI18n()
   const [sheet, setSheet] = useState(false)
   // The terminal's bar takes its night page (NIGHT in use-terminal.ts).
@@ -44,7 +47,8 @@ export function MobilePane({ found, mid, paneId, view, onEnd, facts, children }:
 }
 
 /** The bar's row, in the ink of the header it sits in: back up, the name and where, stop while it
- * works, the project's files, and more, which opens the facts with `onFacts` or ends the pane. */
+ * works, on a session's page its terminal, the project's files, and more, which opens the facts with
+ * `onFacts` or ends the pane. The terminal's own bar leads back to the session by going up. */
 export function MobilePaneBar({
   found,
   mid,
@@ -73,6 +77,16 @@ export function MobilePaneBar({
         </span>
       </div>
       {session?.status === 'working' ? <StopButton session={session} className={ICON} /> : null}
+      {session && view === 'chat' ? (
+        <Link
+          to={terminalHref(mid, paneId)}
+          aria-label={t('pane.terminal')}
+          title={t('pane.terminal')}
+          className={ICON}
+        >
+          <SquareTerminal size={20} />
+        </Link>
+      ) : null}
       <Link
         to={projectFilesHref(project.key)}
         aria-label={t('project.files')}

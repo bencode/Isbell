@@ -8,6 +8,7 @@ import { useSpace } from '../../core/space'
 import type { Via } from '../../model/space'
 import { type BarKey, barKeyBytes, withCtrl } from '../../model/term-keys'
 import { openTerminal, type Terminal } from '../../model/terminal'
+import { TOUCH } from '../../utils/shortcuts'
 
 export type TerminalState = {
   phase: 'opening' | 'open' | 'ended'
@@ -61,6 +62,8 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
   const previous = useRef<Promise<void>>(Promise.resolve())
   // A key from the bar, typed into the open xterm.
   const keyIn = useRef<((key: BarKey) => void) | null>(null)
+  // The open xterm, for the bar's keyboard switch.
+  const xterm = useRef<XTerm | null>(null)
   // Ctrl from the bar holds until the next key; `onData` reads the ref, the bar the state.
   const ctrlOn = useRef(false)
   const [ctrl, setCtrlState] = useState(false)
@@ -96,7 +99,9 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
     term.loadAddon(fit)
     term.open(host)
     fit.fit()
-    term.focus()
+    // On a touch screen the keyboard waits to be asked for: a menu is answered from the bar.
+    if (!TOUCH) term.focus()
+    xterm.current = term
     setState({ phase: 'opening' })
 
     let live: Terminal | null = null
@@ -144,7 +149,7 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
     let shown = true
     const observer = new ResizeObserver(([entry]) => {
       const now = (entry?.contentRect.width ?? 0) > 0
-      if (now && !shown) term.focus()
+      if (now && !shown && !TOUCH) term.focus()
       shown = now
       clearTimeout(settle)
       settle = setTimeout(() => {
@@ -157,6 +162,7 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
     return () => {
       gone = true
       keyIn.current = null
+      xterm.current = null
       clearTimeout(settle)
       observer.disconnect()
       typed.dispose()
@@ -172,5 +178,12 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
     press: (key: BarKey) => keyIn.current?.(key),
     ctrl,
     toggleCtrl: () => setCtrl(!ctrlOn.current),
+    /** Brings up the system keyboard, or puts it away; within a tap, so iOS allows it. */
+    toggleKeyboard: () => {
+      const term = xterm.current
+      if (!term) return
+      if (term.textarea && document.activeElement === term.textarea) term.blur()
+      else term.focus()
+    },
   }
 }

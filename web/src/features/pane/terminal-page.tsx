@@ -1,8 +1,9 @@
 // A pane in the browser: an agent's or a shell's, under full control. Leaving the page detaches;
-// End closes the pane.
+// End closes the pane. On a touch screen the keys it lacks are under the terminal, and the keyboard
+// coming up slides the terminal up rather than taking rows from the pane.
 
 import '@xterm/xterm/css/xterm.css'
-import { useEffect, useRef, useState } from 'react'
+import { type RefObject, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { Button } from '../../components/button'
 import { InfoFacts } from '../../components/info-panel'
@@ -14,6 +15,7 @@ import { projectsSettled, type Via } from '../../model/space'
 import { projectHref } from '../../utils/hrefs'
 import { TOUCH } from '../../utils/shortcuts'
 import { useNow } from '../../utils/time'
+import { useKeyboard } from '../../utils/viewport'
 import { EndPane } from './end-pane-dialog'
 import { KeyBar } from './key-bar'
 import type { PaneLayout } from './pane-layout'
@@ -73,7 +75,9 @@ function Attached({
   const t = useI18n()
   const navigate = useNavigate()
   const box = useRef<HTMLDivElement>(null)
-  const { state, reconnect, press, ctrl, toggleCtrl } = useTerminal(box, mid, paneId)
+  const { state, reconnect, press, ctrl, toggleCtrl, toggleKeyboard } = useTerminal(box, mid, paneId)
+  const keyboard = useKeyboard().height > 0
+  const held = useHeldHeight(box, keyboard)
   const [ending, setEnding] = useState(false)
   const { project, name, pane } = found
   const agent = 'session' in pane
@@ -88,8 +92,18 @@ function Attached({
         onEnd={() => setEnding(true)}
         facts={<TerminalFacts mid={mid} via={state.via} project={project} pane={pane} />}
       >
-        <div className="relative min-h-0 flex-1 bg-term px-3 py-2">
-          <div ref={box} className="h-full w-full bg-term" />
+        {/* Its bottom against the keys, so a held terminal loses its top under the bar. */}
+        <div className="relative flex min-h-0 flex-1 flex-col justify-end overflow-hidden bg-term px-3 py-2">
+          <div
+            ref={box}
+            className={`w-full bg-term ${held ? 'flex-none' : 'h-full'}`}
+            style={held ? { height: held } : undefined}
+          />
+          {TOUCH && state.phase === 'opening' ? (
+            <p className="absolute inset-0 m-0 grid place-items-center font-mono text-xs text-faint">
+              {t('terminal.opening')}
+            </p>
+          ) : null}
           {state.phase === 'ended' ? (
             <div className="absolute inset-0 grid place-items-center bg-scrim">
               <div className="flex max-w-md flex-col items-start gap-3 rounded-lg border border-line bg-raised p-5 index-card-lifted">
@@ -104,18 +118,28 @@ function Attached({
             </div>
           ) : null}
         </div>
-        <footer className="flex flex-none gap-4 border-t border-line px-4 py-1.5 font-mono text-xs text-faint">
-          <span>
-            {state.phase === 'opening' ? t('terminal.opening') : state.via ? t(`via.${state.via}`) : ''}
-          </span>
-          <span>{t('terminal.control')}</span>
-          {state.size ? (
+        {/* On a touch screen, how it is linked is in the facts, the room given to the keys. */}
+        {TOUCH ? (
+          <KeyBar
+            ctrl={ctrl}
+            onCtrl={toggleCtrl}
+            keyboard={keyboard}
+            onKeyboard={toggleKeyboard}
+            onKey={press}
+          />
+        ) : (
+          <footer className="flex flex-none gap-4 border-t border-line px-4 py-1.5 font-mono text-xs text-faint">
             <span>
-              {state.size.cols}×{state.size.rows}
+              {state.phase === 'opening' ? t('terminal.opening') : state.via ? t(`via.${state.via}`) : ''}
             </span>
-          ) : null}
-        </footer>
-        {TOUCH ? <KeyBar ctrl={ctrl} onCtrl={toggleCtrl} onKey={press} /> : null}
+            <span>{t('terminal.control')}</span>
+            {state.size ? (
+              <span>
+                {state.size.cols}×{state.size.rows}
+              </span>
+            ) : null}
+          </footer>
+        )}
       </Layout>
       <EndPane
         open={ending}
@@ -130,6 +154,25 @@ function Attached({
       />
     </>
   )
+}
+
+/** The terminal's height while the keyboard is down, held while it is up: the pane keeps its rows,
+ * and the terminal slides up under the bar instead of redrawing each time the keyboard comes and
+ * goes. */
+function useHeldHeight(box: RefObject<HTMLDivElement | null>, keyboard: boolean) {
+  const [held, setHeld] = useState<number>()
+  useEffect(() => {
+    const el = box.current
+    if (!el) return
+    const observer = new ResizeObserver(([entry]) => {
+      // The keyboard read as the box is measured: React learns of it a frame later.
+      const vv = window.visualViewport
+      if (entry && !(vv && window.innerHeight - vv.height > 1)) setHeld(entry.contentRect.height)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [box])
+  return keyboard ? held : undefined
 }
 
 /** The facts beside a terminal, with its direct link read again while they show. */

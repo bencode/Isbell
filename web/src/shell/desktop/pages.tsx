@@ -62,7 +62,8 @@ function useKept(page: Location | null): { shown: Slot | null; kept: Kept } {
 
 /** The pane's terminal beside the board last shown, or every agent's. */
 const besideTerminal = (board: Location | undefined, { mid = '', pane = '' }: Params) =>
-  peekTerminalHref(board && matchPath('/p/:key/*', board.pathname)?.params.key, mid, pane)
+  // matchPath leaves the pane as the address has it, `w1%3Ap1`; the href encodes it again.
+  peekTerminalHref(board && matchPath('/p/:key/*', board.pathname)?.params.key, mid, decodeURIComponent(pane))
 
 export function PageRoutes({ location }: { location: Location }) {
   const terminal = matchPath(TERMINAL, location.pathname)?.params

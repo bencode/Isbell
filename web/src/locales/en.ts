@@ -294,6 +294,7 @@ export const en = {
   'terminal.gone': 'This terminal is no longer open.',
   'terminal.control': 'Control',
   'terminal.keys': 'Terminal keys',
+  'terminal.keyboard': 'Keyboard',
   'via.relay': 'Relay',
   'via.lan': 'Direct · LAN',
   'via.vpn': 'Direct · VPN',
