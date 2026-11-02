@@ -63,6 +63,16 @@ export async function readScreen(
   return lines.length < RECENT_LINES ? text : lines.slice(1).join('\n')
 }
 
+const HISTORY_LINES = 1000
+
+/** Any pane's last lines with scrollback, a shell's or an agent's, with their colors as SGR
+ * sequences. A full-screen agent that is not idle or done may give only its screen. */
+export async function readPane(call: Caller, mid: string, paneId: string): Promise<string> {
+  const params = { pane_id: paneId, source: 'recent_unwrapped', lines: HISTORY_LINES, format: 'ansi' }
+  const r = (await herdr(call, mid, 'pane.read', params)) as { read?: { text?: string } }
+  return (r.read?.text ?? '').replace(/\r\n/g, '\n').replace(/\n+$/, '')
+}
+
 /** What herdr knows of the agent besides its screen. */
 export const agentNote = async (call: Caller, mid: string, paneId: string): Promise<AgentNote> =>
   noteOf(((await herdr(call, mid, 'agent.get', { target: paneId })) as { agent?: AgentInfo }).agent ?? {})
