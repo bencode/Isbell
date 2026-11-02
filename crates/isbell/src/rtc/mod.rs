@@ -138,7 +138,7 @@ impl Peer {
         let pc = PeerConnectionBuilder::new()
             .with_configuration(RTCConfigurationBuilder::new().with_ice_servers(servers).build())
             .with_handler(Arc::new(handler))
-            .with_udp_addrs(vec!["0.0.0.0:0".to_owned()])
+            .with_udp_addrs(vec!["0.0.0.0:0".to_owned(), "[::]:0".to_owned()])
             .with_data_channel_send_buffer_limit(SEND_BUFFER)
             .build()
             .await
