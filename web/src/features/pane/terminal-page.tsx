@@ -1,9 +1,11 @@
 // A pane in the browser: an agent's or a shell's, under full control. Leaving the page detaches;
-// End closes the pane. On a touch screen the keys it lacks are under the terminal, and the keyboard
-// coming up slides the terminal up rather than taking rows from the pane.
+// End closes the pane. On a touch screen the keys it lacks are under the terminal, the keyboard
+// coming up takes rows from the pane, as in any terminal, so the cursor stays in sight, and pulling
+// the terminal down, as one would to scroll back, reads the pane's history, which the terminal does
+// not keep, into a layer over it.
 
 import '@xterm/xterm/css/xterm.css'
-import { type RefObject, useEffect, useRef, useState } from 'react'
+import { type TouchEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { Button } from '../../components/button'
 import { InfoFacts } from '../../components/info-panel'
@@ -19,8 +21,13 @@ import { useKeyboard } from '../../utils/viewport'
 import { EndPane } from './end-pane-dialog'
 import { KeyBar } from './key-bar'
 import type { PaneLayout } from './pane-layout'
+import { TerminalHistory } from './terminal-history'
 import { useLink } from './use-link'
 import { useTerminal } from './use-terminal'
+
+// Agents that draw their whole screen themselves, scrolling within it: herdr keeps nothing above the
+// screen for them, so there is no history to read.
+const OWN_SCREEN: readonly string[] = ['claude', 'codex']
 
 /** `after`: where to go once the pane is ended or found gone; its project's board unless given. */
 export function TerminalPage({ layout, after }: { layout: PaneLayout; after?: string }) {
@@ -77,10 +84,21 @@ function Attached({
   const box = useRef<HTMLDivElement>(null)
   const { state, reconnect, press, ctrl, toggleCtrl, toggleKeyboard } = useTerminal(box, mid, paneId)
   const keyboard = useKeyboard().height > 0
-  const held = useHeldHeight(box, keyboard)
   const [ending, setEnding] = useState(false)
+  const [history, setHistory] = useState(false)
+  const pull = usePullDown(() => setHistory(true))
+  // Stable, so the history, which is memoized, does not render again with the page.
+  const closeHistory = useCallback(() => setHistory(false), [])
   const { project, name, pane } = found
   const agent = 'session' in pane
+  const scrollback = !agent || !OWN_SCREEN.includes(pane.session.kind ?? '')
+  // A key meant for the terminal puts the history away first.
+  const toTerminal =
+    <A extends unknown[]>(f: (...a: A) => void) =>
+    (...a: A) => {
+      setHistory(false)
+      f(...a)
+    }
 
   return (
     <>
@@ -92,13 +110,12 @@ function Attached({
         onEnd={() => setEnding(true)}
         facts={<TerminalFacts mid={mid} via={state.via} project={project} pane={pane} />}
       >
-        {/* Its bottom against the keys, so a held terminal loses its top under the bar. */}
-        <div className="relative flex min-h-0 flex-1 flex-col justify-end overflow-hidden bg-term px-3 py-2">
-          <div
-            ref={box}
-            className={`w-full bg-term ${held ? 'flex-none' : 'h-full'}`}
-            style={held ? { height: held } : undefined}
-          />
+        <div
+          className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-term px-3 py-2"
+          {...(TOUCH && scrollback && !history ? pull : {})}
+        >
+          <div ref={box} className="h-full w-full bg-term" />
+          {TOUCH && history ? <TerminalHistory mid={mid} paneId={paneId} onClose={closeHistory} /> : null}
           {TOUCH && state.phase === 'opening' ? (
             <p className="absolute inset-0 m-0 grid place-items-center font-mono text-xs text-faint">
               {t('terminal.opening')}
@@ -122,10 +139,10 @@ function Attached({
         {TOUCH ? (
           <KeyBar
             ctrl={ctrl}
-            onCtrl={toggleCtrl}
+            onCtrl={toTerminal(toggleCtrl)}
             keyboard={keyboard}
-            onKeyboard={toggleKeyboard}
-            onKey={press}
+            onKeyboard={toTerminal(toggleKeyboard)}
+            onKey={toTerminal(press)}
           />
         ) : (
           <footer className="flex flex-none gap-4 border-t border-line px-4 py-1.5 font-mono text-xs text-faint">
@@ -156,23 +173,30 @@ function Attached({
   )
 }
 
-/** The terminal's height while the keyboard is down, held while it is up: the pane keeps its rows,
- * and the terminal slides up under the bar instead of redrawing each time the keyboard comes and
- * goes. */
-function useHeldHeight(box: RefObject<HTMLDivElement | null>, keyboard: boolean) {
-  const [held, setHeld] = useState<number>()
-  useEffect(() => {
-    const el = box.current
-    if (!el) return
-    const observer = new ResizeObserver(([entry]) => {
-      // The keyboard read as the box is measured: React learns of it a frame later.
-      const vv = window.visualViewport
-      if (entry && !(vv && window.innerHeight - vv.height > 1)) setHeld(entry.contentRect.height)
-    })
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [box])
-  return keyboard ? held : undefined
+// How far a finger goes down the terminal, mostly straight, before it is taken for scrolling back.
+const PULL_PX = 40
+
+/** Touch handlers that call `onPull` once a finger is pulled down far enough, once a gesture: the
+ * terminal does not scroll under a finger, and scrolling back is what that asks for. */
+function usePullDown(onPull: () => void) {
+  const from = useRef<{ x: number; y: number } | null>(null)
+  return {
+    onTouchStart: (e: TouchEvent) => {
+      const p = e.touches[0]
+      from.current = p ? { x: p.clientX, y: p.clientY } : null
+    },
+    onTouchMove: (e: TouchEvent) => {
+      const start = from.current
+      const p = e.touches[0]
+      if (!start || !p) return
+      const dx = p.clientX - start.x
+      const dy = p.clientY - start.y
+      if (dy > PULL_PX && dy > 2 * Math.abs(dx)) {
+        from.current = null
+        onPull()
+      }
+    },
+  }
 }
 
 /** The facts beside a terminal, with its direct link read again while they show. */
