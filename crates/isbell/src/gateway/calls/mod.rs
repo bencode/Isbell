@@ -23,6 +23,7 @@ use super::herdr::HerdrError;
 use super::link::Link;
 use super::push::Push;
 use super::stream::Input;
+use super::system::Sampler;
 use super::terminal;
 use super::{HerdrSlot, direct, file, git, nudge, rpc};
 
@@ -54,6 +55,7 @@ pub struct Calls {
     /// Where files sent for agents go.
     uploads: PathBuf,
     push: Arc<Push>,
+    system: Arc<Sampler>,
     /// The calls' own inbox, for the frames of direct links.
     inbox: mpsc::UnboundedSender<ToCalls>,
 }
@@ -75,6 +77,7 @@ impl Calls {
             ice,
             uploads,
             push,
+            system: Arc::new(Sampler::new()),
             inbox,
         }
     }
@@ -153,6 +156,11 @@ impl Calls {
                 let push = Arc::clone(&self.push);
                 // Off the calls' task: keeping a subscription writes a file.
                 self.tasks.spawn_blocking(move || link.send(response_frame(id, push.subscribe(p))));
+            }
+            Method::System => {
+                let system = Arc::clone(&self.system);
+                // Off the calls' task: a read may wait for a second CPU sample.
+                self.tasks.spawn_blocking(move || link.send(response_frame(id, system.read())));
             }
             Method::RtcOffer => {
                 let (ice, inbox) = (self.ice.clone(), self.inbox.clone());
