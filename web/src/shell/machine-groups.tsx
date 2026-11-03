@@ -3,15 +3,18 @@
 // After the projects with something running come those with only recorded sessions, the latest few,
 // the rest a click away. On a phone, each machine's projects are a grouped list under its name. A
 // machine running an older isbell than this app says so under its name, with the command that
-// upgrades it.
+// upgrades it. On the computer, an icon beside the name, shown on hover, opens the machine's facts
+// and load.
 
-import { ArrowUpCircle, ChevronDown, ChevronRight } from 'lucide-react'
+import { Popover } from '@base-ui/react/popover'
+import { ArrowUpCircle, ChevronDown, ChevronRight, Info } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { Command } from '../components/command'
 import { Modal } from '../components/dialog'
 import { uiLabels, useI18n } from '../core/i18n'
 import { toggleFolded, toggleOlder, useLocal } from '../core/prefs'
+import { MachineFacts } from '../features/machine/machine-facts'
 import { hasPanes, type Project } from '../model/projects'
 import type { MachineEntry } from '../model/space'
 import type { MachineInfo } from '../model/state'
@@ -76,22 +79,27 @@ function MachineGroup({ entry, projects, here, touch, onGo }: GroupProps) {
   const upgrade = online && behind(state.machine.version)
   return (
     <section className="mt-3 flex flex-col first:mt-1">
-      <button
-        type="button"
-        onClick={() => toggleFolded(id)}
-        aria-expanded={!folded}
-        className={`group flex cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent px-2 text-left focus-visible:outline-2 focus-visible:outline-accent ${touch ? 'h-11 active:bg-raised' : 'h-7 hover:bg-raised'}`}
-      >
-        <MachineDot online={online} ready={herdr === 'ready'} />
-        <span className="min-w-0 truncate text-[12.5px] font-semibold text-muted">{state.machine.name}</span>
-        {note ? <span className="min-w-0 truncate text-[11px] text-faint">· {note}</span> : null}
-        <span className="flex-1" />
-        {folded && n ? <AskBadge n={n} label={t('side.asking', { n })} /> : null}
-        <Chevron
-          size={13}
-          className={`flex-none text-faint ${touch ? '' : 'opacity-0 group-hover:opacity-100'}`}
-        />
-      </button>
+      <div className={`group flex items-center rounded-md ${touch ? '' : 'hover:bg-raised'}`}>
+        <button
+          type="button"
+          onClick={() => toggleFolded(id)}
+          aria-expanded={!folded}
+          className={`flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md border-0 bg-transparent px-2 text-left focus-visible:outline-2 focus-visible:outline-accent ${touch ? 'h-11 active:bg-raised' : 'h-7'}`}
+        >
+          <MachineDot online={online} ready={herdr === 'ready'} />
+          <span className="min-w-0 truncate text-[12.5px] font-semibold text-muted">
+            {state.machine.name}
+          </span>
+          {note ? <span className="min-w-0 truncate text-[11px] text-faint">· {note}</span> : null}
+          <span className="flex-1" />
+          {folded && n ? <AskBadge n={n} label={t('side.asking', { n })} /> : null}
+          <Chevron
+            size={13}
+            className={`flex-none text-faint ${touch ? '' : 'opacity-0 group-hover:opacity-100'}`}
+          />
+        </button>
+        {touch ? null : <MachineDetails entry={entry} />}
+      </div>
       {upgrade ? <UpgradeRow machine={state.machine} /> : null}
       {folded || !projects.length ? null : (
         <div className={touch ? GROUP : 'contents'}>
@@ -151,6 +159,29 @@ function ProjectRow({
       ) : null}
       {n ? <AskBadge n={n} label={t('side.asking', { n })} /> : null}
     </Link>
+  )
+}
+
+/** Beside a machine's heading, on hover: its facts and load in a popover. */
+function MachineDetails({ entry }: { entry: MachineEntry }) {
+  const t = useI18n()
+  return (
+    <Popover.Root>
+      <Popover.Trigger
+        aria-label={t('machine.info')}
+        title={t('machine.info')}
+        className="mr-1 inline-flex size-6 flex-none cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-faint opacity-0 group-hover:opacity-100 hover:text-text focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-accent data-popup-open:text-text data-popup-open:opacity-100"
+      >
+        <Info size={13} />
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Positioner side="right" align="start" sideOffset={8} className="z-50 outline-none">
+          <Popover.Popup className="flex max-h-[70vh] w-[340px] flex-col gap-5 overflow-auto rounded-lg border border-line bg-raised-2 p-4 text-[13px] index-card-lifted outline-none">
+            <MachineFacts entry={entry} />
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
   )
 }
 

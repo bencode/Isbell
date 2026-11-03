@@ -11,6 +11,7 @@ mod push;
 mod rpc;
 mod state;
 mod stream;
+mod system;
 mod terminal;
 mod uplink;
 mod workspace;

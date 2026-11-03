@@ -24,10 +24,11 @@ pub enum Method {
     PushKey,
     PushSubscribe,
     RtcOffer,
+    System,
 }
 
 impl Method {
-    const ALL: [Method; 13] = [
+    const ALL: [Method; 14] = [
         Method::Herdr,
         Method::StartAgent,
         Method::History,
@@ -41,6 +42,7 @@ impl Method {
         Method::PushKey,
         Method::PushSubscribe,
         Method::RtcOffer,
+        Method::System,
     ];
 
     pub fn name(self) -> &'static str {
@@ -58,6 +60,7 @@ impl Method {
             Method::PushKey => "isbell.push.key",
             Method::PushSubscribe => "isbell.push.subscribe",
             Method::RtcOffer => "isbell.rtc.offer",
+            Method::System => "isbell.system",
         }
     }
 
@@ -235,6 +238,7 @@ mod tests {
         assert!(methods.iter().any(|m| m == "isbell.agent.history"), "clients look for paging");
         assert!(methods.iter().any(|m| m == "isbell.file.list"), "clients look for the files view");
         assert!(methods.iter().any(|m| m == "isbell.git.worktrees"), "clients look for worktrees");
+        assert!(methods.iter().any(|m| m == "isbell.system"), "clients look for machine facts");
         assert!(!methods.iter().any(|m| m == "herdr"));
     }
 }
