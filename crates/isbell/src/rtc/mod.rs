@@ -29,11 +29,10 @@ pub use self::path::{Path, tally};
 /// An offer or answer; serializes as `{"type", "sdp"}`, like a browser's.
 pub type Description = webrtc::peer_connection::RTCSessionDescription;
 
-/// Descriptions go out once gathering completes, `SETTLE` after the first public address, or after
-/// this: an interface no STUN server answers keeps gathering going for seconds.
+/// Descriptions go out once gathering completes, `SETTLE` after both public address families, or
+/// after this: an interface no STUN server answers keeps gathering going for seconds.
 const GATHER_WITHIN: Duration = Duration::from_millis(2_500);
-/// STUN servers answer within a few hundred milliseconds of each other, so waiting this long after
-/// the first public address brings the other family's too.
+/// Once both families are present, allow a short window for other STUN responses.
 const SETTLE: Duration = Duration::from_millis(500);
 /// The library blocks `send` while this much is queued.
 const SEND_BUFFER: usize = 1 << 20;
@@ -60,10 +59,9 @@ fn webrtc_error(err: impl std::fmt::Display) -> RtcError {
 
 /// What the library reports, as channels the peer reads. Sends fail only once the peer is gone,
 /// when nothing waits for them any more.
-/// How gathering went on: a public (server-reflexive) address came in, or it ended.
-#[derive(PartialEq)]
+/// A public (server-reflexive) address came in, or gathering ended.
 enum Gathered {
-    Public,
+    Public { ipv6: bool },
     Complete,
 }
 
@@ -80,7 +78,8 @@ struct Handler {
 impl PeerConnectionEventHandler for Handler {
     async fn on_ice_candidate(&self, event: RTCPeerConnectionIceEvent) {
         if event.candidate.typ == RTCIceCandidateType::Srflx {
-            let _ = self.gathered.send(Gathered::Public);
+            let ipv6 = event.candidate.address.contains(':');
+            let _ = self.gathered.send(Gathered::Public { ipv6 });
         }
     }
     async fn on_ice_gathering_state_change(&self, state: RTCIceGatheringState) {
@@ -186,12 +185,23 @@ impl Peer {
     async fn gathered(&mut self) -> Result<Description, RtcError> {
         let gathered = &mut self.gathered;
         let settled = async {
-            if gathered.recv().await != Some(Gathered::Public) {
-                return;
+            let (mut ipv4, mut ipv6) = (false, false);
+            while let Some(event) = gathered.recv().await {
+                let Gathered::Public { ipv6: is_ipv6 } = event else { return };
+                if is_ipv6 {
+                    ipv6 = true;
+                } else {
+                    ipv4 = true;
+                }
+                if ipv4 && ipv6 {
+                    // Until gathering ends, if it does within SETTLE.
+                    let ended = async {
+                        while let Some(Gathered::Public { .. }) = gathered.recv().await {}
+                    };
+                    let _ = tokio::time::timeout(SETTLE, ended).await;
+                    return;
+                }
             }
-            // Until gathering ends, if it does within SETTLE.
-            let ended = async { while gathered.recv().await == Some(Gathered::Public) {} };
-            let _ = tokio::time::timeout(SETTLE, ended).await;
         };
         if tokio::time::timeout(GATHER_WITHIN, settled).await.is_err() {
             tracing::debug!("sending the candidates gathered so far");
@@ -219,6 +229,9 @@ pub async fn opened(channel: &Arc<dyn DataChannel>) -> Result<(), RtcError> {
 fn over(state: &RTCPeerConnectionState) -> bool {
     matches!(state, RTCPeerConnectionState::Failed | RTCPeerConnectionState::Closed)
 }
+
+#[cfg(test)]
+mod gather_test;
 
 #[cfg(test)]
 mod tests {
