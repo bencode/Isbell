@@ -1,12 +1,12 @@
-// The project's folders, each listed only while it is open; or, while a search is typed, the files
-// found. A project with other worktrees shows each at the top, its own directory first. Which
-// folders and worktrees are open is kept per project.
+// The folders of the directory browsed, each listed only while it is open; or, while a search is
+// typed, the files found there. A project with other worktrees switches between them above the
+// tree. Which folders are open is kept for each directory.
 
-import { GitBranch, RotateCw } from 'lucide-react'
+import { RotateCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '../../components/button'
 import { errorText, useI18n } from '../../core/i18n'
-import { openBranch, openBranches, openDirs, toggleBranch, toggleDir, useLocal } from '../../core/prefs'
+import { openDirs, toggleDir, useLocal } from '../../core/prefs'
 import { useSpace } from '../../core/space'
 import { refreshWorktrees } from '../../core/worktrees'
 import { ancestors, join } from '../../model/files/paths'
@@ -18,6 +18,7 @@ import { since, useNow } from '../../utils/time'
 import { FileRow, FolderRow, indent } from './rows'
 import { SearchBox, SearchResults } from './search'
 import { useListing } from './use-remote'
+import { WorktreeSwitcher } from './worktree-switcher'
 
 type Props = {
   mid: string
@@ -32,7 +33,6 @@ type Props = {
   current: string
 }
 
-/** One root's part of the tree; `current` only in the root the address names. */
 type Where = { mid: string; root: FilesRoot; current: string }
 
 export function Tree({ mid, project, roots, root, dir, current }: Props) {
@@ -44,32 +44,23 @@ export function Tree({ mid, project, roots, root, dir, current }: Props) {
   const [query, setQuery] = useState('')
   const scroll = useKeptScroll<HTMLDivElement>()
 
-  // The directory asked for, the folders of a file being read and the worktree they are in are
-  // always open.
+  // The directory asked for and the folders of a file being read are always open.
   useEffect(() => {
     if (dir) openDirs(key, [...ancestors(dir), dir])
   }, [key, dir])
   useEffect(() => {
     if (current) openDirs(key, ancestors(current))
   }, [key, current])
-  useEffect(() => openBranch(project.key, key), [project.key, key])
 
-  const levelOf = (at: FilesRoot, depth: number) => (
-    <Level
-      where={{ mid, root: at, current: at.key === key ? current : '' }}
-      rel=""
-      depth={depth}
-      open={layout.files[at.key] ?? []}
-    />
-  )
-  const branches = openBranches(layout, project.key)
   const several = roots.length > 1
   return (
     <aside className="flex min-w-0 flex-1 flex-col bg-side">
       <div className="flex flex-col gap-2 border-b border-line px-3 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
           <b className="truncate">{project.name}</b>
-          <span className="min-w-0 truncate font-mono text-[11.5px] text-faint">{project.display}</span>
+          {several ? null : (
+            <span className="min-w-0 truncate font-mono text-[11.5px] text-faint">{project.display}</span>
+          )}
           <span className="flex-1" />
           <Button
             size="icon"
@@ -84,44 +75,16 @@ export function Tree({ mid, project, roots, root, dir, current }: Props) {
             <RotateCw size={14} />
           </Button>
         </div>
-        <SearchBox
-          onQuery={setQuery}
-          placeholder={
-            several ? t('files.searchIn', { branch: root.branch ?? t('files.detached') }) : undefined
-          }
-        />
+        {several ? <WorktreeSwitcher project={project} roots={roots} root={root} /> : null}
+        <SearchBox onQuery={setQuery} placeholder={several ? t('files.searchHere') : undefined} />
       </div>
       <div {...scroll} className="min-h-0 flex-1 overflow-auto px-1.5 py-1.5">
         {/* A new round lists every open folder again. */}
         <div key={round}>
           {query ? (
             <SearchResults where={{ mid, root, current }} query={query} />
-          ) : several ? (
-            roots.map(at => {
-              const open = branches.includes(at.key)
-              return (
-                <div key={at.key}>
-                  <FolderRow
-                    depth={0}
-                    open={open}
-                    onToggle={() => toggleBranch(project.key, at.key)}
-                    icon={<GitBranch size={14} className="flex-none text-muted" />}
-                    label={at.branch ?? t('files.detached')}
-                    extra={
-                      at.own ? (
-                        <span className="flex-none rounded-[3px] border border-line px-1.5 text-[10.5px] text-faint">
-                          {t('files.here')}
-                        </span>
-                      ) : null
-                    }
-                    title={at.display}
-                  />
-                  {open ? levelOf(at, 1) : null}
-                </div>
-              )
-            })
           ) : (
-            levelOf(root, 0)
+            <Level where={{ mid, root, current }} rel="" depth={0} open={layout.files[key] ?? []} />
           )}
         </div>
       </div>

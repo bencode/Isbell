@@ -1,7 +1,8 @@
 //! Searching files by path, breadth-first under a root: shallow files come first, and a huge tree
-//! (`node_modules`, `target`) ends a search by time, not by its size.
+//! (`node_modules`, `target`) ends a search by time, not by its size. A search stays in its own
+//! worktree: the others of a repository may be kept inside it, each a copy of the same files.
 
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 use std::path::Path;
 use std::time::{Duration, Instant};
 
@@ -10,6 +11,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use super::{absolute_path, blocking, read_dir};
+use crate::gateway::git::nested;
 
 const MAX_RESULTS: usize = 200;
 const SEARCH_FOR: Duration = Duration::from_secs(2);
@@ -29,8 +31,9 @@ pub async fn search(p: Value) -> Result<Value, RpcError> {
     let req: SearchRequest = serde_json::from_value(p).map_err(RpcError::bad_request)?;
     let root = absolute_path(&req.root)?;
     let needle = needle(&req.query)?;
+    let skip = nested(&root).await;
     let deadline = Instant::now() + SEARCH_FOR;
-    let (paths, truncated) = blocking(move || walk(&root, &needle, deadline)).await?;
+    let (paths, truncated) = blocking(move || walk(&root, &needle, &skip, deadline)).await?;
     Ok(json!({"paths": paths, "truncated": truncated}))
 }
 
@@ -44,11 +47,17 @@ fn needle(query: &str) -> Result<String, RpcError> {
 }
 
 /// The '/'-separated paths under `root` of the files matching the lower-cased `needle`, and whether
-/// the walk stopped at MAX_RESULTS or `deadline`. Symlinks are neither followed nor matched, so the
-/// walk cannot loop or leave `root`. Directories wait as paths and are opened in turn, so a wide
-/// tree holds one open at a time. A directory that blocks on reading (a hung network mount) holds
-/// the walk until it answers; the caller's own timeout bounds the wait.
-fn walk(root: &Path, needle: &str, deadline: Instant) -> Result<(Vec<String>, bool), RpcError> {
+/// the walk stopped at MAX_RESULTS or `deadline`. The directories at the paths in `skip` are not
+/// entered. Symlinks are neither followed nor matched, so the walk cannot loop or leave `root`.
+/// Directories wait as paths and are opened in turn, so a wide tree holds one open at a time. A
+/// directory that blocks on reading (a hung network mount) holds the walk until it answers; the
+/// caller's own timeout bounds the wait.
+fn walk(
+    root: &Path,
+    needle: &str,
+    skip: &HashSet<String>,
+    deadline: Instant,
+) -> Result<(Vec<String>, bool), RpcError> {
     let mut dirs = VecDeque::from([String::new()]);
     let mut found = Vec::new();
     while let Some(dir) = dirs.pop_front() {
@@ -77,7 +86,7 @@ fn walk(root: &Path, needle: &str, deadline: Instant) -> Result<(Vec<String>, bo
                     continue;
                 }
             };
-            if kind.is_dir() && name != SKIPPED {
+            if kind.is_dir() && name != SKIPPED && !skip.contains(&path) {
                 dirs.push_back(path);
             } else if kind.is_file() && path.to_lowercase().contains(needle) {
                 if found.len() == MAX_RESULTS {
@@ -125,7 +134,7 @@ mod tests {
         ]);
         symlink(dir.path().join("priv"), dir.path().join("link")).unwrap();
 
-        let (found, truncated) = walk(dir.path(), "design", later()).unwrap();
+        let (found, truncated) = walk(dir.path(), "design", &HashSet::new(), later()).unwrap();
         assert!(!truncated);
         assert!(found.windows(2).all(|w| depth(&w[0]) <= depth(&w[1])), "{found:?}");
         let mut sorted = found.clone();
@@ -143,9 +152,19 @@ mod tests {
     fn stops_at_the_cap_or_the_deadline_and_says_so() {
         let names: Vec<String> = (0..=MAX_RESULTS).map(|i| format!("f{i}.md")).collect();
         let dir = tree(&names.iter().map(String::as_str).collect::<Vec<_>>());
-        let (found, truncated) = walk(dir.path(), ".md", later()).unwrap();
+        let none = HashSet::new();
+        let (found, truncated) = walk(dir.path(), ".md", &none, later()).unwrap();
         assert_eq!((found.len(), truncated), (MAX_RESULTS, true));
-        assert_eq!(walk(dir.path(), ".md", Instant::now()).unwrap(), (vec![], true));
+        assert_eq!(walk(dir.path(), ".md", &none, Instant::now()).unwrap(), (vec![], true));
+    }
+
+    #[test]
+    fn stays_out_of_the_directories_it_is_told_to_skip() {
+        let dir = tree(&["notes.md", "worktrees/a/notes.md", "worktrees/b/notes.md"]);
+        let skip = HashSet::from(["worktrees/a".to_owned()]);
+        let (mut found, _) = walk(dir.path(), "notes", &skip, later()).unwrap();
+        found.sort();
+        assert_eq!(found, ["notes.md", "worktrees/b/notes.md"]);
     }
 
     #[tokio::test]

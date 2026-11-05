@@ -18,17 +18,12 @@ export function FolderRow({
   open,
   onToggle,
   label,
-  extra,
   title,
-  icon = <Folder size={14} className="flex-none text-muted" />,
 }: {
   depth: number
   open: boolean
   onToggle: () => void
   label: ReactNode
-  /** In place of the folder's. */
-  icon?: ReactNode
-  extra?: ReactNode
   /** Shown on hover, for a name cut short. */
   title?: string
 }) {
@@ -42,9 +37,8 @@ export function FolderRow({
       onClick={onToggle}
     >
       <Chevron size={13} className="flex-none text-faint" />
-      {icon}
+      <Folder size={14} className="flex-none text-muted" />
       <span className="truncate">{label}</span>
-      {extra}
     </button>
   )
 }

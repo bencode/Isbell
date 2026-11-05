@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseRootKey, rootKey, rootsOf } from './worktrees'
+import { matchRoots, parseRootKey, rootKey, rootsOf } from './worktrees'
 
 const project = { key: 'app-1', path: '/Users/me/work/app', display: '~/work/app' }
 
@@ -23,6 +23,17 @@ describe('worktrees', () => {
       ['app-1@feat:x', 'feat/x', '~/work/app.wt/feat'],
       ['app-1@zed', 'zed', '~/work/app.wt/zed'],
     ])
+  })
+
+  it('finds a worktree by its branch or its directory, in its order', () => {
+    const roots = rootsOf(project, [
+      { path: '/Users/me/work/app', branch: 'main', here: true },
+      { path: '/Users/me/work/app-wt/preview', branch: 'zed', here: false },
+      { path: '/Users/me/work/app-wt/x', branch: 'feat/Preview', here: false },
+    ])
+    expect(matchRoots(roots, ' preview ').map(r => r.branch)).toEqual(['feat/Preview', 'zed'])
+    expect(matchRoots(roots, '').length).toBe(3)
+    expect(matchRoots(roots, 'nothing')).toEqual([])
   })
 
   it('is the project alone where no worktrees are known', () => {

@@ -52,6 +52,12 @@ export function rootsOf(
   return [own, ...others]
 }
 
+/** The roots whose branch or directory holds `query`, ignoring case, in their order. */
+export function matchRoots(roots: FilesRoot[], query: string): FilesRoot[] {
+  const needle = query.trim().toLowerCase()
+  return roots.filter(({ branch, display }) => `${branch ?? ''}\n${display}`.toLowerCase().includes(needle))
+}
+
 /** The root `abs` is under, the deepest where worktrees nest, and where it sits in it; `at` is the
  * side of a root compared (its path, or its path as shown). */
 export function rootHolding(roots: FilesRoot[], abs: string, at: (root: FilesRoot) => string = r => r.path) {
