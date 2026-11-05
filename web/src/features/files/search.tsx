@@ -113,7 +113,7 @@ function Nodes({ nodes, depth, at }: { nodes: PathNode[]; depth: number; at: Res
 }
 
 /** `text` with the parts the query matched marked. */
-function Hits({ text, query }: { text: string; query: string }) {
+export function Hits({ text, query }: { text: string; query: string }) {
   return matchParts(text, query).map(part =>
     part.hit ? (
       <mark key={part.at} className="rounded-[2px] bg-accent-soft text-text">

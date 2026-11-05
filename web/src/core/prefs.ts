@@ -29,9 +29,6 @@ export type Layout = {
   /** The folders open in each files tree (relative to its root), by root key: a project's own key
    * for its directory, or another worktree's. */
   files: Record<string, string[]>
-  /** The worktrees open in each project's files tree, by root key, by project key; without one,
-   * just the project's own directory. */
-  branches: Record<string, string[]>
   /** Where each project's files were last read, by project key: the root's key and the path under
    * it as the address has it (a directory's ending in '/'). */
   filesAt: Record<string, { root: string; rel: string }>
@@ -76,7 +73,6 @@ const DEFAULTS: Local = {
     folded: [],
     older: [],
     files: {},
-    branches: {},
     filesAt: {},
     wrap: false,
     stale: false,
@@ -189,27 +185,6 @@ export function openDirs(root: string, wanted: string[]) {
   // Opening a file whose folders are open already saves nothing.
   if (open && wanted.every(d => open.includes(d))) return
   withOpenDirs(root, dirs => [...dirs, ...wanted.filter(d => !dirs.includes(d))])
-}
-
-/** The worktrees open in a project's files tree, by root key. */
-export const openBranches = (layout: Layout, project: string) => layout.branches[project] ?? [project]
-
-const withOpenBranches = (project: string, change: (open: string[]) => string[]) =>
-  updateLocal(l => ({
-    layout: {
-      ...l.layout,
-      branches: { ...l.layout.branches, [project]: change(openBranches(l.layout, project)) },
-    },
-  }))
-
-/** Opens or closes a worktree in a project's files tree. */
-export const toggleBranch = (project: string, root: string) =>
-  withOpenBranches(project, open => (open.includes(root) ? open.filter(r => r !== root) : [...open, root]))
-
-/** Opens a worktree in a project's files tree. */
-export function openBranch(project: string, root: string) {
-  if (!openBranches(getLocal().layout, project).includes(root))
-    withOpenBranches(project, open => [...open, root])
 }
 
 /** Notes where a project's files are being read. */

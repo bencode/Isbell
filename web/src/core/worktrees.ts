@@ -27,12 +27,12 @@ const subscribe = (listener: () => void) => {
   }
 }
 
-/** Asks once; asking `again` keeps what was known showing until the answer comes. */
-function ask(call: Caller, mid: string, path: string, again = false) {
+/** Asks once; asking `again` keeps what was known showing until the answer comes. Done once it has. */
+async function ask(call: Caller, mid: string, path: string, again = false) {
   const id = dirKey(mid, path)
   if (known.has(id) !== again) return
   if (!again) settle(id, 'pending')
-  worktrees(call, mid, path).then(
+  await worktrees(call, mid, path).then(
     found => settle(id, found),
     (err: unknown) => {
       // Kept as none, so the project's own directory still shows; a refresh asks again.

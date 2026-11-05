@@ -1,6 +1,7 @@
 //! The worktrees of a repository, so a project's files can be browsed in each: read from git's
 //! machine-readable listing, never by reading `.git` itself, and nothing is ever changed.
 
+use std::collections::HashSet;
 use std::io::ErrorKind;
 use std::path::Path;
 use std::time::Duration;
@@ -51,6 +52,26 @@ pub async fn worktrees(p: Value) -> Result<Value, RpcError> {
         found.clear();
     }
     Ok(json!({"worktrees": found}))
+}
+
+/// The worktrees inside `root`, as '/'-separated paths relative to it, whichever branch they have
+/// checked out; none when git cannot list them.
+pub async fn nested(root: &Path) -> HashSet<String> {
+    let stdout = match list(root).await {
+        Ok(stdout) => stdout.unwrap_or_default(),
+        Err(err) => {
+            tracing::warn!(?err, ?root, "could not list the worktrees inside a directory");
+            return HashSet::new();
+        }
+    };
+    let Ok(base) = tokio::fs::canonicalize(root).await else { return HashSet::new() };
+    let mut found = HashSet::new();
+    for (path, _) in parse(&stdout) {
+        let Ok(real) = tokio::fs::canonicalize(&path).await else { continue };
+        let inside = real.strip_prefix(&base).ok().filter(|rel| !rel.as_os_str().is_empty());
+        found.extend(inside.map(|rel| rel.to_string_lossy().into_owned()));
+    }
+    found
 }
 
 /// `git worktree list --porcelain -z` run in `dir`; `None` outside a repository or without git.
@@ -164,5 +185,23 @@ mod tests {
         assert_eq!(listed(&main.join("sub")).await, json!([]));
         let outside = tempfile::tempdir().unwrap();
         assert_eq!(listed(outside.path()).await, json!([]));
+    }
+
+    #[tokio::test]
+    async fn nested_worktrees_are_those_inside_the_directory_asked_about() {
+        let dir = tempfile::tempdir().unwrap();
+        let (main, beside) = (dir.path().join("main"), dir.path().join("beside"));
+        std::fs::create_dir_all(&main).unwrap();
+        git(&main, &["init", "-q", "-b", "main"]);
+        git(&main, &["commit", "-q", "--allow-empty", "-m", "start"]);
+        git(&main, &["worktree", "add", "-q", "-b", "inside", ".claude/worktrees/inside"]);
+        git(&main, &["worktree", "add", "-q", "--detach", "loose"]);
+        git(&main, &["worktree", "add", "-q", "-b", "beside", beside.to_str().unwrap()]);
+
+        let inside = HashSet::from([".claude/worktrees/inside".to_owned(), "loose".to_owned()]);
+        assert_eq!(nested(&main).await, inside);
+        assert_eq!(nested(&beside).await, HashSet::new());
+        let outside = tempfile::tempdir().unwrap();
+        assert_eq!(nested(outside.path()).await, HashSet::new());
     }
 }
