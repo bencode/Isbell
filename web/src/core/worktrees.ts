@@ -27,7 +27,8 @@ const subscribe = (listener: () => void) => {
   }
 }
 
-/** Asks once; asking `again` keeps what was known showing until the answer comes. Done once it has. */
+/** Asks once; asking `again` keeps what was known showing until an answer comes, and if none does.
+ * Done once it is answered or has failed. */
 async function ask(call: Caller, mid: string, path: string, again = false) {
   const id = dirKey(mid, path)
   if (known.has(id) !== again) return
@@ -35,9 +36,9 @@ async function ask(call: Caller, mid: string, path: string, again = false) {
   await worktrees(call, mid, path).then(
     found => settle(id, found),
     (err: unknown) => {
-      // Kept as none, so the project's own directory still shows; a refresh asks again.
+      // None at first, so the project's own directory still shows; a refresh asks again.
       console.error(`could not list the worktrees of ${path}`, err)
-      settle(id, [])
+      if (!again) settle(id, [])
     },
   )
 }

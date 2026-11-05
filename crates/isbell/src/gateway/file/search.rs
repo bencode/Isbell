@@ -10,8 +10,8 @@ use isbell_proto::frame::RpcError;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use super::super::git::nested;
 use super::{absolute_path, blocking, read_dir};
+use crate::gateway::git::nested;
 
 const MAX_RESULTS: usize = 200;
 const SEARCH_FOR: Duration = Duration::from_secs(2);
