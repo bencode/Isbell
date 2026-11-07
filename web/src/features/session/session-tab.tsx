@@ -1,30 +1,26 @@
-// What a session's tab shows: an agent's chat or its terminal, a shell's terminal, under the bar
-// that names it. The terminal attaches once first shown and stays while the chat is; hiding the tab
-// lets go of it, and it attaches anew once its terminal is in sight again. A preview tab is kept
-// once a reply is being written in it. Once its pane is gone, the session it ran takes the tab's
-// place, when it is among those recorded.
+// What a session's tab shows: an agent's chat or its terminal (`view=terminal` in its part of the
+// address), a shell's terminal, under the bar that names it. The terminal attaches once first shown
+// and stays while the chat is; hiding the tab lets go of it, and it attaches anew once its terminal
+// is in sight again. A preview tab is kept once a reply is being written in it. Once its pane is
+// gone, the session it ran takes the tab's place, when it is among those recorded.
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { type Params, useLocation } from 'react-router'
+import { useCallback, useEffect, useState } from 'react'
+import type { Params } from 'react-router'
 import { useI18n } from '../../core/i18n'
 import { sessionInPane, usePaneSession, useRecordLookup } from '../../core/session-records'
 import { useProjects, useSpace, useSpaceView } from '../../core/space'
-import { useTabActions, useTabRoute } from '../../core/tabs'
+import { useTabActions, useTabQuery, useTabRoute } from '../../core/tabs'
 import { useFilesRoots } from '../../core/worktrees'
 import { rootHolding } from '../../model/files/worktrees'
 import { type Found, locate } from '../../model/projects'
 import { projectsSettled, type Via } from '../../model/space'
-import { closedTabId } from '../../model/tabs'
+import { closedTabId, showsTerminal, withTerminal } from '../../model/tabs'
 import { Chat } from './chat'
 import { ShowTerminal } from './context'
 import { EndPane } from './end-pane-dialog'
 import { PaneFacts } from './session-parts'
 import { Subbar, type View } from './subbar'
 import { Terminal } from './terminal'
-
-/** What an address asks of the tab `tab` it leads to: to show its terminal, or that it waits for a
- * pane just started, which the machine may not have listed yet. */
-export type SessionOpening = { tab: string; view?: View; started?: boolean }
 
 /** `params`: the machine and the pane, from the tab's id. */
 export function SessionTabPane({
@@ -38,23 +34,25 @@ export function SessionTabPane({
   const space = useSpace()
   const view = useSpaceView()
   const found = locate(useProjects(), mid, paneId)
-  const location = useLocation()
-  const state = location.state as SessionOpening | null
-  const asked = state?.tab === id ? state : undefined
-  // Only as the tab opens: once the pane is listed, `seen` keeps it.
-  const [started] = useState(asked?.started === true)
   const ready = projectsSettled(view)
   const listed = found !== undefined
-  // Shells are pulled every so often; one opened a moment ago may not be listed yet.
+  // Panes are pulled every so often, and one started a moment ago may not be listed yet: it is gone
+  // only once the machine, asked again, does not list it. Not answered, it is asked again once the
+  // tab shows again.
+  const [checked, setChecked] = useState(false)
   useEffect(() => {
-    if (ready && !listed) void space.refreshShells(mid)
+    // Listed again, it is checked anew once it goes.
+    if (listed) setChecked(false)
+    if (!ready || listed) return
+    let live = true
+    void space.refreshShells(mid).then(listedNow => {
+      if (live && listedNow) setChecked(true)
+    })
+    return () => {
+      live = false
+    }
   }, [ready, listed, space, mid])
-  // A pane just started counts as on its way until it has been seen.
-  const [seen, setSeen] = useState(false)
-  useEffect(() => {
-    if (listed) setSeen(true)
-  }, [listed])
-  const waiting = !ready || (started && !seen)
+  const waiting = !ready || (!listed && !checked)
   // The session it ran, when it is among those recorded, as only those can be resumed.
   const lookup = useRecordLookup()
   const last = !listed && !waiting ? sessionInPane(mid, paneId) : undefined
@@ -66,19 +64,7 @@ export function SessionTabPane({
 
   if (!found)
     return <p className="m-6 text-muted">{waiting || ran ? t('board.loading') : t('session.gone')}</p>
-  // A pane just started is listed as a shell until its agent is made out; it opens again as one then.
-  const kind = 'session' in found.pane ? 'agent' : 'shell'
-  return (
-    <Opened
-      key={kind}
-      id={id}
-      mid={mid}
-      paneId={paneId}
-      found={found}
-      askedView={asked?.view}
-      askedAt={location.key}
-    />
-  )
+  return <Opened id={id} mid={mid} paneId={paneId} found={found} />
 }
 
 function Opened({
@@ -86,40 +72,29 @@ function Opened({
   mid,
   paneId,
   found: { project, pane },
-  askedView,
-  askedAt,
 }: {
   id: string
   mid: string
   paneId: string
   found: Found
-  /** A view an address asked for, and the visit that asked it (`location.key`). */
-  askedView: View | undefined
-  askedAt: string
 }) {
-  const { close, keep } = useTabActions()
+  const { close, keep, setQuery } = useTabActions()
   const keepTab = useCallback(() => keep(id), [keep, id])
   const shownTab = useTabRoute().shown
   const agent = 'session' in pane ? pane.session : undefined
   const ran = usePaneSession(mid, paneId, agent?.kind, agent?.status)
   const cwd = 'session' in pane ? (pane.session.cwd ?? project.path) : pane.shell.cwd
-  const [shown, setShown] = useState<View>(agent ? (askedView ?? 'chat') : 'terminal')
+  // As the address has it; a pane just started is listed as a shell until its agent is made out.
+  const query = useTabQuery(id)
+  const shown: View = agent && !showsTerminal(query) ? 'chat' : 'terminal'
+  const show = useCallback(
+    (next: View) => setQuery(id, withTerminal(query, next === 'terminal')),
+    [setQuery, id, query],
+  )
+  const showTerminal = useCallback(() => show('terminal'), [show])
   // The terminal, once shown, stays attached behind the chat.
   const [attached, setAttached] = useState(shown === 'terminal')
-  const show = useCallback((next: View) => {
-    setShown(next)
-    if (next === 'terminal') setAttached(true)
-  }, [])
-  const showTerminal = useCallback(() => show('terminal'), [show])
-  // An address asking again for a tab already open, such as `/t/` from a notification; each visit
-  // asks once.
-  const isAgent = agent !== undefined
-  const answered = useRef(askedAt)
-  useEffect(() => {
-    if (!isAgent || !askedView || answered.current === askedAt) return
-    answered.current = askedAt
-    show(askedView)
-  }, [isAgent, askedView, askedAt, show])
+  if (shown === 'terminal' && !attached) setAttached(true)
   const [via, setVia] = useState<Via>()
   const [ending, setEnding] = useState(false)
   const { roots } = useFilesRoots(project)

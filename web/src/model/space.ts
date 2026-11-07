@@ -99,8 +99,8 @@ export type Space = {
   directStatus: (mid: string) => DirectStatus
   /** Where a call to machine `mid` goes now; read on demand, like `directStatus`. */
   callVia: (mid: string) => Via
-  /** Pulls the shells of one machine, or of every online machine. */
-  refreshShells: (mid?: string) => Promise<void>
+  /** Pulls the shells of one machine, or of every online machine; true once each has listed them. */
+  refreshShells: (mid?: string) => Promise<boolean>
   /** Reads again what the machines list where it could not be read: a machine with nothing new to
    * say would otherwise never be asked again. */
   refreshUnreadLists: () => void
@@ -120,6 +120,9 @@ export function createSpace(url: string, id: Identity): Space {
   const shells = new Map<string, Shell[]>()
   // A newer pull for a machine wins over a slower, older one.
   const pulls = new Map<string, number>()
+  // The pull whose shells each machine shows: an older one that comes back later does not replace
+  // them, and one that comes back first is shown until the newer one is.
+  const taken = new Map<string, number>()
   // The repositories found for the directories reported, and the directories asked about, so each
   // is asked once.
   const repos = new Map<string, string>()
@@ -268,23 +271,27 @@ export function createSpace(url: string, id: Identity): Space {
     }
   }
 
+  /** True once the machine's shells are listed as they were when it began, or as they were later. */
   const refreshOne = async (mid: string) => {
-    if (!pullable(mid)) return
+    if (!pullable(mid)) return false
     const seq = (pulls.get(mid) ?? 0) + 1
     pulls.set(mid, seq)
     try {
       const found = await fetchShells(call, mid)
-      if (pulls.get(mid) !== seq) return
+      if (seq < (taken.get(mid) ?? 0)) return true
+      taken.set(mid, seq)
       shells.set(mid, found)
       shellsKnown.add(mid)
       // Its shells' directories are being looked up before it stops counting as pulling.
       findRepos(mid)
       pulling.delete(mid)
       changed()
+      return true
     } catch (err) {
       pulling.delete(mid)
       changed()
       console.warn('could not list shells', mid, err)
+      return false
     }
   }
 
@@ -340,7 +347,7 @@ export function createSpace(url: string, id: Identity): Space {
 
   const refreshShells = async (mid?: string) => {
     const mids = mid ? [mid] : [...machines.keys()]
-    await Promise.all(mids.map(refreshOne))
+    return (await Promise.all(mids.map(refreshOne))).every(Boolean)
   }
 
   const conn = connect(url, id, {

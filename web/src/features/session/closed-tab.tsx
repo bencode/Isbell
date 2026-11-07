@@ -13,7 +13,6 @@ import { parseRootKey } from '../../model/files/worktrees'
 import { startAgent } from '../../model/herdr'
 import { resumeArgs, sessionKey, under } from '../../model/sessions'
 import { sessionTabId } from '../../model/tabs'
-import type { SessionOpening } from './session-tab'
 
 const NOTE = 'm-6 text-muted'
 
@@ -89,9 +88,7 @@ export function ClosedTabPane({
     setError(undefined)
     try {
       const { paneId } = await startAgent(space.call, mid, { cwd: line.cwd, kind: agent, args })
-      const tab = sessionTabId(mid, paneId)
-      const opening: SessionOpening = { tab, started: true }
-      replaceNow.current(id, tab, opening)
+      replaceNow.current(id, sessionTabId(mid, paneId))
     } catch (err) {
       setError(errorText(t, err))
       setBusy(false)
