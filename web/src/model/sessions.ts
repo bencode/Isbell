@@ -94,3 +94,60 @@ export const dayKey = (ms: number) => {
   const d = new Date(ms)
   return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`
 }
+
+/** A session in a list: as the project's latest keep it, or only as its month's line. */
+export type SessionLine = MonthLine & { last?: string; updated?: number }
+
+/** What names a session among every agent's. */
+export const sessionKey = (s: { agent: string; id: string }) => `${s.agent}/${s.id}`
+
+/** Where some of a project's records are kept; `only`: of them, those that ran under it, as the
+ * project is a directory inside the repository they are recorded for. */
+export type RecordSource = { key: string; only?: string }
+
+/** Whether `dir` is `top` or below it. */
+export const under = (dir: string, top: string) => dir === top || dir.startsWith(`${top}/`)
+
+/** The roots recorded where a project's sessions may be: itself and below it, each of its worktrees
+ * and below, and a repository it is inside of. */
+export const recordSources = (roots: Roots, path: string, worktrees: readonly string[]): RecordSource[] =>
+  Object.entries(roots).flatMap(([root, { key }]): RecordSource[] => {
+    if ([path, ...worktrees].some(dir => under(root, dir))) return [{ key }]
+    return under(path, root) ? [{ key, only: path }] : []
+  })
+
+/** Whether a session the source holds belongs to the project. */
+export const within = (source: RecordSource, cwd: string) =>
+  source.only === undefined || under(cwd, source.only)
+
+/** The lists as one, each session once as it was last updated, the last active first. */
+export function mergeRecent(lists: SessionRecord[][]): SessionRecord[] {
+  const latest = new Map<string, SessionRecord>()
+  for (const s of lists.flat()) {
+    const was = latest.get(sessionKey(s))
+    if (!was || was.updated < s.updated) latest.set(sessionKey(s), s)
+  }
+  return [...latest.values()].sort((a, b) => b.updated - a.updated)
+}
+
+/** Months' lines as one, each session once, leaving out those `seen`, the latest begun first. */
+export const mergeMonths = (lists: MonthLine[][], seen: ReadonlySet<string>): MonthLine[] =>
+  [...new Map(lists.flat().map(s => [sessionKey(s), s])).values()]
+    .filter(s => !seen.has(sessionKey(s)))
+    .sort((a, b) => b.started - a.started)
+
+/** When a session was last seen active. */
+export const lineTime = (s: SessionLine) => s.updated ?? s.started
+
+/** Whether what the session was asked, or where it ran, holds `needle` (lower case). */
+export const matches = (s: SessionLine, needle: string) =>
+  [s.first, s.last ?? '', s.cwd].some(text => text.toLowerCase().includes(needle))
+
+/** The items in the order given, in runs of one local day. */
+export const byDay = <T>(items: T[], at: (item: T) => number): [T, ...T[]][] =>
+  items.reduce<[T, ...T[]][]>((days, item) => {
+    const today = days.at(-1)
+    if (today && dayKey(at(today[0])) === dayKey(at(item))) today.push(item)
+    else days.push([item])
+    return days
+  }, [])

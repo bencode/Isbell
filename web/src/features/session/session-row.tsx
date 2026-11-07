@@ -1,13 +1,14 @@
-// A running session in a project's list: how it stands and what it is called, and under that where
-// it works and since when. A click shows it in the preview tab, a double click keeps it.
+// A session in a project's list: how it stands and what it is called, and under that where it works
+// and since when; one that ran has no mark. A click shows it in the preview tab, a double click keeps
+// it.
 
 import { Link, type To } from 'react-router'
 import { StatusDot } from '../../components/status-dot'
 import type { AgentStatus } from '../../model/state'
 
 type Props = {
-  /** An agent's; a shell has none. */
-  status: AgentStatus | undefined
+  /** A running agent's status, a shell, or a session that ran. */
+  mark: AgentStatus | 'shell' | 'ran'
   name: string
   meta: string
   shown: boolean
@@ -15,7 +16,7 @@ type Props = {
   onKeep: () => void
 }
 
-export function SessionRow({ status, name, meta, shown, to, onKeep }: Props) {
+export function SessionRow({ mark, name, meta, shown, to, onKeep }: Props) {
   return (
     <Link
       to={to}
@@ -26,10 +27,12 @@ export function SessionRow({ status, name, meta, shown, to, onKeep }: Props) {
       <span
         className={`flex min-w-0 items-center gap-2 text-[13.5px] leading-5 ${shown ? 'font-medium' : ''}`}
       >
-        {status ? (
-          <StatusDot status={status} />
-        ) : (
+        {mark === 'ran' ? (
+          <span className="size-2 flex-none" />
+        ) : mark === 'shell' ? (
           <span className="size-2 flex-none rounded-[2px] bg-line-strong" />
+        ) : (
+          <StatusDot status={mark} />
         )}
         <span className="min-w-0 truncate">{name}</span>
       </span>

@@ -7,10 +7,11 @@ import type { SessionOpening } from '../../features/session/session-tab'
 import { parseRootKey } from '../../model/files/worktrees'
 import { locate } from '../../model/projects'
 import { projectsSettled } from '../../model/space'
+import { sessionTabId } from '../../model/tabs'
 import { projectHref } from '../../utils/hrefs'
 import { addressTo } from './address'
 import { Frame } from './frame'
-import { isTab, sessionTabHref, sessionTabId } from './tab-kinds'
+import { isTab, sessionTabHref } from './tab-kinds'
 
 // A page on its own in the window, opened in a tab of its own; it loads only there.
 const PageView = lazy(() => import('../../features/files/page-view').then(m => ({ default: m.PageView })))

@@ -7,6 +7,7 @@ import {
   nextShown,
   noTabs,
   pin,
+  replace,
   restore,
   type Tabs,
   tabOf,
@@ -72,6 +73,23 @@ describe('tabs', () => {
     expect(ids(tabs)).toEqual([fileA, session])
     expect(ids(visit(tabs, fileB))).toEqual([fileB, session])
     expect(drawn(tabs, fileB).map(tab => tab.id)).toEqual([fileB, fileA, session])
+  })
+
+  it('shows a session that ran in the place of a running one, as both are sessions', () => {
+    const [running, ran, file] = ['session/m/p', 'closed/m/pi/s1', 'file/k/a']
+    expect(ids(visit(visit(visit(noTabs, running), file), ran))).toEqual([ran, file])
+  })
+
+  it('puts a tab in the place of another, pinned as it was; only closes it when that one is open', () => {
+    const [ran, running, other] = ['closed/m/pi/s1', 'session/m/p', 'file/k/a']
+    const tabs = visit(pinned([ran]), other)
+    const replaced = replace(tabs, ran, running)
+    expect(replaced.open).toEqual([
+      { id: running, pinned: true },
+      { id: other, pinned: false },
+    ])
+    expect(replaced.used).toEqual([other, running])
+    expect(ids(replace(visit(pinned([ran]), running), ran, running))).toEqual([running])
   })
 
   it('pins a tab, and unpinned it is the preview again, in the place of the one there was', () => {

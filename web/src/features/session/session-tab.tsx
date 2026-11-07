@@ -1,17 +1,20 @@
 // What a session's tab shows: an agent's chat or its terminal, a shell's terminal, under the bar
 // that names it. The terminal attaches once first shown and stays while the chat is; hiding the tab
 // lets go of it, and it attaches anew once its terminal is in sight again. A preview tab is kept
-// once a reply is being written in it.
+// once a reply is being written in it. Once its pane is gone, the session it ran takes the tab's
+// place, when it is among those recorded.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { type Params, useLocation } from 'react-router'
 import { useI18n } from '../../core/i18n'
+import { sessionInPane, usePaneSession, useRecordLookup } from '../../core/session-records'
 import { useProjects, useSpace, useSpaceView } from '../../core/space'
 import { useTabActions, useTabRoute } from '../../core/tabs'
 import { useFilesRoots } from '../../core/worktrees'
 import { rootHolding } from '../../model/files/worktrees'
 import { type Found, locate } from '../../model/projects'
 import { projectsSettled, type Via } from '../../model/space'
+import { closedTabId } from '../../model/tabs'
 import { Chat } from './chat'
 import { ShowTerminal } from './context'
 import { EndPane } from './end-pane-dialog'
@@ -51,13 +54,18 @@ export function SessionTabPane({
   useEffect(() => {
     if (listed) setSeen(true)
   }, [listed])
+  const waiting = !ready || (started && !seen)
+  // The session it ran, when it is among those recorded, as only those can be resumed.
+  const lookup = useRecordLookup()
+  const last = !listed && !waiting ? sessionInPane(mid, paneId) : undefined
+  const ran = last && lookup(mid, last.agent, last.id) ? last : undefined
+  const { replace } = useTabActions()
+  useEffect(() => {
+    if (ran) replace(id, closedTabId(mid, ran.agent, ran.id))
+  }, [ran, replace, id, mid])
 
   if (!found)
-    return (
-      <p className="m-6 text-muted">
-        {!ready || (started && !seen) ? t('board.loading') : t('session.gone')}
-      </p>
-    )
+    return <p className="m-6 text-muted">{waiting || ran ? t('board.loading') : t('session.gone')}</p>
   // A pane just started is listed as a shell until its agent is made out; it opens again as one then.
   const kind = 'session' in found.pane ? 'agent' : 'shell'
   return (
@@ -90,14 +98,10 @@ function Opened({
   askedAt: string
 }) {
   const { close, keep } = useTabActions()
-  // `keep` is new each render; the draft asks once, when writing starts.
-  const keepNow = useRef(keep)
-  useEffect(() => {
-    keepNow.current = keep
-  })
-  const keepTab = useCallback(() => keepNow.current(id), [id])
+  const keepTab = useCallback(() => keep(id), [keep, id])
   const shownTab = useTabRoute().shown
   const agent = 'session' in pane ? pane.session : undefined
+  usePaneSession(mid, paneId, agent?.kind, agent?.status)
   const cwd = 'session' in pane ? (pane.session.cwd ?? project.path) : pane.shell.cwd
   const [shown, setShown] = useState<View>(agent ? (askedView ?? 'chat') : 'terminal')
   // The terminal, once shown, stays attached behind the chat.

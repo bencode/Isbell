@@ -18,6 +18,7 @@ import {
   drawn,
   keep,
   nextShown,
+  replace,
   restore,
   type Tabs,
   tabOf,
@@ -77,22 +78,31 @@ export function useTabActions() {
   const { store, isTab } = useTabsScope()
   const { pathname, search } = useLocation()
   const navigate = useNavigate()
-  const href = (id: string | null): To => ({ pathname, search: withTab(search, id) })
-  return {
-    href,
-    keep: (id: string) => store.setState(tabs => keep(tabs, id)),
-    /** Unpinning may close the preview shown; `id` shows in its place. */
-    togglePin: (id: string) => {
-      store.setState(tabs => togglePin(tabs, id))
-      const shown = tabOf(search, isTab)
-      const gone = shown !== null && !store.getState().open.some(tab => tab.id === shown)
-      if (gone) navigate(href(id), { replace: true })
-    },
-    /** Closing the tab shown shows the one beside it, or none, in its place in the history. */
-    close: (id: string, shown: boolean) => {
-      const next = nextShown(store.getState(), id)
-      store.setState(tabs => close(tabs, id))
-      if (shown) navigate(href(next), { replace: true })
-    },
-  }
+  // The same while the address stays, so effects can depend on them.
+  return useMemo(() => {
+    const href = (id: string | null): To => ({ pathname, search: withTab(search, id) })
+    return {
+      href,
+      keep: (id: string) => store.setState(tabs => keep(tabs, id)),
+      /** Unpinning may close the preview shown; `id` shows in its place. */
+      togglePin: (id: string) => {
+        store.setState(tabs => togglePin(tabs, id))
+        const shown = tabOf(search, isTab)
+        const gone = shown !== null && !store.getState().open.some(tab => tab.id === shown)
+        if (gone) navigate(href(id), { replace: true })
+      },
+      /** `to` in the place of `from`, shown in its place in the history if `from` was; `state` for
+       * the address that shows it. */
+      replace: (from: string, to: string, state?: unknown) => {
+        store.setState(tabs => replace(tabs, from, to))
+        if (tabOf(search, isTab) === from) navigate(href(to), { replace: true, state })
+      },
+      /** Closing the tab shown shows the one beside it, or none, in its place in the history. */
+      close: (id: string, shown: boolean) => {
+        const next = nextShown(store.getState(), id)
+        store.setState(tabs => close(tabs, id))
+        if (shown) navigate(href(next), { replace: true })
+      },
+    }
+  }, [store, isTab, pathname, search, navigate])
 }

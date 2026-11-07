@@ -13,6 +13,8 @@ export type Catalog = Record<Key, string>
 export type T = ((key: Key, vars?: Record<string, string | number>) => string) & {
   /** Whether a key built at runtime, such as an error code's, has a sentence. */
   has: (key: string) => key is Key
+  /** The language shown, as dates and times are written in it. */
+  locale: string
 }
 
 const I18nContext = createContext<Record<Lang, Catalog> | null>(null)
@@ -31,11 +33,13 @@ export function I18nProvider({
 const resolveLang = (lang: 'system' | Lang): Lang =>
   lang === 'system' ? (navigator.language.toLowerCase().startsWith('zh') ? 'zh' : 'en') : lang
 
-const translator = (catalog: Catalog): T =>
+const LOCALES: Record<Lang, string> = { en: 'en', zh: 'zh-CN' }
+
+const translator = (catalog: Catalog, lang: Lang): T =>
   Object.assign(
     (key: Key, vars: Record<string, string | number> = {}) =>
       catalog[key].replace(/\{(\w+)\}/g, (m, name: string) => String(vars[name] ?? m)),
-    { has: (key: string): key is Key => key in catalog },
+    { has: (key: string): key is Key => key in catalog, locale: LOCALES[lang] },
   )
 
 /** The translator for the language chosen in settings, or the browser's. */
@@ -43,7 +47,7 @@ export function useI18n(): T {
   const messages = useContext(I18nContext)
   if (!messages) throw new Error('useI18n needs an I18nProvider')
   const lang = resolveLang(useLocal().prefs.lang)
-  return useMemo(() => translator(messages[lang]), [messages, lang])
+  return useMemo(() => translator(messages[lang], lang), [messages, lang])
 }
 
 /** Labels the pure UI components take: close, and copy for commands. */

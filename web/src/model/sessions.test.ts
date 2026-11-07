@@ -1,5 +1,15 @@
 import { expect, test } from 'vitest'
-import { parseMonth, parseRecent, parseRoots, resumeArgs } from './sessions'
+import {
+  byDay,
+  mergeMonths,
+  mergeRecent,
+  parseMonth,
+  parseRecent,
+  parseRoots,
+  recordSources,
+  resumeArgs,
+  within,
+} from './sessions'
 
 const session = { agent: 'claude', id: 's1', cwd: '/srv/a', first: 'fix it', started: 1 }
 
@@ -35,4 +45,49 @@ test('Claude Code, Codex and pi resume a session by its id; other agents are not
   expect(resumeArgs('pi', 'id1')).toEqual(['--tui-mode', 'regular', '--session', 'id1'])
   expect(resumeArgs('gemini', 'id1')).toBeUndefined()
   expect(resumeArgs('toString', 'id1')).toBeUndefined()
+})
+
+test("a project's records are its own, below it, its worktrees', and its repository's that ran in it", () => {
+  const roots = {
+    '/w/app': { key: 'app', updated: 1 },
+    '/w/app/tools': { key: 'tools', updated: 1 },
+    '/w/app.worktrees/fix': { key: 'fix', updated: 1 },
+    '/w/apple': { key: 'apple', updated: 1 },
+    '/w': { key: 'w', updated: 1 },
+  }
+  expect(recordSources(roots, '/w/app', ['/w/app.worktrees/fix'])).toEqual([
+    { key: 'app' },
+    { key: 'tools' },
+    { key: 'fix' },
+    { key: 'w', only: '/w/app' },
+  ])
+  const above = { key: 'w', only: '/w/app' }
+  expect([within(above, '/w/app/web'), within(above, '/w/apple'), within({ key: 'app' }, '/x')]).toEqual([
+    true,
+    false,
+    true,
+  ])
+})
+
+test('sessions from several places are one list, each once as last updated, the last active first', () => {
+  const a = { ...session, last: 'a', updated: 5 }
+  const merged = mergeRecent([
+    [a, { ...session, id: 's2', last: 'b', updated: 7 }],
+    [{ ...a, last: 'older', updated: 3 }],
+  ])
+  expect(merged.map(s => [s.id, s.last])).toEqual([
+    ['s2', 'b'],
+    ['s1', 'a'],
+  ])
+  const months = mergeMonths(
+    [[session, { ...session, id: 's3', started: 9 }], [session]],
+    new Set(['claude/s3']),
+  )
+  expect(months.map(s => s.id)).toEqual(['s1'])
+})
+
+test('sessions are grouped by the local day, in the order given', () => {
+  const day = (d: number, h: number) => new Date(2026, 10, d, h).getTime()
+  const at = [day(7, 18), day(7, 9), day(6, 23), day(5, 1)]
+  expect(byDay(at, t => t).map(run => run.length)).toEqual([2, 1, 1])
 })
