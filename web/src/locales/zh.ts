@@ -243,6 +243,8 @@ export const zh: Record<Key, string> = {
   'workbench.sessions': 'Sessions',
   'workbench.files': 'Files',
   'workbench.active': 'Active Sessions',
+  'workbench.pinTab': '钉住 {name}',
+  'workbench.unpinTab': '取消钉住 {name}',
   'workbench.empty': '选一个 session 或文件。',
   'workbench.help': '帮助',
   'workbench.addProject': '添加项目',

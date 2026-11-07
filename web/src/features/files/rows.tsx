@@ -51,6 +51,7 @@ export function FileRow({
   label,
   extra,
   title,
+  onDoubleClick,
 }: {
   depth: number
   name: string
@@ -61,6 +62,7 @@ export function FileRow({
   extra?: ReactNode
   /** Shown on hover, for a name cut short. */
   title?: string
+  onDoubleClick?: () => void
 }) {
   const Icon = ICONS[kindOf(name)]
   return (
@@ -68,6 +70,7 @@ export function FileRow({
       to={to}
       aria-current={on ? 'page' : undefined}
       title={title}
+      onDoubleClick={onDoubleClick}
       className={`${ROW} ${on ? 'bg-accent-soft' : ''}`}
       // The chevron's room, so names line up with folders'.
       style={{ paddingLeft: indent(depth).paddingLeft + 19 }}

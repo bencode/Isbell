@@ -32,9 +32,12 @@ export function SpaceProvider({ spaceKey, children }: { spaceKey: string; childr
       if (document.visibilityState !== 'visible') return
       s.reconnectNow()
       void s.refreshShells()
+      s.refreshUnreadLists()
     }
     const timer = setInterval(() => {
-      if (document.visibilityState === 'visible') void s.refreshShells()
+      if (document.visibilityState !== 'visible') return
+      void s.refreshShells()
+      s.refreshUnreadLists()
     }, SHELLS_EVERY_MS)
     window.addEventListener('online', wake)
     document.addEventListener('visibilitychange', wake)
@@ -77,22 +80,25 @@ export function useProjects(): Project[] {
   )
 }
 
-/** Keeps what the machines list for while they are offline, and has a machine that lists nothing yet
- * start from where its panes run, as soon as it has any. */
-export function useKeepProjectLists() {
+/** Keeps what the machines list, for while they are offline. */
+export function useKeepListedPaths() {
+  const { configs } = useSpaceView()
+  useEffect(() => {
+    updateLocal(l => ({ projectPaths: listedPaths(configs, l.projectPaths) }))
+  }, [configs])
+}
+
+/** Has a machine that lists nothing yet start from where its panes run, as soon as it has any. */
+export function useStartProjectLists(projects: Project[]) {
   const space = useSpace()
   const view = useSpaceView()
-  const projects = useProjects()
   const started = useRef(new Set<string>())
-  useEffect(() => {
-    updateLocal(l => ({ projectPaths: listedPaths(view.configs, l.projectPaths) }))
-  }, [view.configs])
   useEffect(() => {
     if (!projectsSettled(view)) return
     for (const entry of view.machines) {
       const mid = entry.state.machine.id
       const mine = projects.filter(p => p.mid === mid)
-      const { start } = projectActions(entry, view.configs[mid], view.shellsKnown, mine)
+      const { start } = projectActions(entry, view.configs[mid], view.shellsKnown.has(mid), mine)
       if (!start || started.current.has(mid)) continue
       started.current.add(mid)
       space

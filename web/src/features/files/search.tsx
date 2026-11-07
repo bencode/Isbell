@@ -47,10 +47,10 @@ export function SearchBox({
 }
 
 export function SearchResults({
-  where: { mid, root, current },
+  where: { mid, root, current, onPin },
   query,
 }: {
-  where: { mid: string; root: FilesRoot; current: string }
+  where: { mid: string; root: FilesRoot; current: string; onPin: ((rel: string) => void) | undefined }
   query: string
 }) {
   const t = useI18n()
@@ -67,7 +67,7 @@ export function SearchResults({
     setClosed(was => (was.has(rel) ? new Set([...was].filter(r => r !== rel)) : new Set([...was, rel])))
   return (
     <>
-      <Nodes nodes={tree} depth={0} at={{ query, current, hrefOf, closed, toggle }} />
+      <Nodes nodes={tree} depth={0} at={{ query, current, hrefOf, closed, toggle, onPin }} />
       {data.truncated ? (
         <p className="m-0 px-1.5 py-1 text-[12px] text-faint">
           {t('files.moreMatches', { n: data.paths.length })}
@@ -83,6 +83,7 @@ type ResultsCtx = {
   hrefOf: (rel: string) => string
   closed: ReadonlySet<string>
   toggle: (rel: string) => void
+  onPin: ((rel: string) => void) | undefined
 }
 
 function Nodes({ nodes, depth, at }: { nodes: PathNode[]; depth: number; at: ResultsCtx }) {
@@ -94,6 +95,7 @@ function Nodes({ nodes, depth, at }: { nodes: PathNode[]; depth: number; at: Res
         name={node.name}
         to={at.hrefOf(node.rel)}
         on={node.rel === at.current}
+        onDoubleClick={() => at.onPin?.(node.rel)}
         title={node.rel}
         label={<Hits text={node.name} query={at.query} />}
       />

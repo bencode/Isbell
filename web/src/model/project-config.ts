@@ -80,12 +80,12 @@ const NONE: ProjectActions = { adds: false, removes: false }
 export function projectActions(
   { state, online }: MachineEntry,
   config: ProjectConfig | undefined,
-  shellsKnown: ReadonlySet<string>,
+  shellsKnown: boolean,
   projects: Project[],
 ): ProjectActions {
   if (!online || !state.caps.methods.includes('isbell.file.write')) return NONE
   if (config?.state === 'listed') return { adds: true, removes: true }
-  if (config?.state !== 'missing' || !shellsKnown.has(state.machine.id)) return NONE
+  if (config?.state !== 'missing' || !shellsKnown) return NONE
   const start = initialPaths(projects)
   if (!start.length) return { adds: true, removes: false }
   return state.herdr.status === 'ready' ? { ...NONE, start } : NONE
@@ -97,8 +97,8 @@ export function listedPaths(
   configs: Readonly<Record<string, ProjectConfig>>,
   kept: Readonly<Record<string, string[]>>,
 ): Record<string, string[]> {
-  const read = Object.entries(configs).flatMap(([mid, config]) =>
+  const said = Object.entries(configs).flatMap(([mid, config]) =>
     config.state === 'listed' ? [[mid, config.paths] as const] : [],
   )
-  return Object.fromEntries([...Object.entries(kept).filter(([mid]) => !configs[mid]), ...read])
+  return Object.fromEntries([...Object.entries(kept).filter(([mid]) => !configs[mid]), ...said])
 }

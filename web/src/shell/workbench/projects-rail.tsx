@@ -4,20 +4,27 @@
 import { Popover } from '@base-ui/react/popover'
 import { Info, MoreHorizontal, Plus } from 'lucide-react'
 import { useState } from 'react'
-import { Link, matchPath, useLocation } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { ICON, IconButton } from '../../components/icon-button'
 import { DropdownMenu } from '../../components/menu'
 import { Tip } from '../../components/tip'
 import { errorText, type Key, useI18n } from '../../core/i18n'
-import { useKeepProjectLists, useProjects, useSpace, useSpaceView } from '../../core/space'
+import { useLocal } from '../../core/prefs'
+import {
+  useKeepListedPaths,
+  useProjects,
+  useSpace,
+  useSpaceView,
+  useStartProjectLists,
+} from '../../core/space'
 import { MachineFacts } from '../../features/machine/machine-facts'
 import { AddProjectDialog } from '../../features/new-session/add-project-dialog'
-import { parseRootKey } from '../../model/files/worktrees'
-import { type ProjectConfig, projectActions } from '../../model/project-config'
+import { type ProjectActions, type ProjectConfig, projectActions } from '../../model/project-config'
 import type { Project } from '../../model/projects'
 import type { MachineEntry } from '../../model/space'
 import { projectHref } from '../../utils/hrefs'
 import { asking } from '../marks'
+import { projectOf } from './address'
 import { ProjectTile, shortName } from './tile'
 
 const SMALL = { ...ICON, size: 14 }
@@ -41,6 +48,7 @@ function ProjectRow({
   onRemove: (() => void) | undefined
 }) {
   const t = useI18n()
+  const { projectAt } = useLocal()
   // What an offline machine last reported cannot be answered.
   const need = project.online ? asking(project) : 0
   const live = project.online && project.sessions.some(s => s.status === 'working')
@@ -52,7 +60,7 @@ function ProjectRow({
     <div className="group relative mx-2 mb-px">
       <Tip label={place} side="right" disabled={!thin}>
         <Link
-          to={projectHref(project.key)}
+          to={projectAt[project.key] ?? projectHref(project.key)}
           aria-label={place}
           aria-current={here ? 'page' : undefined}
           className={`flex h-8 items-center gap-2 rounded-[7px] px-1.5 no-underline transition-colors duration-75 hover:bg-hover hover:text-text focus-visible:outline-2 focus-visible:outline-accent active:bg-press ${
@@ -86,7 +94,7 @@ function ProjectRow({
             <IconButton
               label={t('workbench.projectActions')}
               side="right"
-              small
+              size="small"
               className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-popup-open:opacity-100"
             >
               <MoreHorizontal {...SMALL} />
@@ -105,7 +113,7 @@ function MachineDetails({ entry }: { entry: MachineEntry }) {
     <Popover.Root>
       <Popover.Trigger
         render={
-          <IconButton label={t('machine.info')} side="right" small>
+          <IconButton label={t('machine.info')} side="right" size="small">
             <Info {...SMALL} />
           </IconButton>
         }
@@ -124,14 +132,14 @@ function MachineDetails({ entry }: { entry: MachineEntry }) {
 function MachineGroup({
   entry,
   config,
-  shellsKnown,
+  actions: { adds, removes },
   projects,
   hereKey,
   thin,
 }: {
   entry: MachineEntry
   config: ProjectConfig | undefined
-  shellsKnown: ReadonlySet<string>
+  actions: ProjectActions
   projects: Project[]
   hereKey: string | undefined
   thin: boolean
@@ -141,7 +149,6 @@ function MachineGroup({
   const [adding, setAdding] = useState(false)
   const [problem, setProblem] = useState<string>()
   const { machine } = entry.state
-  const { adds, removes } = projectActions(entry, config, shellsKnown, projects)
   const remove = (path: string) => {
     setProblem(undefined)
     space
@@ -178,7 +185,7 @@ function MachineGroup({
                   <IconButton
                     label={t('workbench.addProject')}
                     side="right"
-                    small
+                    size="small"
                     onClick={() => setAdding(true)}
                   >
                     <Plus {...SMALL} />
@@ -200,7 +207,7 @@ function MachineGroup({
           onRemove={removes ? () => remove(p.path) : undefined}
         />
       ))}
-      {!projects.length && !thin ? (
+      {config && !trouble && !projects.length && !thin ? (
         <p className="m-0 mx-2 px-1.5 text-xs leading-8 text-faint">{t('workbench.noProjects')}</p>
       ) : null}
       {adding ? <AddProjectDialog machine={entry.state} onClose={() => setAdding(false)} /> : null}
@@ -209,25 +216,29 @@ function MachineGroup({
 }
 
 export function ProjectsRail({ thin }: { thin: boolean }) {
-  useKeepProjectLists()
   const { machines, configs, shellsKnown } = useSpaceView()
   const projects = useProjects()
+  useKeepListedPaths()
+  useStartProjectLists(projects)
   const { pathname } = useLocation()
-  const key = matchPath('/p/:key/*', pathname)?.params.key
-  const hereKey = key ? parseRootKey(key).project : undefined
+  const hereKey = projectOf(pathname)
   return (
     <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pt-1 pb-2 [scrollbar-width:none]">
-      {machines.map(entry => (
-        <MachineGroup
-          key={entry.state.machine.id}
-          entry={entry}
-          config={configs[entry.state.machine.id]}
-          shellsKnown={shellsKnown}
-          projects={projects.filter(p => p.mid === entry.state.machine.id && p.configured && p.path)}
-          hereKey={hereKey}
-          thin={thin}
-        />
-      ))}
+      {machines.map(entry => {
+        const mid = entry.state.machine.id
+        const shown = projects.filter(p => p.mid === mid && p.configured && p.path)
+        return (
+          <MachineGroup
+            key={mid}
+            entry={entry}
+            config={configs[mid]}
+            actions={projectActions(entry, configs[mid], shellsKnown.has(mid), shown)}
+            projects={shown}
+            hereKey={hereKey}
+            thin={thin}
+          />
+        )
+      })}
     </div>
   )
 }

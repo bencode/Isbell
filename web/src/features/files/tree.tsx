@@ -31,11 +31,13 @@ type Props = {
   dir: string
   /** The file being read, relative to `root` ('' for none). */
   current: string
+  /** Keeps a file open, on a double click. */
+  onPin?: (rel: string) => void
 }
 
-type Where = { mid: string; root: FilesRoot; current: string }
+type Where = { mid: string; root: FilesRoot; current: string; onPin: Props['onPin'] }
 
-export function Tree({ mid, project, roots, root, dir, current }: Props) {
+export function Tree({ mid, project, roots, root, dir, current, onPin }: Props) {
   const { key } = root
   const t = useI18n()
   const { call } = useSpace()
@@ -82,9 +84,9 @@ export function Tree({ mid, project, roots, root, dir, current }: Props) {
         {/* A new round lists every open folder again. */}
         <div key={round}>
           {query ? (
-            <SearchResults where={{ mid, root, current }} query={query} />
+            <SearchResults where={{ mid, root, current, onPin }} query={query} />
           ) : (
-            <Level where={{ mid, root, current }} rel="" depth={0} open={layout.files[key] ?? []} />
+            <Level where={{ mid, root, current, onPin }} rel="" depth={0} open={layout.files[key] ?? []} />
           )}
         </div>
       </div>
@@ -129,6 +131,7 @@ function Level({ where, rel, depth, open }: { where: Where; rel: string; depth: 
               name={entry.name}
               to={projectFilesHref(where.root.key, child)}
               on={child === where.current}
+              onDoubleClick={() => where.onPin?.(child)}
               label={entry.name}
               extra={
                 entry.mtime === undefined ? null : (

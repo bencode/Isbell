@@ -35,20 +35,18 @@ describe('parseProjects', () => {
 })
 
 describe('projectActions', () => {
-  const MID = 'm'
   const machine = (herdr = 'ready', online = true, methods = ['isbell.file.write']) =>
     ({
       online,
-      state: { machine: { id: MID }, herdr: { status: herdr }, caps: { methods } },
+      state: { herdr: { status: herdr }, caps: { methods } },
     }) as unknown as MachineEntry
   const listed: ProjectConfig = { state: 'listed', paths: ['/w/a'] }
   const missing: ProjectConfig = { state: 'missing' }
-  const known = new Set([MID])
   const running = [project('/w/a', true)]
   const none = { adds: false, removes: false }
 
   test('a machine that lists its projects has them added to and removed from', () => {
-    expect(projectActions(machine(), listed, new Set(), [])).toEqual({ adds: true, removes: true })
+    expect(projectActions(machine(), listed, false, [])).toEqual({ adds: true, removes: true })
   })
 
   test('a machine starts from where something runs, never from a home directory', () => {
@@ -58,24 +56,24 @@ describe('projectActions', () => {
       project('/Users/me', true),
       project('', true),
     ]
-    expect(projectActions(machine(), missing, known, projects)).toEqual({ ...none, start: ['/w/a'] })
+    expect(projectActions(machine(), missing, true, projects)).toEqual({ ...none, start: ['/w/a'] })
   })
 
   test.each([
     ['nothing running', []],
     ['panes only in its home', [project('/Users/me', true)]],
   ])('a machine with no file and %s takes a project by hand', (_, projects) => {
-    expect(projectActions(machine(), missing, known, projects)).toEqual({ adds: true, removes: false })
+    expect(projectActions(machine(), missing, true, projects)).toEqual({ adds: true, removes: false })
   })
 
-  test.each<[string, MachineEntry, ProjectConfig | undefined, ReadonlySet<string>]>([
-    ['has no herdr ready, with panes last seen', machine('unavailable'), missing, known],
-    ['has not said where its panes run', machine(), missing, new Set()],
-    ['is offline', machine('ready', false), listed, known],
-    ['cannot write', machine('ready', true, []), listed, known],
-    ['has not been read', machine(), undefined, known],
-    ['has a file it cannot read', machine(), { state: 'broken' }, known],
-    ['could not be written to', machine(), { state: 'unwritable' }, known],
+  test.each<[string, MachineEntry, ProjectConfig | undefined, boolean]>([
+    ['has no herdr ready, with panes last seen', machine('unavailable'), missing, true],
+    ['has not said where its panes run', machine(), missing, false],
+    ['is offline', machine('ready', false), listed, true],
+    ['cannot write', machine('ready', true, []), listed, true],
+    ['has not been read', machine(), undefined, true],
+    ['has a file it cannot read', machine(), { state: 'broken' }, true],
+    ['could not be written to', machine(), { state: 'unwritable' }, true],
   ])('nothing is done to a machine that %s', (_, entry, config, shells) => {
     expect(projectActions(entry, config, shells, running)).toEqual(none)
   })

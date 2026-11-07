@@ -3,8 +3,7 @@
 import { FolderOpen, History, LayoutGrid } from 'lucide-react'
 import { ViewTabs } from '../../components/view-tabs'
 import { useI18n } from '../../core/i18n'
-import { useLocal } from '../../core/prefs'
-import { useFilesRoots } from '../../core/worktrees'
+import { useFilesAt } from '../../core/worktrees'
 import type { Project } from '../../model/projects'
 import { projectFilesHref, projectHref, projectSessionsHref } from '../../utils/hrefs'
 
@@ -17,7 +16,8 @@ export function ProjectTabs({
   current?: 'agents' | 'sessions' | 'files'
 }) {
   const t = useI18n()
-  const filesHref = useFilesHref(project)
+  const at = useFilesAt(project.key)
+  const filesHref = at ? projectFilesHref(at.root, at.rel) : projectFilesHref(project.key)
   const views = [
     {
       key: 'agents',
@@ -39,13 +39,4 @@ export function ProjectTabs({
     },
   ]
   return <ViewTabs label={t('project.views')} views={views} current={current ?? ''} />
-}
-
-/** Where a project's Files leads: back where they were last read, unless that worktree is known to
- * be gone. */
-function useFilesHref(project: Project): string {
-  const at = useLocal().layout.filesAt[project.key]
-  const { roots, settled } = useFilesRoots(project)
-  const gone = settled && !roots.some(root => root.key === at?.root)
-  return at && !gone ? projectFilesHref(at.root, at.rel) : projectFilesHref(project.key)
 }

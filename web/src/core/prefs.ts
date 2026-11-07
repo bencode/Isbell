@@ -62,6 +62,12 @@ export type Local = {
   reader: Reader
   /** The tabs open beside the page, read back by `restore` in model/tabs. */
   tabs: Tabs
+  /** The tabs open in each project of the workbench, by project key, read back the same way. */
+  projectTabs: Record<string, Tabs>
+  /** Where each project of the workbench was last left, as an address, by project key. */
+  projectAt: Record<string, string>
+  /** The project of the workbench last looked at. */
+  lastProject: string | null
   /** What each machine last listed as its projects, by machine id, for while it is offline. */
   projectPaths: Record<string, string[]>
 }
@@ -86,6 +92,9 @@ const DEFAULTS: Local = {
   },
   reader: { ...DEFAULT_APPEARANCE, outline: true },
   tabs: noTabs,
+  projectTabs: {},
+  projectAt: {},
+  lastProject: null,
   projectPaths: {},
 }
 
@@ -191,6 +200,12 @@ export function openDirs(root: string, wanted: string[]) {
   // Opening a file whose folders are open already saves nothing.
   if (open && wanted.every(d => open.includes(d))) return
   withOpenDirs(root, dirs => [...dirs, ...wanted.filter(d => !dirs.includes(d))])
+}
+
+/** Notes where the workbench stands in a project, as the project looked at last. */
+export function rememberProjectAt(project: string, at: string) {
+  if (current.lastProject === project && current.projectAt[project] === at) return
+  updateLocal(l => ({ lastProject: project, projectAt: { ...l.projectAt, [project]: at } }))
 }
 
 /** Notes where a project's files are being read. */

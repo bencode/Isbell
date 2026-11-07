@@ -5,10 +5,9 @@ import { Button } from '../../components/button'
 import { Modal } from '../../components/dialog'
 import { errorText, uiLabels, useI18n } from '../../core/i18n'
 import { useSpace } from '../../core/space'
-import { list } from '../../model/files/remote'
+import { isMissing, list } from '../../model/files/remote'
 import type { Caller } from '../../model/herdr'
 import type { MachineState } from '../../model/state'
-import { CallError } from '../../model/streams'
 import { DirInput, DirNote, useNewDir } from './dir-input'
 
 type Props = {
@@ -21,7 +20,7 @@ async function hasNoDir(call: Caller, mid: string, dir: string) {
     await list(call, mid, dir)
     return false
   } catch (err) {
-    if (err instanceof CallError && ['not_found', 'not_a_directory'].includes(err.code)) return true
+    if (isMissing(err)) return true
     throw err
   }
 }

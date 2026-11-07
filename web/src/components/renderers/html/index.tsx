@@ -4,6 +4,7 @@
 // page and its files reach the browser untouched.
 
 import { useEffect, useRef, useState } from 'react'
+import { isMissing } from '../../../model/files/remote'
 import { CallError } from '../../../model/streams'
 
 /** Where pages run, apart from the app. */
@@ -69,8 +70,7 @@ async function served(read: Read, rel: string): Promise<Served> {
     const blob = await read(rel)
     return { status: 200, type: blob.type, bytes: await blob.arrayBuffer() }
   } catch (err) {
-    if (err instanceof CallError && ['not_found', 'not_a_directory'].includes(err.code))
-      return { status: 404 }
+    if (isMissing(err)) return { status: 404 }
     if (err instanceof CallError && err.code === 'too_large') return { status: 413 }
     console.warn('could not read a file for the page', rel, err)
     return { status: 502 }

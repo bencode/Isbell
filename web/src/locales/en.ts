@@ -243,6 +243,8 @@ export const en = {
   'workbench.sessions': 'Sessions',
   'workbench.files': 'Files',
   'workbench.active': 'Active Sessions',
+  'workbench.pinTab': 'Pin {name}',
+  'workbench.unpinTab': 'Unpin {name}',
   'workbench.empty': 'Choose a session or a file.',
   'workbench.help': 'Help',
   'workbench.addProject': 'Add a project',

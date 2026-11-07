@@ -31,7 +31,7 @@ const DIRECT_RETRY_MS = 5 * 60_000
  * keeps opening, for the streams after it. */
 const DIRECT_WAIT_MS = 4_000
 /** Far above what years of projects take. */
-const LIST_MAX = 1 << 20
+const ROOTS_MAX = 1 << 20
 
 /** `link`, or undefined once `ms` pass first. */
 const within = <T>(link: Promise<T | undefined>, ms: number): Promise<T | undefined> => {
@@ -101,6 +101,9 @@ export type Space = {
   callVia: (mid: string) => Via
   /** Pulls the shells of one machine, or of every online machine. */
   refreshShells: (mid?: string) => Promise<void>
+  /** Reads again what the machines list where it could not be read: a machine with nothing new to
+   * say would otherwise never be asked again. */
+  refreshUnreadLists: () => void
   /** Changes what machine `mid` lists as its projects, from what its file says now (undefined for no
    * file), so that nothing edited there since it was read is lost. Refuses a file that cannot be
    * read. Nothing is written when `change` gives back undefined. */
@@ -308,7 +311,7 @@ export function createSpace(url: string, id: Identity): Space {
    * its gateway takes no path under `~`. */
   const refreshRoots = async (mid: string) => {
     try {
-      const found = await read(openStream, mid, rootsPath, LIST_MAX)
+      const found = await read(openStream, mid, rootsPath, ROOTS_MAX)
       if (found.bytes) recorded.set(mid, parseRoots(new TextDecoder().decode(found.bytes)))
       else console.warn('the sessions recorded are too many to list', mid, found.size)
     } catch (err) {
@@ -413,6 +416,9 @@ export function createSpace(url: string, id: Identity): Space {
     openStream,
     directStatus,
     refreshShells,
+    refreshUnreadLists: () => {
+      for (const mid of machines.keys()) if (!configs[mid]) void refreshFiles(mid)
+    },
     changeProjects: async (mid, change) => {
       const config = await readProjects(openStream, mid)
       setConfig(mid, config)

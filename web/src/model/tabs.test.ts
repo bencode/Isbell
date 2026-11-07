@@ -10,6 +10,7 @@ import {
   restore,
   type Tabs,
   tabOf,
+  togglePin,
   visit,
   withTab,
 } from './tabs'
@@ -65,6 +66,27 @@ describe('tabs', () => {
     expect(ids(full)).not.toContain('0')
   })
 
+  it('keeps a preview for each kind: a file takes the place of a file, never of a session', () => {
+    const [fileA, fileB, session] = ['file/k/a', 'file/k/b', 'session/m/p']
+    const tabs = visit(visit(noTabs, fileA), session)
+    expect(ids(tabs)).toEqual([fileA, session])
+    expect(ids(visit(tabs, fileB))).toEqual([fileB, session])
+    expect(drawn(tabs, fileB).map(tab => tab.id)).toEqual([fileB, fileA, session])
+  })
+
+  it('pins a tab, and unpinned it is the preview again, in the place of the one there was', () => {
+    const [kept, shown, session] = ['file/k/a', 'file/k/b', 'session/m/p']
+    const tabs = visit(visit(togglePin(visit(noTabs, kept), kept), shown), session)
+    expect(tabs.open).toContainEqual({ id: kept, pinned: true })
+
+    const unpinned = togglePin(tabs, kept)
+    expect(unpinned.open).toEqual([
+      { id: kept, pinned: false },
+      { id: session, pinned: false },
+    ])
+    expect(unpinned.used).not.toContain(shown)
+  })
+
   it('goes right, else left, else to the page on closing the tab shown', () => {
     const tabs = pinned(['a', 'b', 'c'])
     expect(nextShown(tabs, 'b')).toBe('c')
@@ -91,6 +113,11 @@ describe('tabs', () => {
     ])
     expect(tabs.used).toEqual(['x', 'a'])
     expect(restore([{ project: 'p', rel: 'a.ts' }], any)).toEqual(noTabs)
+  })
+
+  it('reads back a preview of each kind', () => {
+    const open = ['file/k/a', 'file/k/b', 'session/m/p'].map(id => ({ id, pinned: false }))
+    expect(ids(restore({ open, used: [] }, any))).toEqual(['file/k/a', 'session/m/p'])
   })
 
   it('names the tab in the query readably, and reads it back as it was', () => {

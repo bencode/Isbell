@@ -13,9 +13,8 @@ import {
   frequentParents,
   splitTyped,
 } from '../../model/files/complete'
-import { type Entry, type Listing, list } from '../../model/files/remote'
+import { type Entry, isMissing, type Listing, list } from '../../model/files/remote'
 import { expandHome, judgeDir, projectsAt } from '../../model/projects'
-import { CallError } from '../../model/streams'
 
 /** At most this many suggestions show. */
 const SHOWN = 50
@@ -94,7 +93,7 @@ function useDirListing(mid: string, dir: string | undefined): DirListing | undef
       listing => live && setGot({ mid, dir, listing }),
       (err: unknown) => {
         if (!live) return
-        const missing = err instanceof CallError && ['not_found', 'not_a_directory'].includes(err.code)
+        const missing = isMissing(err)
         if (!missing) console.warn('could not list a directory to suggest from', dir, err)
         setGot({ mid, dir, missing })
       },
