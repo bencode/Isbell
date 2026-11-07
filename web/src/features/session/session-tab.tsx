@@ -101,7 +101,7 @@ function Opened({
   const keepTab = useCallback(() => keep(id), [keep, id])
   const shownTab = useTabRoute().shown
   const agent = 'session' in pane ? pane.session : undefined
-  usePaneSession(mid, paneId, agent?.kind, agent?.status)
+  const ran = usePaneSession(mid, paneId, agent?.kind, agent?.status)
   const cwd = 'session' in pane ? (pane.session.cwd ?? project.path) : pane.shell.cwd
   const [shown, setShown] = useState<View>(agent ? (askedView ?? 'chat') : 'terminal')
   // The terminal, once shown, stays attached behind the chat.
@@ -140,7 +140,7 @@ function Opened({
         <div className="relative min-h-0 flex-1">
           {agent ? (
             <div className={`absolute inset-0 ${shown === 'chat' ? '' : 'invisible'}`}>
-              <Chat project={project} session={agent} onDraft={keepTab} />
+              <Chat project={project} session={agent} ran={ran} onDraft={keepTab} />
             </div>
           ) : null}
           {attached ? (

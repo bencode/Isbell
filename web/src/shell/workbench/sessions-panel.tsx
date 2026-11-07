@@ -17,10 +17,9 @@ import type { Project } from '../../model/projects'
 import { byDay, dayKey, lineTime, matches, sessionKey } from '../../model/sessions'
 import type { AgentStatus } from '../../model/state'
 import { closedTabId, sessionTabId } from '../../model/tabs'
-import { since, useNow } from '../../utils/time'
+import { clock, dayTitle, since, useNow } from '../../utils/time'
 
 const NOTE = 'm-3 text-[13px] text-muted'
-const DAY_MS = 24 * 60 * 60 * 1000
 
 type Row = { id: string; status?: AgentStatus; name: string; cwd: string; words: string; since?: number }
 
@@ -51,15 +50,8 @@ function rowsOf(project: Project): Row[] {
 
 const branchOf = (roots: FilesRoot[], cwd: string) => rootHolding(roots, cwd)?.root.branch
 
-const clock = (t: T, ms: number) =>
-  new Date(ms).toLocaleTimeString(t.locale, { hour: '2-digit', minute: '2-digit' })
-
-function dayTitle(t: T, ms: number, now: number) {
-  const day = dayKey(ms)
-  if (day === dayKey(now)) return t('sessions.today')
-  if (day === dayKey(now - DAY_MS)) return t('sessions.yesterday')
-  return new Date(ms).toLocaleDateString(t.locale, { month: 'long', day: 'numeric' })
-}
+const dayOf = (t: T, ms: number, now: number) =>
+  dayTitle(t.locale, ms, now, { today: t('sessions.today'), yesterday: t('sessions.yesterday') })
 
 function Group({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -138,7 +130,7 @@ export function SessionsPanel({ projectKey }: { projectKey: string }) {
         {byDay(history, lineTime).map(day => {
           const first = day[0]
           return (
-            <Group key={dayKey(lineTime(first))} title={dayTitle(t, lineTime(first), now)}>
+            <Group key={dayKey(lineTime(first))} title={dayOf(t, lineTime(first), now)}>
               {day.map(s => {
                 const id = closedTabId(project.mid, s.agent, s.id)
                 return (
@@ -146,7 +138,7 @@ export function SessionsPanel({ projectKey }: { projectKey: string }) {
                     key={id}
                     mark="ran"
                     name={s.first}
-                    meta={[branchOf(roots, s.cwd), s.agent, clock(t, lineTime(s))]
+                    meta={[branchOf(roots, s.cwd), s.agent, clock(t.locale, lineTime(s))]
                       .filter(Boolean)
                       .join(' · ')}
                     {...row(id)}

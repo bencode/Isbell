@@ -53,6 +53,32 @@ test('a file over the limit is closed unread, or as soon as it grows past it', a
   expect(growing.seen.closed).toBe(true)
 })
 
+test('a range starts where the gateway says, and stops at what is wanted', async () => {
+  const from = serving({ size: 10, offset: 4 }, [
+    [4, 5, 6],
+    [7, 8, 9],
+  ])
+  expect(await read(from.open, 'm', '/log', 100, { offset: 4, want: 4 })).toEqual({
+    size: 10,
+    offset: 4,
+    bytes: Uint8Array.from([4, 5, 6, 7]),
+  })
+  expect(from.seen).toMatchObject({ granted: 4, closed: true })
+  // At the end there is nothing to read.
+  const end = serving({ size: 10, offset: 10 }, [])
+  expect(await read(end.open, 'm', '/log', 100, { offset: 10 })).toEqual({
+    size: 10,
+    offset: 10,
+    bytes: new Uint8Array(0),
+  })
+  // A gateway too old for ranges reads from the start, and says nothing of where.
+  const old = serving({ size: 3 }, [[1, 2, 3]])
+  expect(await read(old.open, 'm', '/log', 100, { tail: 2 })).toEqual({
+    size: 3,
+    bytes: Uint8Array.from([1, 2, 3]),
+  })
+})
+
 test('a read the machine ends with an error fails with it', async () => {
   const { open } = serving({ size: 1 }, [], { code: 'io_error', msg: 'disk' })
   await expect(read(open, 'm', '/a.md', 100)).rejects.toMatchObject({ code: 'io_error' })

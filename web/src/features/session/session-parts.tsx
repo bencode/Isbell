@@ -1,32 +1,48 @@
-// The parts of a session's chat: what is read from the agent's screen, the turns it makes, the dock
-// that answers or adds to it, and the facts needed to reach it by hand.
+// The parts of a session's chat: its conversation, read from the agent's record (else its screen),
+// the dock that answers or adds to it, and the facts needed to reach it by hand.
 
 import { SquareTerminal } from 'lucide-react'
 import { useEffect } from 'react'
 import { buttonClass } from '../../components/button'
 import { InfoFacts } from '../../components/info-panel'
+import { useChatLog } from '../../core/chat-log'
 import { errorText, useI18n } from '../../core/i18n'
 import { markSeen } from '../../core/prefs'
+import { useSessionRecords } from '../../core/session-records'
 import { RELAY_URL, useSpaceView } from '../../core/space'
+import { fromScreen } from '../../model/chat/screen'
 import { type Pane, type Project, paneKey, type Session } from '../../model/projects'
 import { machineOf, type Via } from '../../model/space'
 import { settled } from '../../model/state'
 import { useNow } from '../../utils/time'
 import { AnswerElsewhere, Asking } from './asking'
 import { Composer } from './composer'
-import { PathRoot, useShowTerminal } from './context'
+import { PathRoot, TerminalLink, useShowTerminal } from './context'
+import { Conversation, Marker } from './conversation'
 import { attachCommand, connectionFacts, paneFacts } from './facts'
 import { StatusBar } from './status-bar'
-import { Turns } from './turns'
 import { useLink } from './use-link'
 import { useReading } from './use-reading'
 
-/** A session as its chat shows it: what is read from its screen, and what can be done with it. */
+/** A session as its chat shows it: its conversation as recorded, what is read from its screen, and
+ * what can be done with it. */
 type SessionState = ReturnType<typeof useSession>
 
-export function useSession(mid: string, paneId: string, session: Session) {
+/** `ran`: the session the agent in the pane runs, once known. */
+export function useSession(
+  mid: string,
+  paneId: string,
+  session: Session,
+  project: Project,
+  ran: { agent: string; id: string } | undefined,
+) {
   const view = useSpaceView()
   const { earlier, ...read } = useReading(mid, paneId, session)
+  const { recent } = useSessionRecords(project)
+  // Not a session of the agent the pane ran before this one.
+  const own = ran?.agent === session.kind ? ran : undefined
+  const transcript = own && recent?.find(r => r.agent === own.agent && r.id === own.id)?.transcript
+  const log = useChatLog(mid, session.kind, transcript, session.status)
   const methods = machineOf(view.machines, mid)?.state.caps.methods
   // Earlier turns are read a page at a time from a gateway that pages, while the agent is still.
   const canPage = read.more && settled(session.status) && !!methods?.includes('isbell.agent.history')
@@ -38,6 +54,7 @@ export function useSession(mid: string, paneId: string, session: Session) {
 
   return {
     ...read,
+    log,
     onEarlier: canPage ? earlier : undefined,
     taken: !!methods?.includes('isbell.file.upload'),
     // Waiting for an answer, with its screen read to answer from.
@@ -47,25 +64,67 @@ export function useSession(mid: string, paneId: string, session: Session) {
 
 type Parts = { mid: string; paneId: string; project: Project; session: Session; state: SessionState }
 
-/** The turns, or the screen itself when it cannot be read as turns, and what went wrong. */
-export function SessionBody({
-  project,
-  session,
-  state: { reading, text, error, onEarlier, paging, more },
-}: Omit<Parts, 'mid' | 'paneId'>) {
+/** The conversation as recorded, else as read off the screen, else the screen itself; the question
+ * the agent waits on under it; and what went wrong. */
+export function SessionBody({ mid, paneId, project, session, state }: Parts) {
   const t = useI18n()
   const showTerminal = useShowTerminal()
+  const { reading, text, error, onEarlier, paging, more, log, asking, reread } = state
+  // The screen's error, else the record's, which stops the chat following it.
+  const failed = error ?? log.error
+  const question =
+    asking && text !== null ? (
+      <>
+        <Asking
+          mid={mid}
+          paneId={paneId}
+          name={session.name}
+          question={reading?.question}
+          screen={text}
+          onAnswered={reread}
+        />
+        {/* The question's own block offers the terminal when it was read. */}
+        {reading?.question ? null : <AnswerElsewhere />}
+      </>
+    ) : null
+  const turns = log.turns ?? (reading ? fromScreen(reading) : undefined)
+  const top = log.turns ? (
+    <Marker>
+      {log.start ? t('chat.start') : <EarlierButton onClick={log.earlier} paging={log.paging} />}
+    </Marker>
+  ) : reading ? (
+    <>
+      <p className="m-0 mb-[18px] rounded-md border border-dashed border-line-strong px-2.5 py-1.5 text-xs text-faint">
+        {t('chat.fromScreen')}
+      </p>
+      <Marker>
+        {reading.start ? (
+          t('chat.start')
+        ) : onEarlier ? (
+          <EarlierButton onClick={onEarlier} paging={paging} />
+        ) : more && !settled(session.status) ? (
+          t('chat.afterStop')
+        ) : more ? (
+          <span>
+            {t('chat.earlier')} · <TerminalLink>{t('session.terminal')}</TerminalLink>
+          </span>
+        ) : (
+          t('chat.noEarlier')
+        )}
+      </Marker>
+    </>
+  ) : null
   return (
     <>
-      {reading ? (
+      {turns ? (
         <PathRoot value={{ project, cwd: session.cwd ?? project.path }}>
-          <Turns
-            reading={reading}
+          <Conversation
+            turns={turns}
+            kind={session.kind}
             status={session.status}
             statusSince={session.statusSince}
-            onEarlier={onEarlier}
-            paging={paging}
-            more={more}
+            top={top}
+            asking={question}
           />
         </PathRoot>
       ) : text === null ? (
@@ -83,15 +142,30 @@ export function SessionBody({
           <pre className="m-0 overflow-auto rounded-md bg-term px-4 py-3.5 font-mono text-[12.5px] leading-normal whitespace-pre-wrap text-[#e9e5d9]">
             {text}
           </pre>
+          {question}
         </>
       )}
-      {error ? <p className="m-0 text-[13px] text-danger">{errorText(t, error)}</p> : null}
+      {failed ? <p className="m-0 text-[13px] text-danger">{errorText(t, failed)}</p> : null}
     </>
   )
 }
 
-/** While the agent asks, the question to answer with a key, since it takes no words until then;
- * otherwise a reply, with the status line under it. */
+function EarlierButton({ onClick, paging }: { onClick: () => void; paging: boolean }) {
+  const t = useI18n()
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={paging}
+      className="h-[26px] cursor-pointer rounded-full border border-line bg-raised px-3 text-xs font-medium text-accent enabled:hover:bg-raised-2 focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-default disabled:text-faint"
+    >
+      {paging ? t('chat.readingEarlier') : t('chat.showEarlier')}
+    </button>
+  )
+}
+
+/** While the agent asks, its question (in the chat above) takes the answer, since it takes no words
+ * until then; otherwise a reply, with the status line under it. */
 export function SessionDock({
   mid,
   paneId,
@@ -100,22 +174,9 @@ export function SessionDock({
   state,
   onDraft,
 }: Parts & { onDraft: () => void }) {
-  const { reading, text, reread, taken, asking } = state
-  if (asking && text !== null)
-    return (
-      <div className="flex flex-col gap-2">
-        <Asking
-          mid={mid}
-          paneId={paneId}
-          name={session.name}
-          question={reading?.question}
-          screen={text}
-          onAnswered={reread}
-        />
-        {/* The question's own block offers the terminal when it was read. */}
-        {reading?.question ? null : <AnswerElsewhere />}
-      </div>
-    )
+  const t = useI18n()
+  const { reading, reread, taken, asking } = state
+  if (asking) return <p className="m-0 text-[12.5px] text-muted">{t('chat.answerAbove')}</p>
   return (
     <Composer
       mid={mid}
@@ -123,6 +184,7 @@ export function SessionDock({
       onSent={reread}
       onDraft={onDraft}
       uploads={{ machine: project.machine, taken }}
+      stoppable={session.status === 'working'}
       below={
         <StatusBar
           mid={mid}

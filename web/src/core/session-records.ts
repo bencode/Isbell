@@ -116,7 +116,12 @@ const readText = async (space: Space, mid: string, path: string) => {
 async function notePane(call: Caller, mid: string, paneId: string, kind: string) {
   try {
     const id = (await agentNote(call, mid, paneId)).session
-    if (id) panes.set(dirKey(mid, paneId), { agent: kind, id })
+    const key = dirKey(mid, paneId)
+    const was = panes.get(key)
+    if (id && (was?.agent !== kind || was.id !== id)) {
+      panes.set(key, { agent: kind, id })
+      for (const listener of listeners) listener()
+    }
     return id
   } catch (err) {
     console.warn(`could not read which session runs in ${paneId}`, err)
@@ -299,8 +304,8 @@ export function useSessionRecords(project: Project | undefined): SessionRecords 
 /** Finds a session among those read, again as more are. */
 export const useRecordLookup = (): Lookup => useSyncExternalStore(subscribe, () => lookup)
 
-/** Notes which session the agent in the pane runs, read again as its status changes; `kind` none for
- * a shell. */
+/** Which session the agent in the pane runs, read again as its status changes; `kind` none for a
+ * shell. */
 export function usePaneSession(
   mid: string,
   paneId: string,
@@ -313,6 +318,7 @@ export function usePaneSession(
     if (!kind) panes.delete(dirKey(mid, paneId))
     else if (status !== undefined) void notePane(call, mid, paneId, kind)
   }, [call, mid, paneId, kind, status])
+  return useSyncExternalStore(subscribe, () => (kind ? panes.get(dirKey(mid, paneId)) : undefined))
 }
 
 /** The session the pane was last seen running. */

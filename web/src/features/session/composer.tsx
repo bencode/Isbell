@@ -1,21 +1,23 @@
-import { Paperclip } from 'lucide-react'
+import { Paperclip, Square } from 'lucide-react'
 import { type DragEvent, type ReactNode, useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/button'
 import { errorText, useI18n } from '../../core/i18n'
 import { useSpace } from '../../core/space'
-import { prompt } from '../../model/herdr'
+import { prompt, sendKeys } from '../../model/herdr'
 import { onSubmitKey } from '../../utils/submit-key'
 import { Attachments, useAttachments } from './attachments'
 
 /** A reply, or something more the agent should know. `uploads`: the agent's machine and whether it
  * takes files; where it does, files pasted, dropped or picked go along, the reply naming where they
- * landed. `below` goes in the row under it, after the button that picks files. */
+ * landed. `below` goes in the row under it, after the button that picks files. `stoppable`: the
+ * agent is at work, and can be stopped with the key it stops on. */
 export function Composer({
   mid,
   paneId,
   onSent,
   onDraft,
   uploads,
+  stoppable,
   below,
 }: {
   mid: string
@@ -24,6 +26,7 @@ export function Composer({
   /** Something is written or attached, so the reply must not be lost with its tab. */
   onDraft: () => void
   uploads: { machine: string; taken: boolean }
+  stoppable: boolean
   below?: ReactNode
 }) {
   const t = useI18n()
@@ -53,6 +56,17 @@ export function Composer({
     } finally {
       setBusy(false)
     }
+  }
+
+  const [stopping, setStopping] = useState(false)
+  const stop = () => {
+    setStopping(true)
+    sendKeys(space.call, mid, paneId, ['esc'])
+      .then(
+        () => setError(undefined),
+        (err: unknown) => setError(errorText(t, err)),
+      )
+      .finally(() => setStopping(false))
   }
 
   const field = (
@@ -87,11 +101,17 @@ export function Composer({
     <div className="flex flex-col gap-1.5">
       <div
         {...drop}
-        className="flex flex-col gap-2 rounded-lg border border-line-strong bg-raised py-2 pr-2 pl-3.5"
+        className="flex flex-col gap-2 rounded-xl border border-line-strong bg-raised py-2 pr-2 pl-3.5 focus-within:border-accent"
       >
         <Attachments items={files.items} onRemove={files.remove} />
         <div className="flex items-end gap-2.5">
           {field}
+          {stoppable ? (
+            <Button onClick={stop} disabled={stopping}>
+              <Square size={11} fill="currentColor" />
+              {t('chat.stop')}
+            </Button>
+          ) : null}
           <Button variant="primary" onClick={() => void send()} disabled={!ready}>
             {t('composer.send')}
             <span className="font-mono text-[11px] opacity-70">↵</span>

@@ -12,10 +12,12 @@ export type SessionRecord = {
   last: string
   started: number
   updated: number
+  /** The file the agent keeps the conversation in, once the hook (v5) has told it. */
+  transcript?: string
 }
 
 /** A session as recorded when it began, in its month's list. */
-export type MonthLine = Omit<SessionRecord, 'last' | 'updated'>
+export type MonthLine = Omit<SessionRecord, 'last' | 'updated' | 'transcript'>
 
 /** Every project a session ran in, by its root: where the project's records are, and when one of
  * them last changed. */
@@ -39,7 +41,9 @@ const isLine = (v: unknown): v is MonthLine => {
 
 const isRecord = (v: unknown): v is SessionRecord => {
   const s = v as Partial<SessionRecord> | null
-  return isText(s?.last) && isTime(s?.updated) && isLine(s)
+  return (
+    isText(s?.last) && isTime(s?.updated) && (s.transcript === undefined || isText(s.transcript)) && isLine(s)
+  )
 }
 
 /** Text that may not be JSON, as a file the hook writes can be cut short by a full disk. */
@@ -96,7 +100,7 @@ export const dayKey = (ms: number) => {
 }
 
 /** A session in a list: as the project's latest keep it, or only as its month's line. */
-export type SessionLine = MonthLine & { last?: string; updated?: number }
+export type SessionLine = MonthLine & { last?: string; updated?: number; transcript?: string }
 
 /** What names a session among every agent's. */
 export const sessionKey = (s: { agent: string; id: string }) => `${s.agent}/${s.id}`
