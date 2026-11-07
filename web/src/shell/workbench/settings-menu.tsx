@@ -4,12 +4,12 @@
 import { Popover } from '@base-ui/react/popover'
 import { Toggle } from '@base-ui/react/toggle'
 import { ToggleGroup } from '@base-ui/react/toggle-group'
-import { Bell, CircleHelp, LogOut, Server, Settings2 } from 'lucide-react'
-import { type ComponentType, type ReactNode, useState } from 'react'
+import { Bell, CircleHelp, LogOut, type LucideIcon, Server, Settings2 } from 'lucide-react'
+import { type ReactNode, useState } from 'react'
+import { ICON, IconButton } from '../../components/icon-button'
 import { useI18n } from '../../core/i18n'
 import { applyTheme, type Prefs, updateLocal, useLocal } from '../../core/prefs'
 import type { Overlay } from '../common'
-import { ICON, IconButton } from './icon-button'
 
 const HELP = 'https://github.com/bencode/Isbell#readme'
 
@@ -19,15 +19,9 @@ const ROW = 'flex min-h-[34px] items-center justify-between gap-2.5 pr-1.5 pl-2 
 const ITEM =
   'flex h-[30px] w-full cursor-pointer items-center gap-2.5 rounded-md border-0 bg-transparent px-2 text-left text-[13px] text-text no-underline transition-colors duration-75 hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent active:bg-press'
 
-function Item({
-  Icon,
-  onClick,
-  children,
-}: {
-  Icon: ComponentType<typeof MARK>
-  onClick: () => void
-  children: ReactNode
-}) {
+const MARK = { ...ICON, size: 14, className: 'flex-none text-faint' }
+
+function Item({ Icon, onClick, children }: { Icon: LucideIcon; onClick: () => void; children: ReactNode }) {
   return (
     <button type="button" onClick={onClick} className={ITEM}>
       <Icon {...MARK} />
@@ -35,8 +29,6 @@ function Item({
     </button>
   )
 }
-
-const MARK = { ...ICON, size: 14, className: 'flex-none text-faint' }
 
 function Choice<V extends string>({
   label,
@@ -127,7 +119,7 @@ export function SettingsMenu({ onOverlay }: { onOverlay: (overlay: Overlay) => v
             </Item>
             <a href={HELP} target="_blank" rel="noreferrer" onClick={() => setOpen(false)} className={ITEM}>
               <CircleHelp {...MARK} />
-              {t('wb.help')}
+              {t('workbench.help')}
             </a>
             <Item Icon={LogOut} onClick={() => show('leave')}>
               {t('settings.leave')}

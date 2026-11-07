@@ -14,22 +14,26 @@ import {
 } from 'lucide-react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Group, Panel, type PanelSize, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
+import { ICON, IconButton } from '../../components/icon-button'
 import { ResizeHandle } from '../../components/resize-handle'
 import { useI18n } from '../../core/i18n'
 import { toggleRail, useLocal } from '../../core/prefs'
 import { type Overlay, Overlays, ReconnectBanner } from '../common'
-import { ICON, IconButton } from './icon-button'
 import { SettingsMenu } from './settings-menu'
 
 const PANELS = ['list', 'main', 'right']
 const FOLD_MS = 200
+// Narrow as anyone may want; dragged to half of this, a column folds.
+const COLUMN_MIN = '100px'
+const MAIN_MIN = '200px'
 const BAR = 'flex h-[42px] flex-none items-center shadow-[inset_0_-1px_var(--line)]'
 const FOLD_BUTTON = 'absolute top-[7px] z-10'
 const MOVING =
-  'motion-safe:[&>[data-panel]]:transition-[flex-grow] motion-safe:[&>[data-panel]]:duration-200 motion-safe:[&>[data-panel]]:ease-[cubic-bezier(.16,1,.3,1)]'
+  'motion-safe:[&>[data-panel]]:transition-[flex-grow] motion-safe:[&>[data-panel]]:duration-200 motion-safe:[&>[data-panel]]:ease-fold'
 
 /** A column folded by the panel's own collapse, so the layout saved keeps it too. It opens to the
- * width it had; folded when the page loaded it has none, and opens to `base`. */
+ * width it last settled at, so one dragged shut opens as wide as before the drag; folded when the
+ * page loaded it has none, and opens to `base`. */
 function useFold(base: number) {
   const panel = usePanelRef()
   const [folded, setFolded] = useState(false)
@@ -43,9 +47,10 @@ function useFold(base: number) {
     folded,
     moving,
     width,
-    onResize: (size: PanelSize) => {
-      setFolded(size.inPixels === 0)
-      if (size.inPixels > 0 && !moving) setWidth(size.inPixels)
+    onResize: (size: PanelSize) => setFolded(size.inPixels === 0),
+    settle: () => {
+      const size = panel.current?.getSize().inPixels
+      if (size) setWidth(size)
     },
     toggle: () => {
       setMoving(true)
@@ -59,26 +64,15 @@ function useFold(base: number) {
 
 type Fold = ReturnType<typeof useFold>
 
-/** A column that folds: what is on it keeps its width and is cut as it goes, rather than squeezed,
- * and is out of reach of the keyboard once gone. */
-function FoldingColumn({
-  id,
-  fold,
-  size,
-  children,
-}: {
-  id: string
-  fold: Fold
-  size: { min: number; max: number }
-  children: ReactNode
-}) {
+/** A column that folds: what is on it keeps its width as it goes, cut rather than squeezed, and is
+ * out of reach of the keyboard once gone. */
+function FoldingColumn({ id, fold, children }: { id: string; fold: Fold; children: ReactNode }) {
   return (
     <Panel
       id={id}
       className="flex bg-side"
       defaultSize={`${fold.base}px`}
-      minSize={`${size.min}px`}
-      maxSize={`${size.max}px`}
+      minSize={COLUMN_MIN}
       collapsible
       collapsedSize="0px"
       groupResizeBehavior="preserve-pixel-size"
@@ -86,7 +80,7 @@ function FoldingColumn({
       onResize={fold.onResize}
     >
       <div className="flex min-w-0 flex-1 overflow-hidden" inert={fold.folded && !fold.moving}>
-        <div className="flex flex-1 flex-col" style={{ minWidth: fold.width }}>
+        <div className="flex flex-1 flex-col" style={{ minWidth: fold.moving ? fold.width : undefined }}>
           {children}
         </div>
       </div>
@@ -100,10 +94,10 @@ function Projects({ onOverlay }: { onOverlay: (overlay: Overlay) => void }) {
   return (
     <nav
       aria-label={t('side.projects')}
-      className={`relative flex flex-none flex-col overflow-hidden border-r border-line bg-side transition-[width] duration-200 ease-[cubic-bezier(.16,1,.3,1)] motion-reduce:transition-none ${thin ? 'w-[52px]' : 'w-[196px]'}`}
+      className={`relative flex flex-none flex-col overflow-hidden border-r border-line bg-side transition-[width] duration-200 ease-fold motion-reduce:transition-none ${thin ? 'w-[52px]' : 'w-[196px]'}`}
     >
       <IconButton
-        label={t(thin ? 'wb.unfoldRail' : 'wb.foldRail')}
+        label={t(thin ? 'workbench.unfoldRail' : 'workbench.foldRail')}
         side="right"
         onClick={toggleRail}
         className={`${FOLD_BUTTON} left-3`}
@@ -140,8 +134,8 @@ function ListHead() {
   )
   return (
     <div className={`${BAR} gap-3.5 pr-2 pl-11`}>
-      {tab('sessions', t('wb.sessions'))}
-      {tab('files', t('wb.files'))}
+      {tab('sessions', t('workbench.sessions'))}
+      {tab('files', t('workbench.files'))}
     </div>
   )
 }
@@ -161,14 +155,14 @@ export function Frame() {
           <ReconnectBanner />
           <div className="relative min-h-0 flex-1">
             <IconButton
-              label={t(list.folded ? 'wb.unfoldList' : 'wb.foldList')}
+              label={t(list.folded ? 'workbench.unfoldList' : 'workbench.foldList')}
               onClick={list.toggle}
               className={`${FOLD_BUTTON} left-2`}
             >
               {list.folded ? <PanelLeftOpen {...ICON} /> : <PanelLeftClose {...ICON} />}
             </IconButton>
             <IconButton
-              label={t(right.folded ? 'wb.unfoldRight' : 'wb.foldRight')}
+              label={t(right.folded ? 'workbench.unfoldRight' : 'workbench.foldRight')}
               onClick={right.toggle}
               className={`${FOLD_BUTTON} right-2`}
             >
@@ -178,23 +172,27 @@ export function Frame() {
               orientation="horizontal"
               className={`h-full ${moving ? MOVING : ''}`}
               defaultLayout={split.defaultLayout}
-              onLayoutChanged={split.onLayoutChanged}
+              onLayoutChanged={(layout, meta) => {
+                split.onLayoutChanged(layout, meta)
+                list.settle()
+                right.settle()
+              }}
             >
-              <FoldingColumn id="list" fold={list} size={{ min: 208, max: 420 }}>
+              <FoldingColumn id="list" fold={list}>
                 <ListHead />
               </FoldingColumn>
-              <ResizeHandle label={t('wb.resizeList')} disabled={list.folded} />
-              <Panel id="main" className="flex" minSize="480px">
+              <ResizeHandle label={t('workbench.resizeList')} disabled={list.folded} />
+              <Panel id="main" className="flex" minSize={MAIN_MIN}>
                 <main className="flex min-w-0 flex-1 flex-col">
                   <div
-                    className={`${BAR} bg-side transition-[padding] duration-200 ${list.folded ? 'pl-11' : ''} ${right.folded ? 'pr-11' : ''}`}
+                    className={`${BAR} bg-side transition-[padding] duration-200 ease-fold motion-reduce:transition-none ${list.folded ? 'pl-11' : ''} ${right.folded ? 'pr-11' : ''}`}
                   />
-                  <p className="m-auto text-muted">{t('wb.empty')}</p>
+                  <p className="m-auto text-muted">{t('workbench.empty')}</p>
                 </main>
               </Panel>
-              <ResizeHandle label={t('wb.resizeRight')} disabled={right.folded} />
-              <FoldingColumn id="right" fold={right} size={{ min: 264, max: 440 }}>
-                <div className={`${BAR} pr-11 pl-3.5 text-[13px] font-semibold`}>{t('wb.active')}</div>
+              <ResizeHandle label={t('workbench.resizeRight')} disabled={right.folded} />
+              <FoldingColumn id="right" fold={right}>
+                <div className={`${BAR} pr-11 pl-3.5 text-[13px] font-semibold`}>{t('workbench.active')}</div>
               </FoldingColumn>
             </Group>
           </div>
