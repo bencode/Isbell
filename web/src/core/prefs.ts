@@ -50,6 +50,8 @@ export type Reader = ReadingAppearance & {
 
 export type Local = {
   key: string | null
+  /** The frame on a computer, while the workbench is built beside the pages it replaces. */
+  shell: 'desktop' | 'workbench'
   prefs: Prefs
   seen: Seen
   /** Agent kind by project key. */
@@ -64,6 +66,7 @@ export type Local = {
 
 const DEFAULTS: Local = {
   key: null,
+  shell: 'desktop',
   prefs: { notify: false, push: false, theme: 'system', lang: 'system' },
   seen: {},
   lastAgent: {},
