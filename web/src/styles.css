@@ -25,6 +25,19 @@
   --color-press: var(--press);
   --color-selected: var(--selected);
   --color-accent-soft: var(--accent-soft);
+  --color-term: var(--term);
+  /* A running agent's dot, its ring going out. */
+  --animate-ring: ring 1.8s var(--ease-fold) infinite;
+  @keyframes ring {
+    from {
+      transform: scale(0.8);
+      opacity: 0.5;
+    }
+    to {
+      transform: scale(2);
+      opacity: 0;
+    }
+  }
   --font-sans: "Instrument Sans Variable", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
@@ -52,6 +65,8 @@
   --ask-line: light-dark(#dcb56d, #6a5426);
   --end: light-dark(#fbeae7, #2a1817);
   --end-line: light-dark(#e3b2ab, #5a2d2c);
+  /* The terminal keeps the night page in both themes; see use-terminal.ts. */
+  --term: #0d121b;
   --scrim: light-dark(rgb(28 35 51 / 0.3), rgb(4 6 10 / 0.6));
   /* Ink over any surface: a control reads the same on the side, the page and a card. */
   --hover: light-dark(rgb(28 35 51 / 0.06), rgb(233 229 217 / 0.07));

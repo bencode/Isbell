@@ -6,6 +6,7 @@ import { Pin, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { Link } from 'react-router'
 import { IconButton } from '../../components/icon-button'
+import { StatusDot } from '../../components/status-dot'
 import { useI18n } from '../../core/i18n'
 import { useProjects } from '../../core/space'
 import { useTabActions, useTabRoute } from '../../core/tabs'
@@ -34,7 +35,7 @@ function Tab({ tab, shown, edged, projects }: TabProps) {
   }, [shown])
   const found = kindOf(tab.id)
   if (!found) return null
-  const { name, full } = found.kind.label(found.params, projects)
+  const { name, full, status } = found.kind.label(found.params, projects)
   const quiet = shown ? '' : ON_HOVER
   return (
     <div
@@ -48,7 +49,13 @@ function Tab({ tab, shown, edged, projects }: TabProps) {
         onDoubleClick={() => togglePin(tab.id)}
         className="flex h-full min-w-0 flex-1 items-center gap-1.5 text-inherit no-underline focus-visible:outline-2 focus-visible:outline-accent"
       >
-        <found.kind.Icon {...SMALL} className="flex-none text-faint" />
+        {status ? (
+          <span className="grid size-[13px] flex-none place-items-center">
+            <StatusDot status={status} />
+          </span>
+        ) : (
+          <found.kind.Icon {...SMALL} className="flex-none text-faint" />
+        )}
         <span className="min-w-0 flex-1 truncate">{name}</span>
       </Link>
       <IconButton

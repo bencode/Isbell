@@ -5,17 +5,20 @@ import { useEffect, useMemo } from 'react'
 import { useParams } from 'react-router'
 import { HtmlRenderer } from '../../components/renderers/html'
 import { useI18n } from '../../core/i18n'
-import { useSpace } from '../../core/space'
+import { useSpace, useSpaceView } from '../../core/space'
 import { useRootOf } from '../../core/worktrees'
 import { assetReader } from '../../model/files/assets'
 import { join, nameOf } from '../../model/files/paths'
 import { PREVIEW_MAX, read } from '../../model/files/remote'
+import { machineOf } from '../../model/space'
+import { filesNote } from './notes'
 
 export function PageView() {
   const t = useI18n()
   const params = useParams()
   const rel = params['*'] ?? ''
   const { openStream } = useSpace()
+  const { machines } = useSpaceView()
   const { project, root: at, settled } = useRootOf(params.key ?? '')
   const mid = project?.mid ?? ''
   const root = at?.path
@@ -28,20 +31,12 @@ export function PageView() {
     document.title = nameOf(rel)
   }, [rel])
 
-  // Until the projects and worktrees settle, one not found may yet appear.
-  const note = !project
-    ? settled
-      ? t('project.gone')
-      : t('board.loading')
-    : !project.online
-      ? t('files.offline')
-      : !at
-        ? settled
-          ? t('files.branchGone')
-          : t('board.loading')
-        : !asset
-          ? t('files.noRoot')
-          : undefined
+  const note = filesNote(t, {
+    project,
+    root: at,
+    settled,
+    machine: project && machineOf(machines, project.mid),
+  })
   if (note || !asset) return <p className="m-6 text-muted">{note}</p>
   return (
     <div className="flex h-screen flex-col">

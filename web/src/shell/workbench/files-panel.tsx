@@ -2,35 +2,17 @@
 // its tab shows. It reads no file: every file opens in a tab.
 
 import { useEffect } from 'react'
-import { type T, useI18n } from '../../core/i18n'
+import { useI18n } from '../../core/i18n'
 import { rememberFilesAt } from '../../core/prefs'
 import { useSpaceView } from '../../core/space'
 import { useTabActions, useTabRoute } from '../../core/tabs'
 import { useRootOf } from '../../core/worktrees'
+import { filesNote } from '../../features/files/notes'
 import { Tree } from '../../features/files/tree'
-import type { FilesRoot } from '../../model/files/worktrees'
-import type { Project } from '../../model/projects'
-import { type MachineEntry, machineOf } from '../../model/space'
+import { machineOf } from '../../model/space'
 import { fileTabId } from './tab-kinds'
 
 const NOTE = 'm-3 text-[13px] text-muted'
-
-/** Why a project's files cannot be browsed, if they cannot. */
-const filesNote = (
-  t: T,
-  project: Project,
-  machine: MachineEntry | undefined,
-  root: FilesRoot | undefined,
-): string | undefined =>
-  !project.online
-    ? t('files.offline')
-    : !machine?.state.caps.methods.includes('isbell.file.list')
-      ? t('files.old')
-      : !project.path
-        ? t('files.noRoot')
-        : !root
-          ? t('files.branchGone')
-          : undefined
 
 type Props = {
   /** The root's key, as the address has it. */
@@ -49,11 +31,8 @@ export function FilesPanel({ rootKey, at }: Props) {
     if (project && root) rememberFilesAt(project.key, root.key, at)
   }, [project, root, at])
 
-  // Until the projects and worktrees settle, one not found may yet appear.
-  if ((!project || !root) && !settled) return <p className={NOTE}>{t('board.loading')}</p>
-  if (!project) return <p className={NOTE}>{t('project.gone')}</p>
-  const note = filesNote(t, project, machineOf(machines, project.mid), root)
-  if (note || !root) return <p className={NOTE}>{note}</p>
+  const note = filesNote(t, { project, root, settled, machine: project && machineOf(machines, project.mid) })
+  if (note || !project || !root) return <p className={NOTE}>{note}</p>
   const prefix = fileTabId(root.key, '')
   return (
     <div className="flex min-h-0 flex-1">

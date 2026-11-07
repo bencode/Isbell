@@ -1,8 +1,7 @@
-// A project's files as the views need them: a folder's listing, a search and a file, each loaded
+// Files on a machine as the views need them: a folder's listing, a search and a file, each loaded
 // once for what it is asked about. A view that wants them again is mounted afresh (keyed).
 
 import { useCallback, useEffect, useState } from 'react'
-import { useSpace } from '../../core/space'
 import {
   type FileRead,
   type Found,
@@ -11,7 +10,8 @@ import {
   PREVIEW_MAX,
   read,
   search,
-} from '../../model/files/remote'
+} from '../model/files/remote'
+import { useSpace } from './space'
 
 type Loaded<T> = { data?: T; error?: unknown }
 

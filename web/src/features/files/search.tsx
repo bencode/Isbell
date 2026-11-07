@@ -4,11 +4,11 @@
 import { Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { errorText, useI18n } from '../../core/i18n'
+import { useSearch } from '../../core/remote-files'
 import { matchParts, type PathNode, pathTree } from '../../model/files/path-tree'
 import { projectFilesHref } from '../../utils/hrefs'
 import { FileRow, FolderRow } from './rows'
 import type { Where } from './tree'
-import { useSearch } from './use-remote'
 
 const PAUSE_MS = 300
 

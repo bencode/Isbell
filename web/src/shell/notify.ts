@@ -7,14 +7,14 @@ import { useI18n } from '../core/i18n'
 import { useLocal } from '../core/prefs'
 import { needs, type Project, paneKey } from '../model/projects'
 import type { AgentStatus } from '../model/state'
-import { projectHref } from '../utils/hrefs'
+import { sessionTabHref } from './workbench/tab-kinds'
 
 const NOTIFY_ON: AgentStatus[] = ['blocked', 'done']
 
 export function useNotifications(projects: Project[], loaded: boolean) {
   const t = useI18n()
   const navigate = useNavigate()
-  const { prefs, projectAt } = useLocal()
+  const { prefs } = useLocal()
   // Last status seen per session; null until the first state is in, so it never notifies at load.
   const last = useRef<Map<string, AgentStatus> | null>(null)
 
@@ -42,10 +42,9 @@ export function useNotifications(projects: Project[], loaded: boolean) {
       )
       n.onclick = () => {
         window.focus()
-        // Where its project was left, until a session opens in a tab of its own.
-        navigate(projectAt[s.project] ?? projectHref(s.project))
+        navigate(sessionTabHref(s.project, s.mid, s.paneId))
         n.close()
       }
     }
-  }, [projects, loaded, prefs.notify, projectAt, t, navigate])
+  }, [projects, loaded, prefs.notify, t, navigate])
 }
