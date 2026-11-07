@@ -68,3 +68,21 @@ test('the terminal title is the task, unless it only names the agent, the comman
   expect(title('pi', 'π - Isbell')).toBeUndefined()
   expect(title('claude', ' ')).toBeUndefined()
 })
+
+test("herdr's session stands in for one the hook has not reported, for the agent in the pane alone", () => {
+  const id = '66a3ee45-fe22-43be-874b-0bc10ff867e2'
+  expect(noteOf({ agent: 'claude', agent_session: { agent: 'claude', kind: 'id', value: id } })).toEqual({
+    session: id,
+  })
+  const file = `/h/.pi/agent/sessions/--w--/2026-11-01T03-29-35-314Z_${id}.jsonl`
+  expect(noteOf({ agent: 'pi', agent_session: { agent: 'pi', kind: 'path', value: file } })).toEqual({
+    session: id,
+  })
+  expect(noteOf({ agent: 'codex', agent_session: { agent: 'pi', kind: 'path', value: file } })).toEqual({})
+  const tokens = { isbell_agent: 'claude', isbell_session: 'reported' }
+  expect(
+    noteOf({ agent: 'claude', tokens, agent_session: { agent: 'claude', kind: 'id', value: id } }),
+  ).toEqual({
+    session: 'reported',
+  })
+})

@@ -12,7 +12,17 @@ export const MAX_TABS = 7
 
 export const noTabs: Tabs = { open: [], used: [] }
 
-const previewKind = (id: string) => id.slice(0, id.indexOf('/'))
+/** A session's tab, or a shell's, by its machine and pane. */
+export const sessionTabId = (mid: string, paneId: string) => `session/${mid}/${paneId}`
+
+/** A session that ran, by its machine, its agent and its id. */
+export const closedTabId = (mid: string, agent: string, id: string) => `closed/${mid}/${agent}/${id}`
+
+/** One preview for each kind; a session that ran shows in the place of a running one. */
+const previewKind = (id: string) => {
+  const kind = id.slice(0, id.indexOf('/'))
+  return kind === 'closed' ? 'session' : kind
+}
 
 /** The preview of the kind of `id`, if there is one. */
 const previewFor = (open: TabEntry[], id: string) =>
@@ -59,6 +69,16 @@ export function togglePin(tabs: Tabs, id: string): Tabs {
 export function keep(tabs: Tabs, id: string): Tabs {
   if (tabs.open.some(tab => tab.id === id)) return pin(tabs, id)
   return trim({ open: [...tabs.open, { id, pinned: true }], used: [id, ...tabs.used] }, id)
+}
+
+/** `to` in the place of `from`, pinned as it was and as recently shown; only closes `from` when `to`
+ * is open already. */
+export function replace(tabs: Tabs, from: string, to: string): Tabs {
+  if (tabs.open.some(tab => tab.id === to)) return close(tabs, from)
+  return {
+    open: tabs.open.map(tab => (tab.id === from ? { ...tab, id: to } : tab)),
+    used: tabs.used.map(id => (id === from ? to : id)),
+  }
 }
 
 export const close = (tabs: Tabs, id: string): Tabs => ({

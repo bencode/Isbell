@@ -12,11 +12,11 @@ import { NewSessionMenu } from '../../features/session/new-session-menu'
 import type { SessionOpening } from '../../features/session/session-tab'
 import { dirOf } from '../../model/files/paths'
 import { parseRootKey } from '../../model/files/worktrees'
+import { sessionTabId } from '../../model/tabs'
 import { projectFilesHref, projectHref } from '../../utils/hrefs'
 import { filesOf, rootKeyOf } from './address'
 import { BAR } from './bar'
 import { SessionsPanel } from './sessions-panel'
-import { sessionTabId } from './tab-kinds'
 
 // The tree reads with the same code as a project's files, and loads it when first shown.
 const FilesPanel = lazy(() => import('./files-panel').then(m => ({ default: m.FilesPanel })))

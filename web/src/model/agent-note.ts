@@ -1,5 +1,5 @@
-// What herdr knows of an agent besides its screen: the title it gives its terminal, and what
-// Isbell's hook in it (integrations/agent-hook.sh) reports as it works.
+// What herdr knows of an agent besides its screen: the title it gives its terminal, the session it
+// made out, and what Isbell's hook in it (integrations/agent-hook.sh) reports as it works.
 
 export type ToolUse = { tool: string; target?: string }
 
@@ -14,7 +14,8 @@ export type AgentNote = {
   asking?: ToolUse
   /** Its permission mode, when not the default. */
   mode?: string
-  /** The agent's own id for the session running in the pane. */
+  /** The agent's own id for the session running in the pane: as its hook reported it, else as herdr
+   * made it out. */
   session?: string
 }
 
@@ -24,9 +25,22 @@ export type AgentInfo = {
   cwd?: string | null
   terminal_title_stripped?: string | null
   tokens?: Record<string, string | null> | null
+  /** The session herdr found the agent in: its id, or the file it is kept in. */
+  agent_session?: { agent?: string | null; kind?: string | null; value?: string | null } | null
 }
 
 const baseName = (path: string) => path.replace(/\/+$/, '').split('/').at(-1) ?? ''
+
+const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g
+
+/** The session's id from herdr: given as is, or the last id in the name of the file it is kept in
+ * (pi's `<time>_<id>.jsonl`). Only for the agent in the pane now. */
+function herdrSession(info: AgentInfo): string | undefined {
+  const s = info.agent_session
+  if (!s?.value || s.agent !== info.agent) return undefined
+  if (s.kind === 'id') return s.value
+  return s.kind === 'path' ? baseName(s.value).match(UUID)?.at(-1) : undefined
+}
 
 /** The command that started the agent, as its terminal is titled until the agent titles it. */
 const command = (title: string, agent: string) => {
@@ -66,7 +80,7 @@ export function noteOf(info: AgentInfo): AgentNote {
   const doing = toolUse(token('isbell_tool'), token('isbell_target'))
   const asking = toolUse(token('isbell_wait_tool'), token('isbell_wait_target'))
   const mode = token('isbell_mode')
-  const session = token('isbell_session')
+  const session = token('isbell_session') ?? herdrSession(info)
   return {
     ...(title ? { title } : {}),
     ...(asked ? { asked } : {}),

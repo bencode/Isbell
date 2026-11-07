@@ -14,7 +14,7 @@
 # The agent runs it as `sh <path> report claude|codex|pi`; pi's extension tells it pi's events as
 # Claude Code tells its hooks.
 
-ISBELL_HOOK_VERSION=3
+ISBELL_HOOK_VERSION=4
 INSTALLED="$HOME/.isbell/hooks/agent-hook.sh"
 
 # The events registered, and what each reports.
@@ -85,13 +85,27 @@ def collapse(s):
 # Neither a home nor a directory above one is a project's root (as web/src/model/files/repo.ts).
 BROAD = re.compile(r"^/(?:root|(?:Users|home)(?:/[^/]+)?)?$")
 
+def main_of(repo):
+    """The repository a worktree was added from, as its .git file says; `repo` itself otherwise (a
+    repository's own .git, or a submodule's)."""
+    try:
+        with open(os.path.join(repo, ".git")) as f:
+            line = f.readline()
+    except OSError:
+        return repo
+    gitdir = line[len("gitdir:"):].strip() if line.startswith("gitdir:") else ""
+    # Git may write the path relative to the worktree.
+    main, sep, _ = os.path.normpath(os.path.join(repo, gitdir)).partition("/.git/worktrees/")
+    return main if sep and os.path.isdir(main) else repo
+
 def root_of(cwd):
-    """The project a directory is in: the deepest repository holding it, or the directory itself."""
+    """The project a directory is in: the deepest repository holding it, a worktree's being the one
+    it was added from, or the directory itself."""
     cwd = cwd.rstrip("/") or "/"
     d = cwd
     while not BROAD.match(d):
         if os.path.lexists(os.path.join(d, ".git")):
-            return d
+            return main_of(d)
         d = os.path.dirname(d)
     return cwd
 

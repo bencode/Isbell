@@ -8,11 +8,11 @@ import { Link } from 'react-router'
 import { IconButton } from '../../components/icon-button'
 import { StatusDot } from '../../components/status-dot'
 import { useI18n } from '../../core/i18n'
+import { useRecordLookup } from '../../core/session-records'
 import { useProjects } from '../../core/space'
 import { useTabActions, useTabRoute } from '../../core/tabs'
-import type { Project } from '../../model/projects'
 import type { TabEntry } from '../../model/tabs'
-import { kindOf } from './tab-kinds'
+import { kindOf, type LabelFrom } from './tab-kinds'
 
 const SMALL = { size: 13, strokeWidth: 1.5, absoluteStrokeWidth: true }
 const TAB = 'group flex h-full min-w-24 flex-[0_1_196px] items-center gap-1.5 pr-1.5 pl-[11px] text-[13px]'
@@ -24,9 +24,9 @@ const ON_HOVER = 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
 const AT_REST =
   'translate-x-[26px] transition-transform duration-75 group-hover:translate-x-0 group-focus-within:translate-x-0'
 
-type TabProps = { tab: TabEntry; shown: boolean; edged: boolean; projects: Project[] }
+type TabProps = { tab: TabEntry; shown: boolean; edged: boolean; from: LabelFrom }
 
-function Tab({ tab, shown, edged, projects }: TabProps) {
+function Tab({ tab, shown, edged, from }: TabProps) {
   const t = useI18n()
   const { href, togglePin, close } = useTabActions()
   const ref = useRef<HTMLDivElement>(null)
@@ -35,7 +35,7 @@ function Tab({ tab, shown, edged, projects }: TabProps) {
   }, [shown])
   const found = kindOf(tab.id)
   if (!found) return null
-  const { name, full, status } = found.kind.label(found.params, projects)
+  const { name, full, status } = found.kind.label(found.params, from)
   const quiet = shown ? '' : ON_HOVER
   return (
     <div
@@ -84,13 +84,15 @@ export function TabStrip({ edged }: { edged: boolean }) {
   const t = useI18n()
   const { open, shown } = useTabRoute()
   const projects = useProjects()
+  const lookup = useRecordLookup()
+  const from = { projects, lookup }
   return (
     <nav
       aria-label={t('tabs.label')}
       className="-mr-px flex h-full min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]"
     >
       {open.map((tab, i) => (
-        <Tab key={tab.id} tab={tab} shown={tab.id === shown} edged={edged && i === 0} projects={projects} />
+        <Tab key={tab.id} tab={tab} shown={tab.id === shown} edged={edged && i === 0} from={from} />
       ))}
     </nav>
   )
