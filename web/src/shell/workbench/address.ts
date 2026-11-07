@@ -26,11 +26,15 @@ export const projectOf = (pathname: string) => {
 export const filesOf = (pathname: string) => paramsOf('/p/:key/files/*', pathname)
 
 /** The address to go to instead of this one in a project, if any: a file's, to its tab; one naming no
- * tab, to the tab shown (`useTabRoute`), while any is open. */
-export function addressTo({ pathname, search }: Address, active: string | null, shown: string | undefined) {
+ * tab, to the tab shown (`useTabRoute`) with its own part of the address, while any is open. */
+export function addressTo(
+  { pathname }: Address,
+  active: string | null,
+  shown: { id: string; query: string } | undefined,
+) {
   const { key, '*': rel } = filesOf(pathname) ?? {}
   if (key && rel && !rel.endsWith('/')) {
     return `${projectFilesHref(key, dirOf(rel))}${withTab('', fileTabId(key, rel))}`
   }
-  return active === null && shown ? `${pathname}${withTab(search, shown)}` : undefined
+  return active === null && shown ? `${pathname}${withTab(shown.query, shown.id)}` : undefined
 }

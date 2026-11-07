@@ -28,13 +28,13 @@ async function start(space: Space, { mid, path }: Project, kind: string): Promis
   return (await startAgent(space.call, mid, { cwd: path, kind, ...args })).paneId
 }
 
-/** `onStarted`: where to go once the pane is running. */
+/** `onStarted`: where to go once the pane is running; `shell`, it runs a shell rather than an agent. */
 export function NewSessionMenu({
   project,
   onStarted,
 }: {
   project: Project
-  onStarted: (mid: string, paneId: string) => void
+  onStarted: (mid: string, paneId: string, shell: boolean) => void
 }) {
   const t = useI18n()
   const space = useSpace()
@@ -60,7 +60,7 @@ export function NewSessionMenu({
     try {
       const paneId = await start(space, project, kind)
       setOpen(false)
-      if (live.current) onStarted(project.mid, paneId)
+      if (live.current) onStarted(project.mid, paneId, kind === SHELL)
     } catch (err) {
       setError(errorText(t, err))
       // Closed meanwhile, it opens again to say so.

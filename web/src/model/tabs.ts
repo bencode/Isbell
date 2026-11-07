@@ -3,7 +3,8 @@
 // is a preview, replaced by the next of its kind opened; a pinned tab stays until closed. At most
 // MAX_TABS are open: one more closes the one shown longest ago, never the one being shown.
 
-export type TabEntry = { id: string; pinned: boolean }
+/** `query`: the tab's own part of the address, kept while another tab shows (e.g. `view=terminal`). */
+export type TabEntry = { id: string; pinned: boolean; query?: string }
 
 /** `used`: the open ids, most recently shown first. */
 export type Tabs = { open: TabEntry[]; used: string[] }
@@ -14,6 +15,22 @@ export const noTabs: Tabs = { open: [], used: [] }
 
 /** A session's tab, or a shell's, by its machine and pane. */
 export const sessionTabId = (mid: string, paneId: string) => `session/${mid}/${paneId}`
+
+/** A session's or a shell's tab shows its terminal by `view=terminal` in its part of the address;
+ * without it, an agent's shows its chat. */
+export const showsTerminal = (query: string) => new URLSearchParams(query).get('view') === 'terminal'
+
+/** `query` with the terminal shown or not, the rest of it as it was. */
+export function withTerminal(query: string, on: boolean): string {
+  const params = new URLSearchParams(query)
+  if (on) params.set('view', 'terminal')
+  else params.delete('view')
+  return params.toString()
+}
+
+/** What tab `id` had of the address when last shown. */
+export const keptQuery = (open: TabEntry[], id: string | null | undefined) =>
+  open.find(tab => tab.id === id)?.query ?? ''
 
 /** A session that ran, by its machine, its agent and its id. */
 export const closedTabId = (mid: string, agent: string, id: string) => `closed/${mid}/${agent}/${id}`
@@ -28,13 +45,21 @@ const previewKind = (id: string) => {
 const previewFor = (open: TabEntry[], id: string) =>
   open.find(tab => !tab.pinned && previewKind(tab.id) === previewKind(id))
 
-/** The tabs with `active` shown (null: none named): a tab not open becomes its kind's preview, in the
- * place of the one there is. Showing the same again changes nothing. */
-export function visit(tabs: Tabs, active: string | null): Tabs {
-  if (active === null || tabs.used[0] === active) return tabs
+/** An entry with its own part of the address, none when it is empty. */
+const withQuery = (tab: TabEntry, query: string): TabEntry => {
+  const { query: _was, ...rest } = tab
+  return query ? { ...rest, query } : rest
+}
+
+/** The tabs with `active` shown (null: none named) as `query` has it: a tab not open becomes its
+ * kind's preview, in the place of the one there is. Showing the same again changes nothing. */
+export function visit(tabs: Tabs, active: string | null, query = ''): Tabs {
+  if (active === null) return tabs
+  const entry = tabs.open.find(tab => tab.id === active)
+  if (tabs.used[0] === active && (entry?.query ?? '') === query) return tabs
   const used = [active, ...tabs.used.filter(id => id !== active)]
-  if (tabs.open.some(tab => tab.id === active)) return { ...tabs, used }
-  const tab = { id: active, pinned: false }
+  if (entry) return { open: tabs.open.map(tab => (tab === entry ? withQuery(tab, query) : tab)), used }
+  const tab = withQuery({ id: active, pinned: false }, query)
   const preview = previewFor(tabs.open, active)
   const open = preview ? tabs.open.map(t => (t === preview ? tab : t)) : [...tabs.open, tab]
   return trim({ open, used: preview ? used.filter(id => id !== preview.id) : used }, active)
@@ -71,12 +96,12 @@ export function keep(tabs: Tabs, id: string): Tabs {
   return trim({ open: [...tabs.open, { id, pinned: true }], used: [id, ...tabs.used] }, id)
 }
 
-/** `to` in the place of `from`, pinned as it was and as recently shown; only closes `from` when `to`
- * is open already. */
+/** `to` in the place of `from`, pinned as it was and as recently shown, without what `from` had of
+ * the address; only closes `from` when `to` is open already. */
 export function replace(tabs: Tabs, from: string, to: string): Tabs {
   if (tabs.open.some(tab => tab.id === to)) return close(tabs, from)
   return {
-    open: tabs.open.map(tab => (tab.id === from ? { ...tab, id: to } : tab)),
+    open: tabs.open.map(tab => (tab.id === from ? { id: to, pinned: tab.pinned } : tab)),
     used: tabs.used.map(id => (id === from ? to : id)),
   }
 }
@@ -103,7 +128,8 @@ const isEntry = (v: unknown): v is TabEntry =>
   typeof v === 'object' &&
   v !== null &&
   typeof (v as { id?: unknown }).id === 'string' &&
-  typeof (v as { pinned?: unknown }).pinned === 'boolean'
+  typeof (v as { pinned?: unknown }).pinned === 'boolean' &&
+  ((v as { query?: unknown }).query === undefined || typeof (v as { query?: unknown }).query === 'string')
 
 /** Tabs as kept in this browser, read back: entries that are tabs still, once each, at most one
  * preview of each kind and MAX_TABS in all. */
@@ -125,6 +151,13 @@ const TAB = 'tab'
 export function tabOf(search: string, isTab: (id: string) => boolean): string | null {
   const id = new URLSearchParams(search).get(TAB)
   return id !== null && isTab(id) ? id : null
+}
+
+/** The address's query without its tab: the shown tab's own. */
+export function queryOf(search: string): string {
+  const rest = new URLSearchParams(search)
+  rest.delete(TAB)
+  return rest.toString()
 }
 
 /** The query `search` with its tab set to `id`, or taken out for null. The id goes last, each of its

@@ -7,13 +7,16 @@ import {
   nextShown,
   noTabs,
   pin,
+  queryOf,
   replace,
   restore,
+  showsTerminal,
   type Tabs,
   tabOf,
   togglePin,
   visit,
   withTab,
+  withTerminal,
 } from './tabs'
 
 const ids = (tabs: Tabs) => tabs.open.map(tab => tab.id)
@@ -133,6 +136,31 @@ describe('tabs', () => {
     expect(restore([{ project: 'p', rel: 'a.ts' }], any)).toEqual(noTabs)
   })
 
+  it("keeps each tab's own part of the address while another shows, and only what is still its own", () => {
+    const shown = visit(visit(noTabs, 'session/m/p', 'view=terminal'), 'file/k/a')
+    expect(shown.open).toEqual([
+      { id: 'session/m/p', pinned: false, query: 'view=terminal' },
+      { id: 'file/k/a', pinned: false },
+    ])
+    const back = visit(shown, 'session/m/p', 'view=terminal')
+    expect(visit(back, 'session/m/p', 'view=terminal')).toBe(back)
+    expect(visit(back, 'session/m/p').open[0]).toEqual({ id: 'session/m/p', pinned: false })
+    // A session that ran in the place of the one running has none of its view.
+    expect(replace(back, 'session/m/p', 'closed/m/pi/1').open[0]).toEqual({
+      id: 'closed/m/pi/1',
+      pinned: false,
+    })
+    expect(restore(back, any)).toEqual(back)
+    expect(restore({ open: [{ id: 'a', pinned: false, query: 1 }] }, any)).toEqual(noTabs)
+  })
+
+  it("turns a tab's terminal on and off, leaving the rest of its part of the address", () => {
+    const on = withTerminal('x=1', true)
+    expect(showsTerminal(on)).toBe(true)
+    expect(withTerminal(on, false)).toBe('x=1')
+    expect(showsTerminal('')).toBe(false)
+  })
+
   it('reads back a preview of each kind', () => {
     const open = ['file/k/a', 'file/k/b', 'session/m/p'].map(id => ({ id, pinned: false }))
     expect(ids(restore({ open, used: [] }, any))).toEqual(['file/k/a', 'session/m/p'])
@@ -144,6 +172,8 @@ describe('tabs', () => {
     expect(search.startsWith('?x=1&tab=file/isbell-1x3f9a/web/src/')).toBe(true)
     expect(tabOf(search, any)).toBe(id)
     expect(withTab(search, null)).toBe('?x=1')
+    expect(queryOf(search)).toBe('x=1')
+    expect(withTab(queryOf(search), id)).toBe(search)
     expect(withTab('', null)).toBe('')
     expect(tabOf(search, () => false)).toBeNull()
   })

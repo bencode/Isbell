@@ -19,7 +19,11 @@ describe('addressTo', () => {
   })
 
   test('with a tab open, what was shown stays shown wherever the address goes', () => {
-    expect(addressTo(at('/p/k'), null, 'file/k/a.md')).toBe('/p/k?tab=file/k/a.md')
-    expect(addressTo(at('/p/k', '?tab=file/k/b.md'), 'file/k/b.md', 'file/k/b.md')).toBeUndefined()
+    expect(addressTo(at('/p/k'), null, { id: 'file/k/a.md', query: '' })).toBe('/p/k?tab=file/k/a.md')
+    expect(addressTo(at('/p/k'), null, { id: 'session/m/p', query: 'view=terminal' })).toBe(
+      '/p/k?view=terminal&tab=session/m/p',
+    )
+    const shown = { id: 'file/k/b.md', query: '' }
+    expect(addressTo(at('/p/k', '?tab=file/k/b.md'), 'file/k/b.md', shown)).toBeUndefined()
   })
 })

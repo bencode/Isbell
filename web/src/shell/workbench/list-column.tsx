@@ -9,10 +9,9 @@ import { useProjects } from '../../core/space'
 import { useTabActions } from '../../core/tabs'
 import { useFilesRoots } from '../../core/worktrees'
 import { NewSessionMenu } from '../../features/session/new-session-menu'
-import type { SessionOpening } from '../../features/session/session-tab'
 import { dirOf } from '../../model/files/paths'
 import { parseRootKey } from '../../model/files/worktrees'
-import { sessionTabId } from '../../model/tabs'
+import { sessionTabId, withTerminal } from '../../model/tabs'
 import { projectFilesHref, projectHref } from '../../utils/hrefs'
 import { filesOf, rootKeyOf } from './address'
 import { BAR } from './bar'
@@ -45,11 +44,9 @@ function NewSession({ projectKey }: { projectKey: string }) {
     hrefNow.current = href
   })
   if (!project) return null
-  const open = (mid: string, paneId: string) => {
-    const tab = sessionTabId(mid, paneId)
-    const state: SessionOpening = { tab, started: true }
-    navigate(hrefNow.current(tab), { state })
-  }
+  // A shell's tab shows its terminal, and goes on showing it once an agent starts there.
+  const open = (mid: string, paneId: string, shell: boolean) =>
+    navigate(hrefNow.current(sessionTabId(mid, paneId), withTerminal('', shell)))
   return <NewSessionMenu project={project} onStarted={open} />
 }
 

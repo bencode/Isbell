@@ -16,12 +16,21 @@ import { type FilesRoot, rootHolding } from '../../model/files/worktrees'
 import type { Project } from '../../model/projects'
 import { byDay, dayKey, lineTime, matches, sessionKey } from '../../model/sessions'
 import type { AgentStatus } from '../../model/state'
-import { closedTabId, sessionTabId } from '../../model/tabs'
+import { closedTabId, sessionTabId, withTerminal } from '../../model/tabs'
 import { clock, dayTitle, since, useNow } from '../../utils/time'
 
 const NOTE = 'm-3 text-[13px] text-muted'
 
-type Row = { id: string; status?: AgentStatus; name: string; cwd: string; words: string; since?: number }
+/** `query`: what the row opens its tab with, a shell's showing its terminal. */
+type Row = {
+  id: string
+  query?: string
+  status?: AgentStatus
+  name: string
+  cwd: string
+  words: string
+  since?: number
+}
 
 /** The project's panes as the list shows them, newest agent first and shells after. A pane whose
  * agent herdr has not made out is listed as a shell too; it shows once, as the agent. */
@@ -41,6 +50,7 @@ function rowsOf(project: Project): Row[] {
     .filter(s => !agentPanes.has(s.paneId))
     .map(s => ({
       id: sessionTabId(s.mid, s.paneId),
+      query: withTerminal('', true),
       name: s.title ?? s.paneId,
       cwd: s.cwd,
       words: `${s.paneId}\n${s.title ?? ''}`,
@@ -82,7 +92,11 @@ export function SessionsPanel({ projectKey }: { projectKey: string }) {
   const history = records.history.filter(
     s => !records.running.has(sessionKey(s)) && (!needle || matches(s, needle)),
   )
-  const row = (id: string) => ({ shown: id === shown, to: href(id), onKeep: () => keep(id) })
+  const row = (id: string, own?: string) => ({
+    shown: id === shown,
+    to: href(id, own),
+    onKeep: () => keep(id),
+  })
   const read = records.recent !== undefined
   const none = read && !running.length && !history.length
   return (
@@ -122,7 +136,7 @@ export function SessionsPanel({ projectKey }: { projectKey: string }) {
                 ]
                   .filter(Boolean)
                   .join(' · ')}
-                {...row(r.id)}
+                {...row(r.id, r.query)}
               />
             ))}
           </Group>
