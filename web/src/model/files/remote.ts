@@ -18,7 +18,7 @@ export type Listing = { entries: Entry[]; total: number; truncated: boolean }
 /** Paths relative to the root searched, shallow first. */
 export type Found = { paths: string[]; truncated: boolean }
 /** `bytes` is left out when the file is larger than the reader's limit. */
-export type FileRead = { size: number; mtime?: number; bytes?: Uint8Array<ArrayBuffer> }
+export type FileRead = { size: number; mtime?: number; offset?: number; bytes?: Uint8Array<ArrayBuffer> }
 
 /** Above this a file is not read for its preview, only offered for download. */
 export const PREVIEW_MAX = 5 << 20
@@ -44,45 +44,73 @@ export const worktrees = async (call: Caller, mid: string, path: string) =>
 export const search = async (call: Caller, mid: string, root: string, query: string) =>
   (await call(mid, 'isbell.file.search', { root, query }, CALL_TIMEOUT_MS)) as Found
 
-/** Reads the file at `path` whole, or only its size and time when it is larger than `limit`. */
+/** Where a read starts, in bytes from the start or from the end, and how much of it is wanted. */
+export type Range = { offset?: number; tail?: number; want?: number }
+
+/**
+ * Reads the file at `path`, or only its size and time when what is read would be larger than
+ * `limit`. With `range`, from where it says, as far as it wants: `offset` then says where the bytes
+ * begin. A gateway too old for ranges reads from the start and gives no `offset`.
+ */
 export async function read(
   open: Space['openStream'],
   mid: string,
   path: string,
   limit: number,
+  range: Range = {},
 ): Promise<FileRead> {
   const chunks: Uint8Array[] = []
   let received = 0
+  // Where a read that wants less than the rest stops; otherwise it goes to the end.
+  let stopAt = Number.POSITIVE_INFINITY
   let settle: (error?: RpcError) => void = () => {}
   const ended = new Promise<RpcError | undefined>(resolve => {
     settle = resolve
   })
+  const { offset, tail, want } = range
+  const params = {
+    path,
+    ...(offset === undefined ? {} : { offset }),
+    ...(tail === undefined ? {} : { tail }),
+  }
   // No data comes before credit is granted, by which time `stream` is set.
-  const { result, stream } = await open(mid, 'isbell.file.read', { path }, CALL_TIMEOUT_MS, {
+  const { result, stream } = await open(mid, 'isbell.file.read', params, CALL_TIMEOUT_MS, {
     data: ({ body }) => {
       chunks.push(body)
       received += body.length
-      // A file that grew past the limit while being read stops here, as if seen too large.
-      if (received > limit) {
+      // Enough is read, or the file grew past the limit while being read: it stops here.
+      if (received >= stopAt || received > limit) {
         stream.close()
         settle()
       } else stream.consumed(body.length)
     },
     end: settle,
   })
-  const { size, mtime } = result as { size: number; mtime?: number }
-  const opened = mtime === undefined ? { size } : { size, mtime }
-  if (size > limit) {
+  const r = result as { size: number; mtime?: number; offset?: number }
+  const opened: FileRead = {
+    size: r.size,
+    ...(r.mtime === undefined ? {} : { mtime: r.mtime }),
+    ...(r.offset === undefined ? {} : { offset: r.offset }),
+  }
+  const rest = r.size - (r.offset ?? 0)
+  const need = Math.min(want ?? rest, rest)
+  if (need > limit) {
     stream.close()
     return opened
   }
-  stream.grant(WINDOW)
+  if (need <= 0) {
+    stream.close()
+    return { ...opened, bytes: new Uint8Array(0) }
+  }
+  if (need < rest) stopAt = need
+  stream.grant(Math.min(stopAt, WINDOW))
   const error = await ended
   if (error) throw new CallError(error.code, error.msg)
-  if (received > limit) return { ...opened, size: received }
-  const bytes = new Uint8Array(received)
+  // More than asked for can come when the credit given runs ahead; only what was asked counts.
+  if (Math.min(received, stopAt) > limit) return { ...opened, size: received }
+  const bytes = new Uint8Array(Math.min(received, stopAt))
   chunks.reduce((at, chunk) => {
-    bytes.set(chunk, at)
+    bytes.set(chunk.subarray(0, Math.max(0, bytes.length - at)), at)
     return at + chunk.length
   }, 0)
   return { ...opened, bytes }

@@ -5,7 +5,7 @@ use isbell_proto::frame::RpcError;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio::fs::File;
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncReadExt, AsyncSeekExt, SeekFrom};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::TryRecvError;
 
@@ -15,20 +15,36 @@ use crate::gateway::stream::{Input, Output};
 #[derive(Deserialize)]
 struct ReadRequest {
     path: String,
+    /// Where to start, in bytes from the start; past the end, at the end.
+    offset: Option<u64>,
+    /// How many bytes from the end to start, as many as there are at most.
+    tail: Option<u64>,
 }
 
-/// Opens the regular file at `path` (see `absolute_path`); answers with its size and, where known,
-/// when it was last modified.
+/// Opens the regular file at `path` (see `absolute_path`) where it is asked to start; answers with
+/// its size, where it starts, and, where known, when it was last modified.
 pub async fn open_read(p: Value) -> Result<(File, Value), RpcError> {
     let req: ReadRequest = serde_json::from_value(p).map_err(RpcError::bad_request)?;
+    if req.offset.is_some() && req.tail.is_some() {
+        return Err(RpcError::new("bad_request", "offset and tail cannot both be given"));
+    }
     let path = absolute_path(&req.path)?;
     // Checked before opening, which would wait for a writer on a FIFO.
     let meta = tokio::fs::metadata(&path).await.map_err(io_error)?;
     if !meta.is_file() {
         return Err(RpcError::new("not_a_file", format!("{} is not a regular file", req.path)));
     }
-    let file = File::open(&path).await.map_err(io_error)?;
-    let mut opened = json!({"size": meta.len()});
+    let size = meta.len();
+    let start = match (req.offset, req.tail) {
+        (Some(offset), _) => offset.min(size),
+        (_, Some(tail)) => size - tail.min(size),
+        _ => 0,
+    };
+    let mut file = File::open(&path).await.map_err(io_error)?;
+    if start > 0 {
+        file.seek(SeekFrom::Start(start)).await.map_err(io_error)?;
+    }
+    let mut opened = json!({"size": size, "offset": start});
     if let Some(mtime) = mtime_ms(&meta) {
         opened["mtime"] = json!(mtime);
     }
@@ -161,6 +177,41 @@ mod tests {
         }
         assert_eq!(got.len(), len, "chunks stop exactly at the credit");
         got
+    }
+
+    async fn read_from(p: Value) -> (Value, Vec<u8>) {
+        let (file, r) = open_read(p).await.unwrap();
+        let (tx, rx) = mpsc::channel(8);
+        tx.send(Input::Credit(1 << 20)).await.unwrap();
+        let mut got = Vec::new();
+        pump_read(file, rx, |o| {
+            if let Output::Chunk(chunk) = o {
+                got.extend(chunk);
+            }
+        })
+        .await;
+        (r, got)
+    }
+
+    #[tokio::test]
+    async fn starts_where_it_is_asked() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("log.jsonl");
+        std::fs::write(&path, b"0123456789").unwrap();
+        let (r, got) = read_from(json!({"path": path, "offset": 4})).await;
+        assert_eq!(
+            (r["size"].clone(), r["offset"].clone(), got),
+            (json!(10), json!(4), b"456789".to_vec())
+        );
+        let (r, got) = read_from(json!({"path": path, "tail": 3})).await;
+        assert_eq!((r["offset"].clone(), got), (json!(7), b"789".to_vec()));
+        // Asked for more than there is, it starts at the start, or ends at the end.
+        let (r, got) = read_from(json!({"path": path, "tail": 99})).await;
+        assert_eq!((r["offset"].clone(), got.len()), (json!(0), 10));
+        let (r, got) = read_from(json!({"path": path, "offset": 99})).await;
+        assert_eq!((r["offset"].clone(), got), (json!(10), vec![]));
+        let both = open_read(json!({"path": path, "offset": 1, "tail": 1})).await;
+        assert_eq!(both.err().unwrap().code, "bad_request");
     }
 
     #[tokio::test]

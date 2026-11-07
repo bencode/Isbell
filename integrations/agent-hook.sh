@@ -14,7 +14,7 @@
 # The agent runs it as `sh <path> report claude|codex|pi`; pi's extension tells it pi's events as
 # Claude Code tells its hooks.
 
-ISBELL_HOOK_VERSION=4
+ISBELL_HOOK_VERSION=5
 INSTALLED="$HOME/.isbell/hooks/agent-hook.sh"
 
 # The events registered, and what each reports.
@@ -144,6 +144,9 @@ def record(e):
     # Agents report where they work as an absolute path; another has no project to be found from.
     if not isinstance(cwd, str) or not cwd.startswith("/"):
         return
+    # Where the agent keeps the conversation itself, which the chat is read from.
+    transcript = e.get("transcript_path")
+    transcript = transcript if isinstance(transcript, str) and transcript.startswith("/") else None
     prompt = (e.get("prompt") or "") if event == "UserPromptSubmit" else ""
     # Claude Code submits a background task's end itself; it is not what the session was asked.
     own = prompt and not prompt.startswith("<task-notification>")
@@ -160,6 +163,8 @@ def record(e):
             return
         session = {"agent": AGENT, "id": sid, "cwd": cwd, "first": asked, "last": asked,
                    "started": now, "updated": now}
+        if transcript:
+            session["transcript"] = transcript
         line = {k: session[k] for k in ("agent", "id", "cwd", "first", "started")}
         months = os.path.join(project, "months")
         os.makedirs(months, mode=0o700, exist_ok=True)
@@ -172,6 +177,8 @@ def record(e):
     else:
         if asked:
             session["last"] = asked
+        if transcript:
+            session["transcript"] = transcript
         session["updated"] = now
     put(path, session)
     # Agents in one project end their turns together: the shared lists change one at a time.
@@ -333,7 +340,7 @@ let queue = Promise.resolve();
 function report(ctx, event) {
   // A session pi keeps no file of (--no-session) cannot be resumed: it is told to herdr, not recorded.
   const kept = ctx.sessionManager.getSessionFile?.();
-  const e = { ...event, cwd: ctx.cwd, session_id: kept ? ctx.sessionManager.getSessionId() : undefined };
+  const e = { ...event, cwd: ctx.cwd, session_id: kept ? ctx.sessionManager.getSessionId() : undefined, transcript_path: kept };
   const ran = queue.then(() => run(e));
   queue = ran;
   // What the hook says went wrong shows on pi's screen, when it has one. Off the queue: a context
