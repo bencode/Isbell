@@ -48,6 +48,34 @@
           }
         }
       }
+    },
+    {
+      "includes": ["src/features/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "../*",
+                      "../*/**",
+                      "!../..",
+                      "!../../**",
+                      "../../shell",
+                      "../../shell/**",
+                      "../../features/**"
+                    ],
+                    "message": "A feature imports no shell and no other feature; what they share goes in core, components, utils or model. (Features are one level deep: src/features/<name>/<file>.)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   ]
 }

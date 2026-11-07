@@ -1,17 +1,22 @@
-// The second column: a project's sessions or its files, as the address says. Going between them
-// leaves the tab shown as it is.
+// The second column: a project's sessions or its files, as the address says, and starting another
+// session. Going between them leaves the tab shown as it is.
 
-import { lazy, Suspense } from 'react'
-import { Link, useLocation } from 'react-router'
+import { lazy, Suspense, useEffect, useRef } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { useI18n } from '../../core/i18n'
 import { useLocal } from '../../core/prefs'
 import { useProjects } from '../../core/space'
+import { useTabActions } from '../../core/tabs'
 import { useFilesRoots } from '../../core/worktrees'
+import { NewSessionMenu } from '../../features/session/new-session-menu'
+import type { SessionOpening } from '../../features/session/session-tab'
 import { dirOf } from '../../model/files/paths'
 import { parseRootKey } from '../../model/files/worktrees'
 import { projectFilesHref, projectHref } from '../../utils/hrefs'
 import { filesOf, rootKeyOf } from './address'
 import { BAR } from './bar'
+import { SessionsPanel } from './sessions-panel'
+import { sessionTabId } from './tab-kinds'
 
 // The tree reads with the same code as a project's files, and loads it when first shown.
 const FilesPanel = lazy(() => import('./files-panel').then(m => ({ default: m.FilesPanel })))
@@ -27,6 +32,25 @@ function useFilesHref(key: string) {
   const { roots, settled } = useFilesRoots(useProjects().find(p => p.key === key))
   const gone = settled && !roots.some(root => root.key === at?.root)
   return at && !gone ? projectFilesHref(at.root, at.rel) : projectFilesHref(key)
+}
+
+/** A session just started, shown in the preview tab. */
+function NewSession({ projectKey }: { projectKey: string }) {
+  const project = useProjects().find(p => p.key === projectKey)
+  const navigate = useNavigate()
+  const { href } = useTabActions()
+  // Starting takes a while: the tab opens where the user is by then.
+  const hrefNow = useRef(href)
+  useEffect(() => {
+    hrefNow.current = href
+  })
+  if (!project) return null
+  const open = (mid: string, paneId: string) => {
+    const tab = sessionTabId(mid, paneId)
+    const state: SessionOpening = { tab, started: true }
+    navigate(hrefNow.current(tab), { state })
+  }
+  return <NewSessionMenu project={project} onStarted={open} />
 }
 
 function ListHead({ project, files }: { project: string; files: boolean }) {
@@ -46,6 +70,9 @@ function ListHead({ project, files }: { project: string; files: boolean }) {
     <div className={`${BAR} gap-3.5 pr-2 pl-11`}>
       {tab(!files, projectHref(project), t('workbench.sessions'))}
       {tab(files, filesHref, t('workbench.files'))}
+      <span className="ml-auto">
+        <NewSession key={project} projectKey={project} />
+      </span>
     </div>
   )
 }
@@ -64,7 +91,9 @@ export function ListColumn() {
           {/* At a file's address, about to become its tab, the tree is at its directory. */}
           <FilesPanel key={project} rootKey={key} at={dirOf(files['*'] ?? '')} />
         </Suspense>
-      ) : null}
+      ) : (
+        <SessionsPanel key={project} projectKey={project} />
+      )}
     </>
   )
 }

@@ -41,7 +41,8 @@ shell ──▶ features ──▶ core ──▶ model
 - `components/` are pure UI. They take every text as a prop (the labels come from `uiLabels(t)`
   in `core/i18n`) and never read app state. Importing a type from `model/` is fine.
 - A feature imports `core/`, `model/`, `components/` and `utils/`, never `shell/` and never
-  another feature. When one feature leads to another, the shell passes a callback.
+  another feature; `biome.json` enforces it. When one feature leads to another, the shell passes
+  a callback.
 - Files are named for what they are: `*-page.tsx`, `*-dialog.tsx`, `*-panel.tsx`. Tests sit next
   to the code they test; recorded screens sit in `model/screen/fixtures/`.
 

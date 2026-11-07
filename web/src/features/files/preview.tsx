@@ -4,6 +4,7 @@
 
 import { type ComponentType, useMemo, useState } from 'react'
 import { errorText, useI18n } from '../../core/i18n'
+import { useFile } from '../../core/remote-files'
 import { useSpace } from '../../core/space'
 import { assetReader } from '../../model/files/assets'
 import { decodeText, type FileKind, formatSize, imageType, kindOf } from '../../model/files/content'
@@ -17,7 +18,6 @@ import { HtmlFile } from './html-file'
 import { ImageFile } from './image-file'
 import { MarkdownFile } from './markdown-file'
 import { MermaidFile } from './mermaid-file'
-import { useFile } from './use-remote'
 
 const VIEWS: Record<FileKind, ComponentType<FileViewProps>> = {
   markdown: MarkdownFile,

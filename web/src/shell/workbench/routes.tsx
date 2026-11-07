@@ -3,12 +3,14 @@ import { Route, Routes, useLocation, useNavigate, useParams } from 'react-router
 import { rememberProjectAt, useLocal } from '../../core/prefs'
 import { useProjects, useSpaceView } from '../../core/space'
 import { TabsProvider, useTabRoute } from '../../core/tabs'
+import type { SessionOpening } from '../../features/session/session-tab'
 import { parseRootKey } from '../../model/files/worktrees'
+import { locate } from '../../model/projects'
 import { projectsSettled } from '../../model/space'
 import { projectHref } from '../../utils/hrefs'
 import { addressTo } from './address'
 import { Frame } from './frame'
-import { isTab } from './tab-kinds'
+import { isTab, sessionTabHref, sessionTabId } from './tab-kinds'
 
 // A page on its own in the window, opened in a tab of its own; it loads only there.
 const PageView = lazy(() => import('../../features/files/page-view').then(m => ({ default: m.PageView })))
@@ -32,6 +34,27 @@ function Outside() {
   useEffect(() => {
     if (home) navigate(home, { replace: true })
   }, [home, navigate])
+  return <Frame inProject={false} />
+}
+
+/** A session's address, as a notification has it (`/s/`, its chat, or `/t/`, its terminal): to its
+ * tab in its project once the pane is found, else, once the projects settle, where the frame opens. */
+function SessionRedirect({ terminal }: { terminal: boolean }) {
+  const params = useParams()
+  const mid = params.mid ?? ''
+  const paneId = params['*'] ?? ''
+  const view = useSpaceView()
+  const found = locate(useProjects(), mid, paneId)
+  const key = found?.project.key
+  const settled = projectsSettled(view)
+  const navigate = useNavigate()
+  useEffect(() => {
+    const state: SessionOpening | undefined = terminal
+      ? { tab: sessionTabId(mid, paneId), view: 'terminal' }
+      : undefined
+    if (key) navigate(sessionTabHref(key, mid, paneId), { replace: true, state })
+    else if (settled) navigate('/', { replace: true })
+  }, [key, settled, mid, paneId, terminal, navigate])
   return <Frame inProject={false} />
 }
 
@@ -75,7 +98,9 @@ export function WorkbenchRoutes() {
         }
       />
       <Route path="p/:key/*" element={<ProjectFrame />} />
-      {/* Anything else, such as a session's address from a notification, goes where the frame opens. */}
+      <Route path="s/:mid/*" element={<SessionRedirect terminal={false} />} />
+      <Route path="t/:mid/*" element={<SessionRedirect terminal />} />
+      {/* Anything else goes where the frame opens. */}
       <Route path="*" element={<Outside />} />
     </Routes>
   )

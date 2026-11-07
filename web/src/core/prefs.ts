@@ -165,6 +165,12 @@ export const toggleWrap = () => updateLocal(l => ({ layout: { ...l.layout, wrap:
 export const setReader = (change: Partial<Reader>) =>
   updateLocal(l => ({ reader: { ...l.reader, ...change } }))
 
+/** Notes that a finished session was seen as it stood at `since`, which makes it read. */
+export function markSeen(key: string, since: number) {
+  if ((current.seen[key] ?? 0) >= since) return
+  updateLocal(l => ({ seen: { ...l.seen, [key]: since } }))
+}
+
 export const useLocal = () => useSyncExternalStore(subscribe, getLocal)
 
 /** Leaving the space forgets everything, what older versions kept too. */
