@@ -231,3 +231,68 @@ test('the next agent to see to goes down who asks, then who finished, and around
   expect(after('works')).toBe('asks-old')
   expect(nextNeeding(lanes([]), undefined)).toBeUndefined()
 })
+
+describe('a machine that lists its projects', () => {
+  const listed = { [MID]: ['/w/b', '/w/a'] }
+  const roots = { '/w/old': { key: 'old', updated: 5 } }
+  const derive = (agents: Agent[]) => deriveProjects([machine(agents)], [], {}, {}, { [MID]: roots }, listed)
+
+  test('shows them as it lists them, running or not, and no recorded root', () => {
+    expect(derive([]).map(p => [p.path, p.configured])).toEqual([
+      ['/w/b', true],
+      ['/w/a', true],
+    ])
+  })
+
+  test('holds a session anywhere under a listed directory', () => {
+    const [b] = derive([agent('p1', '/w/b/src/deep')])
+    expect(b?.sessions.map(s => s.paneId)).toEqual(['p1'])
+  })
+
+  test('holds a session under a listed directory inside a repository', () => {
+    const projects = deriveProjects(
+      [machine([agent('p1', '/w/mono/app/src')])],
+      [],
+      {},
+      { [`${MID}:/w/mono/app/src`]: '/w/mono' },
+      {},
+      { [MID]: ['/w/mono/app'] },
+    )
+    expect(projects.map(p => [p.path, p.sessions.length])).toEqual([['/w/mono/app', 1]])
+  })
+
+  test('holds a session of a worktree in the listed repository it belongs to', () => {
+    const projects = deriveProjects(
+      [machine([agent('p1', '/w/b.wt/x')])],
+      [],
+      {},
+      { [`${MID}:/w/b.wt/x`]: '/w/b' },
+      {},
+      listed,
+    )
+    expect(projects[0]?.sessions.map(s => s.paneId)).toEqual(['p1'])
+  })
+
+  test('leaves a session outside them in a project not listed, after the rest', () => {
+    const projects = derive([agent('p1', '/tmp/x')])
+    expect(projects.map(p => [p.path, p.configured])).toEqual([
+      ['/w/b', true],
+      ['/w/a', true],
+      ['/tmp/x', false],
+    ])
+  })
+})
+
+test('a machine that lists nothing counts only what runs as configured', () => {
+  const projects = deriveProjects(
+    [machine([agent('p1', '/w/a')])],
+    [],
+    {},
+    {},
+    { [MID]: { '/w/old': { key: 'old', updated: 5 } } },
+  )
+  expect(projects.map(p => [p.path, p.configured])).toEqual([
+    ['/w/a', true],
+    ['/w/old', false],
+  ])
+})

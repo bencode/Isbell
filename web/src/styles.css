@@ -55,8 +55,8 @@
   --line: light-dark(#dcd5c4, #283143);
   --line-strong: light-dark(#c2b9a4, #39445a);
   --text: light-dark(#1c2333, #e9e5d9);
-  --muted: light-dark(#575f70, #a2a8b5);
-  --faint: light-dark(#62687a, #8a92a4);
+  --muted: light-dark(#454d5e, #b4b9c4);
+  --faint: light-dark(#62687a, #858da0);
   --accent: light-dark(#1f4fd1, #8fb0ff);
   --accent-ink: light-dark(#ffffff, #0c1018);
   --accent-soft: light-dark(#e2e8fa, #1c2747);
@@ -71,14 +71,7 @@
   --term: #0d121b;
   --dot: light-dark(rgb(28 35 51 / 0.09), rgb(233 229 217 / 0.06));
   --scrim: light-dark(rgb(28 35 51 / 0.3), rgb(4 6 10 / 0.6));
-}
-
-/* The workbench's colors (shell/app.tsx), on the root so that its menus and dialogs have them too.
-   Hover, press and selected are ink over any surface: a control reads the same on the side, the page
-   and a card. */
-:root[data-shell="workbench"] {
-  --muted: light-dark(#454d5e, #b4b9c4);
-  --faint: light-dark(#62687a, #858da0);
+  /* Ink over any surface: a control reads the same on the side, the page and a card. */
   --hover: light-dark(rgb(28 35 51 / 0.06), rgb(233 229 217 / 0.07));
   --press: light-dark(rgb(28 35 51 / 0.1), rgb(233 229 217 / 0.11));
   --selected: light-dark(rgb(28 35 51 / 0.1), rgb(233 229 217 / 0.12));

@@ -62,6 +62,8 @@ export type Local = {
   reader: Reader
   /** The tabs open beside the page, read back by `restore` in model/tabs. */
   tabs: Tabs
+  /** What each machine last listed as its projects, by machine id, for while it is offline. */
+  projectPaths: Record<string, string[]>
 }
 
 const DEFAULTS: Local = {
@@ -84,6 +86,7 @@ const DEFAULTS: Local = {
   },
   reader: { ...DEFAULT_APPEARANCE, outline: true },
   tabs: noTabs,
+  projectPaths: {},
 }
 
 const FIELDS = Object.keys(DEFAULTS) as (keyof Local)[]

@@ -6,13 +6,15 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
 } from 'react'
 import { parseKey } from '../model/identity'
+import { listedPaths, projectActions } from '../model/project-config'
 import { deriveProjects, type Project } from '../model/projects'
-import { createSpace, type Space, type SpaceView } from '../model/space'
-import { useLocal } from './prefs'
+import { createSpace, projectsSettled, type Space, type SpaceView } from '../model/space'
+import { updateLocal, useLocal } from './prefs'
 
 export const RELAY_URL: string = import.meta.env.VITE_RELAY_URL ?? 'wss://isbell.fmap.dev/v1/ws'
 /** State lists agents only; shells are pulled this often while the page is visible. */
@@ -60,9 +62,43 @@ export function useSpaceView(): SpaceView {
 
 export function useProjects(): Project[] {
   const view = useSpaceView()
-  const { seen } = useLocal()
+  const { seen, projectPaths } = useLocal()
   return useMemo(
-    () => deriveProjects(view.machines, view.shells, seen, view.repos, view.recorded),
-    [view.machines, view.shells, seen, view.repos, view.recorded],
+    () =>
+      deriveProjects(
+        view.machines,
+        view.shells,
+        seen,
+        view.repos,
+        view.recorded,
+        listedPaths(view.configs, projectPaths),
+      ),
+    [view.machines, view.shells, seen, view.repos, view.recorded, view.configs, projectPaths],
   )
+}
+
+/** Keeps what the machines list for while they are offline, and has a machine that lists nothing yet
+ * start from where its panes run, as soon as it has any. */
+export function useKeepProjectLists() {
+  const space = useSpace()
+  const view = useSpaceView()
+  const projects = useProjects()
+  const started = useRef(new Set<string>())
+  useEffect(() => {
+    updateLocal(l => ({ projectPaths: listedPaths(view.configs, l.projectPaths) }))
+  }, [view.configs])
+  useEffect(() => {
+    if (!projectsSettled(view)) return
+    for (const entry of view.machines) {
+      const mid = entry.state.machine.id
+      const mine = projects.filter(p => p.mid === mid)
+      const { start } = projectActions(entry, view.configs[mid], view.shellsKnown, mine)
+      if (!start || started.current.has(mid)) continue
+      started.current.add(mid)
+      space
+        .changeProjects(mid, listed => (listed ? undefined : start))
+        .catch((err: unknown) => console.warn('could not write the projects listed', mid, err))
+        .finally(() => started.current.delete(mid))
+    }
+  }, [space, view, projects])
 }

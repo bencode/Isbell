@@ -1,6 +1,6 @@
 // A machine's files through its gateway: a directory one level at a time, files searched by path,
-// a repository's worktrees, a file read as a stream, and a file sent for an agent. Paths sent are
-// absolute.
+// a repository's worktrees, a file read as a stream, a file sent for an agent, and text written to a
+// file. Paths sent are absolute.
 
 import type { RpcError } from '../frame'
 import type { Caller } from '../herdr'
@@ -93,6 +93,26 @@ export async function upload(
   bytes: Uint8Array,
   progress: (sent: number) => void,
 ): Promise<string> {
+  const result = await send(open, mid, 'isbell.file.upload', { name, size: bytes.length }, bytes, progress)
+  return (result as { path: string }).path
+}
+
+/** Replaces the file at `path` with `text`, whole or not at all; its directory must be there. */
+export async function writeText(open: Space['openStream'], mid: string, path: string, text: string) {
+  const bytes = new TextEncoder().encode(text)
+  await send(open, mid, 'isbell.file.write', { path, size: bytes.length }, bytes, () => {})
+}
+
+/** Sends `bytes` on a stream opened with `method`, as fast as credit and the relay allow; the
+ * stream's result once the machine has them all. */
+async function send(
+  open: Space['openStream'],
+  mid: string,
+  method: string,
+  params: unknown,
+  bytes: Uint8Array,
+  progress: (sent: number) => void,
+): Promise<unknown> {
   let credit = 0
   let over = false
   let wake = () => {}
@@ -100,24 +120,18 @@ export async function upload(
   const ended = new Promise<RpcError | undefined>(resolve => {
     settle = resolve
   })
-  const { result, stream } = await open(
-    mid,
-    'isbell.file.upload',
-    { name, size: bytes.length },
-    CALL_TIMEOUT_MS,
-    {
-      data: () => {},
-      credit: n => {
-        credit += n
-        wake()
-      },
-      end: error => {
-        over = true
-        settle(error)
-        wake()
-      },
+  const { result, stream } = await open(mid, method, params, CALL_TIMEOUT_MS, {
+    data: () => {},
+    credit: n => {
+      credit += n
+      wake()
     },
-  )
+    end: error => {
+      over = true
+      settle(error)
+      wake()
+    },
+  })
   const changed = () =>
     new Promise<void>(resolve => {
       wake = resolve
@@ -136,5 +150,5 @@ export async function upload(
   if (!over) stream.finish()
   const error = await ended
   if (error) throw new CallError(error.code, error.msg)
-  return (result as { path: string }).path
+  return result
 }

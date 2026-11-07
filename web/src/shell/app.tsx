@@ -30,15 +30,11 @@ if (asked === 'workbench' || asked === 'desktop') {
   history.replaceState(null, '', `${location.pathname}${rest ? `?${rest}` : ''}${location.hash}`)
 }
 
-const workbench = !MOBILE && getLocal().shell === 'workbench'
-// Lets the workbench's colors in styles.css apply.
-if (workbench) document.documentElement.dataset.shell = 'workbench'
-
 // Each shell is loaded only where it is used.
 const Shell = lazy(() =>
   MOBILE
     ? import('./mobile/routes').then(m => ({ default: m.MobileRoutes }))
-    : workbench
+    : getLocal().shell === 'workbench'
       ? import('./workbench/routes').then(m => ({ default: m.WorkbenchRoutes }))
       : import('./desktop/routes').then(m => ({ default: m.DesktopRoutes })),
 )

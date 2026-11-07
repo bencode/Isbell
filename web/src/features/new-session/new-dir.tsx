@@ -3,9 +3,7 @@
 import { Segmented } from '../../components/segmented'
 import { useI18n } from '../../core/i18n'
 import type { MachineState } from '../../model/state'
-import { DirInput, type useNewDir } from './dir-input'
-
-const TONE = { danger: 'text-danger', warn: 'text-warn', muted: 'text-muted' }
+import { DirInput, DirNote, type useNewDir } from './dir-input'
 
 type Props = {
   machines: MachineState[]
@@ -51,7 +49,7 @@ export function NewDirField({ machines, mid, onMid, value, onChange, typed, help
         picks={typed.picks}
         badge={typed.badge}
       />
-      {typed.note ? <p className={`m-0 text-[13px] ${TONE[typed.note.tone]}`}>{typed.note.text}</p> : null}
+      <DirNote note={typed.note} />
     </div>
   )
 }
