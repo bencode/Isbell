@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { Button } from '../components/button'
 import { ErrorBoundary } from '../components/error-boundary'
 import { useI18n } from '../core/i18n'
-import { updateLocal, useLocal } from '../core/prefs'
+import { getLocal, updateLocal, useLocal } from '../core/prefs'
 import { usePushSync } from '../core/push'
 import { SpaceProvider, useProjects, useSpaceView } from '../core/space'
 import { Join, takeKeyFromLink } from '../features/join/join-page'
@@ -20,11 +20,23 @@ if (MOBILE) {
   history.scrollRestoration = 'manual'
 }
 
+// `?shell=workbench` or `?shell=desktop` picks the frame on a computer, and is taken off the address.
+const query = new URLSearchParams(location.search)
+const asked = query.get('shell')
+if (asked === 'workbench' || asked === 'desktop') {
+  updateLocal(() => ({ shell: asked }))
+  query.delete('shell')
+  const rest = query.toString()
+  history.replaceState(null, '', `${location.pathname}${rest ? `?${rest}` : ''}${location.hash}`)
+}
+
 // Each shell is loaded only where it is used.
 const Shell = lazy(() =>
   MOBILE
     ? import('./mobile/routes').then(m => ({ default: m.MobileRoutes }))
-    : import('./desktop/routes').then(m => ({ default: m.DesktopRoutes })),
+    : getLocal().shell === 'workbench'
+      ? import('./workbench/routes').then(m => ({ default: m.WorkbenchRoutes }))
+      : import('./desktop/routes').then(m => ({ default: m.DesktopRoutes })),
 )
 
 export function App() {
