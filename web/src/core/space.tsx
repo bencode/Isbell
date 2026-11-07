@@ -6,13 +6,15 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
 } from 'react'
 import { parseKey } from '../model/identity'
+import { initialPaths, listedPaths } from '../model/project-config'
 import { deriveProjects, type Project } from '../model/projects'
-import { createSpace, type Space, type SpaceView } from '../model/space'
-import { useLocal } from './prefs'
+import { createSpace, projectsSettled, type Space, type SpaceView } from '../model/space'
+import { updateLocal, useLocal } from './prefs'
 
 export const RELAY_URL: string = import.meta.env.VITE_RELAY_URL ?? 'wss://isbell.fmap.dev/v1/ws'
 /** State lists agents only; shells are pulled this often while the page is visible. */
@@ -60,9 +62,44 @@ export function useSpaceView(): SpaceView {
 
 export function useProjects(): Project[] {
   const view = useSpaceView()
-  const { seen } = useLocal()
+  const { seen, projectPaths } = useLocal()
   return useMemo(
-    () => deriveProjects(view.machines, view.shells, seen, view.repos, view.recorded),
-    [view.machines, view.shells, seen, view.repos, view.recorded],
+    () =>
+      deriveProjects(
+        view.machines,
+        view.shells,
+        seen,
+        view.repos,
+        view.recorded,
+        listedPaths(view.configs, projectPaths),
+      ),
+    [view.machines, view.shells, seen, view.repos, view.recorded, view.configs, projectPaths],
   )
+}
+
+/** Keeps what the machines list for while they are offline, and has a machine that lists nothing yet
+ * start from where its panes run, once. A write that fails is left to the next visit. */
+export function useProjectConfigs() {
+  const space = useSpace()
+  const view = useSpaceView()
+  const projects = useProjects()
+  const { projectPaths } = useLocal()
+  const started = useRef(new Set<string>())
+  useEffect(() => {
+    const paths = listedPaths(view.configs, projectPaths)
+    if (JSON.stringify(paths) !== JSON.stringify(projectPaths)) updateLocal(() => ({ projectPaths: paths }))
+  }, [view.configs, projectPaths])
+  useEffect(() => {
+    if (!projectsSettled(view)) return
+    for (const { state, online } of view.machines) {
+      const mid = state.machine.id
+      const writes = state.caps.methods.includes('isbell.file.write')
+      if (!online || !writes || view.configs[mid]?.state !== 'missing' || started.current.has(mid)) continue
+      started.current.add(mid)
+      const mine = projects.filter(p => p.mid === mid)
+      space.saveProjects(mid, initialPaths(mine)).catch((err: unknown) => {
+        console.warn('could not write the projects listed', mid, err)
+      })
+    }
+  }, [space, view, projects])
 }

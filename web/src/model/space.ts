@@ -1,14 +1,15 @@
 // What this client knows of its space, as an external store: each machine's latest state and
 // whether it is online (pushed by the relay), each machine's plain shells (pulled from herdr,
-// since machine state only lists agents), and the projects its recorded sessions ran in (read from
-// the machine's files).
+// since machine state only lists agents), and the projects it lists and its recorded sessions ran
+// in (read from the machine's files).
 
 import { type ConnStatus, connect } from './connection'
 import { type DirectLink, openDirect, type Path } from './direct'
-import { read } from './files/remote'
+import { read, writeText } from './files/remote'
 import { repoRootOf } from './files/repo'
 import { type Caller, shells as fetchShells, type Shell } from './herdr'
 import type { Identity } from './identity'
+import { type ProjectConfig, parseProjects, projectsPath, serializeProjects } from './project-config'
 import { dirKey, type Repos } from './projects'
 import { parseRoots, type Roots, rootsPath } from './sessions'
 import { isNewer, type MachineState, readState } from './state'
@@ -65,6 +66,9 @@ export type SpaceView = {
   looking: ReadonlySet<string>
   /** Where each machine's recorded sessions ran, by machine id. */
   recorded: Readonly<Record<string, Roots>>
+  /** What each machine lists as its projects, by machine id; none for a machine not read yet, or
+   * whose gateway cannot be asked. */
+  configs: Readonly<Record<string, ProjectConfig>>
   /** Whether some machine's shells, or where its sessions ran, are still being pulled for the
    * first time since the snapshot. */
   pulling: boolean
@@ -95,6 +99,8 @@ export type Space = {
   callVia: (mid: string) => Via
   /** Pulls the shells of one machine, or of every online machine. */
   refreshShells: (mid?: string) => Promise<void>
+  /** Makes `paths` what machine `mid` lists as its projects. */
+  saveProjects: (mid: string, paths: string[]) => Promise<void>
   reconnectNow: () => void
   close: () => void
 }
@@ -118,6 +124,8 @@ export function createSpace(url: string, id: Identity): Space {
   const reads = new Set<string>()
   const again = new Set<string>()
   const reading = new Set<string>()
+  // Read once a machine comes online, and kept while it is away.
+  const configs = new Map<string, ProjectConfig>()
   const listeners = new Set<() => void>()
   // Per machine: the link being opened or open (undefined once an attempt failed), and the open one.
   const links = new Map<string, Promise<DirectLink | undefined>>()
@@ -140,6 +148,7 @@ export function createSpace(url: string, id: Identity): Space {
       repos: Object.fromEntries(repos),
       looking: new Set(looking),
       recorded: Object.fromEntries(recorded),
+      configs: Object.fromEntries(configs),
       pulling: pulling.size > 0 || reading.size > 0,
     }
   }
@@ -271,6 +280,21 @@ export function createSpace(url: string, id: Identity): Space {
     return m?.online === true && m.state.caps.methods.includes('isbell.file.read')
   }
 
+  /** Reads what machine `mid` lists as its projects. Left unread, it is asked again with the next
+   * read of its records. */
+  const readConfig = async (mid: string) => {
+    try {
+      const found = await read(openStream, mid, projectsPath, ROOTS_MAX)
+      const paths = found.bytes && parseProjects(new TextDecoder().decode(found.bytes))
+      if (!paths) console.warn('the projects listed cannot be read', mid)
+      configs.set(mid, paths ? { state: 'listed', paths } : { state: 'broken' })
+    } catch (err) {
+      if (err instanceof CallError && (err.code === 'not_found' || err.code === 'bad_request'))
+        configs.set(mid, { state: 'missing' })
+      else console.warn('could not read the projects listed', mid, err)
+    }
+  }
+
   /** Reads where machine `mid`'s recorded sessions ran: none where its hook never recorded one,
    * or its gateway takes no path under `~`. Asked while a read is out, it reads once more after. */
   const refreshRecords = async (mid: string) => {
@@ -280,6 +304,7 @@ export function createSpace(url: string, id: Identity): Space {
       return
     }
     reads.add(mid)
+    if (!configs.has(mid)) await readConfig(mid)
     try {
       const found = await read(openStream, mid, rootsPath, ROOTS_MAX)
       if (found.bytes) recorded.set(mid, parseRoots(new TextDecoder().decode(found.bytes)))
@@ -353,6 +378,7 @@ export function createSpace(url: string, id: Identity): Space {
       }
       changed()
       if (online) {
+        configs.delete(mid)
         void refreshOne(mid)
         void refreshRecords(mid)
       }
@@ -371,6 +397,11 @@ export function createSpace(url: string, id: Identity): Space {
     openStream,
     directStatus,
     refreshShells,
+    saveProjects: async (mid, paths) => {
+      await writeText(openStream, mid, projectsPath, serializeProjects(paths))
+      configs.set(mid, { state: 'listed', paths })
+      changed()
+    },
     reconnectNow: conn.reconnectNow,
     close: () => {
       for (const link of direct.values()) link.close()
