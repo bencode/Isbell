@@ -18,7 +18,7 @@ import { useI18n } from '../../core/i18n'
 import { setReader, useLocal } from '../../core/prefs'
 import { resolveLink } from '../../model/files/paths'
 import { SourceTools, SourceView } from './code-file'
-import { FilePage, type FileViewProps, Reading, useHistoryScroll } from './file-page'
+import { FilePage, type FileViewProps, Reading, useTabScroll } from './file-page'
 
 // The Markdown libraries load with the first document rendered, and the Aa panel with them.
 const MarkdownRenderer = lazy(() =>
@@ -38,7 +38,7 @@ export function MarkdownFile({ shell, text, rel, hrefOf, asset }: FileViewProps)
   const t = useI18n()
   const navigate = useNavigate()
   const reader = useLocal().reader
-  const scroll = useHistoryScroll()
+  const scroll = useTabScroll()
   const [mode, setMode] = useState<Mode>('rendered')
   const source = useRef<CodeRendererHandle>(null)
   const [outline, setOutline] = useState<{ available: boolean; layout: OutlineLayout }>({
@@ -142,8 +142,6 @@ export function MarkdownFile({ shell, text, rel, hrefOf, asset }: FileViewProps)
       ) : (
         <Suspense fallback={<Reading />}>
           <MarkdownRenderer
-            // A new history entry starts at its own scroll.
-            key={scroll.key}
             text={text}
             appearance={reader}
             link={link}

@@ -1,7 +1,7 @@
-// The tabs beside the page: things opened over it, each named by an id that reads as a path
-// (`file/<project>/<rel>`), the one shown named in the address as `?tab=<id>`. One tab at a time is
-// a preview, replaced by the next one opened; a pinned tab stays until closed. At most MAX_TABS are
-// open: one more closes the one shown longest ago, never the one being shown.
+// The tabs of a workspace, each named by an id that reads as a path, its kind first
+// (`file/<project>/<rel>`), the one shown named in the address as `?tab=<id>`. One tab of each kind
+// is a preview, replaced by the next of its kind opened; a pinned tab stays until closed. At most
+// MAX_TABS are open: one more closes the one shown longest ago, never the one being shown.
 
 export type TabEntry = { id: string; pinned: boolean }
 
@@ -12,14 +12,20 @@ export const MAX_TABS = 7
 
 export const noTabs: Tabs = { open: [], used: [] }
 
-/** The tabs with `active` shown (null: the page): a tab not open becomes the preview, in the place
- * of the one there is. Showing the same again changes nothing. */
+const previewKind = (id: string) => id.slice(0, id.indexOf('/'))
+
+/** The preview of the kind of `id`, if there is one. */
+const previewFor = (open: TabEntry[], id: string) =>
+  open.find(tab => !tab.pinned && previewKind(tab.id) === previewKind(id))
+
+/** The tabs with `active` shown (null: none named): a tab not open becomes its kind's preview, in the
+ * place of the one there is. Showing the same again changes nothing. */
 export function visit(tabs: Tabs, active: string | null): Tabs {
   if (active === null || tabs.used[0] === active) return tabs
   const used = [active, ...tabs.used.filter(id => id !== active)]
   if (tabs.open.some(tab => tab.id === active)) return { ...tabs, used }
   const tab = { id: active, pinned: false }
-  const preview = tabs.open.find(t => !t.pinned)
+  const preview = previewFor(tabs.open, active)
   const open = preview ? tabs.open.map(t => (t === preview ? tab : t)) : [...tabs.open, tab]
   return trim({ open, used: preview ? used.filter(id => id !== preview.id) : used }, active)
 }
@@ -29,7 +35,8 @@ export function visit(tabs: Tabs, active: string | null): Tabs {
  * unmounts until the store says so. */
 export function drawn(tabs: Tabs, active: string | null): TabEntry[] {
   if (active === null || tabs.open.some(tab => tab.id === active)) return tabs.open
-  const at = tabs.open.findIndex(tab => !tab.pinned)
+  const preview = previewFor(tabs.open, active)
+  const at = preview ? tabs.open.indexOf(preview) : -1
   const tab = { id: active, pinned: false }
   return at < 0 ? [...tabs.open, tab] : [...tabs.open.slice(0, at), tab, ...tabs.open.slice(at)]
 }
@@ -38,6 +45,14 @@ export const pin = (tabs: Tabs, id: string): Tabs => ({
   ...tabs,
   open: tabs.open.map(tab => (tab.id === id ? { ...tab, pinned: true } : tab)),
 })
+
+/** Pins `id`, or unpins it: it is its kind's preview again, and a kind has one, so the other goes. */
+export function togglePin(tabs: Tabs, id: string): Tabs {
+  if (!tabs.open.some(tab => tab.id === id && tab.pinned)) return pin(tabs, id)
+  const other = previewFor(tabs.open, id)
+  const rest = other ? close(tabs, other.id) : tabs
+  return { ...rest, open: rest.open.map(tab => (tab.id === id ? { ...tab, pinned: false } : tab)) }
+}
 
 /** The tabs with `id` pinned, opened if it is not, without showing it. It counts as just shown, so
  * one more than MAX_TABS closes another: the one shown longest ago. */
@@ -52,7 +67,7 @@ export const close = (tabs: Tabs, id: string): Tabs => ({
 })
 
 /** The tab to show on closing the shown `id`: the one to its right, else to its left, else null for
- * the page. */
+ * none left. */
 export function nextShown(tabs: Tabs, id: string): string | null {
   const at = tabs.open.findIndex(tab => tab.id === id)
   return (tabs.open[at + 1] ?? tabs.open[at - 1])?.id ?? null
@@ -71,13 +86,13 @@ const isEntry = (v: unknown): v is TabEntry =>
   typeof (v as { pinned?: unknown }).pinned === 'boolean'
 
 /** Tabs as kept in this browser, read back: entries that are tabs still, once each, at most one
- * preview and MAX_TABS in all. */
+ * preview of each kind and MAX_TABS in all. */
 export function restore(saved: unknown, isTab: (id: string) => boolean): Tabs {
   const { open, used } = (typeof saved === 'object' && saved !== null ? saved : {}) as Record<string, unknown>
   const entries = (Array.isArray(open) ? open : []).filter(isEntry).filter(tab => isTab(tab.id))
   const kept = entries
     .filter((tab, i) => entries.findIndex(t => t.id === tab.id) === i)
-    .filter((tab, i, all) => tab.pinned || all.findIndex(t => !t.pinned) === i)
+    .filter((tab, _, all) => tab.pinned || previewFor(all, tab.id) === tab)
     .slice(0, MAX_TABS)
   const ids = kept.map(tab => tab.id)
   const order = (Array.isArray(used) ? used : []).filter((id): id is string => ids.includes(id))

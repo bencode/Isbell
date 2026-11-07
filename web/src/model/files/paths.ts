@@ -20,6 +20,9 @@ export const ancestors = (rel: string): string[] =>
 
 export const nameOf = (rel: string) => rel.slice(rel.lastIndexOf('/') + 1)
 
+/** The directory `rel` is in, ending in '/' ('' for the root); a directory's own, ending in '/'. */
+export const dirOf = (rel: string) => rel.slice(0, rel.lastIndexOf('/') + 1)
+
 /** What a link in a file does: jump within it, leave for the web, open another file, or nothing. */
 export type Link =
   | { kind: 'anchor'; id: string }

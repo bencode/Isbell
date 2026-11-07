@@ -25,23 +25,8 @@
   --color-press: var(--press);
   --color-selected: var(--selected);
   --color-accent-soft: var(--accent-soft);
-  --color-term: var(--term);
   --font-sans: "Instrument Sans Variable", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  /* What a running agent shows: lit when it changes, greyed once it has not for 30s. */
-  --animate-tail: flash 1.2s ease-out, quiet 0.4s ease 30s forwards;
-}
-
-@keyframes flash {
-  from {
-    background-color: var(--accent-soft);
-  }
-}
-
-@keyframes quiet {
-  to {
-    color: var(--faint);
-  }
 }
 
 /* Each token is light-dark(light, dark); color-scheme picks one: the system's, or the one chosen in settings. */
@@ -67,20 +52,11 @@
   --ask-line: light-dark(#dcb56d, #6a5426);
   --end: light-dark(#fbeae7, #2a1817);
   --end-line: light-dark(#e3b2ab, #5a2d2c);
-  /* The terminal keeps the night page in both themes; see use-terminal.ts. */
-  --term: #0d121b;
-  --dot: light-dark(rgb(28 35 51 / 0.09), rgb(233 229 217 / 0.06));
   --scrim: light-dark(rgb(28 35 51 / 0.3), rgb(4 6 10 / 0.6));
   /* Ink over any surface: a control reads the same on the side, the page and a card. */
   --hover: light-dark(rgb(28 35 51 / 0.06), rgb(233 229 217 / 0.07));
   --press: light-dark(rgb(28 35 51 / 0.1), rgb(233 229 217 / 0.11));
   --selected: light-dark(rgb(28 35 51 / 0.1), rgb(233 229 217 / 0.12));
-}
-
-/* The page a board sits on: a faint dot grid, like a notebook's. */
-@utility paper {
-  background-image: radial-gradient(var(--dot) 1px, transparent 1.2px);
-  background-size: 18px 18px;
 }
 
 /* An index card's hard offset shadow, for anything that lies on top of the page. */
@@ -127,35 +103,4 @@ body {
   background: var(--bg);
   color: var(--text);
   font: 14px / 1.5 var(--font-sans);
-}
-
-/* A phone's shell (shell/app.tsx): the page itself scrolls, one scroller to a page, so iOS has no
-   outer one to hand a gesture to and lock the inner one while it bounces. */
-:root[data-shell="phone"] {
-  /* No double-tap zoom, and no delay before a tap. */
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-/* Tall as what is on them, so a sticky bar stays at the top; each page keeps clear of the notch and
-   the home indicator itself. */
-:root[data-shell="phone"] body,
-:root[data-shell="phone"] #root {
-  height: auto;
-  min-height: 100%;
-}
-:root[data-shell="phone"] body {
-  padding: 0;
-}
-/* Whatever scrolls within the page keeps a gesture that reaches its end, rather than passing it on
-   to the page's bounce. */
-:root[data-shell="phone"] body * {
-  overscroll-behavior: contain;
-}
-/* A page that must not move, the terminal (useLockedPage): its own scroller is the only one. */
-:root[data-scroll="locked"],
-:root[data-scroll="locked"] body,
-:root[data-scroll="locked"] #root {
-  height: 100%;
-  overflow: hidden;
-  overscroll-behavior: none;
 }

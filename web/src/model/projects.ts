@@ -164,6 +164,9 @@ export function deriveProjects(
     )
 }
 
+/** How many of a project's sessions ask for an answer. */
+export const asking = (p: Project) => p.sessions.filter(s => s.status === 'blocked').length
+
 /** Blocked sessions first, then finished ones not yet looked at; newest first within each. Only on
  * machines that are online: what an offline one last reported cannot be answered. */
 export const needs = (projects: Project[]): Session[] =>

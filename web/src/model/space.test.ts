@@ -351,6 +351,19 @@ describe('changing the projects a machine lists', () => {
     await vi.waitFor(() => expect(config(space)).toEqual({ state: 'missing' }))
   })
 
+  test('a list not read is asked for again, as a machine with nothing new would not say', async () => {
+    relay.stream = (_m, _p, events) => events.end({ code: 'timeout', msg: 'no answer' })
+    const space = createSpace('wss://relay.test/v1/ws', parseKey(vectors.identity.key))
+    relay.on?.snapshot([{ online: true, state }])
+    await vi.waitFor(() => expect(space.getSnapshot().pulling).toBe(false))
+    await new Promise(resolve => setTimeout(resolve))
+    expect(config(space)).toBeUndefined()
+
+    relay.stream = (_m, _p, events) => events.end({ code: 'not_found', msg: 'no such file' })
+    space.refreshUnreadLists()
+    await vi.waitFor(() => expect(config(space)).toEqual({ state: 'missing' }))
+  })
+
   test.each(['not_a_file', 'permission_denied'])('a file refused with %s cannot be read', async code => {
     relay.stream = (_m, _p, events) => events.end({ code, msg: 'refused' })
     const space = createSpace('wss://relay.test/v1/ws', parseKey(vectors.identity.key))

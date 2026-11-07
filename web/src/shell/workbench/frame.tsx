@@ -14,20 +14,24 @@ import {
 } from 'lucide-react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Group, Panel, type PanelSize, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
+import { Button } from '../../components/button'
 import { ICON, IconButton } from '../../components/icon-button'
 import { ResizeHandle } from '../../components/resize-handle'
 import { useI18n } from '../../core/i18n'
 import { toggleRail, useLocal } from '../../core/prefs'
-import { type Overlay, Overlays, ReconnectBanner } from '../common'
+import { useSpace, useSpaceView } from '../../core/space'
+import { BAR } from './bar'
+import { ListColumn } from './list-column'
 import { ProjectsRail } from './projects-rail'
-import { SettingsMenu } from './settings-menu'
+import { type Overlay, Overlays, SettingsMenu } from './settings-menu'
+import { TabStrip } from './tab-strip'
+import { TabPanes } from './workspace'
 
 const PANELS = ['list', 'main', 'right']
 const FOLD_MS = 200
 // Narrow as anyone may want; dragged to half of this, a column folds.
 const COLUMN_MIN = '100px'
 const MAIN_MIN = '200px'
-const BAR = 'flex h-[42px] flex-none items-center shadow-[inset_0_-1px_var(--line)]'
 const FOLD_BUTTON = 'absolute top-[7px] z-10'
 const MOVING =
   'motion-safe:[&>[data-panel]]:transition-[flex-grow] motion-safe:[&>[data-panel]]:duration-200 motion-safe:[&>[data-panel]]:ease-fold'
@@ -81,7 +85,10 @@ function FoldingColumn({ id, fold, children }: { id: string; fold: Fold; childre
       onResize={fold.onResize}
     >
       <div className="flex min-w-0 flex-1 overflow-hidden" inert={fold.folded && !fold.moving}>
-        <div className="flex flex-1 flex-col" style={{ minWidth: fold.moving ? fold.width : undefined }}>
+        <div
+          className="flex min-w-0 flex-1 flex-col"
+          style={{ minWidth: fold.moving ? fold.width : undefined }}
+        >
           {children}
         </div>
       </div>
@@ -116,32 +123,24 @@ function Projects({ onOverlay }: { onOverlay: (overlay: Overlay) => void }) {
   )
 }
 
-function ListHead() {
+/** The strip shown while the relay reconnects, with a way to try at once. */
+function ReconnectBanner() {
   const t = useI18n()
-  const [shown, setShown] = useState<'sessions' | 'files'>('sessions')
-  const tab = (key: typeof shown, label: string) => (
-    <button
-      type="button"
-      onClick={() => setShown(key)}
-      aria-pressed={shown === key}
-      className={`relative h-full cursor-pointer border-0 bg-transparent p-0 text-[13px] transition-colors duration-75 hover:text-text focus-visible:outline-2 focus-visible:outline-accent ${
-        shown === key
-          ? "font-semibold text-text after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-text after:content-['']"
-          : 'font-medium text-muted'
-      }`}
-    >
-      {label}
-    </button>
-  )
+  const space = useSpace()
+  const { status } = useSpaceView()
+  if (status !== 'reconnecting') return null
   return (
-    <div className={`${BAR} gap-3.5 pr-2 pl-11`}>
-      {tab('sessions', t('workbench.sessions'))}
-      {tab('files', t('workbench.files'))}
+    <div className="flex h-9 flex-none items-center gap-3 border-b border-ask-line bg-ask px-5 text-[13px]">
+      <span className="flex-1">{t('banner.reconnecting')}</span>
+      <Button size="small" onClick={space.reconnectNow}>
+        {t('banner.now')}
+      </Button>
     </div>
   )
 }
 
-export function Frame() {
+/** `inProject`: the address is in a project, whose tabs the workspace shows. */
+export function Frame({ inProject }: { inProject: boolean }) {
   const t = useI18n()
   const [overlay, setOverlay] = useState<Overlay | null>(null)
   const list = useFold(268)
@@ -180,15 +179,17 @@ export function Frame() {
               }}
             >
               <FoldingColumn id="list" fold={list}>
-                <ListHead />
+                <ListColumn />
               </FoldingColumn>
               <ResizeHandle label={t('workbench.resizeList')} disabled={list.folded} />
               <Panel id="main" className="flex" minSize={MAIN_MIN}>
                 <main className="flex min-w-0 flex-1 flex-col">
                   <div
                     className={`${BAR} bg-side transition-[padding] duration-200 ease-fold motion-reduce:transition-none ${list.folded ? 'pl-11' : ''} ${right.folded ? 'pr-11' : ''}`}
-                  />
-                  <p className="m-auto text-muted">{t('workbench.empty')}</p>
+                  >
+                    {inProject ? <TabStrip edged={list.folded} /> : null}
+                  </div>
+                  {inProject ? <TabPanes /> : null}
                 </main>
               </Panel>
               <ResizeHandle label={t('workbench.resizeRight')} disabled={right.folded} />
@@ -199,7 +200,7 @@ export function Frame() {
           </div>
         </div>
       </div>
-      <Overlays overlay={overlay} setOverlay={setOverlay} focusedKey={undefined} />
+      <Overlays overlay={overlay} setOverlay={setOverlay} />
     </Tooltip.Provider>
   )
 }

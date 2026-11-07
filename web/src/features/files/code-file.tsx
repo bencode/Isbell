@@ -6,7 +6,7 @@ import { Button } from '../../components/button'
 import type { CodeRendererHandle } from '../../components/renderers/code'
 import { type Key, useI18n } from '../../core/i18n'
 import { toggleWrap, useLocal } from '../../core/prefs'
-import { FilePage, type FileViewProps, Reading, useHistoryScroll } from './file-page'
+import { FilePage, type FileViewProps, Reading, useTabScroll } from './file-page'
 
 // CodeMirror loads with the first file shown as source; each grammar with its first file.
 const CodeRenderer = lazy(() =>
@@ -38,7 +38,7 @@ export function SourceView({
 }) {
   const t = useI18n()
   const { wrap } = useLocal().layout
-  const scroll = useHistoryScroll()
+  const scroll = useTabScroll()
   const labels = useMemo(
     () => ({
       source: t('files.sourceOf', { name }),
@@ -48,16 +48,7 @@ export function SourceView({
   )
   return (
     <Suspense fallback={<Reading />}>
-      {/* A new history entry starts at its own scroll. */}
-      <CodeRenderer
-        key={scroll.key}
-        ref={ref}
-        text={text}
-        name={name}
-        wrap={wrap}
-        labels={labels}
-        scroll={scroll}
-      />
+      <CodeRenderer ref={ref} text={text} name={name} wrap={wrap} labels={labels} scroll={scroll} />
     </Suspense>
   )
 }

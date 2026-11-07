@@ -8,6 +8,10 @@ import type { Space } from '../space'
 import { CallError, WINDOW } from '../streams'
 import type { Worktree } from './worktrees'
 
+/** Whether `err` says there is no such file or directory there. */
+export const isMissing = (err: unknown) =>
+  err instanceof CallError && ['not_found', 'not_a_directory'].includes(err.code)
+
 export type Entry = { name: string; kind: 'dir' | 'file' | 'other'; size?: number; mtime?: number }
 /** `total` counts the directory's entries; more than `entries` when the listing was cut. */
 export type Listing = { entries: Entry[]; total: number; truncated: boolean }

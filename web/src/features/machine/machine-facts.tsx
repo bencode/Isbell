@@ -3,9 +3,9 @@
 
 import { InfoFacts } from '../../components/info-panel'
 import { useI18n } from '../../core/i18n'
-import { machineFacts } from '../../core/machine-facts'
 import type { MachineEntry } from '../../model/space'
 import { SYSTEM_METHOD } from '../../model/system'
+import { machineFacts } from './facts'
 import { useSystem } from './use-system'
 
 export function MachineFacts({ entry }: { entry: MachineEntry }) {
