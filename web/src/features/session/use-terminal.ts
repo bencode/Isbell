@@ -29,7 +29,10 @@ const RESIZE_SETTLE_MS = 100
 const utf8 = new TextEncoder()
 
 /** The terminal stays on the night page in either theme: programs such as agents pick many of their
- * colors for a dark background, and on paper those fade. Its background is `--term`. */
+ * colors for a dark background, and on paper those fade. Its background is `--term`. Bright black
+ * is the shade a program lays under text where it cannot learn the background (herdr answers no
+ * OSC 11), as Codex does under your messages, so it is only a little lighter than the background;
+ * as text, it is lightened to `MIN_CONTRAST`. */
 const NIGHT: ITheme = {
   foreground: '#e9e5d9',
   cursor: '#8fb0ff',
@@ -42,7 +45,7 @@ const NIGHT: ITheme = {
   magenta: '#d39be0',
   cyan: '#7fc8cf',
   white: '#c9c5ba',
-  brightBlack: '#8a92a4',
+  brightBlack: '#2a303c',
   brightRed: '#ffa69d',
   brightGreen: '#8fe3b2',
   brightYellow: '#f2c77c',
@@ -51,6 +54,9 @@ const NIGHT: ITheme = {
   brightCyan: '#9edbe1',
   brightWhite: '#e9e5d9',
 }
+
+/** The least contrast text keeps with what is under it; the terminal lightens text below it. */
+const MIN_CONTRAST = 3
 
 export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, paneId: string) {
   const space = useSpace()
@@ -91,6 +97,7 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
       fontFamily: FONT,
       fontSize: 13,
       cursorBlink: true,
+      minimumContrastRatio: MIN_CONTRAST,
       theme: { ...NIGHT, background: getComputedStyle(host).backgroundColor },
     })
     const fit = new FitAddon()
