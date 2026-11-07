@@ -5,18 +5,28 @@ import { Button } from '../../components/button'
 import { Modal } from '../../components/dialog'
 import { errorText, uiLabels, useI18n } from '../../core/i18n'
 import { useSpace } from '../../core/space'
-import { useNewDir } from '../../features/new-session/dir-input'
-import { NewDirField } from '../../features/new-session/new-dir'
+import { list } from '../../model/files/remote'
+import type { Caller } from '../../model/herdr'
 import type { MachineState } from '../../model/state'
+import { CallError } from '../../model/streams'
+import { DirInput, DirNote, useNewDir } from './dir-input'
 
 type Props = {
   machine: MachineState
-  /** What the machine lists now. */
-  paths: string[]
   onClose: () => void
 }
 
-export function AddProject({ machine, paths, onClose }: Props) {
+async function hasNoDir(call: Caller, mid: string, dir: string) {
+  try {
+    await list(call, mid, dir)
+    return false
+  } catch (err) {
+    if (err instanceof CallError && ['not_found', 'not_a_directory'].includes(err.code)) return true
+    throw err
+  }
+}
+
+export function AddProjectDialog({ machine, onClose }: Props) {
   const t = useI18n()
   const space = useSpace()
   const [value, setValue] = useState('')
@@ -25,7 +35,9 @@ export function AddProject({ machine, paths, onClose }: Props) {
   const mid = machine.machine.id
   const helps = machine.caps.methods.includes('isbell.file.list')
   const typed = useNewDir(mid, value, helps)
-  const dir = typed.dir?.startsWith('/') && !paths.includes(typed.dir) ? typed.dir : undefined
+  const dir = typed.dir?.startsWith('/') ? typed.dir : undefined
+  // A `~` only the machine could resolve: its home shows in its projects, and it has none yet.
+  const noHome = typed.dir?.startsWith('~')
 
   const add = async (e: FormEvent) => {
     e.preventDefault()
@@ -33,7 +45,13 @@ export function AddProject({ machine, paths, onClose }: Props) {
     setBusy(true)
     setProblem(undefined)
     try {
-      await space.saveProjects(mid, [...paths, dir])
+      // What was typed may not have been looked at yet.
+      if (helps && (await hasNoDir(space.call, mid, dir))) {
+        setProblem(t('dir.missing'))
+        setBusy(false)
+        return
+      }
+      await space.changeProjects(mid, paths => (paths?.includes(dir) ? undefined : [...(paths ?? []), dir]))
       onClose()
     } catch (err) {
       console.error('could not add a project', err)
@@ -52,16 +70,16 @@ export function AddProject({ machine, paths, onClose }: Props) {
       closeLabel={uiLabels(t).close}
     >
       <form onSubmit={add} className="flex flex-col gap-3">
-        <NewDirField
-          machines={[machine]}
-          mid={mid}
-          onMid={() => {}}
+        <DirInput
           value={value}
           onChange={setValue}
-          typed={typed}
           helps={helps}
-          onBack={undefined}
+          entries={typed.entries}
+          picks={typed.picks}
+          badge={typed.badge}
         />
+        <DirNote note={typed.note} />
+        {noHome ? <p className="m-0 text-[13px] text-warn">{t('workbench.fullPath')}</p> : null}
         {problem ? <p className="m-0 text-[13px] text-danger">{problem}</p> : null}
         <div className="flex justify-end">
           <Button type="submit" variant="primary" disabled={!dir || busy}>

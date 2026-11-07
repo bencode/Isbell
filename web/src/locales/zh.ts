@@ -250,8 +250,10 @@ export const zh: Record<Key, string> = {
   'workbench.add': '添加',
   'workbench.removeProject': '从项目中移除',
   'workbench.projectActions': '项目操作',
+  'workbench.fullPath': '这台机器还没有项目，看不出 home 在哪。请用 / 开头的完整路径。',
   'workbench.noProjects': '还没有项目',
   'workbench.brokenProjects': '读不了 projects.json',
+  'workbench.unwritableProjects': '写不了 projects.json',
   'tabs.label': '打开的文件',
   'tabs.close': '关闭 {name}',
   'tabs.pin': '保持打开',
@@ -460,5 +462,6 @@ export const zh: Record<Key, string> = {
   'error.permission_denied': '机器不允许读取它。',
   'error.io_error': '机器读取失败：{msg}',
   'error.bad_request': '机器拒绝了请求：{msg}',
+  'error.projects_broken': 'projects.json 读不了，所以没有改动。',
   'error.unknown': '出错了：{msg}',
 }

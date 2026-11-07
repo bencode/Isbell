@@ -249,6 +249,30 @@ describe('a machine that lists its projects', () => {
     expect(b?.sessions.map(s => s.paneId)).toEqual(['p1'])
   })
 
+  test('holds a session under a listed directory inside a repository', () => {
+    const projects = deriveProjects(
+      [machine([agent('p1', '/w/mono/app/src')])],
+      [],
+      {},
+      { [`${MID}:/w/mono/app/src`]: '/w/mono' },
+      {},
+      { [MID]: ['/w/mono/app'] },
+    )
+    expect(projects.map(p => [p.path, p.sessions.length])).toEqual([['/w/mono/app', 1]])
+  })
+
+  test('holds a session of a worktree in the listed repository it belongs to', () => {
+    const projects = deriveProjects(
+      [machine([agent('p1', '/w/b.wt/x')])],
+      [],
+      {},
+      { [`${MID}:/w/b.wt/x`]: '/w/b' },
+      {},
+      listed,
+    )
+    expect(projects[0]?.sessions.map(s => s.paneId)).toEqual(['p1'])
+  })
+
   test('leaves a session outside them in a project not listed, after the rest', () => {
     const projects = derive([agent('p1', '/tmp/x')])
     expect(projects.map(p => [p.path, p.configured])).toEqual([

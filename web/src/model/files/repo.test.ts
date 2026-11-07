@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest'
+import { describe, expect, test } from 'vitest'
 import type { Caller } from '../herdr'
 import { CallError } from '../streams'
 import { repoRootOf } from './repo'
@@ -21,4 +21,26 @@ test('a directory is in the deepest repository above it, never one at home or ab
   expect(await repoRootOf(call, 'm', '/Users/me/work/Isbell/wt/')).toBe('/Users/me/work/Isbell/wt')
   expect(await repoRootOf(call, 'm', '/Users/me/notes')).toBeUndefined()
   expect(asked).not.toContain('/Users/me/.git')
+})
+
+describe('a directory in a worktree', () => {
+  const caller =
+    (worktrees: () => unknown): Caller =>
+    async (_mid, m, p) => {
+      if (m === 'isbell.git.worktrees') return worktrees()
+      const { path } = p as { path: string }
+      throw new CallError(path === '/w/app.wt/x/.git' ? 'not_a_directory' : 'not_found', path)
+    }
+
+  test("belongs to the repository's main checkout", async () => {
+    const call = caller(() => ({ worktrees: [{ path: '/w/app' }, { path: '/w/app.wt/x' }] }))
+    expect(await repoRootOf(call, 'm', '/w/app.wt/x/src')).toBe('/w/app')
+  })
+
+  test('stays where it is when the machine cannot say', async () => {
+    const call = caller(() => {
+      throw new CallError('bad_request', 'unknown method')
+    })
+    expect(await repoRootOf(call, 'm', '/w/app.wt/x/src')).toBe('/w/app.wt/x')
+  })
 })

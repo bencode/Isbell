@@ -86,18 +86,16 @@ export async function read(
 
 /** Sends `bytes` to machine `mid` as a file named `name` for an agent, as fast as the machine grants
  * credit and the pace allows; resolves to the file's absolute path there. */
-export const upload = async (
+export async function upload(
   open: Space['openStream'],
   mid: string,
   name: string,
   bytes: Uint8Array,
   progress: (sent: number) => void,
-) =>
-  (
-    (await send(open, mid, 'isbell.file.upload', { name, size: bytes.length }, bytes, progress)) as {
-      path: string
-    }
-  ).path
+): Promise<string> {
+  const result = await send(open, mid, 'isbell.file.upload', { name, size: bytes.length }, bytes, progress)
+  return (result as { path: string }).path
+}
 
 /** Replaces the file at `path` with `text`, whole or not at all; its directory must be there. */
 export async function writeText(open: Space['openStream'], mid: string, path: string, text: string) {

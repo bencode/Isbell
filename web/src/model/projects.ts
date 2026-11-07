@@ -45,7 +45,7 @@ export type Project = {
   updated?: number
 }
 
-/** Whether anything runs in the project; one without is there for the sessions recorded in it. */
+/** Whether anything runs in the project. */
 export const hasPanes = (p: Project) => p.sessions.length > 0 || p.shells.length > 0
 
 /** When each session was last looked at: its statusSince at the time, by `paneKey`. */
@@ -80,17 +80,15 @@ export const homeOf = (paths: string[]): string | undefined => paths.map(p => HO
 /** The repository roots found for the directories machines report, by `dirKey(mid, cwd)`. */
 export type Repos = Readonly<Record<string, string>>
 
-const trimSlash = (path: string) => (path.length > 1 ? path.replace(/\/+$/, '') : path)
+export const trimSlash = (path: string) => (path.length > 1 ? path.replace(/\/+$/, '') : path)
 
 /** `path` with the home directory written `~`. */
 export const tildify = (path: string, home: string | undefined) =>
   home && (path === home || path.startsWith(`${home}/`)) ? `~${path.slice(home.length)}` : path
 
-/** The deepest of `listed` that holds `root`, or `root` itself. */
-const placed = (root: string, listed: string[]) =>
-  listed
-    .filter(path => root === path || root.startsWith(`${path}/`))
-    .reduce((deepest, path) => (path.length > deepest.length ? path : deepest), '') || root
+/** The deepest of `listed` that holds `dir`, if any does. */
+const holderOf = (dir: string, listed: string[]) =>
+  listed.filter(path => dir === path || dir.startsWith(`${path}/`)).sort((a, b) => b.length - a.length)[0]
 
 /** Ordered by machine, so the projects of a machine stand together; then those it lists, as it lists
  * them; then those with panes by name, so each keeps its place as its sessions change; then the rest,
@@ -112,9 +110,12 @@ export function deriveProjects(
     .flatMap(({ state, online }) => {
       const mid = state.machine.id
       const paths = listed[mid]
+      // A directory listed may be inside a repository, or hold it: a pane's own directory goes first.
       const rootOf = (cwd: string | undefined) => {
-        const root = cwd ? (repos[dirKey(mid, cwd)] ?? trimSlash(cwd)) : ''
-        return paths ? placed(root, paths) : root
+        if (!cwd) return ''
+        const dir = trimSlash(cwd)
+        const root = repos[dirKey(mid, cwd)] ?? dir
+        return (paths && (holderOf(dir, paths) ?? holderOf(root, paths))) ?? root
       }
       const agents = state.agents.map(a => ({ ...a, cwd: trimSlash(a.cwd ?? ''), root: rootOf(a.cwd) }))
       const mine = shells

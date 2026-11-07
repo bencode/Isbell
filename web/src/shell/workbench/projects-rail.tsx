@@ -5,20 +5,29 @@ import { Popover } from '@base-ui/react/popover'
 import { Info, MoreHorizontal, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Link, matchPath, useLocation } from 'react-router'
-import { ICON, IconButton, Tip } from '../../components/icon-button'
+import { ICON, IconButton } from '../../components/icon-button'
 import { DropdownMenu } from '../../components/menu'
-import { errorText, useI18n } from '../../core/i18n'
-import { useProjects, useSpace, useSpaceView } from '../../core/space'
+import { Tip } from '../../components/tip'
+import { errorText, type Key, useI18n } from '../../core/i18n'
+import { useKeepProjectLists, useProjects, useSpace, useSpaceView } from '../../core/space'
 import { MachineFacts } from '../../features/machine/machine-facts'
+import { AddProjectDialog } from '../../features/new-session/add-project-dialog'
 import { parseRootKey } from '../../model/files/worktrees'
+import { type ProjectConfig, projectActions } from '../../model/project-config'
 import type { Project } from '../../model/projects'
 import type { MachineEntry } from '../../model/space'
 import { projectHref } from '../../utils/hrefs'
 import { asking } from '../marks'
-import { AddProject } from './add-project'
 import { ProjectTile, shortName } from './tile'
 
 const SMALL = { ...ICON, size: 14 }
+const ALERT = 'm-0 mx-2 px-1.5 text-xs text-danger'
+const TROUBLE: Partial<Record<ProjectConfig['state'], Key>> = {
+  broken: 'workbench.brokenProjects',
+  unwritable: 'workbench.unwritableProjects',
+}
+// A mark on the corner of a project's tile, when the row is cut to the tile.
+const CORNER = 'absolute shadow-[0_0_0_1.5px_var(--side)]'
 
 function ProjectRow({
   project,
@@ -32,10 +41,13 @@ function ProjectRow({
   onRemove: (() => void) | undefined
 }) {
   const t = useI18n()
-  const need = asking(project)
-  const live = project.sessions.some(s => s.status === 'working')
+  // What an offline machine last reported cannot be answered.
+  const need = project.online ? asking(project) : 0
+  const live = project.online && project.sessions.some(s => s.status === 'working')
   const place = `${project.name} · ${project.machine}${project.online ? '' : ` · ${t('side.offline')}`}`
-  const corner = thin ? 'absolute shadow-[0_0_0_1.5px_var(--side)]' : ''
+  const actions = onRemove && !thin
+  // Where the actions come up, they take the place of what is at the end of the row.
+  const yields = actions ? 'group-hover:opacity-0' : ''
   return (
     <div className="group relative mx-2 mb-px">
       <Tip label={place} side="right" disabled={!thin}>
@@ -53,8 +65,8 @@ function ProjectRow({
             <span
               className={`flex-none bg-warn text-center font-mono font-semibold text-accent-ink ${
                 thin
-                  ? `${corner} top-0 right-0 min-w-3.5 rounded-[7px] px-[3px] text-[9.5px] leading-[14px]`
-                  : 'min-w-4 rounded-lg px-1 text-[10.5px] leading-4 group-hover:opacity-0'
+                  ? `${CORNER} top-0 right-0 min-w-3.5 rounded-[7px] px-[3px] text-[9.5px] leading-[14px]`
+                  : `min-w-4 rounded-lg px-1 text-[10.5px] leading-4 ${yields}`
               }`}
             >
               {need}
@@ -62,13 +74,13 @@ function ProjectRow({
           ) : live ? (
             <span
               className={`size-1.5 flex-none rounded-full bg-accent ${
-                thin ? `${corner} top-0.5 right-0.5` : 'mr-[5px] group-hover:opacity-0'
+                thin ? `${CORNER} top-0.5 right-0.5` : `mr-[5px] ${yields}`
               }`}
             />
           ) : null}
         </Link>
       </Tip>
-      {onRemove && !thin ? (
+      {actions ? (
         <DropdownMenu
           trigger={
             <IconButton
@@ -111,49 +123,46 @@ function MachineDetails({ entry }: { entry: MachineEntry }) {
 
 function MachineGroup({
   entry,
+  config,
+  shellsKnown,
   projects,
   hereKey,
   thin,
 }: {
   entry: MachineEntry
+  config: ProjectConfig | undefined
+  shellsKnown: ReadonlySet<string>
   projects: Project[]
   hereKey: string | undefined
   thin: boolean
 }) {
   const t = useI18n()
   const space = useSpace()
-  const config = useSpaceView().configs[entry.state.machine.id]
   const [adding, setAdding] = useState(false)
   const [problem, setProblem] = useState<string>()
-  const { machine, caps } = entry.state
-  // Only what the machine itself says is changed: never what is kept from before, or a file not read.
-  const paths =
-    entry.online && caps.methods.includes('isbell.file.write') && config?.state === 'listed'
-      ? config.paths
-      : undefined
+  const { machine } = entry.state
+  const { adds, removes } = projectActions(entry, config, shellsKnown, projects)
   const remove = (path: string) => {
-    if (!paths) return
     setProblem(undefined)
     space
-      .saveProjects(
-        machine.id,
-        paths.filter(p => p !== path),
-      )
+      .changeProjects(machine.id, paths => paths?.filter(p => p !== path))
       .catch((err: unknown) => {
         console.error('could not remove a project', err)
         setProblem(errorText(t, err))
       })
   }
-  const state = entry.online ? '' : t('side.offline')
+  const offline = entry.online ? '' : t('side.offline')
+  const troubleKey = config && TROUBLE[config.state]
+  const trouble = troubleKey ? t(troubleKey) : ''
   return (
     <section>
-      <Tip label={`${machine.name}${state ? ` · ${state}` : ''}`} side="right" disabled={!thin}>
+      <Tip label={[machine.name, offline, trouble].filter(Boolean).join(' · ')} side="right" disabled={!thin}>
         <h2
           className={`group relative m-0 mt-3 mb-0.5 ml-2 flex h-[22px] items-center overflow-hidden pl-1.5 text-[11px] font-semibold whitespace-nowrap text-faint ${thin ? 'gap-[3px]' : 'mr-2 gap-1.5'}`}
         >
           <span
             className={`size-1.5 flex-none rounded-full ${
-              entry.online ? 'bg-ok' : 'shadow-[inset_0_0_0_1.5px_var(--faint)]'
+              trouble ? 'bg-danger' : entry.online ? 'bg-ok' : 'shadow-[inset_0_0_0_1.5px_var(--faint)]'
             }`}
           />
           {thin ? (
@@ -161,14 +170,11 @@ function MachineGroup({
           ) : (
             <>
               <span className="min-w-0 flex-1 truncate">{machine.name}</span>
-              {state ? <span className="pr-1.5 font-normal">{state}</span> : null}
-              {config?.state === 'broken' ? (
-                <span className="truncate font-normal text-danger">{t('workbench.brokenProjects')}</span>
-              ) : null}
+              {offline ? <span className="pr-1.5 font-normal">{offline}</span> : null}
               {/* Over the heading, so that it takes no room from the name at rest. */}
               <span className="absolute right-0 flex bg-side opacity-0 group-hover:opacity-100 focus-within:opacity-100 has-data-popup-open:opacity-100">
                 <MachineDetails entry={entry} />
-                {paths ? (
+                {adds ? (
                   <IconButton
                     label={t('workbench.addProject')}
                     side="right"
@@ -183,28 +189,28 @@ function MachineGroup({
           )}
         </h2>
       </Tip>
-      {problem ? <p className="m-0 mx-2 px-1.5 text-xs text-danger">{problem}</p> : null}
+      {trouble && !thin ? <p className={ALERT}>{trouble}</p> : null}
+      {problem ? <p className={ALERT}>{problem}</p> : null}
       {projects.map(p => (
         <ProjectRow
           key={p.key}
           project={p}
           here={p.key === hereKey}
           thin={thin}
-          onRemove={paths ? () => remove(p.path) : undefined}
+          onRemove={removes ? () => remove(p.path) : undefined}
         />
       ))}
       {!projects.length && !thin ? (
         <p className="m-0 mx-2 px-1.5 text-xs leading-8 text-faint">{t('workbench.noProjects')}</p>
       ) : null}
-      {adding && paths ? (
-        <AddProject machine={entry.state} paths={paths} onClose={() => setAdding(false)} />
-      ) : null}
+      {adding ? <AddProjectDialog machine={entry.state} onClose={() => setAdding(false)} /> : null}
     </section>
   )
 }
 
 export function ProjectsRail({ thin }: { thin: boolean }) {
-  const { machines } = useSpaceView()
+  useKeepProjectLists()
+  const { machines, configs, shellsKnown } = useSpaceView()
   const projects = useProjects()
   const { pathname } = useLocation()
   const key = matchPath('/p/:key/*', pathname)?.params.key
@@ -215,6 +221,8 @@ export function ProjectsRail({ thin }: { thin: boolean }) {
         <MachineGroup
           key={entry.state.machine.id}
           entry={entry}
+          config={configs[entry.state.machine.id]}
+          shellsKnown={shellsKnown}
           projects={projects.filter(p => p.mid === entry.state.machine.id && p.configured && p.path)}
           hereKey={hereKey}
           thin={thin}

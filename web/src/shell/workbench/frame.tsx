@@ -18,7 +18,6 @@ import { ICON, IconButton } from '../../components/icon-button'
 import { ResizeHandle } from '../../components/resize-handle'
 import { useI18n } from '../../core/i18n'
 import { toggleRail, useLocal } from '../../core/prefs'
-import { useProjectConfigs } from '../../core/space'
 import { type Overlay, Overlays, ReconnectBanner } from '../common'
 import { ProjectsRail } from './projects-rail'
 import { SettingsMenu } from './settings-menu'
@@ -144,7 +143,6 @@ function ListHead() {
 
 export function Frame() {
   const t = useI18n()
-  useProjectConfigs()
   const [overlay, setOverlay] = useState<Overlay | null>(null)
   const list = useFold(268)
   const right = useFold(320)

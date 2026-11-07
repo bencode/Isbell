@@ -250,8 +250,11 @@ export const en = {
   'workbench.add': 'Add',
   'workbench.removeProject': 'Remove from projects',
   'workbench.projectActions': 'Project actions',
+  'workbench.fullPath':
+    'This machine has no project to tell its home from yet. Use a full path, starting with /.',
   'workbench.noProjects': 'No projects yet',
   'workbench.brokenProjects': 'cannot read projects.json',
+  'workbench.unwritableProjects': 'cannot write projects.json',
   'tabs.label': 'Open files',
   'tabs.close': 'Close {name}',
   'tabs.pin': 'Keep open',
@@ -463,6 +466,7 @@ export const en = {
   'error.permission_denied': 'The machine does not allow reading it.',
   'error.io_error': 'The machine could not read it: {msg}',
   'error.bad_request': 'The machine refused the request: {msg}',
+  'error.projects_broken': 'projects.json cannot be read, so nothing was changed.',
   'error.unknown': 'Something went wrong: {msg}',
 } as const
 

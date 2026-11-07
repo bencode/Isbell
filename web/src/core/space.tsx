@@ -11,7 +11,7 @@ import {
   useSyncExternalStore,
 } from 'react'
 import { parseKey } from '../model/identity'
-import { initialPaths, listedPaths } from '../model/project-config'
+import { listedPaths, projectActions } from '../model/project-config'
 import { deriveProjects, type Project } from '../model/projects'
 import { createSpace, projectsSettled, type Space, type SpaceView } from '../model/space'
 import { updateLocal, useLocal } from './prefs'
@@ -78,28 +78,27 @@ export function useProjects(): Project[] {
 }
 
 /** Keeps what the machines list for while they are offline, and has a machine that lists nothing yet
- * start from where its panes run, once. A write that fails is left to the next visit. */
-export function useProjectConfigs() {
+ * start from where its panes run, as soon as it has any. */
+export function useKeepProjectLists() {
   const space = useSpace()
   const view = useSpaceView()
   const projects = useProjects()
-  const { projectPaths } = useLocal()
   const started = useRef(new Set<string>())
   useEffect(() => {
-    const paths = listedPaths(view.configs, projectPaths)
-    if (JSON.stringify(paths) !== JSON.stringify(projectPaths)) updateLocal(() => ({ projectPaths: paths }))
-  }, [view.configs, projectPaths])
+    updateLocal(l => ({ projectPaths: listedPaths(view.configs, l.projectPaths) }))
+  }, [view.configs])
   useEffect(() => {
     if (!projectsSettled(view)) return
-    for (const { state, online } of view.machines) {
-      const mid = state.machine.id
-      const writes = state.caps.methods.includes('isbell.file.write')
-      if (!online || !writes || view.configs[mid]?.state !== 'missing' || started.current.has(mid)) continue
-      started.current.add(mid)
+    for (const entry of view.machines) {
+      const mid = entry.state.machine.id
       const mine = projects.filter(p => p.mid === mid)
-      space.saveProjects(mid, initialPaths(mine)).catch((err: unknown) => {
-        console.warn('could not write the projects listed', mid, err)
-      })
+      const { start } = projectActions(entry, view.configs[mid], view.shellsKnown, mine)
+      if (!start || started.current.has(mid)) continue
+      started.current.add(mid)
+      space
+        .changeProjects(mid, listed => (listed ? undefined : start))
+        .catch((err: unknown) => console.warn('could not write the projects listed', mid, err))
+        .finally(() => started.current.delete(mid))
     }
   }, [space, view, projects])
 }

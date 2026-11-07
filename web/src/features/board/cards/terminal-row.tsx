@@ -17,8 +17,8 @@ export function TerminalRow({
   scoped: boolean
 }) {
   const ending = useEnding(shell.mid, shell.paneId)
-  // Where it is below the project's root, when it is not at the root.
-  const below = shell.cwd.slice(project.path.length)
+  // Where it is below the project's root, when it is not at the root; a worktree's is beside it.
+  const below = shell.cwd.startsWith(`${project.path}/`) ? shell.cwd.slice(project.path.length) : ''
   return (
     <div
       className={`flex min-h-[34px] items-center gap-1.5 rounded-lg border border-line bg-raised px-2.5 py-1 text-[13px] ${ending ? 'opacity-60' : ''}`}

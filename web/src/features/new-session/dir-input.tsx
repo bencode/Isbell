@@ -24,6 +24,12 @@ type DirListing = { dir: string; listing?: Listing; missing?: boolean }
 
 type Note = { text: string; tone: 'danger' | 'warn' | 'muted' }
 
+const TONE = { danger: 'text-danger', warn: 'text-warn', muted: 'text-muted' }
+
+/** The line under a directory being typed. */
+export const DirNote = ({ note }: { note: Note | undefined }) =>
+  note ? <p className={`m-0 text-[13px] ${TONE[note.tone]}`}>{note.text}</p> : null
+
 /** A new directory typed for machine `mid`: what the machine says of it, the directory to start in
  * once it is a full path that is there, and the line to show under it. */
 export function useNewDir(mid: string, typed: string, helps: boolean) {
