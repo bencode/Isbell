@@ -4,13 +4,12 @@
 import { Activity, Suspense } from 'react'
 import { useI18n } from '../../core/i18n'
 import { useTabRoute } from '../../core/tabs'
-import { TabPane } from '../../features/tabs/kinds'
-import { Loading } from '../common'
+import { Loading } from '../loading'
+import { TabPane } from './tab-kinds'
 
 export function TabPanes() {
   const t = useI18n()
-  const { open, active, recent } = useTabRoute()
-  const shown = active ?? recent
+  const { open, shown } = useTabRoute()
   if (!open.length) return <p className="m-auto text-muted">{t('workbench.empty')}</p>
   return (
     <div className="min-h-0 flex-1">

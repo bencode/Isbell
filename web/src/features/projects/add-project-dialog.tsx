@@ -8,7 +8,7 @@ import { useSpace } from '../../core/space'
 import { isMissing, list } from '../../model/files/remote'
 import type { Caller } from '../../model/herdr'
 import type { MachineState } from '../../model/state'
-import { DirInput, DirNote, useNewDir } from './dir-input'
+import { DirInput, DirNote, useDirInput } from './dir-input'
 
 type Props = {
   machine: MachineState
@@ -33,7 +33,7 @@ export function AddProjectDialog({ machine, onClose }: Props) {
   const [problem, setProblem] = useState<string>()
   const mid = machine.machine.id
   const helps = machine.caps.methods.includes('isbell.file.list')
-  const typed = useNewDir(mid, value, helps)
+  const typed = useDirInput(mid, value, helps)
   const dir = typed.dir?.startsWith('/') ? typed.dir : undefined
   // A `~` only the machine could resolve: its home shows in its projects, and it has none yet.
   const noHome = typed.dir?.startsWith('~')

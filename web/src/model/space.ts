@@ -417,7 +417,8 @@ export function createSpace(url: string, id: Identity): Space {
     directStatus,
     refreshShells,
     refreshUnreadLists: () => {
-      for (const mid of machines.keys()) if (!configs[mid]) void refreshFiles(mid)
+      for (const mid of machines.keys())
+        if (!configs[mid] && readable(mid)) void refreshConfig(mid).then(changed)
     },
     changeProjects: async (mid, change) => {
       const config = await readProjects(openStream, mid)

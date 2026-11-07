@@ -5,9 +5,9 @@ import { Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { errorText, useI18n } from '../../core/i18n'
 import { matchParts, type PathNode, pathTree } from '../../model/files/path-tree'
-import type { FilesRoot } from '../../model/files/worktrees'
 import { projectFilesHref } from '../../utils/hrefs'
 import { FileRow, FolderRow } from './rows'
+import type { Where } from './tree'
 import { useSearch } from './use-remote'
 
 const PAUSE_MS = 300
@@ -50,7 +50,7 @@ export function SearchResults({
   where: { mid, root, current, onPin },
   query,
 }: {
-  where: { mid: string; root: FilesRoot; current: string; onPin: ((rel: string) => void) | undefined }
+  where: Where
   query: string
 }) {
   const t = useI18n()
@@ -83,7 +83,7 @@ type ResultsCtx = {
   hrefOf: (rel: string) => string
   closed: ReadonlySet<string>
   toggle: (rel: string) => void
-  onPin: ((rel: string) => void) | undefined
+  onPin: Where['onPin']
 }
 
 function Nodes({ nodes, depth, at }: { nodes: PathNode[]; depth: number; at: ResultsCtx }) {
@@ -95,7 +95,7 @@ function Nodes({ nodes, depth, at }: { nodes: PathNode[]; depth: number; at: Res
         name={node.name}
         to={at.hrefOf(node.rel)}
         on={node.rel === at.current}
-        onDoubleClick={() => at.onPin?.(node.rel)}
+        onDoubleClick={() => at.onPin(node.rel)}
         title={node.rel}
         label={<Hits text={node.name} query={at.query} />}
       />

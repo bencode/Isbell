@@ -1,11 +1,9 @@
 // What every file view shares: a header saying what the file is and when it changed, with the
-// view's own tools and the ones every file has (read again, download); the scroll each step of the
-// history had, for the views (which scroll themselves) to go back to; and the notice for a file that
-// is not shown.
+// view's own tools and the ones every file has (read again, download); the scroll its tab had, for
+// the views (which scroll themselves) to go back to; and the notice for a file that is not shown.
 
 import { Download, RotateCw } from 'lucide-react'
 import { createContext, type ReactNode, useContext } from 'react'
-import { useLocation } from 'react-router'
 import { Button } from '../../components/button'
 import { useI18n } from '../../core/i18n'
 import { formatSize } from '../../model/files/content'
@@ -22,8 +20,6 @@ export type FileShell = {
   again: () => void
   download: () => void
   saveError: string | undefined
-  /** A way to keep the file in a tab, where it is not shown in one. */
-  pin?: ReactNode
 }
 
 /** What a view of one kind of text file is given. */
@@ -36,8 +32,8 @@ export type FileViewProps = {
   /** Reads a file under the root (root-relative), for the documents that show more than themselves:
    * a document's images, a page's files. */
   asset: (rel: string) => Promise<Blob>
-  /** The file alone in a tab of its own; none where it is on its own already. */
-  apartHref?: string | undefined
+  /** The file alone in a browser tab of its own. */
+  apartHref: string
 }
 
 export function FilePage({
@@ -58,7 +54,6 @@ export function FilePage({
         <Facts where={shell.where} file={shell.file} />
         <span className="flex-1" />
         {tools}
-        {shell.pin}
         <Button
           size="icon"
           variant="quiet"
@@ -98,20 +93,18 @@ function Facts({ where, file }: { where: string; file: FileRead | undefined }) {
   )
 }
 
-/** Scroll positions by history entry, or by the scope a file tab gives, for this tab's life. */
+/** Scroll positions by the scope a tab gives, for this browser tab's life. */
 const scrolls = new Map<string, number>()
 
-/** Where the views in it keep their scroll instead of by history entry: a file tab, which shows
- * over whatever entry is current. */
+/** Where the views in it keep their scroll: a tab's. */
 export const ScrollScope = createContext<string | null>(null)
 
-/** This history entry's scroll: where it was when last shown (read each time the view shows, as an
- * Activity shows it again), and where it is now. Remount the view by `key`, so it starts at `at()`
- * again for a new entry. */
-export function useHistoryScroll() {
-  const { key: entry } = useLocation()
-  const key = useContext(ScrollScope) ?? entry
-  return { key, at: () => scrolls.get(key) ?? 0, onScroll: (top: number) => scrolls.set(key, top) }
+/** The scroll of the tab the view is in: where it was when last shown (read each time the view
+ * shows, as an Activity shows it again), and where it is now. */
+export function useTabScroll() {
+  const key = useContext(ScrollScope)
+  if (key === null) throw new Error('A ScrollScope is required.')
+  return { at: () => scrolls.get(key) ?? 0, onScroll: (top: number) => scrolls.set(key, top) }
 }
 
 export function Reading() {

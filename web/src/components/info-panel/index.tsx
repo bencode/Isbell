@@ -2,18 +2,11 @@ import type { ReactNode } from 'react'
 
 export type InfoGroup = {
   title: string
-  /** `note` follows the value in the text face, so a `mono` value can carry words after it. */
-  rows: { label: string; value: ReactNode; mono?: boolean; note?: string }[]
+  rows: { label: string; value: ReactNode; mono?: boolean }[]
 }
 
-/** The facts about a session or terminal; `command` is how to reach it by hand. */
-export function InfoFacts({
-  groups,
-  command,
-}: {
-  groups: InfoGroup[]
-  command?: { label: string; text: string }
-}) {
+/** Facts in groups, each a titled list of label and value. */
+export function InfoFacts({ groups }: { groups: InfoGroup[] }) {
   return (
     <>
       {groups.map(group => (
@@ -25,23 +18,12 @@ export function InfoFacts({
             {group.rows.map(row => (
               <div key={row.label} className="contents">
                 <dt className="text-muted">{row.label}</dt>
-                <dd className={`m-0 ${row.mono ? 'font-mono break-all' : 'break-words'}`}>
-                  {row.value}
-                  {row.note ? <span className="font-sans text-muted"> · {row.note}</span> : null}
-                </dd>
+                <dd className={`m-0 ${row.mono ? 'font-mono break-all' : 'break-words'}`}>{row.value}</dd>
               </div>
             ))}
           </dl>
         </section>
       ))}
-      {command ? (
-        <section className="flex flex-col gap-2">
-          <p className="m-0 text-muted">{command.label}</p>
-          <code className="rounded-md border border-line bg-raised px-3 py-2.5 font-mono text-[12.5px] break-all">
-            {command.text}
-          </code>
-        </section>
-      ) : null}
     </>
   )
 }

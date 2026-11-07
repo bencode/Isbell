@@ -18,12 +18,11 @@ import {
   useStartProjectLists,
 } from '../../core/space'
 import { MachineFacts } from '../../features/machine/machine-facts'
-import { AddProjectDialog } from '../../features/new-session/add-project-dialog'
+import { AddProjectDialog } from '../../features/projects/add-project-dialog'
 import { type ProjectActions, type ProjectConfig, projectActions } from '../../model/project-config'
-import type { Project } from '../../model/projects'
+import { asking, type Project } from '../../model/projects'
 import type { MachineEntry } from '../../model/space'
 import { projectHref } from '../../utils/hrefs'
-import { asking } from '../marks'
 import { projectOf } from './address'
 import { ProjectTile, shortName } from './tile'
 

@@ -17,7 +17,7 @@ type TabKind = {
 }
 
 // A file reads with the same libraries as a project's files, and loads them with its first tab.
-const FilePane = lazy(() => import('./file-tab').then(m => ({ default: m.FileTabPane })))
+const FilePane = lazy(() => import('../../features/files/file-tab').then(m => ({ default: m.FileTabPane })))
 
 const KINDS: TabKind[] = [
   {

@@ -7,14 +7,14 @@ import { useI18n } from '../core/i18n'
 import { useLocal } from '../core/prefs'
 import { needs, type Project, paneKey } from '../model/projects'
 import type { AgentStatus } from '../model/state'
-import { sessionHref } from '../utils/hrefs'
+import { projectHref } from '../utils/hrefs'
 
 const NOTIFY_ON: AgentStatus[] = ['blocked', 'done']
 
 export function useNotifications(projects: Project[], loaded: boolean) {
   const t = useI18n()
   const navigate = useNavigate()
-  const { prefs } = useLocal()
+  const { prefs, projectAt } = useLocal()
   // Last status seen per session; null until the first state is in, so it never notifies at load.
   const last = useRef<Map<string, AgentStatus> | null>(null)
 
@@ -25,7 +25,7 @@ export function useNotifications(projects: Project[], loaded: boolean) {
 
   useEffect(() => {
     if (!loaded) return
-    const sessions = projects.flatMap(p => p.sessions)
+    const sessions = projects.flatMap(p => p.sessions.map(s => ({ ...s, project: p.key })))
     const previous = last.current
     last.current = new Map(sessions.map(s => [paneKey(s.mid, s.paneId), s.status]))
     if (!previous || !prefs.notify || !('Notification' in window) || Notification.permission !== 'granted')
@@ -42,9 +42,10 @@ export function useNotifications(projects: Project[], loaded: boolean) {
       )
       n.onclick = () => {
         window.focus()
-        navigate(sessionHref(s.mid, s.paneId))
+        // Where its project was left, until a session opens in a tab of its own.
+        navigate(projectAt[s.project] ?? projectHref(s.project))
         n.close()
       }
     }
-  }, [projects, loaded, prefs.notify, t, navigate])
+  }, [projects, loaded, prefs.notify, projectAt, t, navigate])
 }

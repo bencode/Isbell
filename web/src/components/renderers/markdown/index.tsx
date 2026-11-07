@@ -86,8 +86,7 @@ export function MarkdownRenderer({ text, appearance, link, image, labels, outlin
     if (article.current) setHeadings(headingsIn(article.current))
   }, [])
 
-  // Back where this history entry was last read, each time it shows; the document is there to
-  // scroll to.
+  // Back where it was last read, each time it shows; the document is there to scroll to.
   useLayoutEffect(() => {
     if (scroller) scroller.scrollTop = startAt.current()
   }, [scroller])

@@ -13,7 +13,7 @@ import {
   search,
 } from '../../model/files/remote'
 
-export type Loaded<T> = { data?: T; error?: unknown }
+type Loaded<T> = { data?: T; error?: unknown }
 
 /** What `load` gives; a new `load` (its inputs changed) starts over. What was loaded is kept with
  * the load it came from, so a view hidden and shown again (an Activity) keeps it instead of reading

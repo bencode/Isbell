@@ -2,7 +2,7 @@
 // it is neither or too large to show, what it is and a way to download it. The files a document
 // shows beside itself are read for it as it asks.
 
-import { type ComponentType, type ReactNode, useMemo, useState } from 'react'
+import { type ComponentType, useMemo, useState } from 'react'
 import { errorText, useI18n } from '../../core/i18n'
 import { useSpace } from '../../core/space'
 import { assetReader } from '../../model/files/assets'
@@ -32,28 +32,23 @@ type Props = {
   root: FilesRoot
   rel: string
   hrefOf: (rel: string) => string
-  /** On its own on the screen already: no way to open it apart. */
-  alone?: boolean
-  /** See `FileShell`. */
-  pin?: ReactNode
 }
 
 export function Preview(props: Props) {
-  const t = useI18n()
   const [round, setRound] = useState(0)
-  if (!props.rel) return <p className="m-auto text-muted">{t('files.pick')}</p>
   // A new round reads the file again.
   return <Read key={round} {...props} again={() => setRound(r => r + 1)} />
 }
 
-function Read({ mid, root, rel, hrefOf, alone, pin, again }: Props & { again: () => void }) {
+function Read({ mid, root, rel, hrefOf, again }: Props & { again: () => void }) {
   const t = useI18n()
   const { openStream } = useSpace()
   const path = join(root.path, rel)
   const { data, error } = useFile(mid, path)
   const type = imageType(rel)
   const text = useMemo(() => (data?.bytes && !type ? decodeText(data.bytes) : null), [data, type])
-  // Afresh for each file and each reading of it: Preview is keyed by the file, Read by the round.
+  // Afresh for each file and each reading of it: each tab has its own Preview, and Read is keyed by
+  // the round.
   const asset = useMemo(
     () => assetReader(under => read(openStream, mid, join(root.path, under), PREVIEW_MAX)),
     [openStream, mid, root.path],
@@ -75,7 +70,6 @@ function Read({ mid, root, rel, hrefOf, alone, pin, again }: Props & { again: ()
     again,
     download,
     saveError,
-    pin,
   }
   if (type && data?.bytes) return <ImageFile shell={shell} bytes={data.bytes} type={type} />
   if (text !== null) {
@@ -87,7 +81,7 @@ function Read({ mid, root, rel, hrefOf, alone, pin, again }: Props & { again: ()
         rel={rel}
         hrefOf={hrefOf}
         asset={asset}
-        apartHref={alone ? undefined : pageHref(root.key, rel)}
+        apartHref={pageHref(root.key, rel)}
       />
     )
   }

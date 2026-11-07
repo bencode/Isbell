@@ -1,5 +1,5 @@
-// A new directory to start in, typed with help from the machine: its subdirectories as suggestions,
-// Tab completing like a shell's, and the usual places a click away.
+// A directory typed with help from the machine: its subdirectories as suggestions, Tab completing
+// like a shell's, and the usual places a click away.
 
 import { Autocomplete } from '@base-ui/react/autocomplete'
 import { useEffect, useRef, useState } from 'react'
@@ -29,9 +29,9 @@ const TONE = { danger: 'text-danger', warn: 'text-warn', muted: 'text-muted' }
 export const DirNote = ({ note }: { note: Note | undefined }) =>
   note ? <p className={`m-0 text-[13px] ${TONE[note.tone]}`}>{note.text}</p> : null
 
-/** A new directory typed for machine `mid`: what the machine says of it, the directory to start in
- * once it is a full path that is there, and the line to show under it. */
-export function useNewDir(mid: string, typed: string, helps: boolean) {
+/** A directory typed for machine `mid`: what the machine says of it, the directory itself once it is
+ * a full path that is there, and the line to show under it. */
+export function useDirInput(mid: string, typed: string, helps: boolean) {
   const t = useI18n()
   const projects = useProjects()
   const facts = useTypedDir(mid, typed, helps)

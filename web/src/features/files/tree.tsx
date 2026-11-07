@@ -32,10 +32,10 @@ type Props = {
   /** The file being read, relative to `root` ('' for none). */
   current: string
   /** Keeps a file open, on a double click. */
-  onPin?: (rel: string) => void
+  onPin: (rel: string) => void
 }
 
-type Where = { mid: string; root: FilesRoot; current: string; onPin: Props['onPin'] }
+export type Where = { mid: string; root: FilesRoot; current: string; onPin: Props['onPin'] }
 
 export function Tree({ mid, project, roots, root, dir, current, onPin }: Props) {
   const { key } = root
@@ -131,7 +131,7 @@ function Level({ where, rel, depth, open }: { where: Where; rel: string; depth: 
               name={entry.name}
               to={projectFilesHref(where.root.key, child)}
               on={child === where.current}
-              onDoubleClick={() => where.onPin?.(child)}
+              onDoubleClick={() => where.onPin(child)}
               label={entry.name}
               extra={
                 entry.mtime === undefined ? null : (

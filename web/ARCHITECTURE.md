@@ -11,10 +11,10 @@ src/
 ├── locales/                   every string the interface shows, per language: resources only
 ├── model/                     the relay protocol from a browser, and what it is read into. No React
 ├── core/                      app context: the space connection, local prefs, the language
-├── utils/                     pure helpers: hrefs, shortcuts, time
+├── utils/                     pure helpers: hrefs, time
 ├── components/<name>/index.tsx  pure UI, one directory per component
 ├── features/<feature>/        one directory per feature: its pages and their logic
-└── shell/                     the frame: routes, layout, sidebar, notifications
+└── shell/                     the app and its one frame, shell/workbench/: routes, columns, tabs, notifications
 ```
 
 Allowed imports, from left to right only; a layer may import any layer to its right:
@@ -41,8 +41,7 @@ shell ──▶ features ──▶ core ──▶ model
 - `components/` are pure UI. They take every text as a prop (the labels come from `uiLabels(t)`
   in `core/i18n`) and never read app state. Importing a type from `model/` is fine.
 - A feature imports `core/`, `model/`, `components/` and `utils/`, never `shell/` and never
-  another feature. When one feature leads to another (New session to Add project), the shell
-  passes a callback.
+  another feature. When one feature leads to another, the shell passes a callback.
 - Files are named for what they are: `*-page.tsx`, `*-dialog.tsx`, `*-panel.tsx`. Tests sit next
   to the code they test; recorded screens sit in `model/screen/fixtures/`.
 

@@ -9,8 +9,9 @@ import { IconButton } from '../../components/icon-button'
 import { useI18n } from '../../core/i18n'
 import { useProjects } from '../../core/space'
 import { useTabActions, useTabRoute } from '../../core/tabs'
-import { kindOf } from '../../features/tabs/kinds'
+import type { Project } from '../../model/projects'
 import type { TabEntry } from '../../model/tabs'
+import { kindOf } from './tab-kinds'
 
 const SMALL = { size: 13, strokeWidth: 1.5, absoluteStrokeWidth: true }
 const TAB = 'group flex h-full min-w-24 flex-[0_1_196px] items-center gap-1.5 pr-1.5 pl-[11px] text-[13px]'
@@ -22,9 +23,10 @@ const ON_HOVER = 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
 const AT_REST =
   'translate-x-[26px] transition-transform duration-75 group-hover:translate-x-0 group-focus-within:translate-x-0'
 
-function Tab({ tab, shown, edged }: { tab: TabEntry; shown: boolean; edged: boolean }) {
+type TabProps = { tab: TabEntry; shown: boolean; edged: boolean; projects: Project[] }
+
+function Tab({ tab, shown, edged, projects }: TabProps) {
   const t = useI18n()
-  const projects = useProjects()
   const { href, togglePin, close } = useTabActions()
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -73,15 +75,15 @@ function Tab({ tab, shown, edged }: { tab: TabEntry; shown: boolean; edged: bool
 /** `edged`: nothing stands left of the first tab to draw its edge. */
 export function TabStrip({ edged }: { edged: boolean }) {
   const t = useI18n()
-  const { open, active, recent } = useTabRoute()
-  const shown = active ?? recent
+  const { open, shown } = useTabRoute()
+  const projects = useProjects()
   return (
     <nav
       aria-label={t('tabs.label')}
       className="-mr-px flex h-full min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]"
     >
       {open.map((tab, i) => (
-        <Tab key={tab.id} tab={tab} shown={tab.id === shown} edged={edged && i === 0} />
+        <Tab key={tab.id} tab={tab} shown={tab.id === shown} edged={edged && i === 0} projects={projects} />
       ))}
     </nav>
   )

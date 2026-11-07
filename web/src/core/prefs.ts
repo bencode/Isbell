@@ -1,5 +1,5 @@
 // Everything Isbell keeps, all in this browser: the space key, settings, what has been looked at,
-// and which agent each project last used. Nothing goes to a server.
+// and where each project was left. Nothing goes to a server.
 
 import { useSyncExternalStore } from 'react'
 import {
@@ -7,8 +7,8 @@ import {
   type ReadingAppearance,
   readingAppearance,
 } from '../components/renderers/markdown/appearance'
-import { projectKey, type Seen } from '../model/projects'
-import { noTabs, type Tabs } from '../model/tabs'
+import type { Seen } from '../model/projects'
+import type { Tabs } from '../model/tabs'
 
 export type Prefs = {
   notify: boolean
@@ -19,27 +19,16 @@ export type Prefs = {
 }
 
 export type Layout = {
-  /** The sidebar shrunk to a rail of icons. */
+  /** The projects column shrunk to a rail of tiles. */
   rail: boolean
-  /** Machine ids whose projects are hidden in the sidebar; any other machine shows them. Keys saved
-   * when it held projects never match a machine id, so they fold nothing. */
-  folded: string[]
-  /** Machine ids whose projects with nothing running all show in the sidebar, not only the latest. */
-  older: string[]
   /** The folders open in each files tree (relative to its root), by root key: a project's own key
    * for its directory, or another worktree's. */
   files: Record<string, string[]>
-  /** Where each project's files were last read, by project key: the root's key and the path under
-   * it as the address has it (a directory's ending in '/'). */
+  /** Where each project's files were last read, by project key: the root's key and the directory
+   * under it, ending in '/' ('' for the root). */
   filesAt: Record<string, { root: string; rel: string }>
   /** Whether long lines of source wrap. */
   wrap: boolean
-  /** Whether the agents standing by that have long been still show, at the foot of their lane. */
-  stale: boolean
-  /** Whether the plain shells show, at the foot of the standing lane. */
-  shells: boolean
-  /** Whether Safari on an iPhone still shows how to add Isbell to the home screen. */
-  installTip: boolean
 }
 
 /** How documents read in the files view. */
@@ -50,23 +39,15 @@ export type Reader = ReadingAppearance & {
 
 export type Local = {
   key: string | null
-  /** The frame on a computer, while the workbench is built beside the pages it replaces. */
-  shell: 'desktop' | 'workbench'
   prefs: Prefs
   seen: Seen
-  /** Agent kind by project key. */
-  lastAgent: Record<string, string>
-  /** Agent kinds, most recently used first. */
-  recentAgents: string[]
   layout: Layout
   reader: Reader
-  /** The tabs open beside the page, read back by `restore` in model/tabs. */
-  tabs: Tabs
-  /** The tabs open in each project of the workbench, by project key, read back the same way. */
+  /** The tabs open in each project, by project key, read back by `restore` in model/tabs. */
   projectTabs: Record<string, Tabs>
-  /** Where each project of the workbench was last left, as an address, by project key. */
+  /** Where each project was last left, as an address, by project key. */
   projectAt: Record<string, string>
-  /** The project of the workbench last looked at. */
+  /** The project last looked at. */
   lastProject: string | null
   /** What each machine last listed as its projects, by machine id, for while it is offline. */
   projectPaths: Record<string, string[]>
@@ -74,24 +55,15 @@ export type Local = {
 
 const DEFAULTS: Local = {
   key: null,
-  shell: 'desktop',
   prefs: { notify: false, push: false, theme: 'system', lang: 'system' },
   seen: {},
-  lastAgent: {},
-  recentAgents: [],
   layout: {
     rail: false,
-    folded: [],
-    older: [],
     files: {},
     filesAt: {},
     wrap: false,
-    stale: false,
-    shells: false,
-    installTip: true,
   },
   reader: { ...DEFAULT_APPEARANCE, outline: true },
-  tabs: noTabs,
   projectTabs: {},
   projectAt: {},
   lastProject: null,
@@ -129,20 +101,8 @@ function write(field: keyof Local, value: unknown) {
 const loaded = Object.fromEntries(FIELDS.map(f => [f, read(f)])) as Local
 // The reading settings are checked one by one: an old or broken value falls back alone.
 const savedReader: Record<string, unknown> = isRecord(loaded.reader) ? loaded.reader : {}
-// Project keys were `mid:path` once (a root key may hold ':', but never before an absolute path);
-// what was kept by them moves to the keys the same projects have now.
-const LEGACY_KEY = /^([^@:]+):(\/.*)$/
-const rekeyed = <T>(byProject: Record<string, T>) =>
-  Object.fromEntries(
-    Object.entries(byProject).map(([key, value]) => {
-      const legacy = LEGACY_KEY.exec(key)
-      return [legacy ? projectKey(legacy[1] ?? '', legacy[2] ?? '') : key, value]
-    }),
-  )
 let current: Local = {
   ...loaded,
-  lastAgent: rekeyed(loaded.lastAgent),
-  layout: { ...loaded.layout, files: rekeyed(loaded.layout.files) },
   reader: { ...readingAppearance(savedReader), outline: savedReader.outline !== false },
 }
 const listeners = new Set<() => void>()
@@ -160,30 +120,9 @@ export function updateLocal(change: (l: Local) => Partial<Local>) {
   for (const listener of listeners) listener()
 }
 
-export const getLocal = () => current
+const getLocal = () => current
 
 export const toggleRail = () => updateLocal(l => ({ layout: { ...l.layout, rail: !l.layout.rail } }))
-
-/** Shows or hides a machine's projects in the sidebar. */
-export const toggleFolded = (key: string) =>
-  updateLocal(l => {
-    const { folded } = l.layout
-    return {
-      layout: {
-        ...l.layout,
-        folded: folded.includes(key) ? folded.filter(k => k !== key) : [...folded, key],
-      },
-    }
-  })
-
-/** Shows all of a machine's projects with nothing running in the sidebar, or only the latest. */
-export const toggleOlder = (mid: string) =>
-  updateLocal(l => {
-    const { older } = l.layout
-    return {
-      layout: { ...l.layout, older: older.includes(mid) ? older.filter(k => k !== mid) : [...older, mid] },
-    }
-  })
 
 const withOpenDirs = (project: string, change: (dirs: string[]) => string[]) =>
   updateLocal(l => ({
@@ -208,6 +147,12 @@ export function rememberProjectAt(project: string, at: string) {
   updateLocal(l => ({ lastProject: project, projectAt: { ...l.projectAt, [project]: at } }))
 }
 
+/** The tabs a project was left with. */
+export const tabsOf = (project: string): Tabs | undefined => current.projectTabs[project]
+
+export const rememberTabs = (project: string, tabs: Tabs) =>
+  updateLocal(l => ({ projectTabs: { ...l.projectTabs, [project]: tabs } }))
+
 /** Notes where a project's files are being read. */
 export function rememberFilesAt(project: string, root: string, rel: string) {
   const at = current.layout.filesAt[project]
@@ -216,29 +161,18 @@ export function rememberFilesAt(project: string, root: string, rel: string) {
 }
 
 export const toggleWrap = () => updateLocal(l => ({ layout: { ...l.layout, wrap: !l.layout.wrap } }))
-export const toggleStale = () => updateLocal(l => ({ layout: { ...l.layout, stale: !l.layout.stale } }))
-export const toggleShells = () => updateLocal(l => ({ layout: { ...l.layout, shells: !l.layout.shells } }))
-export const dismissInstallTip = () => updateLocal(l => ({ layout: { ...l.layout, installTip: false } }))
 
 export const setReader = (change: Partial<Reader>) =>
   updateLocal(l => ({ reader: { ...l.reader, ...change } }))
 
-/** Notes that a finished session was seen as it stood at `since`, which makes it read. */
-export function markSeen(key: string, since: number) {
-  if ((current.seen[key] ?? 0) >= since) return
-  updateLocal(l => ({ seen: { ...l.seen, [key]: since } }))
-}
-
 export const useLocal = () => useSyncExternalStore(subscribe, getLocal)
 
-/** Leaving the space forgets everything. */
+/** Leaving the space forgets everything, what older versions kept too. */
 export function clearLocal() {
-  for (const field of FIELDS) {
-    try {
-      localStorage.removeItem(storageKey(field))
-    } catch (err) {
-      console.warn(`could not remove ${field}`, err)
-    }
+  try {
+    for (const key of Object.keys(localStorage)) if (key.startsWith('isbell.')) localStorage.removeItem(key)
+  } catch (err) {
+    console.warn('could not forget what was kept', err)
   }
   current = DEFAULTS
   for (const listener of listeners) listener()

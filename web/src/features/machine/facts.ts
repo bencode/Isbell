@@ -1,22 +1,21 @@
-// What the machine panel in the sidebar says about a machine, in the current language: what it is,
-// then, once its gateway has been read, how loaded it is.
+// What the machine panel says about a machine, in the current language: what it is, then, once its
+// gateway has been read, how loaded it is.
 
-import { formatSize } from '../model/files/content'
-import type { MachineEntry } from '../model/space'
-import type { System } from '../model/system'
-import { since } from '../utils/time'
-import type { T } from './i18n'
+import type { InfoGroup } from '../../components/info-panel'
+import type { T } from '../../core/i18n'
+import { formatSize } from '../../model/files/content'
+import type { MachineEntry } from '../../model/space'
+import type { System } from '../../model/system'
+import { since } from '../../utils/time'
 
-/** Mirrors components/info-panel's InfoGroup, which core cannot import. */
-type Fact = { label: string; value: string; mono?: boolean }
-type FactGroup = { title: string; rows: Fact[] }
+type Fact = InfoGroup['rows'][number]
 
 /** The rows a machine has: a fact it does not offer is left out. */
 const present = (rows: (Fact | false | null)[]): Fact[] => rows.filter(row => row !== false && row !== null)
 
-export function machineFacts(t: T, { state, online }: MachineEntry, sys: System | undefined): FactGroup[] {
+export function machineFacts(t: T, { state, online }: MachineEntry, sys: System | undefined): InfoGroup[] {
   const { machine, herdr } = state
-  const about: FactGroup = {
+  const about: InfoGroup = {
     title: t('info.machine'),
     rows: present([
       { label: t('facts.name'), value: machine.name },
@@ -36,7 +35,7 @@ export function machineFacts(t: T, { state, online }: MachineEntry, sys: System 
 const cpuSpec = (t: T, cpu: System['cpu']) =>
   t('facts.cpuSpec', { brand: cpu.brand || '—', cores: cpu.cores ?? cpu.threads, arch: cpu.arch })
 
-function usage(t: T, { cpu, load, memory, disk }: System): FactGroup {
+function usage(t: T, { cpu, load, memory, disk }: System): InfoGroup {
   const used = (part: number, total: number) =>
     t('facts.used', { used: formatSize(part), total: formatSize(total) })
   return {

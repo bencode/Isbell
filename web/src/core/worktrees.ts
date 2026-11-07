@@ -7,7 +7,6 @@ import { type FilesRoot, parseRootKey, rootsOf, type Worktree } from '../model/f
 import type { Caller } from '../model/herdr'
 import { dirKey, type Project } from '../model/projects'
 import { machineOf, projectsSettled } from '../model/space'
-import { useLocal } from './prefs'
 import { useProjects, useSpace, useSpaceView } from './space'
 
 const METHOD = 'isbell.git.worktrees'
@@ -42,15 +41,6 @@ async function ask(call: Caller, mid: string, path: string, again = false) {
       if (!again) settle(id, [])
     },
   )
-}
-
-/** Where the files of the project `key` names were last read: the root's key and the path under it,
- * unless that worktree is known to be gone. */
-export function useFilesAt(key: string): { root: string; rel: string } | undefined {
-  const at = useLocal().layout.filesAt[key]
-  const { roots, settled } = useFilesRoots(useProjects().find(p => p.key === key))
-  const gone = settled && !roots.some(root => root.key === at?.root)
-  return gone ? undefined : at
 }
 
 /** The roots a project's files are browsed from: its own directory alone until its worktrees are

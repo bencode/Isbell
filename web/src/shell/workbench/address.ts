@@ -1,12 +1,12 @@
-// What an address leads to in the workbench, where there is no page beneath the tabs. Whatever links
-// to a file, in the tree, a document or a notification, says where it is: here that opens it in a tab.
+// What an address in a project leads to, where all the workspace shows is tabs. Whatever links to a
+// file, in the tree or a document, says where it is: here that opens it in a tab.
 
 import { matchRoutes } from 'react-router'
-import { fileTabId } from '../../features/tabs/kinds'
 import { dirOf } from '../../model/files/paths'
 import { parseRootKey } from '../../model/files/worktrees'
 import { withTab } from '../../model/tabs'
 import { projectFilesHref } from '../../utils/hrefs'
+import { fileTabId } from './tab-kinds'
 
 type Address = { pathname: string; search: string }
 
@@ -25,21 +25,12 @@ export const projectOf = (pathname: string) => {
 /** The root's key and the path under it, on an address of a project's files. */
 export const filesOf = (pathname: string) => paramsOf('/p/:key/files/*', pathname)
 
-type Known = {
-  /** Where the workbench opens; none until that is known. */
-  home: string | undefined
-  /** The tab the address shows. */
-  active: string | null
-  /** The tab shown last, if any is open. */
-  recent: string | undefined
-}
-
-/** The address to go to instead of this one, if any. */
-export function addressTo({ pathname, search }: Address, { home, active, recent }: Known) {
-  if (pathname === '/') return home
+/** The address to go to instead of this one in a project, if any: a file's, to its tab; one naming no
+ * tab, to the tab shown (`useTabRoute`), while any is open. */
+export function addressTo({ pathname, search }: Address, active: string | null, shown: string | undefined) {
   const { key, '*': rel } = filesOf(pathname) ?? {}
   if (key && rel && !rel.endsWith('/')) {
     return `${projectFilesHref(key, dirOf(rel))}${withTab('', fileTabId(key, rel))}`
   }
-  return active === null && recent ? `${pathname}${withTab(search, recent)}` : undefined
+  return active === null && shown ? `${pathname}${withTab(search, shown)}` : undefined
 }

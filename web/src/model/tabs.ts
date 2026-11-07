@@ -1,4 +1,4 @@
-// The tabs beside the page: things opened over it, each named by an id that reads as a path
+// The tabs of a workspace, each named by an id that reads as a path, its kind first
 // (`file/<project>/<rel>`), the one shown named in the address as `?tab=<id>`. One tab of each kind
 // is a preview, replaced by the next of its kind opened; a pinned tab stays until closed. At most
 // MAX_TABS are open: one more closes the one shown longest ago, never the one being shown.
@@ -12,13 +12,13 @@ export const MAX_TABS = 7
 
 export const noTabs: Tabs = { open: [], used: [] }
 
-const previewKind = (id: string) => (id.startsWith('file/') ? 'file' : 'session')
+const previewKind = (id: string) => id.slice(0, id.indexOf('/'))
 
 /** The preview of the kind of `id`, if there is one. */
 const previewFor = (open: TabEntry[], id: string) =>
   open.find(tab => !tab.pinned && previewKind(tab.id) === previewKind(id))
 
-/** The tabs with `active` shown (null: the page): a tab not open becomes its kind's preview, in the
+/** The tabs with `active` shown (null: none named): a tab not open becomes its kind's preview, in the
  * place of the one there is. Showing the same again changes nothing. */
 export function visit(tabs: Tabs, active: string | null): Tabs {
   if (active === null || tabs.used[0] === active) return tabs
@@ -67,7 +67,7 @@ export const close = (tabs: Tabs, id: string): Tabs => ({
 })
 
 /** The tab to show on closing the shown `id`: the one to its right, else to its left, else null for
- * the page. */
+ * none left. */
 export function nextShown(tabs: Tabs, id: string): string | null {
   const at = tabs.open.findIndex(tab => tab.id === id)
   return (tabs.open[at + 1] ?? tabs.open[at - 1])?.id ?? null

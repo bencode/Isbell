@@ -4,7 +4,9 @@
 import { lazy, Suspense } from 'react'
 import { Link, useLocation } from 'react-router'
 import { useI18n } from '../../core/i18n'
-import { useFilesAt } from '../../core/worktrees'
+import { useLocal } from '../../core/prefs'
+import { useProjects } from '../../core/space'
+import { useFilesRoots } from '../../core/worktrees'
 import { dirOf } from '../../model/files/paths'
 import { parseRootKey } from '../../model/files/worktrees'
 import { projectFilesHref, projectHref } from '../../utils/hrefs'
@@ -19,10 +21,18 @@ const TAB =
 const SHOWN =
   "font-semibold text-text after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-text after:content-['']"
 
+/** Where the project's files were last read, unless that worktree is known to be gone. */
+function useFilesHref(key: string) {
+  const at = useLocal().layout.filesAt[key]
+  const { roots, settled } = useFilesRoots(useProjects().find(p => p.key === key))
+  const gone = settled && !roots.some(root => root.key === at?.root)
+  return at && !gone ? projectFilesHref(at.root, at.rel) : projectFilesHref(key)
+}
+
 function ListHead({ project, files }: { project: string; files: boolean }) {
   const t = useI18n()
   const { search } = useLocation()
-  const at = useFilesAt(project)
+  const filesHref = useFilesHref(project)
   const tab = (shown: boolean, pathname: string, label: string) => (
     <Link
       to={{ pathname, search }}
@@ -35,12 +45,7 @@ function ListHead({ project, files }: { project: string; files: boolean }) {
   return (
     <div className={`${BAR} gap-3.5 pr-2 pl-11`}>
       {tab(!files, projectHref(project), t('workbench.sessions'))}
-      {/* What the old frame left open may be a file; here a file is a tab, so its directory. */}
-      {tab(
-        files,
-        at ? projectFilesHref(at.root, dirOf(at.rel)) : projectFilesHref(project),
-        t('workbench.files'),
-      )}
+      {tab(files, filesHref, t('workbench.files'))}
     </div>
   )
 }

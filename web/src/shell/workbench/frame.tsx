@@ -14,15 +14,16 @@ import {
 } from 'lucide-react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Group, Panel, type PanelSize, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
+import { Button } from '../../components/button'
 import { ICON, IconButton } from '../../components/icon-button'
 import { ResizeHandle } from '../../components/resize-handle'
 import { useI18n } from '../../core/i18n'
 import { toggleRail, useLocal } from '../../core/prefs'
-import { type Overlay, Overlays, ReconnectBanner } from '../common'
+import { useSpace, useSpaceView } from '../../core/space'
 import { BAR } from './bar'
 import { ListColumn } from './list-column'
 import { ProjectsRail } from './projects-rail'
-import { SettingsMenu } from './settings-menu'
+import { type Overlay, Overlays, SettingsMenu } from './settings-menu'
 import { TabStrip } from './tab-strip'
 import { TabPanes } from './workspace'
 
@@ -122,7 +123,24 @@ function Projects({ onOverlay }: { onOverlay: (overlay: Overlay) => void }) {
   )
 }
 
-export function Frame() {
+/** The strip shown while the relay reconnects, with a way to try at once. */
+function ReconnectBanner() {
+  const t = useI18n()
+  const space = useSpace()
+  const { status } = useSpaceView()
+  if (status !== 'reconnecting') return null
+  return (
+    <div className="flex h-9 flex-none items-center gap-3 border-b border-ask-line bg-ask px-5 text-[13px]">
+      <span className="flex-1">{t('banner.reconnecting')}</span>
+      <Button size="small" onClick={space.reconnectNow}>
+        {t('banner.now')}
+      </Button>
+    </div>
+  )
+}
+
+/** `inProject`: the address is in a project, whose tabs the workspace shows. */
+export function Frame({ inProject }: { inProject: boolean }) {
   const t = useI18n()
   const [overlay, setOverlay] = useState<Overlay | null>(null)
   const list = useFold(268)
@@ -169,9 +187,9 @@ export function Frame() {
                   <div
                     className={`${BAR} bg-side transition-[padding] duration-200 ease-fold motion-reduce:transition-none ${list.folded ? 'pl-11' : ''} ${right.folded ? 'pr-11' : ''}`}
                   >
-                    <TabStrip edged={list.folded} />
+                    {inProject ? <TabStrip edged={list.folded} /> : null}
                   </div>
-                  <TabPanes />
+                  {inProject ? <TabPanes /> : null}
                 </main>
               </Panel>
               <ResizeHandle label={t('workbench.resizeRight')} disabled={right.folded} />
@@ -182,7 +200,7 @@ export function Frame() {
           </div>
         </div>
       </div>
-      <Overlays overlay={overlay} setOverlay={setOverlay} focusedKey={undefined} />
+      <Overlays overlay={overlay} setOverlay={setOverlay} />
     </Tooltip.Provider>
   )
 }

@@ -1,5 +1,5 @@
 // The way to everything that is not a project's: theme and language at hand, the rest in the settings
-// and leaving dialogs both shells share.
+// and leaving dialogs, which the frame shows over itself.
 
 import { Popover } from '@base-ui/react/popover'
 import { Toggle } from '@base-ui/react/toggle'
@@ -9,9 +9,28 @@ import { type ReactNode, useState } from 'react'
 import { ICON, IconButton } from '../../components/icon-button'
 import { useI18n } from '../../core/i18n'
 import { applyTheme, type Prefs, updateLocal, useLocal } from '../../core/prefs'
-import type { Overlay } from '../common'
+import { LeaveSpace, Settings } from '../../features/settings/settings-dialog'
 
 const HELP = 'https://github.com/bencode/Isbell#readme'
+
+export type Overlay = 'settings' | 'leave'
+
+/** Settings and leaving the space; one open at a time. */
+export function Overlays({
+  overlay,
+  setOverlay,
+}: {
+  overlay: Overlay | null
+  setOverlay: (overlay: Overlay | null) => void
+}) {
+  const close = (open: boolean) => !open && setOverlay(null)
+  return (
+    <>
+      <Settings open={overlay === 'settings'} onOpenChange={close} onLeave={() => setOverlay('leave')} />
+      <LeaveSpace open={overlay === 'leave'} onOpenChange={close} />
+    </>
+  )
+}
 
 const setPrefs = (patch: Partial<Prefs>) => updateLocal(l => ({ prefs: { ...l.prefs, ...patch } }))
 
