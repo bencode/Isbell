@@ -31,6 +31,15 @@ test('records the hook left half written, or of another shape, are passed over',
   expect(parseRecent('{}')).toEqual([])
 })
 
+test('what was asked is read without the marks around pasted text, even with the last cut short', () => {
+  const read = (first: string) => parseMonth(JSON.stringify({ ...session, first }))[0]?.first
+  expect(read('<pasted_content id="96b1"> add a batch action </pasted_content id="96b1">')).toBe(
+    'add a batch action',
+  )
+  expect(read('<pasted_content id="96b1"> see the logs and </pasted_conte')).toBe('see the logs and')
+  expect(read('is a < b true')).toBe('is a < b true')
+})
+
 test("a month's sessions are read line by line, the latest first", () => {
   const lines = [
     JSON.stringify(session),

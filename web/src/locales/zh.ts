@@ -321,7 +321,7 @@ export const zh: Record<Key, string> = {
   'session.new': '新建 session',
   'session.startIn': '在 {path} 启动',
   'sessions.search': '搜索 session',
-  'sessions.empty': '这个项目还没有 session。装好 agent hook 后，结束了的也会列在这里。',
+  'sessions.empty': '这个项目还没有 session。点右上角 + 开始一个。',
   'sessions.running': '运行中',
   'sessions.today': '今天',
   'sessions.yesterday': '昨天',
@@ -339,5 +339,8 @@ export const zh: Record<Key, string> = {
   'closed.offline': '它所在的机器离线了。',
   'closed.failed': '没能恢复。{msg}',
   'closed.gone': '记录里没有这个 session。',
-  'sessions.noMatch': '没有匹配的 session。',
+  'sessions.noMatch': '没有匹配的 session。已搜索名称、提问和目录。',
+  'sessions.asking': '在问你',
+  'sessions.found': '{n} 个结果',
+  'sessions.clear': '清除搜索',
 }

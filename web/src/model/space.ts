@@ -7,7 +7,7 @@ import { type ConnStatus, connect } from './connection'
 import { type DirectLink, openDirect, type Path } from './direct'
 import { read, writeText } from './files/remote'
 import { repoRootOf } from './files/repo'
-import { type Caller, shells as fetchShells, type Shell } from './herdr'
+import { type Caller, panes as fetchPanes, type Shell } from './herdr'
 import type { Identity } from './identity'
 import { type ProjectConfig, projectsPath, readProjects, serializeProjects } from './project-config'
 import { dirKey, type Repos } from './projects'
@@ -60,6 +60,8 @@ export type SpaceView = {
   /** Ordered by name, then id. */
   machines: MachineEntry[]
   shells: Shell[]
+  /** The task of each agent's pane, by machine id and pane id, where its terminal's title names one. */
+  titles: Readonly<Record<string, Record<string, string>>>
   repos: Repos
   /** Directories, by `dirKey(mid, cwd)`, whose repository is still being looked up; until it is
    * found, each stands as a project of its own. */
@@ -118,6 +120,7 @@ export type Space = {
 export function createSpace(url: string, id: Identity): Space {
   const machines = new Map<string, MachineEntry>()
   const shells = new Map<string, Shell[]>()
+  const titles = new Map<string, Record<string, string>>()
   // A newer pull for a machine wins over a slower, older one.
   const pulls = new Map<string, number>()
   // The pull whose shells each machine shows: an older one that comes back later does not replace
@@ -159,6 +162,7 @@ export function createSpace(url: string, id: Identity): Space {
           a.state.machine.id.localeCompare(b.state.machine.id),
       ),
       shells: [...shells.values()].flat(),
+      titles: Object.fromEntries(titles),
       repos: Object.fromEntries(repos),
       looking: new Set(looking),
       recorded: Object.fromEntries(recorded),
@@ -277,10 +281,11 @@ export function createSpace(url: string, id: Identity): Space {
     const seq = (pulls.get(mid) ?? 0) + 1
     pulls.set(mid, seq)
     try {
-      const found = await fetchShells(call, mid)
+      const found = await fetchPanes(call, mid)
       if (seq < (taken.get(mid) ?? 0)) return true
       taken.set(mid, seq)
-      shells.set(mid, found)
+      shells.set(mid, found.shells)
+      titles.set(mid, found.titles)
       shellsKnown.add(mid)
       // Its shells' directories are being looked up before it stops counting as pulling.
       findRepos(mid)
@@ -363,7 +368,11 @@ export function createSpace(url: string, id: Identity): Space {
         const state = readState(entry.state)
         if (state) machines.set(state.machine.id, { state, online: entry.online })
       }
-      for (const mid of shells.keys()) if (!machines.get(mid)?.online) shells.delete(mid)
+      for (const mid of shells.keys()) {
+        if (machines.get(mid)?.online) continue
+        shells.delete(mid)
+        titles.delete(mid)
+      }
       loaded = true
       // What is still to be found out is known before anyone sees the space loaded.
       for (const mid of machines.keys()) {
@@ -400,6 +409,7 @@ export function createSpace(url: string, id: Identity): Space {
       machines.set(mid, { ...old, online })
       if (!online) {
         shells.delete(mid)
+        titles.delete(mid)
         shellsKnown.delete(mid)
         direct.get(mid)?.close()
       } else configs = Object.fromEntries(Object.entries(configs).filter(([id]) => id !== mid))

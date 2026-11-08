@@ -324,8 +324,7 @@ export const en = {
   'session.new': 'New session',
   'session.startIn': 'Start in {path}',
   'sessions.search': 'Search sessions',
-  'sessions.empty':
-    'No sessions in this project yet. Once the agent hook is installed, those that ran show here too.',
+  'sessions.empty': 'No sessions in this project yet. Start one with + at the top right.',
   'sessions.running': 'Running',
   'sessions.today': 'Today',
   'sessions.yesterday': 'Yesterday',
@@ -343,7 +342,10 @@ export const en = {
   'closed.offline': 'Its machine is offline.',
   'closed.failed': 'Could not resume it. {msg}',
   'closed.gone': 'This session is not among those recorded.',
-  'sessions.noMatch': 'No session matches.',
+  'sessions.noMatch': 'No session matches. Searched names, what was asked and directories.',
+  'sessions.asking': 'Asking you',
+  'sessions.found': '{n} found',
+  'sessions.clear': 'Clear search',
 } as const
 
 export type Key = keyof typeof en
