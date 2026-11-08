@@ -1,5 +1,11 @@
 import { expect, test } from 'vitest'
-import { splitUploads } from './uploads'
+import { splitUploads, typedPath } from './uploads'
+
+test('a path is typed as a shell reads it, its letters in any script left alone', () => {
+  expect(typedPath('/tmp/isbell-uploads/0f1e2d3c/截屏 2026 (1).png')).toBe(
+    '/tmp/isbell-uploads/0f1e2d3c/截屏\\ 2026\\ \\(1\\).png',
+  )
+})
 
 test('the images uploaded with a prompt are told from its words and other paths', () => {
   const prompt = [

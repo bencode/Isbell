@@ -7,6 +7,10 @@ import { imageType } from './content'
 // uploads directory being `isbell-uploads` in the system's temporary one unless set elsewhere.
 const UPLOADED = /^\/.*\/isbell-uploads\/[0-9a-f]{8}\/[^/]+$/
 
+/** `path` as a terminal takes it when a file is dropped on it: anything a shell would read as
+ * something else, backslashed. */
+export const typedPath = (path: string) => path.replace(/[^\p{L}\p{N}_\-./+@%:,=]/gu, '\\$&')
+
 /** A prompt's own words, and the images sent along with it: the lines naming one uploaded for the
  * agent. Other uploads stay in the words, as do paths to an uploads directory set elsewhere. */
 export function splitUploads(prompt: string): { text: string; images: string[] } {

@@ -277,6 +277,7 @@ export const zh: Record<Key, string> = {
   'terminal.ended': '终端已断开。',
   'terminal.reconnect': '重新连接',
   'terminal.control': '控制',
+  'terminal.sendFiles': '⌘V 或拖入发送图片',
   'via.relay': '中转',
   'via.lan': '直连 · 局域网',
   'via.vpn': '直连 · VPN',

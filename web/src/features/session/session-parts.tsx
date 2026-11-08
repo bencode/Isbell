@@ -9,7 +9,7 @@ import { markSeen } from '../../core/prefs'
 import { type Ran, useSessionRecords } from '../../core/session-records'
 import { RELAY_URL, useSpaceView } from '../../core/space'
 import { type Pane, type Project, paneKey, type Session } from '../../model/projects'
-import { machineOf, type Via } from '../../model/space'
+import type { Via } from '../../model/space'
 import { useNow } from '../../utils/time'
 import { AskingBanner } from './asking'
 import { Composer } from './composer'
@@ -29,14 +29,12 @@ export function useSession(
   project: Project,
   ran: Ran | undefined,
 ) {
-  const view = useSpaceView()
   const { recent } = useSessionRecords(project)
   // Not a session of the agent the pane ran before this one.
   const own = ran?.agent === session.kind ? ran : undefined
   const transcript =
     own && (recent?.find(r => r.agent === own.agent && r.id === own.id)?.transcript ?? own.file)
   const log = useChatLog(mid, session.kind, transcript, session.status)
-  const methods = machineOf(view.machines, mid)?.state.caps.methods
 
   // Looking at a finished session marks it read.
   useEffect(() => {
@@ -44,7 +42,7 @@ export function useSession(
   }, [session, mid, paneId])
 
   // Until the project's records are read, a record may still be found.
-  return { log, transcript, read: recent !== undefined, taken: !!methods?.includes('isbell.file.upload') }
+  return { log, transcript, read: recent !== undefined }
 }
 
 type Parts = { mid: string; paneId: string; project: Project; session: Session; state: SessionState }
@@ -108,7 +106,6 @@ export function SessionDock({
   paneId,
   project,
   session,
-  state,
   onDraft,
   onSent,
 }: Parts & { onDraft: () => void; onSent: (text: string) => void }) {
@@ -125,7 +122,7 @@ export function SessionDock({
       paneId={paneId}
       onSent={onSent}
       onDraft={onDraft}
-      uploads={{ machine: project.machine, taken: state.taken }}
+      machine={project.machine}
       stoppable={session.status === 'working'}
     />
   )

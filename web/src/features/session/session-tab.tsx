@@ -124,7 +124,7 @@ function Opened({
           ) : null}
           {attached ? (
             <div className={`absolute inset-0 ${shown === 'terminal' ? '' : 'hidden'}`}>
-              <Terminal mid={mid} paneId={paneId} onVia={setVia} />
+              <Terminal mid={mid} paneId={paneId} machine={project.machine} onVia={setVia} />
             </div>
           ) : null}
         </div>

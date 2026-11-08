@@ -4,26 +4,37 @@ import '@xterm/xterm/css/xterm.css'
 import { useEffect, useRef } from 'react'
 import { Button } from '../../components/button'
 import { errorText, useI18n } from '../../core/i18n'
+import { typedPath } from '../../model/files/uploads'
 import type { Via } from '../../model/space'
+import { Attachments, PickFiles, useAttachments } from './attachments'
 import { useTerminal } from './use-terminal'
 
-/** `onVia`: the path the terminal's stream took, for the tab's facts. */
+/** `machine`: the name of the machine `mid`. `onVia`: the path the terminal's stream took, for the
+ * tab's facts. */
 export function Terminal({
   mid,
   paneId,
+  machine,
   onVia,
 }: {
   mid: string
   paneId: string
+  machine: string
   onVia: (via: Via | undefined) => void
 }) {
   const t = useI18n()
   const box = useRef<HTMLDivElement>(null)
-  const { state, reconnect } = useTerminal(box, mid, paneId)
+  const { state, reconnect, paste } = useTerminal(box, mid, paneId)
+  const files = useAttachments(mid, machine, path => paste(`${typedPath(path)} `))
   useEffect(() => onVia(state.via), [onVia, state.via])
   return (
     <div className="flex h-full flex-col">
-      <div className="relative min-h-0 flex-1 overflow-hidden bg-term px-3 py-2">
+      {/* In capture, before xterm: it would take a paste of files for a paste of no text. */}
+      <div
+        className="relative min-h-0 flex-1 overflow-hidden bg-term px-3 py-2"
+        onPasteCapture={files.paste}
+        {...files.drop}
+      >
         <div ref={box} className="h-full w-full bg-term" />
         {state.phase === 'ended' ? (
           <div className="absolute inset-0 grid place-items-center bg-scrim">
@@ -37,7 +48,8 @@ export function Terminal({
           </div>
         ) : null}
       </div>
-      <footer className="flex flex-none gap-4 border-t border-line px-4 py-1.5 font-mono text-xs text-faint">
+      {/* Of a fixed height: a taller one would shrink the terminal, and the pane with it. */}
+      <footer className="flex h-8 flex-none items-center gap-4 border-t border-line px-4 font-mono text-xs text-faint">
         <span>
           {state.phase === 'opening' ? t('terminal.opening') : state.via ? t(`via.${state.via}`) : ''}
         </span>
@@ -47,6 +59,18 @@ export function Terminal({
             {state.size.cols}×{state.size.rows}
           </span>
         ) : null}
+        <div className="ml-auto flex min-w-0 items-center gap-2">
+          <div className="max-h-[26px] min-w-0 overflow-hidden">
+            <Attachments items={files.items} onRemove={files.remove} />
+          </div>
+          {files.problem ? <span className="truncate text-danger">{files.problem}</span> : null}
+          {files.taken ? (
+            <>
+              <span className="flex-none">{t('terminal.sendFiles')}</span>
+              <PickFiles onPick={files.add} />
+            </>
+          ) : null}
+        </div>
       </footer>
     </div>
   )

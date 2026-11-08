@@ -1,11 +1,12 @@
-// Files sent along with a reply: each goes to the agent's machine as soon as it is added, and the
-// reply carries where it landed there.
+// Files for an agent: each goes to its machine as soon as it is added, pasted, dropped or picked,
+// and the agent is told where it landed there.
 
 import { Paperclip, X } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { type ClipboardEvent, type DragEvent, useRef, useState } from 'react'
 import { errorText, useI18n } from '../../core/i18n'
-import { useSpace } from '../../core/space'
+import { useSpace, useSpaceView } from '../../core/space'
 import { UPLOAD_MAX, upload } from '../../model/files/remote'
+import { machineOf } from '../../model/space'
 
 type Attachment = {
   id: number
@@ -16,13 +17,18 @@ type Attachment = {
   error?: string
 }
 
-/** Files added for machine `mid`, named `machine`; `enabled` once its gateway takes them. */
-export function useAttachments(mid: string, machine: string, enabled: boolean) {
+/** Files added for machine `mid`, named `machine`. With `landed`, each is handed over as soon as it
+ * is on the machine and leaves the list; without it, `paths` holds them until they are sent. */
+export function useAttachments(mid: string, machine: string, landed?: (path: string) => void) {
   const t = useI18n()
   const space = useSpace()
+  const methods = machineOf(useSpaceView().machines, mid)?.state.caps.methods
+  const taken = !!methods?.includes('isbell.file.upload')
   const [items, setItems] = useState<Attachment[]>([])
   const [problem, setProblem] = useState<string>()
   const ids = useRef(0)
+  // Taken off the list while on its way: it still lands, but is not handed over.
+  const removed = useRef(new Set<number>())
   const patch = (id: number, change: Partial<Attachment>) =>
     setItems(all => all.map(a => (a.id === id ? { ...a, ...change } : a)))
 
@@ -30,7 +36,9 @@ export function useAttachments(mid: string, machine: string, enabled: boolean) {
     try {
       const bytes = new Uint8Array(await file.arrayBuffer())
       const path = await upload(space.openStream, mid, file.name, bytes, sent => patch(id, { sent }))
-      patch(id, { path })
+      if (!landed) return patch(id, { path })
+      if (!removed.current.has(id)) landed(path)
+      setItems(all => all.filter(a => a.id !== id))
     } catch (err) {
       patch(id, { error: errorText(t, err) })
     }
@@ -38,7 +46,7 @@ export function useAttachments(mid: string, machine: string, enabled: boolean) {
 
   const add = (files: File[]) => {
     if (!files.length) return
-    if (!enabled) return setProblem(t('upload.unsupported', { machine }))
+    if (!taken) return setProblem(t('upload.unsupported', { machine }))
     setProblem(undefined)
     const added = files.map(file => {
       ids.current += 1
@@ -50,10 +58,33 @@ export function useAttachments(mid: string, machine: string, enabled: boolean) {
   }
 
   return {
+    /** Whether the machine's gateway takes files. */
+    taken,
     items,
     add,
+    /** For a paste: files in it are added, and nothing else hears of it; text is left alone. */
+    paste: (e: ClipboardEvent) => {
+      const pasted = [...e.clipboardData.files]
+      if (!pasted.length) return
+      e.preventDefault()
+      e.stopPropagation()
+      add(pasted)
+    },
+    drop: {
+      onDragOver: (e: DragEvent) => {
+        if (e.dataTransfer.types.includes('Files')) e.preventDefault()
+      },
+      onDrop: (e: DragEvent) => {
+        if (!e.dataTransfer.files.length) return
+        e.preventDefault()
+        add([...e.dataTransfer.files])
+      },
+    },
     /** Leaves the file on the machine, for its temporary directory to clear. */
-    remove: (id: number) => setItems(all => all.filter(a => a.id !== id)),
+    remove: (id: number) => {
+      removed.current.add(id)
+      setItems(all => all.filter(a => a.id !== id))
+    },
     clear: () => {
       setItems([])
       setProblem(undefined)
@@ -62,6 +93,34 @@ export function useAttachments(mid: string, machine: string, enabled: boolean) {
     uploading: items.some(a => !a.path && !a.error),
     problem,
   }
+}
+
+export function PickFiles({ onPick }: { onPick: (files: File[]) => void }) {
+  const t = useI18n()
+  const picker = useRef<HTMLInputElement>(null)
+  return (
+    <>
+      <input
+        ref={picker}
+        type="file"
+        multiple
+        hidden
+        onChange={e => {
+          onPick([...(e.target.files ?? [])])
+          e.target.value = ''
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => picker.current?.click()}
+        aria-label={t('upload.attach')}
+        title={t('upload.attach')}
+        className="inline-flex size-6 flex-none cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-muted hover:bg-raised-2 hover:text-text"
+      >
+        <Paperclip size={15} />
+      </button>
+    </>
+  )
 }
 
 export function Attachments({ items, onRemove }: { items: Attachment[]; onRemove: (id: number) => void }) {

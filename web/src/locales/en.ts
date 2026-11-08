@@ -280,6 +280,7 @@ export const en = {
   'terminal.ended': 'The terminal is no longer connected.',
   'terminal.reconnect': 'Reconnect',
   'terminal.control': 'Control',
+  'terminal.sendFiles': '⌘V or drop to send an image',
   'via.relay': 'Relay',
   'via.lan': 'Direct · LAN',
   'via.vpn': 'Direct · VPN',
