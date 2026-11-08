@@ -33,7 +33,7 @@ type Log = {
   whole: boolean
   paging: boolean
   error?: unknown
-  /** There is no such file (any more), or it is too large for this gateway: the chat is read off the screen. */
+  /** There is no such file (any more), or it is too large for this gateway. */
   unread: boolean
 }
 
@@ -142,8 +142,10 @@ async function refresh(r: Reader) {
 }
 
 export type ChatLog = {
-  /** Undefined until read, or while it cannot be: the chat is then read off the screen. */
+  /** Undefined until read, or while it cannot be (`unread`). */
   turns?: ChatTurn[]
+  /** There is no such file (any more), or it is too large for this gateway. */
+  unread: boolean
   /** The session's start is read. */
   start: boolean
   /** How far into the record it is read: it grows as the agent adds to it, not as earlier turns are read. */
@@ -213,6 +215,8 @@ export function useChatLog(
   }, [space, id, mid, path, kind])
   return {
     ...(turns ? { turns } : {}),
+    // A first read that failed is not read either, but may be on the next try.
+    unread: !!log?.unread && !log.error,
     start: log?.start === 0,
     end: log?.end ?? 0,
     earlier,

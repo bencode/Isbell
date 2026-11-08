@@ -26,7 +26,7 @@ shell ──▶ features ──▶ core ──▶ model
 ```
 
 - `model/` holds frames, the space key and auth signature, the reconnecting client connection,
-  the WebRTC direct link, the space store, herdr calls, the project model, and an agent's screen
+  the WebRTC direct link, the space store, herdr calls, the project model, and an agent's record
   read as turns. It imports nothing from the app, nor React; `biome.json` enforces both. Code
   imports the module it needs (`model/herdr`), as there is no index of the whole layer.
 - `model/` and the Rust crates share no code; `crates/isbell-proto/tests/vectors.json` keeps
@@ -44,7 +44,7 @@ shell ──▶ features ──▶ core ──▶ model
   another feature; `biome.json` enforces it. When one feature leads to another, the shell passes
   a callback.
 - Files are named for what they are: `*-page.tsx`, `*-dialog.tsx`, `*-panel.tsx`. Tests sit next
-  to the code they test; recorded screens sit in `model/screen/fixtures/`.
+  to the code they test.
 
 | New code                                               | Goes in                             |
 | ------------------------------------------------------ | ----------------------------------- |

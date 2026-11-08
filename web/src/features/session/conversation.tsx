@@ -1,12 +1,13 @@
 // A session's conversation as a chat: what was asked on the right, what the agent said and did
-// under it, the day between turns on different days; the last turn shows the agent at work, or its
-// question to answer.
+// under it, the day between turns on different days; the last turn shows the agent at work, or that
+// it asks. What was just sent shows after it until the record has it.
 
 import { Copy } from 'lucide-react'
 import { type ReactNode, useContext, useState } from 'react'
 import { useI18n } from '../../core/i18n'
 import { modelName } from '../../model/chat/tools'
 import type { Asked, ChatTurn } from '../../model/chat/types'
+import { splitUploads } from '../../model/files/uploads'
 import type { AgentStatus } from '../../model/state'
 import { clock, dayTitle, duration, since, useNow } from '../../utils/time'
 import { Items } from './chat-items'
@@ -23,6 +24,21 @@ export function Marker({ children }: { children: ReactNode }) {
   )
 }
 
+/** Reads the turns before those shown. */
+export function EarlierButton({ onClick, paging }: { onClick: () => void; paging: boolean }) {
+  const t = useI18n()
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={paging}
+      className="h-[26px] cursor-pointer rounded-full border border-line bg-raised px-3 text-xs font-medium text-accent enabled:hover:bg-raised-2 focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-default disabled:text-faint"
+    >
+      {paging ? t('chat.readingEarlier') : t('chat.showEarlier')}
+    </button>
+  )
+}
+
 const NAMES: Readonly<Record<string, string>> = { claude: 'Claude', codex: 'Codex', pi: 'pi' }
 
 export function Conversation({
@@ -32,6 +48,7 @@ export function Conversation({
   statusSince,
   top,
   asking,
+  pending,
 }: {
   turns: ChatTurn[]
   kind: string | undefined
@@ -39,8 +56,10 @@ export function Conversation({
   statusSince: number
   /** Where the turns shown begin. */
   top: ReactNode
-  /** The question the agent waits on, shown under its last turn. */
+  /** That the agent asks, shown under its last turn. */
   asking: ReactNode
+  /** What was sent and is not in the record yet. */
+  pending?: string | undefined
 }) {
   const t = useI18n()
   const now = useNow(60_000)
@@ -71,6 +90,12 @@ export function Conversation({
         )
       })}
       {turns.length ? null : asking}
+      {pending === undefined ? null : (
+        <section className="mb-[26px] flex flex-col items-end gap-1.5">
+          <You asked={{ ...splitUploads(pending), data: [] }} at={0} />
+          <span className="font-mono text-[11px] text-faint">{t('chat.sent')}</span>
+        </section>
+      )}
     </div>
   )
 }

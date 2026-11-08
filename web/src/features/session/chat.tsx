@@ -1,9 +1,11 @@
 // A session's chat in its tab: the conversation, following what comes in while scrolled to the end
-// (and saying so while scrolled up), and the dock under it. Its place is kept while the tab is hidden.
+// (and saying so while scrolled up), and the dock under it. Its place is kept while the tab is hidden;
+// what was sent shows at once, until the record has it.
 
 import { ArrowDown } from 'lucide-react'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { useI18n } from '../../core/i18n'
+import { splitUploads } from '../../model/files/uploads'
 import type { Project, Session } from '../../model/projects'
 import { useKeptScroll } from '../../utils/kept-scroll'
 import { SessionBody, SessionDock, useSession } from './session-parts'
@@ -27,21 +29,30 @@ export function Chat({
   const t = useI18n()
   const { mid, paneId } = session
   const state = useSession(mid, paneId, session, project, ran)
-  const { reading, text, log, asking } = state
+  const { log } = state
+  const asking = session.status === 'blocked'
+  // What was sent, and the record's last turn then (null: none yet; undefined: the record was not
+  // read yet). A new turn after that one is it; without one to tell by, a turn asking the same.
+  const [sent, setSent] = useState<{ text: string; after: string | null | undefined }>()
+  const last = log.turns?.at(-1)
+  const recorded =
+    !!sent &&
+    !!last?.you &&
+    (sent.after === undefined
+      ? last.you.text.trim() === splitUploads(sent.text).text
+      : last.id !== sent.after)
+  const pending = sent && !recorded ? sent.text : undefined
   const kept = useKeptScroll<HTMLDivElement>()
   const pinned = useRef(true)
   const [unseen, setUnseen] = useState(false)
-  // What the chat ends with: the record as far as it is read (earlier turns read before it are no
-  // news), else the screen.
-  const tail = log.turns ? log.end : (reading ?? text)
-  // After the kept place is put back, so a chat left at its end shows what came in meanwhile; a
-  // question coming up is news too.
+  // After the kept place is put back, so a chat left at its end shows what came in meanwhile: the
+  // record read further (earlier turns read before it are no news), what was sent, the agent asking.
   useLayoutEffect(() => {
     const el = kept.ref.current
-    if (!el || ((tail === undefined || tail === null) && !asking)) return
+    if (!el || (!log.end && pending === undefined && !asking)) return
     if (pinned.current) el.scrollTop = el.scrollHeight
     else setUnseen(true)
-  }, [kept.ref, tail, asking])
+  }, [kept.ref, log.end, pending, asking])
   const toEnd = () => {
     const el = kept.ref.current
     el?.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
@@ -62,7 +73,7 @@ export function Chat({
           className="h-full overflow-auto"
         >
           <div className={`${COLUMN} flex flex-col pt-[18px] pb-7`}>
-            <SessionBody {...parts} />
+            <SessionBody {...parts} pending={pending} />
           </div>
         </div>
         {unseen ? (
@@ -79,7 +90,15 @@ export function Chat({
       </div>
       <div className="flex-none border-t border-line bg-bg">
         <div className={`${COLUMN} py-2.5`}>
-          <SessionDock {...parts} onDraft={onDraft} />
+          <SessionDock
+            {...parts}
+            onDraft={onDraft}
+            onSent={text => {
+              // Sent ends at the bottom, to see it go in.
+              pinned.current = true
+              setSent({ text, after: log.turns ? (last?.id ?? null) : undefined })
+            }}
+          />
         </div>
       </div>
     </div>

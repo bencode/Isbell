@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest'
 import {
   byDay,
+  codexRecordFor,
   mergeMonths,
   mergeRecent,
   parseMonth,
@@ -90,4 +91,26 @@ test('sessions are grouped by the local day, in the order given', () => {
   const day = (d: number, h: number) => new Date(2026, 10, d, h).getTime()
   const at = [day(7, 18), day(7, 9), day(6, 23), day(5, 1)]
   expect(byDay(at, t => t).map(run => run.length)).toEqual([2, 1, 1])
+})
+
+test('a codex pane runs the session last active in its directory since it started, not one another pane runs', () => {
+  const at = (id: string, cwd: string, updated: number, agent = 'codex') => ({
+    agent,
+    id,
+    cwd,
+    first: 'x',
+    last: 'x',
+    started: 1,
+    updated,
+  })
+  const latest = [
+    at('before', '/srv/a', 90),
+    at('elsewhere', '/srv/b', 300),
+    at('claude', '/srv/a', 300, 'claude'),
+    at('taken', '/srv/a', 250),
+    at('older', '/srv/a', 150),
+    at('newer', '/srv/a', 200),
+  ]
+  expect(codexRecordFor(latest, '/srv/a', 100, new Set(['taken']))).toBe('newer')
+  expect(codexRecordFor(latest, '/srv/a', 260, new Set())).toBeUndefined()
 })
