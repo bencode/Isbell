@@ -2,7 +2,8 @@
 // address), a shell's terminal, under the bar that names it. The terminal attaches once first shown
 // and stays while the chat is; hiding the tab lets go of it, and it attaches anew once its terminal
 // is in sight again. A preview tab is kept once a reply is being written in it. Once its pane is
-// gone, the session it ran takes the tab's place, when it is among those recorded.
+// gone, or its agent has left a shell behind while the chat shows, the session it ran takes the
+// tab's place, when it is among those recorded.
 
 import { useCallback, useEffect, useState } from 'react'
 import type { Params } from 'react-router'
@@ -55,14 +56,17 @@ export function SessionTabPane({
   const waiting = !ready || (!listed && !checked)
   // The session it ran, when it is among those recorded, as only those can be resumed.
   const lookup = useRecordLookup()
-  const last = !listed && !waiting ? sessionInPane(mid, paneId) : undefined
+  // A shell shown as a terminal is in use, and stays.
+  const query = useTabQuery(id)
+  const left = found && 'shell' in found.pane && !showsTerminal(query) ? found.pane.shell.ran : undefined
+  const last = left ?? (!listed && !waiting ? sessionInPane(mid, paneId) : undefined)
   const ran = last && lookup(mid, last.agent, last.id) ? last : undefined
   const { replace } = useTabActions()
   useEffect(() => {
     if (ran) replace(id, closedTabId(mid, ran.agent, ran.id))
   }, [ran, replace, id, mid])
 
-  if (!found)
+  if (!found || ran)
     return <p className="m-6 text-muted">{waiting || ran ? t('board.loading') : t('session.gone')}</p>
   return <Opened id={id} mid={mid} paneId={paneId} found={found} />
 }

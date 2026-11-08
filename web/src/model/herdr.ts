@@ -5,8 +5,15 @@ import { type AgentInfo, type AgentNote, noteOf } from './agent-note'
 
 export type Caller = (mid: string, m: string, p: unknown, timeoutMs: number) => Promise<unknown>
 
-/** A pane without an agent: a plain shell. */
-export type Shell = { mid: string; paneId: string; cwd: string; title?: string }
+/** A pane without an agent: a plain shell. `ran`: the session an agent last reported running in it,
+ * which outlives the agent there. */
+export type Shell = {
+  mid: string
+  paneId: string
+  cwd: string
+  title?: string
+  ran?: { agent: string; id: string }
+}
 
 const HERDR_TIMEOUT_MS = 35_000
 /** Starting an agent waits for it to come up and take the prompt. */
@@ -22,6 +29,7 @@ type PaneInfo = {
   cwd?: string | null
   foreground_cwd?: string | null
   terminal_title_stripped?: string | null
+  tokens?: Record<string, string | null> | null
 }
 
 export async function shells(call: Caller, mid: string): Promise<Shell[]> {
@@ -30,7 +38,17 @@ export async function shells(call: Caller, mid: string): Promise<Shell[]> {
     const cwd = p.foreground_cwd ?? p.cwd
     if (p.agent || !cwd) return []
     const title = p.terminal_title_stripped
-    return [title ? { mid, paneId: p.pane_id, cwd, title } : { mid, paneId: p.pane_id, cwd }]
+    const agent = p.tokens?.isbell_agent
+    const id = p.tokens?.isbell_session
+    return [
+      {
+        mid,
+        paneId: p.pane_id,
+        cwd,
+        ...(title ? { title } : {}),
+        ...(agent && id ? { ran: { agent, id } } : {}),
+      },
+    ]
   })
 }
 
