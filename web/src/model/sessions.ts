@@ -31,6 +31,21 @@ export const monthsDir = (key: string) => `${STORE}/${key}/months`
 /** `month` as the file is named: YYYY-MM. */
 export const monthPath = (key: string, month: string) => `${monthsDir(key)}/${month}.jsonl`
 
+const OPENED = '<pasted_content id="'
+const CLOSED = '</pasted_content id="'
+const PASTE_MARK = /\s*<\/?pasted_content id="[^"]*">\s*/g
+
+/** What was said, without the marks wrapped around pasted text. The hook keeps the first 200
+ * characters, which can cut the closing mark short. */
+function withoutPasteMarks(text: string): string {
+  if (!text.includes(OPENED)) return text
+  const clean = text.replace(PASTE_MARK, ' ')
+  const at = clean.lastIndexOf('<')
+  const tail = clean.slice(at)
+  const cut = at >= 0 && (CLOSED.startsWith(tail) || (tail.startsWith(CLOSED) && !tail.includes('>')))
+  return (cut ? clean.slice(0, at) : clean).trim()
+}
+
 const isText = (v: unknown): v is string => typeof v === 'string'
 const isTime = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
 
@@ -69,7 +84,11 @@ export function parseRoots(text: string): Roots {
 
 export function parseRecent(text: string): SessionRecord[] {
   const found = json(text)
-  return Array.isArray(found) ? found.filter(isRecord) : []
+  return Array.isArray(found)
+    ? found
+        .filter(isRecord)
+        .map(s => ({ ...s, first: withoutPasteMarks(s.first), last: withoutPasteMarks(s.last) }))
+    : []
 }
 
 /** The sessions begun in a month, the latest first; a line cut short is passed over. */
@@ -79,6 +98,7 @@ export const parseMonth = (text: string): MonthLine[] =>
     .filter(line => line.trim())
     .map(json)
     .filter(isLine)
+    .map(s => ({ ...s, first: withoutPasteMarks(s.first) }))
     .sort((a, b) => b.started - a.started)
 
 const RESUME = new Map<string, (id: string) => string[]>([
@@ -174,6 +194,14 @@ export const lineTime = (s: SessionLine) => s.updated ?? s.started
 /** Whether what the session was asked, or where it ran, holds `needle` (lower case). */
 export const matches = (s: SessionLine, needle: string) =>
   [s.first, s.last ?? '', s.cwd].some(text => text.toLowerCase().includes(needle))
+
+const BEFORE_MATCH = 10
+
+/** `text` from just before `needle` (lower case), so that a row as wide as it is shows the match. */
+export function excerpt(text: string, needle: string): string {
+  const at = text.toLowerCase().indexOf(needle)
+  return at <= BEFORE_MATCH ? text : `…${text.slice(at - BEFORE_MATCH)}`
+}
 
 /** The items in the order given, in runs of one local day. */
 export const byDay = <T>(items: T[], at: (item: T) => number): [T, ...T[]][] =>

@@ -68,7 +68,8 @@ const says = (title: string, info: AgentInfo) => {
   )
 }
 
-function titleOf(info: AgentInfo): string | undefined {
+/** The task the agent's terminal is titled with, if it names one. */
+export function titleOf(info: AgentInfo): string | undefined {
   const raw = info.terminal_title_stripped?.trim() ?? ''
   // Codex titles its terminal "task | directory".
   const title = info.agent === 'codex' ? raw.replace(/ \| [^|]*$/, '') : raw

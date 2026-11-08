@@ -21,6 +21,7 @@ export type Session = {
   status: AgentStatus
   /** Milliseconds on the gateway's clock. */
   statusSince: number
+  /** The task its terminal's title names, as last pulled. */
   title?: string
   unread: boolean
   /** Where the agent works, when it said. */
@@ -93,7 +94,8 @@ const holderOf = (dir: string, listed: string[]) =>
 /** Ordered by machine, so the projects of a machine stand together; then those it lists, as it lists
  * them; then those with panes by name, so each keeps its place as its sessions change; then the rest,
  * the last active first. `recorded`: the roots of each machine's recorded sessions, by machine id.
- * `listed`: the directories of each machine that lists its projects, by machine id. */
+ * `listed`: the directories of each machine that lists its projects, by machine id. `titles`: the
+ * task of each agent's pane, by machine id and pane id. */
 export function deriveProjects(
   machines: MachineEntry[],
   shells: Shell[],
@@ -101,6 +103,7 @@ export function deriveProjects(
   repos: Repos,
   recorded: Readonly<Record<string, Roots>> = {},
   listed: Readonly<Record<string, string[]>> = {},
+  titles: Readonly<Record<string, Record<string, string>>> = {},
 ): Project[] {
   const rank = (p: Project) => {
     const at = listed[p.mid]?.indexOf(p.path) ?? -1
@@ -117,7 +120,12 @@ export function deriveProjects(
         const root = repos[dirKey(mid, cwd)] ?? dir
         return (paths && (holderOf(dir, paths) ?? holderOf(root, paths))) ?? root
       }
-      const agents = state.agents.map(a => ({ ...a, cwd: trimSlash(a.cwd ?? ''), root: rootOf(a.cwd) }))
+      const agents = state.agents.map(a => ({
+        ...a,
+        cwd: trimSlash(a.cwd ?? ''),
+        root: rootOf(a.cwd),
+        title: titles[mid]?.[a.paneId],
+      }))
       const mine = shells
         .filter(s => s.mid === mid)
         .map(s => ({ shell: { ...s, cwd: trimSlash(s.cwd) }, root: rootOf(s.cwd) }))

@@ -1,7 +1,7 @@
 // The gateway calls the web client makes: herdr's whitelisted methods, passed through, and
 // Isbell's own `isbell.agent.start`, `isbell.pane.processes` and `isbell.terminal`.
 
-import { type AgentInfo, type AgentNote, noteOf } from './agent-note'
+import { type AgentInfo, type AgentNote, noteOf, titleOf } from './agent-note'
 
 export type Caller = (mid: string, m: string, p: unknown, timeoutMs: number) => Promise<unknown>
 
@@ -13,6 +13,12 @@ export type Shell = {
   cwd: string
   title?: string
   ran?: { agent: string; id: string }
+}
+
+export type Panes = {
+  shells: Shell[]
+  /** The task of each agent's pane, by pane id, where its terminal's title names one. */
+  titles: Record<string, string>
 }
 
 const HERDR_TIMEOUT_MS = 35_000
@@ -32,24 +38,38 @@ type PaneInfo = {
   tokens?: Record<string, string | null> | null
 }
 
-export async function shells(call: Caller, mid: string): Promise<Shell[]> {
+const shellOf = (mid: string, p: PaneInfo): Shell[] => {
+  const cwd = p.foreground_cwd ?? p.cwd
+  if (p.agent || !cwd) return []
+  const title = p.terminal_title_stripped
+  const agent = p.tokens?.isbell_agent
+  const id = p.tokens?.isbell_session
+  return [
+    {
+      mid,
+      paneId: p.pane_id,
+      cwd,
+      ...(title ? { title } : {}),
+      ...(agent && id ? { ran: { agent, id } } : {}),
+    },
+  ]
+}
+
+const titleIn = (p: PaneInfo): [string, string][] => {
+  const title =
+    p.agent &&
+    titleOf({
+      agent: p.agent,
+      cwd: p.foreground_cwd ?? p.cwd ?? null,
+      terminal_title_stripped: p.terminal_title_stripped ?? null,
+    })
+  return title ? [[p.pane_id, title]] : []
+}
+
+export async function panes(call: Caller, mid: string): Promise<Panes> {
   const r = (await herdr(call, mid, 'session.snapshot', {})) as { snapshot?: { panes?: PaneInfo[] } }
-  return (r.snapshot?.panes ?? []).flatMap(p => {
-    const cwd = p.foreground_cwd ?? p.cwd
-    if (p.agent || !cwd) return []
-    const title = p.terminal_title_stripped
-    const agent = p.tokens?.isbell_agent
-    const id = p.tokens?.isbell_session
-    return [
-      {
-        mid,
-        paneId: p.pane_id,
-        cwd,
-        ...(title ? { title } : {}),
-        ...(agent && id ? { ran: { agent, id } } : {}),
-      },
-    ]
-  })
+  const all = r.snapshot?.panes ?? []
+  return { shells: all.flatMap(p => shellOf(mid, p)), titles: Object.fromEntries(all.flatMap(titleIn)) }
 }
 
 /** What herdr knows of the agent besides its screen. */

@@ -75,8 +75,9 @@ export function useProjects(): Project[] {
         view.repos,
         view.recorded,
         listedPaths(view.configs, projectPaths),
+        view.titles,
       ),
-    [view.machines, view.shells, seen, view.repos, view.recorded, view.configs, projectPaths],
+    [view.machines, view.shells, seen, view.repos, view.recorded, view.configs, projectPaths, view.titles],
   )
 }
 
