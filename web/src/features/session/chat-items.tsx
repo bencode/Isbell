@@ -38,7 +38,7 @@ export function Items({ items, working }: { items: ChatItem[]; working: boolean 
     Array.isArray(run) ? (
       <Tools key={key} tools={run} working={working} />
     ) : run.kind === 'text' ? (
-      <ChatText key={key} text={run.text} markdown={run.markdown} />
+      <ChatText key={key} text={run.text} />
     ) : run.kind === 'thinking' ? (
       <Thinking key={key} text={run.text} ms={run.ms} />
     ) : run.kind === 'note' ? (
@@ -82,9 +82,8 @@ function Note({ note, text }: { note: 'interrupted' | 'failed' | 'compacted'; te
   )
 }
 
-/** Words in Markdown, their links and the paths they name opening in the app; words read off the
- * screen as they were. */
-function ChatText({ text, markdown }: { text: string; markdown: boolean }) {
+/** Words in Markdown, their links and the paths they name opening in the app. */
+function ChatText({ text }: { text: string }) {
   const t = useI18n()
   const mentions = useMentions()
   const navigate = useNavigate()
@@ -102,12 +101,6 @@ function ChatText({ text, markdown }: { text: string; markdown: boolean }) {
   )
   const words = useCallback((s: string) => <MentionText text={s} />, [])
   const labels = useMemo(() => ({ copy: t('copy'), copied: t('copied') }), [t])
-  if (!markdown)
-    return (
-      <p className="m-0 leading-[1.65] break-words whitespace-pre-wrap">
-        <MentionText text={text} />
-      </p>
-    )
   return <MessageMarkdown text={text} link={link} words={words} labels={labels} />
 }
 

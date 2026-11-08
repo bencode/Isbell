@@ -118,11 +118,12 @@ function Turn({
 }) {
   const t = useI18n()
   const said = turn.items.length > 0 || working || asking
-  const when =
-    turn.when ??
-    [turn.at ? clock(t.locale, turn.at) : '', turn.took ? t('chat.took', { time: duration(turn.took) }) : '']
-      .filter(Boolean)
-      .join(' · ')
+  const when = [
+    turn.at ? clock(t.locale, turn.at) : '',
+    turn.took ? t('chat.took', { time: duration(turn.took) }) : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
   return (
     <section className="mb-[26px] flex flex-col gap-2.5">
       {turn.you ? <You asked={turn.you} at={turn.at} /> : null}

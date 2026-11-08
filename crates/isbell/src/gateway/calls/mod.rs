@@ -124,12 +124,6 @@ impl Calls {
                     link.send(response_frame(id, result));
                 });
             }
-            Method::History => {
-                self.tasks.spawn(async move {
-                    let result = async { rpc::history(&herdr?, p).await }.await;
-                    link.send(response_frame(id, result));
-                });
-            }
             Method::PaneProcesses => {
                 self.tasks.spawn(async move {
                     let result = async { process::processes(&herdr?, p).await }.await;

@@ -184,8 +184,8 @@ test('a link to a gateway without pieces takes streams but no calls', async () =
   expect((await open(space)).via).toBe('lan')
   relay.calls = []
   await space.call(MID, 'herdr', readVisible, 1_000)
-  await space.call(MID, 'isbell.agent.history', { target: 'p1', skip: 0, count: 200 }, 1_000)
-  expect([relay.calls, sent]).toEqual([['herdr', 'isbell.agent.history'], []])
+  await space.call(MID, 'isbell.pane.processes', { pane_id: 'p1' }, 1_000)
+  expect([relay.calls, sent]).toEqual([['herdr', 'isbell.pane.processes'], []])
   expect(direct.tries).toBe(1)
 })
 

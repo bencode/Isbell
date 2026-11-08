@@ -62,7 +62,7 @@ const ITEMS: Readonly<Record<string, (it: Record<string, unknown>, id: string) =
     const said = contentOf(it)
       .map(c => text(c.text))
       .join('')
-    return said.trim() ? [{ kind: 'text', text: said, markdown: true }] : []
+    return said.trim() ? [{ kind: 'text', text: said }] : []
   },
   CommandExecution: (it, id) => [commandItem(id, it)],
   FileChange: (it, id) => changeItems(id, it.changes),

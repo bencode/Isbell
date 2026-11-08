@@ -16,8 +16,7 @@ export type ToolItem = {
 }
 
 export type ChatItem =
-  /** `markdown` is false for text read off the screen, whose formatting is gone. */
-  | { kind: 'text'; text: string; markdown: boolean }
+  | { kind: 'text'; text: string }
   | { kind: 'thinking'; text: string; ms?: number }
   | ToolItem
   | { kind: 'note'; note: 'interrupted' | 'failed' | 'compacted'; text?: string }
@@ -31,8 +30,6 @@ export type ChatTurn = {
   you?: Asked
   at: number
   took?: number
-  /** When and for how long, as the screen said it, for a turn read off the screen. */
-  when?: string
   model?: string
   items: ChatItem[]
 }
