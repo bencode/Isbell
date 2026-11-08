@@ -4,14 +4,12 @@
 import { Popover } from '@base-ui/react/popover'
 import { Info, Square } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { IconButton } from '../../components/icon-button'
+import { IconButton, SMALL_ICON } from '../../components/icon-button'
 import { Segmented } from '../../components/segmented'
 import { StatusDot } from '../../components/status-dot'
 import { useI18n } from '../../core/i18n'
 import type { Pane } from '../../model/projects'
 import { NameEditor } from './name-editor'
-
-const SMALL = { size: 14, strokeWidth: 1.5, absoluteStrokeWidth: true }
 
 export type View = 'chat' | 'terminal'
 
@@ -53,7 +51,7 @@ export function Subbar({ pane, branch, view, facts, onEnd, actions }: Props) {
           <Popover.Trigger
             render={
               <IconButton label={t('session.info')} size="small">
-                <Info {...SMALL} />
+                <Info {...SMALL_ICON} />
               </IconButton>
             }
           />
@@ -71,7 +69,7 @@ export function Subbar({ pane, branch, view, facts, onEnd, actions }: Props) {
           onClick={onEnd}
           className="hover:text-danger"
         >
-          <Square {...SMALL} />
+          <Square {...SMALL_ICON} />
         </IconButton>
         {actions}
       </span>

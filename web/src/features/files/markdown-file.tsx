@@ -4,7 +4,7 @@
 import { ListTree } from 'lucide-react'
 import { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { IconButton } from '../../components/icon-button'
+import { IconButton, SMALL_ICON } from '../../components/icon-button'
 import type { CodeRendererHandle } from '../../components/renderers/code'
 import type {
   MarkdownImage,
@@ -18,7 +18,7 @@ import { useI18n } from '../../core/i18n'
 import { setReader, useLocal } from '../../core/prefs'
 import { resolveLink } from '../../model/files/paths'
 import { SourceTools, SourceView } from './code-file'
-import { FilePage, type FileViewProps, Reading, TOOL_ICON, TOOL_ON, useTabScroll } from './file-page'
+import { FilePage, type FileViewProps, Reading, TOOL_ON, useTabScroll } from './file-page'
 
 // The Markdown libraries load with the first document rendered, and the Aa panel with them.
 const MarkdownRenderer = lazy(() =>
@@ -124,7 +124,7 @@ export function MarkdownFile({ shell, text, rel, hrefOf, asset }: FileViewProps)
           className={TOOL_ON}
           onClick={() => setOutlineOpen(!outlineOpen)}
         >
-          <ListTree {...TOOL_ICON} />
+          <ListTree {...SMALL_ICON} />
         </IconButton>
       ) : null}
       {mode === 'rendered' ? (

@@ -4,6 +4,7 @@
 import { Popover } from '@base-ui/react/popover'
 import { Check, Type } from 'lucide-react'
 import { type CSSProperties, type ReactNode, useId } from 'react'
+import { SMALL_ICON } from '../../icon-button'
 import { Segmented } from '../../segmented'
 import {
   FONT_SIZE,
@@ -45,7 +46,7 @@ export function AppearanceControl({
         title={labels.appearance}
         className="inline-flex size-6 flex-none cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-muted hover:bg-raised-2 hover:text-text data-popup-open:bg-raised-2 data-popup-open:text-text focus-visible:outline-2 focus-visible:outline-accent"
       >
-        <Type size={14} strokeWidth={1.5} absoluteStrokeWidth />
+        <Type {...SMALL_ICON} />
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Positioner sideOffset={6} align="end" className="z-50 outline-none">

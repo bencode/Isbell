@@ -3,14 +3,14 @@
 
 import { ExternalLink, Shield } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { iconButtonClass } from '../../components/icon-button'
+import { iconButtonClass, SMALL_ICON } from '../../components/icon-button'
 import type { CodeRendererHandle } from '../../components/renderers/code'
 import { HtmlRenderer } from '../../components/renderers/html'
 import { Segmented } from '../../components/segmented'
 import { Tip } from '../../components/tip'
 import { useI18n } from '../../core/i18n'
 import { SourceTools, SourceView } from './code-file'
-import { FilePage, type FileViewProps, TOOL_ICON } from './file-page'
+import { FilePage, type FileViewProps } from './file-page'
 
 type Mode = 'preview' | 'source'
 
@@ -40,7 +40,7 @@ export function HtmlFile({ shell, text, rel, asset, apartHref }: FileViewProps) 
               aria-label={t('files.sandboxed')}
               className="inline-grid size-6 flex-none place-items-center text-muted"
             >
-              <Shield {...TOOL_ICON} />
+              <Shield {...SMALL_ICON} />
             </span>
           </Tip>
           <Tip label={t('files.openApart')}>
@@ -51,7 +51,7 @@ export function HtmlFile({ shell, text, rel, asset, apartHref }: FileViewProps) 
               aria-label={t('files.openApart')}
               className={iconButtonClass('small')}
             >
-              <ExternalLink {...TOOL_ICON} />
+              <ExternalLink {...SMALL_ICON} />
             </a>
           </Tip>
         </>

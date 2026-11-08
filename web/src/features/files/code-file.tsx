@@ -2,11 +2,11 @@
 
 import { Search, WrapText } from 'lucide-react'
 import { lazy, type RefObject, Suspense, useMemo, useRef } from 'react'
-import { IconButton } from '../../components/icon-button'
+import { IconButton, SMALL_ICON } from '../../components/icon-button'
 import type { CodeRendererHandle } from '../../components/renderers/code'
 import { type Key, useI18n } from '../../core/i18n'
 import { toggleWrap, useLocal } from '../../core/prefs'
-import { FilePage, type FileViewProps, Reading, TOOL_ICON, TOOL_ON, useTabScroll } from './file-page'
+import { FilePage, type FileViewProps, Reading, TOOL_ON, useTabScroll } from './file-page'
 
 // CodeMirror loads with the first file shown as source; each grammar with its first file.
 const CodeRenderer = lazy(() =>
@@ -60,7 +60,7 @@ export function SourceTools({ source }: { source: RefObject<CodeRendererHandle |
   return (
     <>
       <IconButton label={t('files.findInFile')} size="small" onClick={() => source.current?.openSearch()}>
-        <Search {...TOOL_ICON} />
+        <Search {...SMALL_ICON} />
       </IconButton>
       <IconButton
         label={t('files.wrap')}
@@ -69,7 +69,7 @@ export function SourceTools({ source }: { source: RefObject<CodeRendererHandle |
         className={TOOL_ON}
         onClick={toggleWrap}
       >
-        <WrapText {...TOOL_ICON} />
+        <WrapText {...SMALL_ICON} />
       </IconButton>
     </>
   )

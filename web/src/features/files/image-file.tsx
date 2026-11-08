@@ -3,7 +3,7 @@
 import { Maximize2, Minus, Plus } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { Button } from '../../components/button'
-import { IconButton } from '../../components/icon-button'
+import { IconButton, SMALL_ICON } from '../../components/icon-button'
 import type { CodeRendererHandle } from '../../components/renderers/code'
 import { ImageRenderer } from '../../components/renderers/image'
 import { Segmented } from '../../components/segmented'
@@ -11,7 +11,7 @@ import { useI18n } from '../../core/i18n'
 import { decodeText } from '../../model/files/content'
 import { useObjectUrl } from '../../utils/object-url'
 import { SourceTools, SourceView } from './code-file'
-import { FilePage, type FileShell, Reading, TOOL_ICON, TOOL_ON } from './file-page'
+import { FilePage, type FileShell, Reading, TOOL_ON } from './file-page'
 
 const ZOOM_MIN = 0.25
 const ZOOM_MAX = 4
@@ -59,7 +59,7 @@ export function ImageFile({ shell, bytes, type }: Props) {
             disabled={!fit && zoom <= ZOOM_MIN}
             onClick={() => zoomTo(zoom - ZOOM_STEP)}
           >
-            <Minus {...TOOL_ICON} />
+            <Minus {...SMALL_ICON} />
           </IconButton>
           <Button
             size="tiny"
@@ -76,7 +76,7 @@ export function ImageFile({ shell, bytes, type }: Props) {
             disabled={!fit && zoom >= ZOOM_MAX}
             onClick={() => zoomTo(zoom + ZOOM_STEP)}
           >
-            <Plus {...TOOL_ICON} />
+            <Plus {...SMALL_ICON} />
           </IconButton>
           <IconButton
             label={t('files.fit')}
@@ -85,7 +85,7 @@ export function ImageFile({ shell, bytes, type }: Props) {
             className={TOOL_ON}
             onClick={() => setFit(true)}
           >
-            <Maximize2 {...TOOL_ICON} />
+            <Maximize2 {...SMALL_ICON} />
           </IconButton>
         </>
       )}

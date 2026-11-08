@@ -5,19 +5,16 @@
 import { Download, RotateCw } from 'lucide-react'
 import { createContext, type ReactNode, useContext } from 'react'
 import { Button } from '../../components/button'
-import { IconButton } from '../../components/icon-button'
+import { IconButton, SMALL_ICON } from '../../components/icon-button'
 import { useI18n } from '../../core/i18n'
 import { formatSize } from '../../model/files/content'
 import type { FileRead } from '../../model/files/remote'
 import { since, useNow } from '../../utils/time'
 
-/** The icons in the bar's tools. */
-export const TOOL_ICON = { size: 14, strokeWidth: 1.5, absoluteStrokeWidth: true }
-
 /** Marks a tool that is on. */
 export const TOOL_ON = 'aria-pressed:bg-selected aria-pressed:text-text'
 
-/** The file a view shows, and what its header does. */
+/** The file a view shows, and what its bar does. */
 export type FileShell = {
   name: string
   /** The directory it is in, relative to the root, for the bar. */
@@ -63,10 +60,10 @@ export function FilePage({
         {tools}
         <span className="mx-[5px] h-3.5 w-px flex-none bg-line" />
         <IconButton label={t('files.reload')} size="small" onClick={shell.again}>
-          <RotateCw {...TOOL_ICON} />
+          <RotateCw {...SMALL_ICON} />
         </IconButton>
         <IconButton label={t('files.download')} size="small" onClick={shell.download}>
-          <Download {...TOOL_ICON} />
+          <Download {...SMALL_ICON} />
         </IconButton>
       </header>
       {shell.saveError ? (
@@ -77,18 +74,19 @@ export function FilePage({
   )
 }
 
-/** Its directory, which gives way first and from its start, then its name, how large and when it
- * changed; on its own, as the clock ticks it. */
+/** Its directory, which gives way first and from its start (shrinking so much more that the name
+ * loses not a fraction of a pixel until it is gone), then its name; how large and when it changed;
+ * on its own, as the clock ticks it. */
 function Crumb({ shell: { name, dir, where, file } }: { shell: FileShell }) {
   const now = useNow()
   return (
     <span className="flex min-w-0 items-baseline gap-2 whitespace-nowrap" title={where}>
       {dir ? (
-        <span dir="rtl" className="min-w-0 truncate font-mono text-[11.5px] text-faint">
+        <span dir="rtl" className="min-w-0 shrink-[99999] truncate font-mono text-[11.5px] text-faint">
           <bdi>{dir}</bdi>
         </span>
       ) : null}
-      <b className="max-w-[60%] flex-none truncate text-[12.5px] font-semibold">{name}</b>
+      <b className="min-w-0 truncate text-[12.5px] font-semibold">{name}</b>
       {file ? (
         <span className="flex-none font-mono text-[11px] text-faint">
           {formatSize(file.size)}

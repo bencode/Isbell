@@ -3,6 +3,7 @@ import { type Side, Tip } from '../tip'
 
 /** What every icon on a control takes, so strokes are the same at any size. */
 export const ICON = { size: 16, strokeWidth: 1.5, absoluteStrokeWidth: true }
+export const SMALL_ICON = { ...ICON, size: 14 }
 
 type Props = ComponentProps<'button'> & {
   /** Named for screen readers, and in a tooltip, by this. */
