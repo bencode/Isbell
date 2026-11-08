@@ -6,9 +6,10 @@ Reach the AI agents on your own Macs from any browser. Isbell connects to
 
 **Open the app: <https://isbell.fmap.dev>**
 
-![The board: an agent asking, two just finished, one running and one standing by](docs/board.png)
+![The workbench: projects and files on the left, a session's chat in the middle, and every running session on the right](docs/workbench.png)
 
-Status: early development, on Macs with Apple silicon.
+Status: early development, on Macs with Apple silicon. Made for a computer's screen: a phone shows
+the same layout for now.
 
 ## Set up
 
@@ -23,19 +24,22 @@ It never sees your space key.
 
 ## Features
 
-- **Board**: every agent on all your machines, in four lanes: Asking, Just finished, Running and
-  Standing by. Answer an agent from its card.
-- **Projects**: agents and shells grouped by the git repository they work in, each project with an
-  overview and its files.
+- **Workbench**: your projects, each one's sessions and files, and a tab for whatever you open, in
+  one window that remembers where you were.
+- **Active sessions**: every agent on all your machines, the ones asking first, then those just
+  finished and those running.
+- **Look without leaving**: open a session in a drawer over your work, and answer the agent in its
+  own terminal there. ⌘K finds any agent.
+- **Projects**: agents and shells grouped by the git repository they work in.
 - **Chat**: a session reads as turns, from the agent's own record; reply, or answer what it asks
   in its terminal ([Codex needs `--no-daemon`](docs/setup.md)).
-- **Terminal**: watch or take over any pane, in the browser.
+- **Terminal**: work in any pane from the browser; paste or drop in a file to hand it to the agent.
 - **Files**: read what the agents write. Markdown in a theme of your choosing, with its outline,
   math and diagrams; source with highlighting; images; HTML pages, run apart from the app, here or
   in a tab of their own. Anything else downloads.
-- **New**: start an agent with its task, or a shell, in a project or any directory, on any machine.
+- **History**: past sessions by day, to read again or resume.
+- **New**: start an agent or a shell in a project, on any machine.
 - **Notifications** when an agent asks or finishes, while Isbell is open in a tab.
-- **Phones** get a layout of their own.
 - **CLI**: the same from a terminal, plus copying files between machines.
 
 ## How it works

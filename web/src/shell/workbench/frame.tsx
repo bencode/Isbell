@@ -22,6 +22,7 @@ import { toggleRail, useLocal } from '../../core/prefs'
 import { useSpace, useSpaceView } from '../../core/space'
 import { ActiveSessions } from './active-sessions'
 import { BAR } from './bar'
+import { CommandPalette } from './command-palette'
 import { ListColumn } from './list-column'
 import { Peek } from './peek'
 import { ProjectsRail } from './projects-rail'
@@ -206,6 +207,7 @@ export function Frame({ inProject }: { inProject: boolean }) {
         </div>
       </div>
       <Overlays overlay={overlay} setOverlay={setOverlay} />
+      <CommandPalette />
     </Tooltip.Provider>
   )
 }
