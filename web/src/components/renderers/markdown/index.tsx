@@ -24,7 +24,7 @@ export type { OutlineLayout } from './outline'
 // GitHub's heading ids, so the document's ids never shadow the page's own (a heading "Root").
 const ID_PREFIX = 'user-content-'
 /** Narrower than this, the outline goes over the document rather than beside it. */
-const BESIDE_MIN_PX = 640
+const BESIDE_MIN_PX = 880
 const SERIF = '"Iowan Old Style", Charter, "Source Han Serif SC", "Songti SC", Georgia, serif'
 
 type Props = {

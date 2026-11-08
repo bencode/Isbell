@@ -2,11 +2,11 @@
 
 import { Search, WrapText } from 'lucide-react'
 import { lazy, type RefObject, Suspense, useMemo, useRef } from 'react'
-import { Button } from '../../components/button'
+import { IconButton } from '../../components/icon-button'
 import type { CodeRendererHandle } from '../../components/renderers/code'
 import { type Key, useI18n } from '../../core/i18n'
 import { toggleWrap, useLocal } from '../../core/prefs'
-import { FilePage, type FileViewProps, Reading, useTabScroll } from './file-page'
+import { FilePage, type FileViewProps, Reading, TOOL_ICON, TOOL_ON, useTabScroll } from './file-page'
 
 // CodeMirror loads with the first file shown as source; each grammar with its first file.
 const CodeRenderer = lazy(() =>
@@ -59,26 +59,18 @@ export function SourceTools({ source }: { source: RefObject<CodeRendererHandle |
   const { wrap } = useLocal().layout
   return (
     <>
-      <Button
+      <IconButton label={t('files.findInFile')} size="small" onClick={() => source.current?.openSearch()}>
+        <Search {...TOOL_ICON} />
+      </IconButton>
+      <IconButton
+        label={t('files.wrap')}
         size="small"
-        variant="quiet"
-        aria-label={t('files.findInFile')}
-        title={t('files.findInFile')}
-        onClick={() => source.current?.openSearch()}
-      >
-        <Search size={15} />
-      </Button>
-      <Button
-        size="small"
-        variant="quiet"
         aria-pressed={wrap}
-        aria-label={t('files.wrap')}
-        title={t('files.wrap')}
-        className="aria-pressed:bg-raised-2 aria-pressed:text-text"
+        className={TOOL_ON}
         onClick={toggleWrap}
       >
-        <WrapText size={15} />
-      </Button>
+        <WrapText {...TOOL_ICON} />
+      </IconButton>
     </>
   )
 }

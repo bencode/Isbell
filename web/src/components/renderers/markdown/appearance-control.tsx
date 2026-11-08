@@ -43,9 +43,9 @@ export function AppearanceControl({
       <Popover.Trigger
         aria-label={labels.appearance}
         title={labels.appearance}
-        className="inline-flex size-[30px] cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-muted hover:bg-raised-2 hover:text-text data-popup-open:bg-raised-2 data-popup-open:text-text focus-visible:outline-2 focus-visible:outline-accent"
+        className="inline-flex size-6 flex-none cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-muted hover:bg-raised-2 hover:text-text data-popup-open:bg-raised-2 data-popup-open:text-text focus-visible:outline-2 focus-visible:outline-accent"
       >
-        <Type size={15} />
+        <Type size={14} strokeWidth={1.5} absoluteStrokeWidth />
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Positioner sideOffset={6} align="end" className="z-50 outline-none">

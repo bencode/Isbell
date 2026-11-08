@@ -1,15 +1,16 @@
 // An HTML file: run apart from the app with the files beside it, here or in a tab of its own; or its
 // source.
 
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, Shield } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { buttonClass } from '../../components/button'
+import { iconButtonClass } from '../../components/icon-button'
 import type { CodeRendererHandle } from '../../components/renderers/code'
 import { HtmlRenderer } from '../../components/renderers/html'
 import { Segmented } from '../../components/segmented'
+import { Tip } from '../../components/tip'
 import { useI18n } from '../../core/i18n'
 import { SourceTools, SourceView } from './code-file'
-import { FilePage, type FileViewProps } from './file-page'
+import { FilePage, type FileViewProps, TOOL_ICON } from './file-page'
 
 type Mode = 'preview' | 'source'
 
@@ -20,6 +21,7 @@ export function HtmlFile({ shell, text, rel, asset, apartHref }: FileViewProps) 
   const tools = (
     <>
       <Segmented
+        compact
         label={t('files.mode')}
         value={mode}
         onChange={setMode}
@@ -31,16 +33,28 @@ export function HtmlFile({ shell, text, rel, asset, apartHref }: FileViewProps) 
       {mode === 'source' ? (
         <SourceTools source={source} />
       ) : (
-        <a
-          href={apartHref}
-          target="_blank"
-          rel="noopener"
-          aria-label={t('files.openApart')}
-          title={t('files.openApart')}
-          className={buttonClass('quiet', '', 'small')}
-        >
-          <ExternalLink size={15} />
-        </a>
+        <>
+          <Tip label={t('files.sandboxed')}>
+            <span
+              role="img"
+              aria-label={t('files.sandboxed')}
+              className="inline-grid size-6 flex-none place-items-center text-muted"
+            >
+              <Shield {...TOOL_ICON} />
+            </span>
+          </Tip>
+          <Tip label={t('files.openApart')}>
+            <a
+              href={apartHref}
+              target="_blank"
+              rel="noopener"
+              aria-label={t('files.openApart')}
+              className={iconButtonClass('small')}
+            >
+              <ExternalLink {...TOOL_ICON} />
+            </a>
+          </Tip>
+        </>
       )}
     </>
   )
@@ -49,12 +63,7 @@ export function HtmlFile({ shell, text, rel, asset, apartHref }: FileViewProps) 
       {mode === 'source' ? (
         <SourceView ref={source} text={text} name={shell.name} />
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col">
-          <p className="m-0 border-b border-line px-5 py-1.5 text-[12px] text-faint">
-            {t('files.sandboxed')}
-          </p>
-          <HtmlRenderer entry={rel} title={shell.name} read={asset} />
-        </div>
+        <HtmlRenderer entry={rel} title={shell.name} read={asset} />
       )}
     </FilePage>
   )

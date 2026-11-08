@@ -4,7 +4,7 @@
 import { ListTree } from 'lucide-react'
 import { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { Button } from '../../components/button'
+import { IconButton } from '../../components/icon-button'
 import type { CodeRendererHandle } from '../../components/renderers/code'
 import type {
   MarkdownImage,
@@ -18,7 +18,7 @@ import { useI18n } from '../../core/i18n'
 import { setReader, useLocal } from '../../core/prefs'
 import { resolveLink } from '../../model/files/paths'
 import { SourceTools, SourceView } from './code-file'
-import { FilePage, type FileViewProps, Reading, useTabScroll } from './file-page'
+import { FilePage, type FileViewProps, Reading, TOOL_ICON, TOOL_ON, useTabScroll } from './file-page'
 
 // The Markdown libraries load with the first document rendered, and the Aa panel with them.
 const MarkdownRenderer = lazy(() =>
@@ -106,6 +106,7 @@ export function MarkdownFile({ shell, text, rel, hrefOf, asset }: FileViewProps)
   const tools = (
     <>
       <Segmented
+        compact
         label={t('files.mode')}
         value={mode}
         onChange={setMode}
@@ -116,17 +117,15 @@ export function MarkdownFile({ shell, text, rel, hrefOf, asset }: FileViewProps)
       />
       {mode === 'source' ? <SourceTools source={source} /> : null}
       {mode === 'rendered' && outline.available ? (
-        <Button
+        <IconButton
+          label={outlineOpen ? t('files.outlineHide') : t('files.outlineShow')}
           size="small"
-          variant="quiet"
           aria-pressed={outlineOpen}
-          aria-label={outlineOpen ? t('files.outlineHide') : t('files.outlineShow')}
-          title={outlineOpen ? t('files.outlineHide') : t('files.outlineShow')}
-          className="aria-pressed:bg-raised-2 aria-pressed:text-text"
+          className={TOOL_ON}
           onClick={() => setOutlineOpen(!outlineOpen)}
         >
-          <ListTree size={15} />
-        </Button>
+          <ListTree {...TOOL_ICON} />
+        </IconButton>
       ) : null}
       {mode === 'rendered' ? (
         <Suspense>

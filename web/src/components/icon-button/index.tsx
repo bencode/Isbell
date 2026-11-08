@@ -14,16 +14,15 @@ type Props = ComponentProps<'button'> & {
 
 const SIZE = { normal: 'size-7', small: 'size-6', tiny: 'size-5' }
 
+/** Its look, for anything else that is only an icon, such as a link. */
+export const iconButtonClass = (size: keyof typeof SIZE = 'normal', extra = '') =>
+  `inline-grid flex-none ${SIZE[size]} cursor-pointer place-items-center rounded-md border-0 bg-transparent p-0 text-muted transition-colors duration-75 hover:bg-hover hover:text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent active:bg-press disabled:cursor-default disabled:bg-transparent disabled:opacity-55 ${extra}`
+
 /** A control that is only an icon: bare at rest, ink under it when pointed at or pressed. */
 export function IconButton({ label, side = 'bottom', size = 'normal', className = '', ...props }: Props) {
   return (
     <Tip label={label} side={side}>
-      <button
-        type="button"
-        aria-label={label}
-        className={`inline-grid flex-none ${SIZE[size]} cursor-pointer place-items-center rounded-md border-0 bg-transparent p-0 text-muted transition-colors duration-75 hover:bg-hover hover:text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent active:bg-press disabled:cursor-default disabled:bg-transparent disabled:opacity-55 ${className}`}
-        {...props}
-      />
+      <button type="button" aria-label={label} className={iconButtonClass(size, className)} {...props} />
     </Tip>
   )
 }

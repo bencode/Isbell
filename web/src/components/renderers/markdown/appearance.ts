@@ -17,7 +17,7 @@ export const FONT_SIZE = { min: 12, max: 20 }
 
 export const DEFAULT_APPEARANCE: ReadingAppearance = {
   theme: 'auto',
-  fontSize: 16,
+  fontSize: 15,
   width: 'focused',
   font: 'sans',
 }

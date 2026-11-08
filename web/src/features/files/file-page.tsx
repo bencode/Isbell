@@ -1,19 +1,28 @@
-// What every file view shares: a header saying what the file is and when it changed, with the
+// What every file view shares: a bar saying what the file is and when it changed, with the
 // view's own tools and the ones every file has (read again, download); the scroll its tab had, for
 // the views (which scroll themselves) to go back to; and the notice for a file that is not shown.
 
 import { Download, RotateCw } from 'lucide-react'
 import { createContext, type ReactNode, useContext } from 'react'
 import { Button } from '../../components/button'
+import { IconButton } from '../../components/icon-button'
 import { useI18n } from '../../core/i18n'
 import { formatSize } from '../../model/files/content'
 import type { FileRead } from '../../model/files/remote'
 import { since, useNow } from '../../utils/time'
 
+/** The icons in the bar's tools. */
+export const TOOL_ICON = { size: 14, strokeWidth: 1.5, absoluteStrokeWidth: true }
+
+/** Marks a tool that is on. */
+export const TOOL_ON = 'aria-pressed:bg-selected aria-pressed:text-text'
+
 /** The file a view shows, and what its header does. */
 export type FileShell = {
   name: string
-  /** Where it is, for the header. */
+  /** The directory it is in, relative to the root, for the bar. */
+  dir: string
+  /** Where it is in full, on pointing at the bar's name of it. */
   where: string
   /** Undefined while it is first read. */
   file: FileRead | undefined
@@ -48,47 +57,44 @@ export function FilePage({
   const t = useI18n()
   return (
     <section className="flex min-w-0 flex-1 flex-col">
-      {/* One line: where the file is gives way first, cut short, before its name or the tools. */}
-      <header className="flex min-h-[48px] flex-none items-center gap-3 border-b border-line px-5 py-2">
-        <b className="max-w-2/5 flex-none truncate">{shell.name}</b>
-        <Facts where={shell.where} file={shell.file} />
-        <span className="flex-1" />
+      <header className="flex h-[34px] flex-none items-center gap-0.5 border-b border-line pr-2 pl-3 text-xs">
+        <Crumb shell={shell} />
+        <span className="min-w-3 flex-1" />
         {tools}
-        <Button
-          size="icon"
-          variant="quiet"
-          onClick={shell.again}
-          aria-label={t('files.reload')}
-          title={t('files.reload')}
-        >
-          <RotateCw size={14} />
-        </Button>
-        <Button
-          size="icon"
-          variant="quiet"
-          onClick={shell.download}
-          aria-label={t('files.download')}
-          title={t('files.download')}
-        >
-          <Download size={14} />
-        </Button>
+        <span className="mx-[5px] h-3.5 w-px flex-none bg-line" />
+        <IconButton label={t('files.reload')} size="small" onClick={shell.again}>
+          <RotateCw {...TOOL_ICON} />
+        </IconButton>
+        <IconButton label={t('files.download')} size="small" onClick={shell.download}>
+          <Download {...TOOL_ICON} />
+        </IconButton>
       </header>
       {shell.saveError ? (
-        <p className="m-0 px-5 py-1.5 text-[12.5px] text-danger">{shell.saveError}</p>
+        <p className="m-0 px-3 py-1.5 text-[12.5px] text-danger">{shell.saveError}</p>
       ) : null}
       {children}
     </section>
   )
 }
 
-/** Where the file is, how large, and when it changed; on its own, as the clock ticks it. */
-function Facts({ where, file }: { where: string; file: FileRead | undefined }) {
+/** Its directory, which gives way first and from its start, then its name, how large and when it
+ * changed; on its own, as the clock ticks it. */
+function Crumb({ shell: { name, dir, where, file } }: { shell: FileShell }) {
   const now = useNow()
   return (
-    <span className="min-w-0 flex-[0_1_auto] truncate font-mono text-[11.5px] text-faint" title={where}>
-      {where}
-      {file ? ` · ${formatSize(file.size)}` : ''}
-      {file?.mtime === undefined ? '' : ` · ${since(file.mtime, now)}`}
+    <span className="flex min-w-0 items-baseline gap-2 whitespace-nowrap" title={where}>
+      {dir ? (
+        <span dir="rtl" className="min-w-0 truncate font-mono text-[11.5px] text-faint">
+          <bdi>{dir}</bdi>
+        </span>
+      ) : null}
+      <b className="max-w-[60%] flex-none truncate text-[12.5px] font-semibold">{name}</b>
+      {file ? (
+        <span className="flex-none font-mono text-[11px] text-faint">
+          {formatSize(file.size)}
+          {file.mtime === undefined ? '' : ` · ${since(file.mtime, now)}`}
+        </span>
+      ) : null}
     </span>
   )
 }

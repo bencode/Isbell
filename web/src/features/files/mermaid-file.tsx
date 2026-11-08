@@ -21,6 +21,7 @@ export function MermaidFile({ shell, text }: FileViewProps) {
   const tools = (
     <>
       <Segmented
+        compact
         label={t('files.mode')}
         value={mode}
         onChange={setMode}

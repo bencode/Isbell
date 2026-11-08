@@ -39,6 +39,10 @@
     }
   }
   --font-sans: "Instrument Sans Variable", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+/* Static, unlike the rest: stylesheets read this one as a variable, which inline never defines. */
+@theme static {
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 

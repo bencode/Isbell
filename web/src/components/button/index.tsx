@@ -14,12 +14,13 @@ const VARIANTS: Record<Variant, string> = {
   danger: 'border-danger bg-danger text-accent-ink hover:enabled:brightness-110',
 }
 
-export type Size = 'text' | 'small' | 'icon'
+export type Size = 'text' | 'small' | 'tiny' | 'icon'
 
 // Size owns height and padding, so callers never pass classes that fight these.
 const SIZES: Record<Size, string> = {
   text: 'h-[34px] px-3.5',
   small: 'h-7 px-3',
+  tiny: 'h-6 px-1.5',
   icon: 'h-[34px] w-[34px] justify-center',
 }
 

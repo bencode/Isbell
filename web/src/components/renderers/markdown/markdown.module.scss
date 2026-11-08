@@ -22,6 +22,7 @@
   // The plugin's spacing is in em, so it follows the size.
   font-size: var(--reader-font-size);
   font-family: var(--reader-font);
+  line-height: 1.65;
   max-width: 74ch;
   margin: 0 auto;
   padding: 32px 36px 80px;
@@ -30,6 +31,43 @@
     overflow-x: auto;
     overflow-y: hidden;
     padding: 4px 0;
+  }
+
+  // Without weight of their own, so the wide layout's margins below still hold.
+  :where(h1) {
+    margin-bottom: 0.55em;
+    font-size: 1.75em;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+  }
+  :where(h2) {
+    margin-top: 1.75em;
+    margin-bottom: 0.65em;
+    font-size: 1.27em;
+    line-height: 1.3;
+  }
+  :where(h3) {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    font-size: 1.1em;
+    line-height: 1.4;
+  }
+  :where(p) {
+    margin-top: 0.8em;
+    margin-bottom: 0.8em;
+  }
+
+  :not(pre) > code {
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+    background: var(--raised-2);
+    font-size: 0.87em;
+    font-weight: 400;
+
+    &::before,
+    &::after {
+      content: none;
+    }
   }
 }
 
