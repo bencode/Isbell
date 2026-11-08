@@ -108,7 +108,7 @@ export function SessionDock({
   session,
   onDraft,
   onSent,
-}: Parts & { onDraft: () => void; onSent: (text: string) => void }) {
+}: Omit<Parts, 'state'> & { onDraft: () => void; onSent: (text: string) => void }) {
   const t = useI18n()
   if (session.status === 'blocked')
     return (
