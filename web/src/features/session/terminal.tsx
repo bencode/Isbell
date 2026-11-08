@@ -50,23 +50,24 @@ export function Terminal({
       </div>
       {/* Of a fixed height: a taller one would shrink the terminal, and the pane with it. */}
       <footer className="flex h-8 flex-none items-center gap-4 border-t border-line px-4 font-mono text-xs text-faint">
-        <span>
+        <span className="truncate">
           {state.phase === 'opening' ? t('terminal.opening') : state.via ? t(`via.${state.via}`) : ''}
         </span>
-        <span>{t('terminal.control')}</span>
+        <span className="truncate">{t('terminal.control')}</span>
         {state.size ? (
-          <span>
+          <span className="truncate">
             {state.size.cols}×{state.size.rows}
           </span>
         ) : null}
-        <div className="ml-auto flex min-w-0 items-center gap-2">
+        {/* Short of room, the hint gives way first, and the paperclip stays. */}
+        <div className="ml-auto flex min-w-6 shrink-[100] items-center justify-end gap-2 overflow-hidden">
           <div className="max-h-[26px] min-w-0 overflow-hidden">
             <Attachments items={files.items} onRemove={files.remove} />
           </div>
           {files.problem ? <span className="truncate text-danger">{files.problem}</span> : null}
           {files.taken ? (
             <>
-              <span className="flex-none">{t('terminal.sendFiles')}</span>
+              <span className="truncate">{t('terminal.sendFiles')}</span>
               <PickFiles onPick={files.add} />
             </>
           ) : null}

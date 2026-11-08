@@ -64,7 +64,7 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
   const [state, setState] = useState<TerminalState>({ phase: 'opening' })
   // The pane takes one controller at a time: an attach waits until the one before it has let go.
   const previous = useRef<Promise<void>>(Promise.resolve())
-  const current = useRef<XTerm | null>(null)
+  const xterm = useRef<XTerm | null>(null)
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `attempt` is how Reconnect re-attaches; `attach` reads only what is listed, and refs.
   useEffect(() => {
@@ -106,7 +106,7 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
     term.open(host)
     fit.fit()
     term.focus()
-    current.current = term
+    xterm.current = term
     setState({ phase: 'opening' })
 
     let live: Terminal | null = null
@@ -168,7 +168,7 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
       typed.dispose()
       binary.dispose()
       previous.current = attached.then(t => t?.close())
-      current.current = null
+      xterm.current = null
       term.dispose()
     }
   }
@@ -178,8 +178,8 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
     reconnect: () => setAttempt(n => n + 1),
     /** Pastes `text` at the cursor, as the user's own paste would, and takes the keys. */
     paste: (text: string) => {
-      current.current?.paste(text)
-      current.current?.focus()
+      xterm.current?.paste(text)
+      xterm.current?.focus()
     },
   }
 }
