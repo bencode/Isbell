@@ -25,7 +25,7 @@ export function FilesPanel({ rootKey, at }: Props) {
   const t = useI18n()
   const { machines } = useSpaceView()
   const { project, roots, root, settled } = useRootOf(rootKey)
-  const { shown } = useTabRoute()
+  const { shown, open } = useTabRoute()
   const { keep } = useTabActions()
   useEffect(() => {
     if (project && root) rememberFilesAt(project.key, root.key, at)
@@ -34,6 +34,9 @@ export function FilesPanel({ rootKey, at }: Props) {
   const note = filesNote(t, { project, root, settled, machine: project && machineOf(machines, project.mid) })
   if (note || !project || !root) return <p className={NOTE}>{note}</p>
   const prefix = fileTabId(root.key, '')
+  const pinned = new Set(
+    open.filter(tab => tab.pinned && tab.id.startsWith(prefix)).map(tab => tab.id.slice(prefix.length)),
+  )
   return (
     <div className="flex min-h-0 flex-1">
       <Tree
@@ -44,6 +47,7 @@ export function FilesPanel({ rootKey, at }: Props) {
         dir={at.slice(0, -1)}
         current={shown?.startsWith(prefix) ? shown.slice(prefix.length) : ''}
         onPin={rel => keep(fileTabId(root.key, rel))}
+        pinned={pinned}
       />
     </div>
   )

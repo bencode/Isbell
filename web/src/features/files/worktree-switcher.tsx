@@ -49,13 +49,15 @@ export function WorktreeSwitcher({ project, roots, root }: Props) {
 
   return (
     <Popover.Root open={open} onOpenChange={toggle}>
-      <Popover.Trigger className="flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-md border border-line bg-raised px-2 py-1.5 text-left hover:border-line-strong hover:bg-raised-2 focus-visible:outline-2 focus-visible:outline-accent data-popup-open:border-accent data-popup-open:bg-raised-2">
-        <GitBranch size={15} className="flex-none text-muted" />
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-[13px] font-semibold">{branchOf(root)}</span>
+      <Popover.Trigger className="flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-md border border-line bg-raised h-[30px] px-2 text-left hover:border-line-strong hover:bg-raised-2 focus-visible:outline-2 focus-visible:outline-accent data-popup-open:border-accent data-popup-open:bg-raised-2">
+        <GitBranch size={14} className="flex-none text-muted" />
+        <span title={branchOf(root)} className="min-w-0 max-w-[60%] truncate text-[13px] font-semibold">
+          {branchOf(root)}
+        </span>
+        <span className="flex min-w-0 flex-1 justify-end">
           <CutPath path={root.display} />
         </span>
-        <ChevronsUpDown size={14} className="flex-none text-muted" />
+        <ChevronsUpDown size={13} className="flex-none text-muted" />
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Positioner sideOffset={6} align="start" className="z-50 outline-none">
