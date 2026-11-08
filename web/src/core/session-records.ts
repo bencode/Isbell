@@ -59,7 +59,10 @@ const EMPTY: Loaded = { full: false, read: 0, older: [], running: new Map(), bus
 /** By `dirKey(mid, path)` of the project. */
 const known = new Map<string, Loaded>()
 /** The session each pane ran, as last read, by `dirKey(mid, paneId)`. */
-const panes = new Map<string, { agent: string; id: string }>()
+/** A session a pane runs; `file`: the file herdr found it kept in, for a record that does not say. */
+export type Ran = { agent: string; id: string; file?: string }
+
+const panes = new Map<string, Ran>()
 const reading = new Set<string>()
 /** Asked to read while a read was out: what to read with once it is over. */
 const again = new Map<string, () => void>()
@@ -129,12 +132,12 @@ async function guessCodex(call: Caller, mid: string, paneId: string, cwd: string
  * `guessIn` (see guessCodex), noted for the pane; none when it cannot be read. */
 async function notePane(call: Caller, mid: string, paneId: string, kind: string, guessIn?: string) {
   try {
-    const said = (await agentNote(call, mid, paneId)).session
+    const { session: said, file } = await agentNote(call, mid, paneId)
     const id = said ?? (guessIn ? await guessCodex(call, mid, paneId, guessIn) : undefined)
     const key = dirKey(mid, paneId)
     const was = panes.get(key)
-    if (id && (was?.agent !== kind || was.id !== id)) {
-      panes.set(key, { agent: kind, id })
+    if (id && (was?.agent !== kind || was.id !== id || was.file !== file)) {
+      panes.set(key, file ? { agent: kind, id, file } : { agent: kind, id })
       for (const listener of listeners) listener()
     }
     return id

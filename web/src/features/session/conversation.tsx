@@ -39,6 +39,9 @@ export function EarlierButton({ onClick, paging }: { onClick: () => void; paging
   )
 }
 
+/** What was sent and is not in the record yet, and when. */
+export type Pending = { text: string; at: number }
+
 const NAMES: Readonly<Record<string, string>> = { claude: 'Claude', codex: 'Codex', pi: 'pi' }
 
 export function Conversation({
@@ -58,8 +61,8 @@ export function Conversation({
   top: ReactNode
   /** That the agent asks, shown under its last turn. */
   asking: ReactNode
-  /** What was sent and is not in the record yet. */
-  pending?: string | undefined
+  /** What was sent and is not in the record yet, in order. */
+  pending?: readonly Pending[]
 }) {
   const t = useI18n()
   const now = useNow(60_000)
@@ -90,12 +93,12 @@ export function Conversation({
         )
       })}
       {turns.length ? null : asking}
-      {pending === undefined ? null : (
-        <section className="mb-[26px] flex flex-col items-end gap-1.5">
-          <You asked={{ ...splitUploads(pending), data: [] }} at={0} />
+      {pending?.map(({ text, at }) => (
+        <section key={at} className="mb-[26px] flex flex-col items-end gap-1.5">
+          <You asked={{ ...splitUploads(text), data: [] }} at={0} />
           <span className="font-mono text-[11px] text-faint">{t('chat.sent')}</span>
         </section>
-      )}
+      ))}
     </div>
   )
 }

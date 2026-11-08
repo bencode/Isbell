@@ -5,10 +5,31 @@
 import { ArrowDown } from 'lucide-react'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { useI18n } from '../../core/i18n'
+import type { Ran } from '../../core/session-records'
+import type { ChatTurn } from '../../model/chat/types'
 import { splitUploads } from '../../model/files/uploads'
 import type { Project, Session } from '../../model/projects'
 import { useKeptScroll } from '../../utils/kept-scroll'
 import { SessionBody, SessionDock, useSession } from './session-parts'
+
+/** What was sent and when, and the record's last turn then (null: none yet; undefined: not read
+ * yet). */
+type Sent = { text: string; at: number; after: string | null | undefined }
+
+/** What was sent that the record does not have yet, in order. Each takes a turn asking after the one
+ * last when it was sent, the one asking the same first; without a turn to tell by, only that one. */
+function unrecorded(sent: Sent[], turns: ChatTurn[] | undefined): Sent[] {
+  const used = new Set<string>()
+  return sent.filter(({ text, after }) => {
+    const from = after ? (turns ?? []).findIndex(turn => turn.id === after) + 1 : 0
+    const asked = (turns ?? []).slice(from).filter(turn => turn.you && !used.has(turn.id))
+    const said = splitUploads(text).text
+    const it =
+      asked.find(turn => turn.you?.text.trim() === said) ?? (after === undefined ? undefined : asked[0])
+    if (it) used.add(it.id)
+    return !it
+  })
+}
 
 // The reading column: as wide as the tab up to a comfortable measure, then centred.
 const COLUMN = 'mx-auto w-full max-w-[760px] px-[22px]'
@@ -23,7 +44,7 @@ export function Chat({
 }: {
   project: Project
   session: Session
-  ran: { agent: string; id: string } | undefined
+  ran: Ran | undefined
   onDraft: () => void
 }) {
   const t = useI18n()
@@ -31,17 +52,9 @@ export function Chat({
   const state = useSession(mid, paneId, session, project, ran)
   const { log } = state
   const asking = session.status === 'blocked'
-  // What was sent, and the record's last turn then (null: none yet; undefined: the record was not
-  // read yet). A new turn after that one is it; without one to tell by, a turn asking the same.
-  const [sent, setSent] = useState<{ text: string; after: string | null | undefined }>()
-  const last = log.turns?.at(-1)
-  const recorded =
-    !!sent &&
-    !!last?.you &&
-    (sent.after === undefined
-      ? last.you.text.trim() === splitUploads(sent.text).text
-      : last.id !== sent.after)
-  const pending = sent && !recorded ? sent.text : undefined
+  const [sent, setSent] = useState<Sent[]>([])
+  const pending = unrecorded(sent, log.turns)
+  const waits = pending.length
   const kept = useKeptScroll<HTMLDivElement>()
   const pinned = useRef(true)
   const [unseen, setUnseen] = useState(false)
@@ -49,10 +62,10 @@ export function Chat({
   // record read further (earlier turns read before it are no news), what was sent, the agent asking.
   useLayoutEffect(() => {
     const el = kept.ref.current
-    if (!el || (!log.end && pending === undefined && !asking)) return
+    if (!el || (!log.end && !waits && !asking)) return
     if (pinned.current) el.scrollTop = el.scrollHeight
     else setUnseen(true)
-  }, [kept.ref, log.end, pending, asking])
+  }, [kept.ref, log.end, waits, asking])
   const toEnd = () => {
     const el = kept.ref.current
     el?.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
@@ -96,7 +109,8 @@ export function Chat({
             onSent={text => {
               // Sent ends at the bottom, to see it go in.
               pinned.current = true
-              setSent({ text, after: log.turns ? (last?.id ?? null) : undefined })
+              const after = log.turns ? (log.turns.at(-1)?.id ?? null) : undefined
+              setSent([...pending, { text, at: Date.now(), after }])
             }}
           />
         </div>

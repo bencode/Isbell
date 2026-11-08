@@ -6,7 +6,7 @@ import { InfoFacts } from '../../components/info-panel'
 import { useChatLog } from '../../core/chat-log'
 import { errorText, useI18n } from '../../core/i18n'
 import { markSeen } from '../../core/prefs'
-import { useSessionRecords } from '../../core/session-records'
+import { type Ran, useSessionRecords } from '../../core/session-records'
 import { RELAY_URL, useSpaceView } from '../../core/space'
 import { type Pane, type Project, paneKey, type Session } from '../../model/projects'
 import { machineOf, type Via } from '../../model/space'
@@ -14,7 +14,7 @@ import { useNow } from '../../utils/time'
 import { AskingBanner } from './asking'
 import { Composer } from './composer'
 import { PathRoot, TerminalLink } from './context'
-import { Conversation, EarlierButton, Marker } from './conversation'
+import { Conversation, EarlierButton, Marker, type Pending } from './conversation'
 import { attachCommand, connectionFacts, paneFacts } from './facts'
 import { useLink } from './use-link'
 
@@ -27,13 +27,14 @@ export function useSession(
   paneId: string,
   session: Session,
   project: Project,
-  ran: { agent: string; id: string } | undefined,
+  ran: Ran | undefined,
 ) {
   const view = useSpaceView()
   const { recent } = useSessionRecords(project)
   // Not a session of the agent the pane ran before this one.
   const own = ran?.agent === session.kind ? ran : undefined
-  const transcript = own && recent?.find(r => r.agent === own.agent && r.id === own.id)?.transcript
+  const transcript =
+    own && (recent?.find(r => r.agent === own.agent && r.id === own.id)?.transcript ?? own.file)
   const log = useChatLog(mid, session.kind, transcript, session.status)
   const methods = machineOf(view.machines, mid)?.state.caps.methods
 
@@ -59,7 +60,7 @@ export function SessionBody({
   session,
   state,
   pending,
-}: Parts & { pending: string | undefined }) {
+}: Parts & { pending: readonly Pending[] }) {
   const t = useI18n()
   const { log, transcript, read } = state
   const asking =

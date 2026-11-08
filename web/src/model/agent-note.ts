@@ -17,6 +17,8 @@ export type AgentNote = {
   /** The agent's own id for the session running in the pane: as its hook reported it, else as herdr
    * made it out. */
   session?: string
+  /** The file herdr found that session kept in (pi's), for a record that does not say. */
+  file?: string
 }
 
 /** The part of herdr's agent info read. */
@@ -40,6 +42,12 @@ function herdrSession(info: AgentInfo): string | undefined {
   if (!s?.value || s.agent !== info.agent) return undefined
   if (s.kind === 'id') return s.value
   return s.kind === 'path' ? baseName(s.value).match(UUID)?.at(-1) : undefined
+}
+
+/** The file herdr found the session of the agent in the pane now kept in. */
+const herdrFile = (info: AgentInfo) => {
+  const s = info.agent_session
+  return s?.kind === 'path' && s.value && s.agent === info.agent ? s.value : undefined
 }
 
 /** The command that started the agent, as its terminal is titled until the agent titles it. */
@@ -81,6 +89,7 @@ export function noteOf(info: AgentInfo): AgentNote {
   const asking = toolUse(token('isbell_wait_tool'), token('isbell_wait_target'))
   const mode = token('isbell_mode')
   const session = token('isbell_session') ?? herdrSession(info)
+  const file = session ? herdrFile(info) : undefined
   return {
     ...(title ? { title } : {}),
     ...(asked ? { asked } : {}),
@@ -88,5 +97,6 @@ export function noteOf(info: AgentInfo): AgentNote {
     ...(asking ? { asking } : {}),
     ...(mode && mode !== 'default' ? { mode } : {}),
     ...(session ? { session } : {}),
+    ...(file ? { file } : {}),
   }
 }

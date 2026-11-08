@@ -77,6 +77,7 @@ test("herdr's session stands in for one the hook has not reported, for the agent
   const file = `/h/.pi/agent/sessions/--w--/2026-11-01T03-29-35-314Z_${id}.jsonl`
   expect(noteOf({ agent: 'pi', agent_session: { agent: 'pi', kind: 'path', value: file } })).toEqual({
     session: id,
+    file,
   })
   expect(noteOf({ agent: 'codex', agent_session: { agent: 'pi', kind: 'path', value: file } })).toEqual({})
   const tokens = { isbell_agent: 'claude', isbell_session: 'reported' }
