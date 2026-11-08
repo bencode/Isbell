@@ -2,7 +2,7 @@
 // typed, the files found there. A project with other worktrees switches between them above the
 // tree. Which folders are open is kept for each directory.
 
-import { RotateCw } from 'lucide-react'
+import { Pin, RotateCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '../../components/button'
 import { errorText, useI18n } from '../../core/i18n'
@@ -33,11 +33,15 @@ type Props = {
   current: string
   /** Keeps a file open, on a double click. */
   onPin: (rel: string) => void
+  /** The files kept open, relative to `root`. */
+  pinned: ReadonlySet<string>
 }
 
-export type Where = { mid: string; root: FilesRoot; current: string; onPin: Props['onPin'] }
+export type Where = Pick<Props, 'mid' | 'root' | 'current' | 'onPin' | 'pinned'>
 
-export function Tree({ mid, project, roots, root, dir, current, onPin }: Props) {
+const HOUR_MS = 3_600_000
+
+export function Tree({ mid, project, roots, root, dir, current, onPin, pinned }: Props) {
   const { key } = root
   const t = useI18n()
   const { call } = useSpace()
@@ -55,15 +59,15 @@ export function Tree({ mid, project, roots, root, dir, current, onPin }: Props) 
   }, [key, current])
 
   const several = roots.length > 1
+  const where = { mid, root, current, onPin, pinned }
   return (
     <aside className="flex min-w-0 flex-1 flex-col bg-side">
-      <div className="flex flex-col gap-2 border-b border-line px-3 py-2.5">
-        <div className="flex min-w-0 items-center gap-2">
-          <b className="truncate">{project.name}</b>
-          {several ? null : (
-            <span className="min-w-0 truncate font-mono text-[11.5px] text-faint">{project.display}</span>
-          )}
-          <span className="flex-1" />
+      <div className="flex flex-col gap-1.5 border-b border-line p-2.5">
+        {several ? <WorktreeSwitcher project={project} roots={roots} root={root} /> : null}
+        <div className="flex min-w-0 items-center gap-1.5">
+          <div className="min-w-0 flex-1">
+            <SearchBox onQuery={setQuery} placeholder={several ? t('files.searchHere') : undefined} />
+          </div>
           <Button
             size="icon"
             variant="quiet"
@@ -77,16 +81,14 @@ export function Tree({ mid, project, roots, root, dir, current, onPin }: Props) 
             <RotateCw size={14} />
           </Button>
         </div>
-        {several ? <WorktreeSwitcher project={project} roots={roots} root={root} /> : null}
-        <SearchBox onQuery={setQuery} placeholder={several ? t('files.searchHere') : undefined} />
       </div>
       <div {...scroll} className="min-h-0 flex-1 overflow-auto px-1.5 py-1.5">
         {/* A new round lists every open folder again. */}
         <div key={round}>
           {query ? (
-            <SearchResults where={{ mid, root, current, onPin }} query={query} />
+            <SearchResults where={where} query={query} />
           ) : (
-            <Level where={{ mid, root, current, onPin }} rel="" depth={0} open={layout.files[key] ?? []} />
+            <Level where={where} rel="" depth={0} open={layout.files[key] ?? []} />
           )}
         </div>
       </div>
@@ -134,8 +136,14 @@ function Level({ where, rel, depth, open }: { where: Where; rel: string; depth: 
               onDoubleClick={() => where.onPin(child)}
               label={entry.name}
               extra={
-                entry.mtime === undefined ? null : (
-                  <span className="flex-none text-[11.5px] text-faint">{since(entry.mtime, now)}</span>
+                where.pinned.has(child) ? (
+                  <Pin size={12} className="flex-none text-faint" />
+                ) : entry.mtime === undefined ? null : (
+                  <span
+                    className={`flex-none font-mono text-[11.5px] tabular-nums ${now - entry.mtime < HOUR_MS ? 'font-medium text-text' : 'text-faint'}`}
+                  >
+                    {since(entry.mtime, now)}
+                  </span>
                 )
               }
             />
@@ -145,6 +153,7 @@ function Level({ where, rel, depth, open }: { where: Where; rel: string; depth: 
           <div key={entry.name}>
             <FolderRow
               depth={depth}
+              name={entry.name}
               open={isOpen}
               onToggle={() => toggleDir(where.root.key, child)}
               label={entry.name}

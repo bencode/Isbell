@@ -103,6 +103,7 @@ function Nodes({ nodes, depth, at }: { nodes: PathNode[]; depth: number; at: Res
       <div key={node.rel}>
         <FolderRow
           depth={depth}
+          name={node.name}
           open={!at.closed.has(node.rel)}
           onToggle={() => at.toggle(node.rel)}
           title={node.rel}
