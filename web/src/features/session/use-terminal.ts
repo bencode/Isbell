@@ -1,10 +1,11 @@
-// An xterm in a tab, attached to a pane through `openTerminal`. Unmounting detaches; the pane keeps
+// An xterm attached to a pane through `openTerminal`. Unmounting detaches; the pane keeps
 // running.
 
 import { FitAddon } from '@xterm/addon-fit'
 import { type ITheme, Terminal as XTerm } from '@xterm/xterm'
 import { type RefObject, useEffect, useRef, useState } from 'react'
 import { useSpace } from '../../core/space'
+import { paneKey } from '../../model/projects'
 import type { Via } from '../../model/space'
 import { openTerminal, type Terminal } from '../../model/terminal'
 
@@ -27,6 +28,9 @@ const fontReady: Promise<void> = document.fonts.load('13px "IBM Plex Mono"').the
 /** Resizing the window fires continuously; the pane is resized once it settles. */
 const RESIZE_SETTLE_MS = 100
 const utf8 = new TextEncoder()
+/** A pane takes one controller at a time: an attach waits until the last one here has let go, in
+ * whichever place held it. */
+const letGo = new Map<string, Promise<unknown>>()
 
 /** The terminal stays on the night page in either theme: programs such as agents pick many of their
  * colors for a dark background, and on paper those fade. Its background is `--term`. Bright black
@@ -62,8 +66,6 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
   const space = useSpace()
   const [attempt, setAttempt] = useState(0)
   const [state, setState] = useState<TerminalState>({ phase: 'opening' })
-  // The pane takes one controller at a time: an attach waits until the one before it has let go.
-  const previous = useRef<Promise<void>>(Promise.resolve())
   const xterm = useRef<XTerm | null>(null)
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `attempt` is how Reconnect re-attaches; `attach` reads only what is listed, and refs.
@@ -111,7 +113,8 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
 
     let live: Terminal | null = null
     let gone = false
-    const attached = previous.current
+    const pane = paneKey(mid, paneId)
+    const attached = (letGo.get(pane) ?? Promise.resolve())
       .then(() =>
         gone
           ? null
@@ -167,7 +170,10 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
       observer.disconnect()
       typed.dispose()
       binary.dispose()
-      previous.current = attached.then(t => t?.close())
+      letGo.set(
+        pane,
+        attached.then(t => t?.close()),
+      )
       xterm.current = null
       term.dispose()
     }

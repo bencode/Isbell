@@ -6,7 +6,7 @@ import { TabsProvider, useTabRoute } from '../../core/tabs'
 import { parseRootKey } from '../../model/files/worktrees'
 import { locate } from '../../model/projects'
 import { projectsSettled } from '../../model/space'
-import { keptQuery } from '../../model/tabs'
+import { keptQuery, withoutPeek } from '../../model/tabs'
 import { projectHref } from '../../utils/hrefs'
 import { addressTo } from './address'
 import { Frame } from './frame'
@@ -70,7 +70,7 @@ function KeepAddress({ project }: { project: string }) {
     if (to) navigate(to, { replace: true })
   }, [to, navigate])
   useEffect(() => {
-    if (!to) rememberProjectAt(project, `${pathname}${search}`)
+    if (!to) rememberProjectAt(project, `${pathname}${withoutPeek(search)}`)
   }, [project, pathname, search, to])
   return null
 }

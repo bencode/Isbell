@@ -6,6 +6,7 @@ import {
   MAX_TABS,
   nextShown,
   noTabs,
+  peekOf,
   pin,
   queryOf,
   replace,
@@ -15,6 +16,8 @@ import {
   tabOf,
   togglePin,
   visit,
+  withoutPeek,
+  withPeek,
   withTab,
   withTerminal,
 } from './tabs'
@@ -176,5 +179,16 @@ describe('tabs', () => {
     expect(withTab(queryOf(search), id)).toBe(search)
     expect(withTab('', null)).toBe('')
     expect(tabOf(search, () => false)).toBeNull()
+  })
+})
+
+describe('the session looked at', () => {
+  it('stays apart from the tab and its own part of the address', () => {
+    const peek = { mid: 'm1', paneId: 'w1/p2', terminal: true }
+    const search = withPeek('?view=terminal&tab=session/m1/w2', peek)
+    expect(peekOf(search)).toEqual(peek)
+    expect(tabOf(search, any)).toBe('session/m1/w2')
+    expect(queryOf(search)).toBe('view=terminal')
+    expect(withoutPeek(search)).toBe('?view=terminal&tab=session/m1/w2')
   })
 })

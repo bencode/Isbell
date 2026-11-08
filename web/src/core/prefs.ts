@@ -29,6 +29,10 @@ export type Layout = {
   filesAt: Record<string, { root: string; rel: string }>
   /** Whether long lines of source wrap. */
   wrap: boolean
+  /** Which sessions the right column shows. */
+  activeFilter: 'all' | 'blocked' | 'working' | 'idle'
+  /** Whether those standing by are unfolded there. */
+  idleOpen: boolean
 }
 
 /** How documents read in the files view. */
@@ -62,6 +66,8 @@ const DEFAULTS: Local = {
     files: {},
     filesAt: {},
     wrap: false,
+    activeFilter: 'all',
+    idleOpen: false,
   },
   reader: { ...DEFAULT_APPEARANCE, outline: true },
   projectTabs: {},
@@ -121,6 +127,11 @@ export function updateLocal(change: (l: Local) => Partial<Local>) {
 }
 
 const getLocal = () => current
+
+export const setActiveFilter = (activeFilter: Layout['activeFilter']) =>
+  updateLocal(l => ({ layout: { ...l.layout, activeFilter } }))
+
+export const toggleIdle = () => updateLocal(l => ({ layout: { ...l.layout, idleOpen: !l.layout.idleOpen } }))
 
 export const toggleRail = () => updateLocal(l => ({ layout: { ...l.layout, rail: !l.layout.rail } }))
 
