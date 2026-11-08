@@ -2,17 +2,14 @@
 // switch between its chat and its terminal; its facts; and ending it.
 
 import { Popover } from '@base-ui/react/popover'
-import { Toggle } from '@base-ui/react/toggle'
-import { ToggleGroup } from '@base-ui/react/toggle-group'
 import { Info, Square } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { IconButton } from '../../components/icon-button'
+import { IconButton, SMALL_ICON } from '../../components/icon-button'
+import { Segmented } from '../../components/segmented'
 import { StatusDot } from '../../components/status-dot'
 import { useI18n } from '../../core/i18n'
 import type { Pane } from '../../model/projects'
 import { NameEditor } from './name-editor'
-
-const SMALL = { size: 14, strokeWidth: 1.5, absoluteStrokeWidth: true }
 
 export type View = 'chat' | 'terminal'
 
@@ -54,7 +51,7 @@ export function Subbar({ pane, branch, view, facts, onEnd, actions }: Props) {
           <Popover.Trigger
             render={
               <IconButton label={t('session.info')} size="small">
-                <Info {...SMALL} />
+                <Info {...SMALL_ICON} />
               </IconButton>
             }
           />
@@ -72,7 +69,7 @@ export function Subbar({ pane, branch, view, facts, onEnd, actions }: Props) {
           onClick={onEnd}
           className="hover:text-danger"
         >
-          <Square {...SMALL} />
+          <Square {...SMALL_ICON} />
         </IconButton>
         {actions}
       </span>
@@ -86,25 +83,5 @@ function ViewSwitch({ shown, onShow }: { shown: View; onShow: (view: View) => vo
     { value: 'chat', label: t('session.chat') },
     { value: 'terminal', label: t('session.terminal') },
   ]
-  return (
-    <ToggleGroup
-      aria-label={t('session.view')}
-      value={[shown]}
-      onValueChange={values => {
-        const next = values[0] as View | undefined
-        if (next) onShow(next)
-      }}
-      className="mr-1.5 inline-flex rounded-[7px] bg-hover p-0.5"
-    >
-      {views.map(v => (
-        <Toggle
-          key={v.value}
-          value={v.value}
-          className="h-[22px] cursor-pointer rounded-[5px] border-0 bg-transparent px-2.5 text-xs text-muted transition-colors duration-75 outline-none hover:text-text focus-visible:outline-2 focus-visible:outline-accent data-pressed:bg-raised data-pressed:font-medium data-pressed:text-text data-pressed:shadow-[0_1px_2px_rgb(0_0_0/0.12)]"
-        >
-          {v.label}
-        </Toggle>
-      ))}
-    </ToggleGroup>
-  )
+  return <Segmented compact label={t('session.view')} value={shown} onChange={onShow} segments={views} />
 }

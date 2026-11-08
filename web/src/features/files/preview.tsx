@@ -8,7 +8,7 @@ import { useFile } from '../../core/remote-files'
 import { useSpace } from '../../core/space'
 import { assetReader } from '../../model/files/assets'
 import { decodeText, type FileKind, formatSize, imageType, kindOf } from '../../model/files/content'
-import { join, nameOf } from '../../model/files/paths'
+import { dirOf, join, nameOf } from '../../model/files/paths'
 import { type FileRead, PREVIEW_MAX, read } from '../../model/files/remote'
 import type { FilesRoot } from '../../model/files/worktrees'
 import { pageHref } from '../../utils/hrefs'
@@ -65,6 +65,7 @@ function Read({ mid, root, rel, hrefOf, again }: Props & { again: () => void }) 
   }
   const shell: FileShell = {
     name: nameOf(rel),
+    dir: dirOf(rel),
     where: `${root.display}/${rel}`,
     file: data,
     again,

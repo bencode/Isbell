@@ -35,6 +35,10 @@
     :is(.cm-activeLine, .cm-activeLineGutter) {
       background: color-mix(in oklch, var(--accent) 7%, transparent);
     }
+    // The line being read, once the reader has come into the code.
+    .cm-editor:not(.cm-focused) :is(.cm-activeLine, .cm-activeLineGutter) {
+      background: transparent;
+    }
     // As specific as CodeMirror's own, which is light only.
     .cm-scroller .cm-selectionLayer .cm-selectionBackground,
     .cm-editor.cm-focused .cm-scroller .cm-selectionLayer .cm-selectionBackground {

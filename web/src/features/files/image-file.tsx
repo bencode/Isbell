@@ -3,6 +3,7 @@
 import { Maximize2, Minus, Plus } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { Button } from '../../components/button'
+import { IconButton, SMALL_ICON } from '../../components/icon-button'
 import type { CodeRendererHandle } from '../../components/renderers/code'
 import { ImageRenderer } from '../../components/renderers/image'
 import { Segmented } from '../../components/segmented'
@@ -10,7 +11,7 @@ import { useI18n } from '../../core/i18n'
 import { decodeText } from '../../model/files/content'
 import { useObjectUrl } from '../../utils/object-url'
 import { SourceTools, SourceView } from './code-file'
-import { FilePage, type FileShell, Reading } from './file-page'
+import { FilePage, type FileShell, Reading, TOOL_ON } from './file-page'
 
 const ZOOM_MIN = 0.25
 const ZOOM_MAX = 4
@@ -38,6 +39,7 @@ export function ImageFile({ shell, bytes, type }: Props) {
     <>
       {text !== null ? (
         <Segmented
+          compact
           label={t('files.mode')}
           value={mode}
           onChange={setMode}
@@ -51,46 +53,40 @@ export function ImageFile({ shell, bytes, type }: Props) {
         <SourceTools source={source} />
       ) : (
         <>
-          <Button
+          <IconButton
+            label={t('files.zoomOut')}
             size="small"
-            variant="quiet"
-            aria-label={t('files.zoomOut')}
-            title={t('files.zoomOut')}
             disabled={!fit && zoom <= ZOOM_MIN}
             onClick={() => zoomTo(zoom - ZOOM_STEP)}
           >
-            <Minus size={15} />
-          </Button>
+            <Minus {...SMALL_ICON} />
+          </IconButton>
           <Button
-            size="small"
+            size="tiny"
             variant="quiet"
             title={t('files.actualSize')}
-            className="min-w-[52px] font-mono text-[12px]"
+            className="min-w-[42px] justify-center font-mono text-[11.5px]"
             onClick={() => zoomTo(1)}
           >
             {Math.round(zoom * 100)}%
           </Button>
-          <Button
+          <IconButton
+            label={t('files.zoomIn')}
             size="small"
-            variant="quiet"
-            aria-label={t('files.zoomIn')}
-            title={t('files.zoomIn')}
             disabled={!fit && zoom >= ZOOM_MAX}
             onClick={() => zoomTo(zoom + ZOOM_STEP)}
           >
-            <Plus size={15} />
-          </Button>
-          <Button
+            <Plus {...SMALL_ICON} />
+          </IconButton>
+          <IconButton
+            label={t('files.fit')}
             size="small"
-            variant="quiet"
             aria-pressed={fit}
-            title={t('files.fit')}
-            className="aria-pressed:bg-raised-2 aria-pressed:text-text"
+            className={TOOL_ON}
             onClick={() => setFit(true)}
           >
-            <Maximize2 size={14} />
-            {t('files.fit')}
-          </Button>
+            <Maximize2 {...SMALL_ICON} />
+          </IconButton>
         </>
       )}
     </>
