@@ -24,9 +24,11 @@ type Props = {
   view: { shown: View; onShow: (view: View) => void } | undefined
   facts: ReactNode
   onEnd: () => void
+  /** What the place it is in adds, at its end. */
+  actions?: ReactNode
 }
 
-export function Subbar({ pane, branch, view, facts, onEnd }: Props) {
+export function Subbar({ pane, branch, view, facts, onEnd, actions }: Props) {
   const t = useI18n()
   const about =
     'session' in pane
@@ -72,6 +74,7 @@ export function Subbar({ pane, branch, view, facts, onEnd }: Props) {
         >
           <Square {...SMALL} />
         </IconButton>
+        {actions}
       </span>
     </div>
   )

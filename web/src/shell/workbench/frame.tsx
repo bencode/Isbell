@@ -20,8 +20,10 @@ import { ResizeHandle } from '../../components/resize-handle'
 import { useI18n } from '../../core/i18n'
 import { toggleRail, useLocal } from '../../core/prefs'
 import { useSpace, useSpaceView } from '../../core/space'
+import { ActiveSessions } from './active-sessions'
 import { BAR } from './bar'
 import { ListColumn } from './list-column'
+import { Peek } from './peek'
 import { ProjectsRail } from './projects-rail'
 import { type Overlay, Overlays, SettingsMenu } from './settings-menu'
 import { TabStrip } from './tab-strip'
@@ -143,6 +145,7 @@ function ReconnectBanner() {
 export function Frame({ inProject }: { inProject: boolean }) {
   const t = useI18n()
   const [overlay, setOverlay] = useState<Overlay | null>(null)
+  const [workspace, setWorkspace] = useState<HTMLElement | null>(null)
   const list = useFold(268)
   const right = useFold(320)
   const split = useDefaultLayout({ id: 'isbell.workbench', panelIds: PANELS, storage: localStorage })
@@ -183,18 +186,20 @@ export function Frame({ inProject }: { inProject: boolean }) {
               </FoldingColumn>
               <ResizeHandle label={t('workbench.resizeList')} disabled={list.folded} />
               <Panel id="main" className="flex" minSize={MAIN_MIN}>
-                <main className="flex min-w-0 flex-1 flex-col">
+                <main ref={setWorkspace} className="relative flex min-w-0 flex-1 flex-col">
                   <div
                     className={`${BAR} bg-side transition-[padding] duration-200 ease-fold motion-reduce:transition-none ${list.folded ? 'pl-11' : ''} ${right.folded ? 'pr-11' : ''}`}
                   >
                     {inProject ? <TabStrip edged={list.folded} /> : null}
                   </div>
                   {inProject ? <TabPanes /> : null}
+                  <Peek container={workspace} />
                 </main>
               </Panel>
               <ResizeHandle label={t('workbench.resizeRight')} disabled={right.folded} />
               <FoldingColumn id="right" fold={right}>
                 <div className={`${BAR} pr-11 pl-3.5 text-[13px] font-semibold`}>{t('workbench.active')}</div>
+                {right.folded ? null : <ActiveSessions />}
               </FoldingColumn>
             </Group>
           </div>

@@ -3,6 +3,9 @@
 
 export type ToolUse = { tool: string; target?: string }
 
+/** A tool and what it is used on, in a line. */
+export const toolLine = ({ tool, target }: ToolUse) => (target ? `${tool} ${target}` : tool)
+
 export type AgentNote = {
   /** The task, as the agent titles its terminal; none while the title says nothing of it. */
   title?: string

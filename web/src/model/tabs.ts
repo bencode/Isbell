@@ -146,6 +146,36 @@ export function restore(saved: unknown, isTab: (id: string) => boolean): Tabs {
 }
 
 const TAB = 'tab'
+const PEEK = 'peek'
+const PEEK_VIEW = 'peek-view'
+
+/** A session looked at over the workspace, which belongs to no tab. */
+export type Peek = { mid: string; paneId: string; terminal: boolean }
+
+/** The session the address looks at, if any. A machine's id holds no '/'; a pane's may. */
+export function peekOf(search: string): Peek | null {
+  const params = new URLSearchParams(search)
+  const at = params.get(PEEK) ?? ''
+  const cut = at.indexOf('/')
+  if (cut <= 0 || cut === at.length - 1) return null
+  return {
+    mid: at.slice(0, cut),
+    paneId: at.slice(cut + 1),
+    terminal: params.get(PEEK_VIEW) === 'terminal',
+  }
+}
+
+/** The query `search` looking at `peek`, or at nothing for null. */
+export function withPeek(search: string, peek: Peek | null): string {
+  const rest = new URLSearchParams(search)
+  const tab = rest.get(TAB)
+  for (const key of [TAB, PEEK, PEEK_VIEW]) rest.delete(key)
+  if (peek) rest.set(PEEK, `${peek.mid}/${peek.paneId}`)
+  if (peek?.terminal) rest.set(PEEK_VIEW, 'terminal')
+  return withTab(rest.toString(), tab)
+}
+
+export const withoutPeek = (search: string) => withPeek(search, null)
 
 /** The tab an address's query shows, or null. */
 export function tabOf(search: string, isTab: (id: string) => boolean): string | null {
@@ -156,7 +186,7 @@ export function tabOf(search: string, isTab: (id: string) => boolean): string | 
 /** The address's query without its tab: the shown tab's own. */
 export function queryOf(search: string): string {
   const rest = new URLSearchParams(search)
-  rest.delete(TAB)
+  for (const key of [TAB, PEEK, PEEK_VIEW]) rest.delete(key)
   return rest.toString()
 }
 

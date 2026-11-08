@@ -12,7 +12,7 @@ import { parseRootKey } from '../../model/files/worktrees'
 import { locate, type Project } from '../../model/projects'
 import { under } from '../../model/sessions'
 import type { AgentStatus } from '../../model/state'
-import { sessionTabId, withTab } from '../../model/tabs'
+import { sessionTabId, withTab, withTerminal } from '../../model/tabs'
 import { projectHref } from '../../utils/hrefs'
 
 /** What a tab's label is read from: the projects, and the sessions recorded so far. */
@@ -97,9 +97,9 @@ const KINDS: TabKind[] = [
 export const fileTabId = (key: string, rel: string) => `file/${key}/${rel}`
 
 /** A session's tab in its project. */
-export const sessionTabHref = (projectKey: string, mid: string, paneId: string): To => ({
+export const sessionTabHref = (projectKey: string, mid: string, paneId: string, terminal = false): To => ({
   pathname: projectHref(projectKey),
-  search: withTab('', sessionTabId(mid, paneId)),
+  search: withTab(withTerminal('', terminal), sessionTabId(mid, paneId)),
 })
 
 /** The kind of tab `id` names, and what its pattern took from it; each part must name something. */
