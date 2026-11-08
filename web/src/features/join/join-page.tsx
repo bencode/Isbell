@@ -50,7 +50,7 @@ export function Join({
   }
 
   return (
-    <div className="flex h-full flex-col items-center gap-4 overflow-y-auto p-4">
+    <div className="flex h-full flex-col items-center gap-4 overflow-y-auto px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
       <form
         className="mt-auto flex w-[min(480px,100%)] flex-col gap-4 rounded-xl border border-line bg-raised p-6"
         onSubmit={e => {

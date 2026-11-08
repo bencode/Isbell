@@ -13,3 +13,7 @@ export const projectFilesHref = (key: string, rel = '') => `/p/${keyPart(key)}/f
 
 /** The page at `rel` under the root `key` names, on its own in the window. */
 export const pageHref = (key: string, rel: string) => `/v/${keyPart(key)}${tail(rel)}`
+
+/** A session on a phone, at the address its push notifications have. */
+export const sessionHref = (mid: string, paneId: string, terminal = false) =>
+  `/s/${encodeURIComponent(mid)}${tail(paneId)}${terminal ? '?view=terminal' : ''}`

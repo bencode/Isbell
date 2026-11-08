@@ -4,9 +4,9 @@
 import { SquareTerminal } from 'lucide-react'
 import { StatusDot } from '../../components/status-dot'
 import { useI18n } from '../../core/i18n'
-import { useAgentNote } from '../../features/session/use-agent-note'
+import { useCardNote } from '../../features/session/use-agent-note'
 import { toolLine } from '../../model/agent-note'
-import type { Placed } from '../../model/projects'
+import { type Placed, placedTitle, placedWhere } from '../../model/projects'
 import { since } from '../../utils/time'
 
 type Props = {
@@ -17,15 +17,11 @@ type Props = {
   onOpen: (terminal: boolean) => void
 }
 
-export const titleOf = ({ session }: Placed) => session.title ?? session.name
-
 export function ActiveCard({ placed, now, peeking, onOpen }: Props) {
   const t = useI18n()
-  const { session, project } = placed
-  const note = useAgentNote(session)
+  const { session } = placed
+  const { tool, asked } = useCardNote(session)
   const blocked = session.status === 'blocked'
-  const tool = blocked ? note?.asking : session.status === 'working' ? note?.doing : undefined
-  const asked = session.status === 'done' ? note?.asked : undefined
   const edge = peeking
     ? 'border-accent'
     : blocked
@@ -37,11 +33,7 @@ export function ActiveCard({ placed, now, peeking, onOpen }: Props) {
     >
       <div className="flex min-w-0 items-center gap-[7px] text-xs text-muted">
         <StatusDot status={session.status} />
-        <span className="min-w-0 truncate">
-          {[project.configured ? project.name : project.display, project.machine, session.kind]
-            .filter(Boolean)
-            .join(' · ')}
-        </span>
+        <span className="min-w-0 truncate">{placedWhere(placed)}</span>
         {peeking ? (
           <span className="ml-auto flex-none font-medium text-accent">{t('active.peeking')}</span>
         ) : (
@@ -55,7 +47,7 @@ export function ActiveCard({ placed, now, peeking, onOpen }: Props) {
         onClick={() => onOpen(false)}
         className="line-clamp-2 w-full cursor-pointer border-0 bg-transparent p-0 text-left leading-[1.35] font-semibold text-text outline-none after:absolute after:inset-0 after:rounded-[8px] focus-visible:after:outline-2 focus-visible:after:outline-accent"
       >
-        {titleOf(placed)}
+        {placedTitle(placed)}
       </button>
       {tool ? (
         <p className="m-0 truncate font-mono text-[11.5px] text-muted">{toolLine(tool)}</p>
@@ -86,7 +78,7 @@ export function StandingRow({ placed, now, peeking, onOpen }: Props) {
       className={`flex h-7 w-full flex-none cursor-pointer items-center gap-2 rounded-md border-0 px-2 text-left text-[12.5px] text-muted transition-colors duration-75 hover:bg-hover hover:text-text focus-visible:outline-2 focus-visible:outline-accent ${peeking ? 'bg-selected' : 'bg-transparent'}`}
     >
       <StatusDot status={placed.session.status} />
-      <span className="min-w-0 flex-1 truncate">{titleOf(placed)}</span>
+      <span className="min-w-0 flex-1 truncate">{placedTitle(placed)}</span>
       <span className="flex-none font-mono text-[11px] text-faint">
         {since(placed.session.statusSince, now)}
       </span>

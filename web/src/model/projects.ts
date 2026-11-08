@@ -190,6 +190,15 @@ export const needs = (projects: Project[]): Session[] =>
 /** A session with the project it runs in. */
 export type Placed = { session: Session; project: Project }
 
+/** What a session is at, once its agent has said, else its name. */
+export const placedTitle = ({ session }: Placed) => session.title ?? session.name
+
+/** Which project, machine and agent a session is, in a line. */
+export const placedWhere = ({ session, project }: Placed) =>
+  [project.configured ? project.name : project.display, project.machine, session.kind]
+    .filter(Boolean)
+    .join(' · ')
+
 /** Every agent, by what it is doing; each is in exactly one lane. */
 /** A plain shell in a project. */
 export type PlacedShell = { shell: Shell; project: Project }

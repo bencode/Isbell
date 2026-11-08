@@ -10,12 +10,9 @@ import type { Session } from '../../model/projects'
 
 const READ_EVERY_MS = 5_000
 
-export function useAgentNote({
-  mid,
-  paneId,
-  status,
-  statusSince,
-}: Pick<Session, 'mid' | 'paneId' | 'status' | 'statusSince'>): AgentNote | undefined {
+type NoteTarget = Pick<Session, 'mid' | 'paneId' | 'status' | 'statusSince'>
+
+export function useAgentNote({ mid, paneId, status, statusSince }: NoteTarget): AgentNote | undefined {
   const { call } = useSpace()
   const [read, setRead] = useState<{ since: number; note: AgentNote }>()
 
@@ -48,4 +45,14 @@ export function useAgentNote({
   }, [call, mid, paneId, status, statusSince])
 
   return read?.since === statusSince ? read.note : undefined
+}
+
+/** What a card says under its title: the tool it waits on or is using, or what it was asked. */
+export function useCardNote(session: NoteTarget) {
+  const note = useAgentNote(session)
+  return {
+    tool:
+      session.status === 'blocked' ? note?.asking : session.status === 'working' ? note?.doing : undefined,
+    asked: session.status === 'done' ? note?.asked : undefined,
+  }
 }
