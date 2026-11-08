@@ -59,7 +59,7 @@ export function piEntries(lines: unknown[]): Entry[] {
     const model: Entry[] = typeof m.model === 'string' ? [{ kind: 'model', model: m.model }] : []
     const said = blocks.flatMap((b): Entry[] => {
       if (b.type === 'text' && text(b.text).trim())
-        return [{ kind: 'item', at, item: { kind: 'text', text: text(b.text), markdown: true } }]
+        return [{ kind: 'item', at, item: { kind: 'text', text: text(b.text) } }]
       if (b.type === 'thinking' && text(b.thinking).trim())
         return [{ kind: 'item', at, item: { kind: 'thinking', text: text(b.thinking) } }]
       if (b.type !== 'toolCall') return []

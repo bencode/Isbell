@@ -13,7 +13,6 @@ use crate::gateway::stream::{Input, Output};
 pub enum Method {
     Herdr,
     StartAgent,
-    History,
     PaneProcesses,
     Terminal,
     FileList,
@@ -29,10 +28,9 @@ pub enum Method {
 }
 
 impl Method {
-    const ALL: [Method; 15] = [
+    const ALL: [Method; 14] = [
         Method::Herdr,
         Method::StartAgent,
-        Method::History,
         Method::PaneProcesses,
         Method::Terminal,
         Method::FileList,
@@ -51,7 +49,6 @@ impl Method {
         match self {
             Method::Herdr => "herdr",
             Method::StartAgent => "isbell.agent.start",
-            Method::History => "isbell.agent.history",
             Method::PaneProcesses => "isbell.pane.processes",
             Method::Terminal => "isbell.terminal",
             Method::FileList => "isbell.file.list",
@@ -171,7 +168,6 @@ mod tests {
         assert_eq!(routed("isbell.terminal"), Ok(Method::Terminal));
         assert_eq!(routed("herdr"), Ok(Method::Herdr));
         assert_eq!(routed("isbell.rtc.offer"), Ok(Method::RtcOffer));
-        assert_eq!(routed("isbell.agent.history"), Ok(Method::History));
         assert_eq!(
             routed("agent.list"),
             Err("agent.list".into()),
@@ -238,7 +234,6 @@ mod tests {
         assert!(methods.iter().any(|m| m == "agent.list"));
         assert!(methods.iter().any(|m| m == "isbell.terminal"));
         assert!(methods.iter().any(|m| m == "isbell.rtc.offer"), "clients look for direct links");
-        assert!(methods.iter().any(|m| m == "isbell.agent.history"), "clients look for paging");
         assert!(methods.iter().any(|m| m == "isbell.file.list"), "clients look for the files view");
         assert!(methods.iter().any(|m| m == "isbell.git.worktrees"), "clients look for worktrees");
         assert!(methods.iter().any(|m| m == "isbell.system"), "clients look for machine facts");

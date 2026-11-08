@@ -102,7 +102,7 @@ export function claudeEntries(lines: unknown[]): Entry[] {
       ...model,
       ...blocks.flatMap((b): Entry[] => {
         if (b.type === 'text' && text(b.text).trim())
-          return [{ kind: 'item', at, item: { kind: 'text', text: text(b.text), markdown: true } }]
+          return [{ kind: 'item', at, item: { kind: 'text', text: text(b.text) } }]
         if (b.type === 'thinking' && text(b.thinking).trim())
           return [
             {

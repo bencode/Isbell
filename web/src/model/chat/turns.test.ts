@@ -102,7 +102,7 @@ test("Claude Code's turns: the user's words, thinking, replies and tools with th
   })
   expect(first?.items).toEqual([
     { kind: 'thinking', text: 'slugs differ', ms: 6000 },
-    { kind: 'text', text: 'Found **it**.', markdown: true },
+    { kind: 'text', text: 'Found **it**.' },
     {
       kind: 'tool',
       id: 't1',
@@ -200,7 +200,7 @@ test("Codex's completed items, without the instructions it is given, and how its
     took: 9000,
   })
   expect(first?.items).toEqual([
-    { kind: 'text', text: 'Reading it.', markdown: true },
+    { kind: 'text', text: 'Reading it.' },
     { kind: 'tool', id: 'c1', name: 'Read', target: 'a.md', output: '# A', error: false, done: true },
     { kind: 'tool', id: 'c2', name: 'Bash', target: 'make', output: 'no rule', error: true, done: true },
     {

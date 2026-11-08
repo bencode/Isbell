@@ -1,5 +1,5 @@
 import { Paperclip, Square } from 'lucide-react'
-import { type DragEvent, type ReactNode, useEffect, useRef, useState } from 'react'
+import { type DragEvent, useEffect, useRef, useState } from 'react'
 import { Button } from '../../components/button'
 import { errorText, useI18n } from '../../core/i18n'
 import { useSpace } from '../../core/space'
@@ -9,8 +9,7 @@ import { Attachments, useAttachments } from './attachments'
 
 /** A reply, or something more the agent should know. `uploads`: the agent's machine and whether it
  * takes files; where it does, files pasted, dropped or picked go along, the reply naming where they
- * landed. `below` goes in the row under it, after the button that picks files. `stoppable`: the
- * agent is at work, and can be stopped with the key it stops on. */
+ * landed. `stoppable`: the agent is at work, and can be stopped with the key it stops on. */
 export function Composer({
   mid,
   paneId,
@@ -18,7 +17,6 @@ export function Composer({
   onDraft,
   uploads,
   stoppable,
-  below,
 }: {
   mid: string
   paneId: string
@@ -27,7 +25,6 @@ export function Composer({
   onDraft: () => void
   uploads: { machine: string; taken: boolean }
   stoppable: boolean
-  below?: ReactNode
 }) {
   const t = useI18n()
   const space = useSpace()
@@ -118,32 +115,27 @@ export function Composer({
           </Button>
         </div>
       </div>
-      {uploads.taken || below ? (
+      {uploads.taken ? (
         <div className="flex min-w-0 items-center gap-2.5">
-          {uploads.taken ? (
-            <>
-              <input
-                ref={picker}
-                type="file"
-                multiple
-                hidden
-                onChange={e => {
-                  files.add([...(e.target.files ?? [])])
-                  e.target.value = ''
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => picker.current?.click()}
-                aria-label={t('upload.attach')}
-                title={t('upload.attach')}
-                className="-ml-1 inline-flex size-6 flex-none cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-muted hover:bg-raised-2 hover:text-text"
-              >
-                <Paperclip size={15} />
-              </button>
-            </>
-          ) : null}
-          {below}
+          <input
+            ref={picker}
+            type="file"
+            multiple
+            hidden
+            onChange={e => {
+              files.add([...(e.target.files ?? [])])
+              e.target.value = ''
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => picker.current?.click()}
+            aria-label={t('upload.attach')}
+            title={t('upload.attach')}
+            className="-ml-1 inline-flex size-6 flex-none cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-muted hover:bg-raised-2 hover:text-text"
+          >
+            <Paperclip size={15} />
+          </button>
         </div>
       ) : null}
       {error ? <p className="m-0 text-[13px] text-danger">{error}</p> : null}
