@@ -2,16 +2,13 @@
 // project they are in. Opening one looks at it over the workspace, unless it is the tab on screen.
 
 import { ChevronDown, ChevronRight } from 'lucide-react'
-import { useNavigate } from 'react-router'
 import { type Key, useI18n } from '../../core/i18n'
 import { type Layout, setActiveFilter, toggleIdle, useLocal } from '../../core/prefs'
 import { useProjects } from '../../core/space'
 import { lanes, type Placed } from '../../model/projects'
-import { sessionTabId, tabOf } from '../../model/tabs'
 import { useNow } from '../../utils/time'
 import { ActiveCard, StandingRow } from './active-card'
 import { usePeek } from './peek'
-import { isTab, sessionTabHref } from './tab-kinds'
 
 type Filter = Layout['activeFilter']
 
@@ -25,10 +22,9 @@ const FILTERS: { value: Filter; label: Key }[] = [
 export function ActiveSessions() {
   const t = useI18n()
   const now = useNow()
-  const navigate = useNavigate()
   const { activeFilter: filter, idleOpen } = useLocal().layout
   const { asking, finished, running, standing } = lanes(useProjects())
-  const { peek, search, go } = usePeek()
+  const { peek, open } = usePeek()
 
   const counts: Record<Filter, number> = {
     all: asking.length + finished.length + running.length + standing.length,
@@ -47,11 +43,6 @@ export function ActiveSessions() {
   const rows = filter === 'idle' || (filter === 'all' && idleOpen) ? standing : []
   const folds = filter === 'all' && standing.length > 0
 
-  const open = ({ session: { mid, paneId }, project }: Placed, terminal: boolean) => {
-    if (tabOf(search, isTab) !== sessionTabId(mid, paneId)) go({ mid, paneId, terminal })
-    else if (terminal) navigate(sessionTabHref(project.key, mid, paneId, true), { replace: true })
-    else if (peek) go(null)
-  }
   const propsOf = (placed: Placed) => {
     const { mid, paneId } = placed.session
     return {

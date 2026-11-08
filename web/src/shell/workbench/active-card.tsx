@@ -17,7 +17,7 @@ type Props = {
   onOpen: (terminal: boolean) => void
 }
 
-const titleOf = ({ session }: Placed) => session.title ?? session.name
+export const titleOf = ({ session }: Placed) => session.title ?? session.name
 
 export function ActiveCard({ placed, now, peeking, onOpen }: Props) {
   const t = useI18n()

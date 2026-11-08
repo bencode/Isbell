@@ -9,10 +9,10 @@ import { useLocation, useNavigate } from 'react-router'
 import { IconButton } from '../../components/icon-button'
 import { errorText, useI18n } from '../../core/i18n'
 import { useProjects, useSpace, useSpaceView } from '../../core/space'
-import { type Found, lanes, locate, nextNeeding, type Project } from '../../model/projects'
+import { type Found, lanes, locate, nextNeeding, type Placed, type Project } from '../../model/projects'
 import { projectsSettled } from '../../model/space'
-import { type Peek as Peeked, peekOf, withPeek } from '../../model/tabs'
-import { sessionTabHref } from './tab-kinds'
+import { type Peek as Peeked, peekOf, sessionTabId, tabOf, withPeek } from '../../model/tabs'
+import { isTab, sessionTabHref } from './tab-kinds'
 
 const SMALL = { size: 14, strokeWidth: 1.5, absoluteStrokeWidth: true }
 
@@ -28,7 +28,13 @@ export function usePeek() {
     (to: Peeked | null) => navigate({ pathname, search: withPeek(search, to) }, { replace: true }),
     [navigate, pathname, search],
   )
-  return { peek: peekOf(search), search, go }
+  /** Looks at a session, unless it is the tab on screen: that one shows the view asked for. */
+  const open = ({ session: { mid, paneId }, project }: Placed, terminal: boolean) => {
+    if (tabOf(search, isTab) !== sessionTabId(mid, paneId)) go({ mid, paneId, terminal })
+    else if (terminal) navigate(sessionTabHref(project.key, mid, paneId, true), { replace: true })
+    else if (peekOf(search)) go(null)
+  }
+  return { peek: peekOf(search), search, go, open }
 }
 
 /** A directory run in but not listed, made one of its machine's projects. */
