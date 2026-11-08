@@ -27,7 +27,8 @@ It never sees your space key.
   Standing by. Answer an agent from its card.
 - **Projects**: agents and shells grouped by the git repository they work in, each project with an
   overview and its files.
-- **Chat**: a session reads as turns; reply, or answer what the agent asks with one click.
+- **Chat**: a session reads as turns, from the agent's own record; reply, or answer what it asks
+  in its terminal ([Codex needs `--no-daemon`](docs/setup.md)).
 - **Terminal**: watch or take over any pane, in the browser.
 - **Files**: read what the agents write. Markdown in a theme of your choosing, with its outline,
   math and diagrams; source with highlighting; images; HTML pages, run apart from the app, here or

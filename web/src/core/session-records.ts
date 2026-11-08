@@ -4,9 +4,11 @@
 
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react'
 import { isMissing, list, read } from '../model/files/remote'
-import { agentNote, type Caller } from '../model/herdr'
+import { agentNote, type Caller, codexStarted, paneProcesses } from '../model/herdr'
 import { dirKey, type Project, type Session } from '../model/projects'
 import {
+  codexRecordFor,
+  guessDir,
   lineTime,
   type MonthLine,
   mergeMonths,
@@ -57,7 +59,10 @@ const EMPTY: Loaded = { full: false, read: 0, older: [], running: new Map(), bus
 /** By `dirKey(mid, path)` of the project. */
 const known = new Map<string, Loaded>()
 /** The session each pane ran, as last read, by `dirKey(mid, paneId)`. */
-const panes = new Map<string, { agent: string; id: string }>()
+/** A session a pane runs; `file`: the file herdr found it kept in, for a record that does not say. */
+export type Ran = { agent: string; id: string; file?: string }
+
+const panes = new Map<string, Ran>()
 const reading = new Set<string>()
 /** Asked to read while a read was out: what to read with once it is over. */
 const again = new Map<string, () => void>()
@@ -111,15 +116,28 @@ const readText = async (space: Space, mid: string, path: string) => {
   }
 }
 
-/** The session the agent in the pane runs (see AgentNote.session), noted for the pane; none when it
- * cannot be read. */
-async function notePane(call: Caller, mid: string, paneId: string, kind: string) {
+/** The codex session the pane in `cwd` runs, guessed from the latest read on its machine (see
+ * codexRecordFor). A session another pane was seen running is not it, that pane since closed too:
+ * one just closed beside it would pass for its own. */
+async function guessCodex(call: Caller, mid: string, paneId: string, cwd: string) {
+  const since = codexStarted(await paneProcesses(call, mid, paneId))
+  if (since === undefined) return undefined
+  const machine = dirKey(mid, '')
+  const others = [...panes].filter(([key]) => key.startsWith(machine) && key !== dirKey(mid, paneId))
+  const latest = [...known].flatMap(([key, loaded]) => (key.startsWith(machine) ? (loaded.recent ?? []) : []))
+  return codexRecordFor(latest, cwd, since, new Set(others.map(([, ran]) => ran.id)))
+}
+
+/** The session the agent in the pane runs (see AgentNote.session), else the one guessed in
+ * `guessIn` (see guessCodex), noted for the pane; none when it cannot be read. */
+async function notePane(call: Caller, mid: string, paneId: string, kind: string, guessIn?: string) {
   try {
-    const id = (await agentNote(call, mid, paneId)).session
+    const { session: said, file } = await agentNote(call, mid, paneId)
+    const id = said ?? (guessIn ? await guessCodex(call, mid, paneId, guessIn) : undefined)
     const key = dirKey(mid, paneId)
     const was = panes.get(key)
-    if (id && (was?.agent !== kind || was.id !== id)) {
-      panes.set(key, { agent: kind, id })
+    if (id && (was?.agent !== kind || was.id !== id || was.file !== file)) {
+      panes.set(key, file ? { agent: kind, id, file } : { agent: kind, id })
       for (const listener of listeners) listener()
     }
     return id
@@ -129,40 +147,49 @@ async function notePane(call: Caller, mid: string, paneId: string, kind: string)
   }
 }
 
-/** The session each agent's pane runs, by `sessionKey`. */
-async function readRunning(call: Caller, mid: string, agents: Session[]) {
+/** The session each agent's pane runs, by `sessionKey`; `guess`: whether the machine tells when a
+ * pane's codex started, to guess its session by. */
+async function readRunning(call: Caller, mid: string, agents: Session[], guess: boolean) {
   const found = await Promise.all(
-    agents.map(async ({ paneId, kind }) => {
-      const id = kind ? await notePane(call, mid, paneId, kind) : undefined
+    agents.map(async agent => {
+      const { paneId, kind } = agent
+      const guessIn = guess ? guessDir(agents, agent) : undefined
+      const id = kind ? await notePane(call, mid, paneId, kind, guessIn) : undefined
       return kind && id ? [[sessionKey({ agent: kind, id }), paneId] as const] : []
     }),
   )
   return new Map(found.flat())
 }
 
-async function refresh(space: Space, id: string, mid: string, sources: RecordSource[], agents: Session[]) {
+async function refresh(
+  space: Space,
+  id: string,
+  mid: string,
+  sources: RecordSource[],
+  agents: Session[],
+  guess: boolean,
+) {
   if (document.visibilityState !== 'visible') return
   if (reading.has(id)) {
-    again.set(id, () => void refresh(space, id, mid, sources, agents))
+    again.set(id, () => void refresh(space, id, mid, sources, agents, guess))
     return
   }
   reading.add(id)
   try {
-    const [lists, running] = await Promise.all([
-      inTurn(sources, async source => ({
-        source,
-        list: parseRecent(await readText(space, mid, recentPath(source.key))),
-      })),
-      readRunning(space.call, mid, agents),
-    ])
+    const lists = await inTurn(sources, async source => ({
+      source,
+      list: parseRecent(await readText(space, mid, recentPath(source.key))),
+    }))
     update(id, was => ({
       ...was,
       recent: mergeRecent(lists.map(({ source, list }) => list.filter(s => within(source, s.cwd)))),
       full: lists.some(({ list }) => list.length >= RECENT_MAX),
-      running,
       error: undefined,
       monthsError: undefined,
     }))
+    // After the latest are in, as a codex pane's session is guessed from them.
+    const running = await readRunning(space.call, mid, agents, guess)
+    update(id, was => ({ ...was, running }))
   } catch (err) {
     // What was read before stays.
     update(id, was => ({ ...was, error: err }))
@@ -258,7 +285,8 @@ export function useSessionRecords(project: Project | undefined): SessionRecords 
   useEffect(() => {
     // Until the machine says where its records are, reading would find none.
     if (!project || !settled || !recorded) return
-    const load = () => void refresh(space, id, mid, sources, agents ?? [])
+    const guess = !!state?.caps.methods.includes('isbell.pane.processes')
+    const load = () => void refresh(space, id, mid, sources, agents ?? [], guess)
     load()
     document.addEventListener('visibilitychange', load)
     return () => document.removeEventListener('visibilitychange', load)

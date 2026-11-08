@@ -149,6 +149,9 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
       if (now && !shown) term.focus()
       shown = now
       clearTimeout(settle)
+      // Hidden behind the chat it has no size: the pane keeps the one it has, for the agent in it and
+      // anyone else watching it.
+      if (!now) return
       settle = setTimeout(() => {
         fit.fit()
         live?.resize(term.cols, term.rows)

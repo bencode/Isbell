@@ -7,6 +7,7 @@ mod git;
 mod herdr;
 mod link;
 mod monitor;
+mod process;
 mod push;
 mod rpc;
 mod state;

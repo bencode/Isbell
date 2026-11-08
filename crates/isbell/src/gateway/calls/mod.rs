@@ -25,7 +25,7 @@ use super::push::Push;
 use super::stream::Input;
 use super::system::Sampler;
 use super::terminal;
-use super::{HerdrSlot, direct, file, git, nudge, rpc};
+use super::{HerdrSlot, direct, file, git, nudge, process, rpc};
 
 /// What reaches the calls: a frame from a caller, or the end of a direct caller's link.
 pub enum ToCalls {
@@ -127,6 +127,12 @@ impl Calls {
             Method::History => {
                 self.tasks.spawn(async move {
                     let result = async { rpc::history(&herdr?, p).await }.await;
+                    link.send(response_frame(id, result));
+                });
+            }
+            Method::PaneProcesses => {
+                self.tasks.spawn(async move {
+                    let result = async { process::processes(&herdr?, p).await }.await;
                     link.send(response_frame(id, result));
                 });
             }

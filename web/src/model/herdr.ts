@@ -1,5 +1,5 @@
 // The gateway calls the web client makes: herdr's whitelisted methods, passed through, and
-// Isbell's own `isbell.agent.start` and `isbell.terminal`.
+// Isbell's own `isbell.agent.start`, `isbell.pane.processes` and `isbell.terminal`.
 
 import { type AgentInfo, type AgentNote, noteOf } from './agent-note'
 
@@ -34,63 +34,26 @@ export async function shells(call: Caller, mid: string): Promise<Shell[]> {
   })
 }
 
-const RECENT_LINES = 200
-
-/**
- * The pane's output as plain text, or with its colors as SGR sequences when `colored`: `recent` is
- * its last lines with scrollback, each as the program wrote it rather than wrapped to the pane;
- * `visible` is the screen alone. herdr captures a full-screen agent's scrollback only while the
- * agent is idle or done; read `visible` otherwise.
- */
-export async function readScreen(
-  call: Caller,
-  mid: string,
-  paneId: string,
-  source: 'recent' | 'visible',
-  colored = false,
-): Promise<string> {
-  const where =
-    source === 'recent'
-      ? { target: paneId, source: 'recent_unwrapped', lines: RECENT_LINES }
-      : { target: paneId, source }
-  const params = colored ? { ...where, format: 'ansi' } : where
-  const r = (await herdr(call, mid, 'agent.read', params)) as { read?: { text?: string } }
-  const text = r.read?.text ?? ''
-  if (source === 'visible') return text
-  // A read that stops inside the history can have the header an agent pins over its top line
-  // (Codex shows the prompt of the turn in view); a full read leaves that line out.
-  const lines = text.replace(/\n$/, '').split('\n')
-  return lines.length < RECENT_LINES ? text : lines.slice(1).join('\n')
-}
-
-const HISTORY_LINES = 1000
-
-/** Any pane's last lines with scrollback, a shell's or an agent's, with their colors as SGR
- * sequences. A full-screen agent that is not idle or done may give only its screen. */
-export async function readPane(call: Caller, mid: string, paneId: string): Promise<string> {
-  const params = { pane_id: paneId, source: 'recent_unwrapped', lines: HISTORY_LINES, format: 'ansi' }
-  const r = (await herdr(call, mid, 'pane.read', params)) as { read?: { text?: string } }
-  return (r.read?.text ?? '').replace(/\r\n/g, '\n').replace(/\n+$/, '')
-}
-
 /** What herdr knows of the agent besides its screen. */
 export const agentNote = async (call: Caller, mid: string, paneId: string): Promise<AgentNote> =>
   noteOf(((await herdr(call, mid, 'agent.get', { target: paneId })) as { agent?: AgentInfo }).agent ?? {})
 
-export type History = { text: string; more: boolean }
+/** A process in a pane's foreground; `started` in Unix milliseconds. */
+type PaneProcess = { pid: number; name: string; argv: string[] | null; started: number | null }
 
-/**
- * Up to `count` lines of the pane's history ending `skip` lines above its last, each as the agent
- * wrote it, and whether earlier lines may remain. Only while the agent is idle or done.
- */
-export const readHistory = async (
-  call: Caller,
-  mid: string,
-  paneId: string,
-  skip: number,
-  count: number,
-): Promise<History> =>
-  (await call(mid, 'isbell.agent.history', { target: paneId, skip, count }, HERDR_TIMEOUT_MS)) as History
+export const paneProcesses = async (call: Caller, mid: string, paneId: string): Promise<PaneProcess[]> =>
+  (
+    (await call(mid, 'isbell.pane.processes', { pane_id: paneId }, HERDR_TIMEOUT_MS)) as {
+      processes: PaneProcess[]
+    }
+  ).processes
+
+const CODEX = /(^|\/)codex(\.js)?$/
+
+/** When the pane's codex started: the native binary, or the script node runs. */
+export const codexStarted = (processes: PaneProcess[]): number | undefined =>
+  processes.find(p => p.name === 'codex' || [p.argv?.[0], p.argv?.[1]].some(arg => arg && CODEX.test(arg)))
+    ?.started ?? undefined
 
 export const prompt = (call: Caller, mid: string, paneId: string, text: string) =>
   herdr(call, mid, 'agent.prompt', { target: paneId, text })

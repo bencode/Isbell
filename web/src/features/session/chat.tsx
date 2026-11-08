@@ -1,12 +1,35 @@
 // A session's chat in its tab: the conversation, following what comes in while scrolled to the end
-// (and saying so while scrolled up), and the dock under it. Its place is kept while the tab is hidden.
+// (and saying so while scrolled up), and the dock under it. Its place is kept while the tab is hidden;
+// what was sent shows at once, until the record has it.
 
 import { ArrowDown } from 'lucide-react'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { useI18n } from '../../core/i18n'
+import type { Ran } from '../../core/session-records'
+import type { ChatTurn } from '../../model/chat/types'
+import { splitUploads } from '../../model/files/uploads'
 import type { Project, Session } from '../../model/projects'
 import { useKeptScroll } from '../../utils/kept-scroll'
 import { SessionBody, SessionDock, useSession } from './session-parts'
+
+/** What was sent and when, and the record's last turn then (null: none yet; undefined: not read
+ * yet). */
+type Sent = { text: string; at: number; after: string | null | undefined }
+
+/** What was sent that the record does not have yet, in order. Each takes a turn asking after the one
+ * last when it was sent, the one asking the same first; without a turn to tell by, only that one. */
+function unrecorded(sent: Sent[], turns: ChatTurn[] | undefined): Sent[] {
+  const used = new Set<string>()
+  return sent.filter(({ text, after }) => {
+    const from = after ? (turns ?? []).findIndex(turn => turn.id === after) + 1 : 0
+    const asked = (turns ?? []).slice(from).filter(turn => turn.you && !used.has(turn.id))
+    const said = splitUploads(text).text
+    const it =
+      asked.find(turn => turn.you?.text.trim() === said) ?? (after === undefined ? undefined : asked[0])
+    if (it) used.add(it.id)
+    return !it
+  })
+}
 
 // The reading column: as wide as the tab up to a comfortable measure, then centred.
 const COLUMN = 'mx-auto w-full max-w-[760px] px-[22px]'
@@ -21,27 +44,28 @@ export function Chat({
 }: {
   project: Project
   session: Session
-  ran: { agent: string; id: string } | undefined
+  ran: Ran | undefined
   onDraft: () => void
 }) {
   const t = useI18n()
   const { mid, paneId } = session
   const state = useSession(mid, paneId, session, project, ran)
-  const { reading, text, log, asking } = state
+  const { log } = state
+  const asking = session.status === 'blocked'
+  const [sent, setSent] = useState<Sent[]>([])
+  const pending = unrecorded(sent, log.turns)
+  const waits = pending.length
   const kept = useKeptScroll<HTMLDivElement>()
   const pinned = useRef(true)
   const [unseen, setUnseen] = useState(false)
-  // What the chat ends with: the record as far as it is read (earlier turns read before it are no
-  // news), else the screen.
-  const tail = log.turns ? log.end : (reading ?? text)
-  // After the kept place is put back, so a chat left at its end shows what came in meanwhile; a
-  // question coming up is news too.
+  // After the kept place is put back, so a chat left at its end shows what came in meanwhile: the
+  // record read further (earlier turns read before it are no news), what was sent, the agent asking.
   useLayoutEffect(() => {
     const el = kept.ref.current
-    if (!el || ((tail === undefined || tail === null) && !asking)) return
+    if (!el || (!log.end && !waits && !asking)) return
     if (pinned.current) el.scrollTop = el.scrollHeight
     else setUnseen(true)
-  }, [kept.ref, tail, asking])
+  }, [kept.ref, log.end, waits, asking])
   const toEnd = () => {
     const el = kept.ref.current
     el?.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
@@ -62,7 +86,7 @@ export function Chat({
           className="h-full overflow-auto"
         >
           <div className={`${COLUMN} flex flex-col pt-[18px] pb-7`}>
-            <SessionBody {...parts} />
+            <SessionBody {...parts} pending={pending} />
           </div>
         </div>
         {unseen ? (
@@ -79,7 +103,16 @@ export function Chat({
       </div>
       <div className="flex-none border-t border-line bg-bg">
         <div className={`${COLUMN} py-2.5`}>
-          <SessionDock {...parts} onDraft={onDraft} />
+          <SessionDock
+            {...parts}
+            onDraft={onDraft}
+            onSent={text => {
+              // Sent ends at the bottom, to see it go in.
+              pinned.current = true
+              const after = log.turns ? (log.turns.at(-1)?.id ?? null) : undefined
+              setSent([...pending, { text, at: Date.now(), after }])
+            }}
+          />
         </div>
       </div>
     </div>

@@ -38,7 +38,10 @@ For the agent doing the setup. Isbell lets its user reach the agents on their Ma
   - Codex: `sh /tmp/agent-hook.sh install codex`, into `$CODEX_HOME/hooks.json`, else
     `~/.codex/hooks.json`. Tell the user that Codex asks to trust the new hooks when it next
     starts (choose Trust all), and that they report only from Codex started with `--no-daemon`:
-    Isbell starts it so; one started by hand in herdr needs `codex --no-daemon`.
+    Isbell starts it so. A session's chat is read from the agent's own record, so for Codex
+    started by hand in herdr suggest `alias codex='codex --no-daemon'` in `~/.zshrc`. Without it,
+    the chat finds the record by the pane's directory and when its Codex started, as long as no
+    other Codex works in that directory.
   - pi: `sh /tmp/agent-hook.sh install pi`. It writes an extension to
     `$PI_CODING_AGENT_DIR/extensions/`, else `~/.pi/agent/extensions/`, which pi loads when it
     starts: sessions already running take it once restarted. For pi's status on the board, herdr

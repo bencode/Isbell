@@ -134,6 +134,34 @@ export function mergeRecent(lists: SessionRecord[][]): SessionRecord[] {
   return [...latest.values()].sort((a, b) => b.updated - a.updated)
 }
 
+/**
+ * The codex session a pane runs when its hook cannot say (a codex served by its shared daemon): of
+ * the latest, the one last active in the pane's directory since its codex started, that no other
+ * pane is known to run. The hook records such sessions all the same, on the machine's clock.
+ */
+export const codexRecordFor = (
+  latest: readonly SessionRecord[],
+  cwd: string,
+  since: number,
+  claimed: ReadonlySet<string>,
+): string | undefined =>
+  latest
+    .filter(s => s.agent === 'codex' && s.cwd === cwd && s.updated >= since && !claimed.has(s.id))
+    .reduce<SessionRecord | undefined>((last, s) => (last && last.updated >= s.updated ? last : s), undefined)
+    ?.id
+
+/** Where the session of the codex in `pane` may be guessed: its directory, unless another codex
+ * works there, whose session could be taken for it. */
+export const guessDir = (
+  agents: readonly { paneId: string; kind?: string; cwd?: string }[],
+  pane: { paneId: string; kind?: string; cwd?: string },
+) =>
+  pane.kind === 'codex' &&
+  pane.cwd &&
+  !agents.some(a => a.paneId !== pane.paneId && a.kind === 'codex' && a.cwd === pane.cwd)
+    ? pane.cwd
+    : undefined
+
 /** Months' lines as one, each session once, leaving out those `seen`, the latest begun first. */
 export const mergeMonths = (lists: MonthLine[][], seen: ReadonlySet<string>): MonthLine[] =>
   [...new Map(lists.flat().map(s => [sessionKey(s), s])).values()]
