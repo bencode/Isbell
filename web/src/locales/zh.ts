@@ -188,7 +188,7 @@ export const zh: Record<Key, string> = {
   'settings.local': '只保存在这个浏览器里，没有账号。',
   'settings.notifications': '提醒',
   'settings.notify': '提醒我',
-  'settings.notifyHint': '有会话在问你，或做完时。Isbell 开着就有效，标签页在后台也可以。',
+  'settings.notifyHint': '有会话在问你，或跑了 10 分钟以上做完时。Isbell 开着就有效，标签页在后台也可以。',
   'settings.denied': '这个浏览器禁止了 Isbell 的通知。请在浏览器的网站设置里允许，再打开这里。',
   'settings.unsupported': '这个浏览器不能显示通知。',
   'settings.allowed': '这个浏览器已允许。',
@@ -231,7 +231,7 @@ export const zh: Record<Key, string> = {
   'join.then': '然后把密钥粘贴到上面。密钥只保存在这个浏览器和你的机器上。',
 
   'settings.push': '推送到这台 iPhone',
-  'settings.pushHint': '有 agent 在问你或做完时，Isbell 关着也能收到。',
+  'settings.pushHint': '有 agent 在问你，或跑了 10 分钟以上做完时，Isbell 关着也能收到。',
   'settings.pushInstall': '把 Isbell 加到主屏幕，从主屏幕打开后才能开启推送。',
   'settings.pushNoMachine': '在线的机器都还不能推送，请在机器上更新 isbell。',
   'settings.pushFailed': '没能开启推送：{msg}',

@@ -189,7 +189,7 @@ export const en = {
   'settings.notifications': 'Notifications',
   'settings.notify': 'Notify me',
   'settings.notifyHint':
-    'When a session asks for you, or finishes. Works while Isbell is open, even in a background tab.',
+    'When a session asks for you, or finishes a run of 10 minutes or more. Works while Isbell is open, even in a background tab.',
   'settings.denied':
     "This browser blocks notifications for Isbell. Allow them in the browser's site settings, then turn this on again.",
   'settings.unsupported': 'This browser cannot show notifications.',
@@ -234,7 +234,8 @@ export const en = {
   'join.then': 'Then paste the key above. The key stays in this browser and on your machines.',
 
   'settings.push': 'Push to this iPhone',
-  'settings.pushHint': 'When an agent asks or is done, even with Isbell closed.',
+  'settings.pushHint':
+    'When an agent asks, or finishes a run of 10 minutes or more, even with Isbell closed.',
   'settings.pushInstall': 'Add Isbell to the Home Screen and open it from there to turn pushes on.',
   'settings.pushNoMachine': 'No machine online can push yet: update isbell on them.',
   'settings.pushFailed': 'Could not turn pushes on: {msg}',
