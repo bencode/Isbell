@@ -12,6 +12,7 @@ import { lanes, type Placed, placedKey } from '../../model/projects'
 import { useNow } from '../../utils/time'
 import { PhoneBar, TAP } from './bar'
 import { PhoneCard, PhoneRow } from './card'
+import { MachinesSheet } from './machines-sheet'
 
 // Where the page was left, for coming back to it.
 let left = 0
@@ -59,9 +60,7 @@ export function Home() {
       <PhoneBar>
         <span className="flex min-w-0 flex-1 items-baseline gap-2 pl-2.5">
           <span className="text-[17px] font-bold">Isbell</span>
-          <span className="truncate text-[12.5px] text-faint">
-            {t('mobile.online', { n: machines.filter(m => m.online).length })}
-          </span>
+          <MachinesSheet machines={machines} />
         </span>
         <button
           type="button"
