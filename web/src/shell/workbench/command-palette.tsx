@@ -7,7 +7,7 @@ import { Dialog } from '@base-ui/react/dialog'
 import { useState } from 'react'
 import { useI18n } from '../../core/i18n'
 import { useProjects } from '../../core/space'
-import { lanes, nextNeeding, type Placed, placedTitle } from '../../model/projects'
+import { lanes, nextNeeding, type Placed, placedKey, placedTitle } from '../../model/projects'
 import { sessionTabId, tabOf } from '../../model/tabs'
 import { useCommandKey } from '../../utils/command-key'
 import { usePeek } from './peek'
@@ -18,7 +18,6 @@ type Group = { label: string; items: Placed[] }
 const ITEM =
   'flex h-9 cursor-pointer items-center gap-2 rounded-md px-2.5 text-[13.5px] text-text outline-none select-none data-highlighted:bg-selected'
 
-const keyOf = ({ session }: Placed) => `${session.mid}/${session.paneId}`
 const textOf = (p: Placed) => `${p.session.name} ${placedTitle(p)} ${p.project.name}`
 
 function Line({ placed }: { placed: Placed }) {
@@ -83,7 +82,7 @@ function Choices({ onClose }: { onClose: () => void }) {
             <Autocomplete.Collection>
               {(placed: Placed) => (
                 <Autocomplete.Item
-                  key={keyOf(placed)}
+                  key={placedKey(placed)}
                   value={placed}
                   onClick={() => go(placed)}
                   className={ITEM}

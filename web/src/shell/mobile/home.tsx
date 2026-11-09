@@ -8,12 +8,10 @@ import { useI18n } from '../../core/i18n'
 import { toggleIdle, useLocal } from '../../core/prefs'
 import { useProjects, useSpaceView } from '../../core/space'
 import { type Overlay, Overlays } from '../../features/settings/settings-dialog'
-import { lanes, type Placed } from '../../model/projects'
+import { lanes, type Placed, placedKey } from '../../model/projects'
 import { useNow } from '../../utils/time'
 import { PhoneBar, TAP } from './bar'
 import { PhoneCard, PhoneRow } from './card'
-
-const keyOf = ({ session }: Placed) => `${session.mid}/${session.paneId}`
 
 // Where the page was left, for coming back to it.
 let left = 0
@@ -41,7 +39,7 @@ function Lane({ title, placed, now }: { title: string; placed: Placed[]; now: nu
         <span className="font-normal text-faint">{placed.length}</span>
       </h2>
       {placed.map(p => (
-        <PhoneCard key={keyOf(p)} placed={p} now={now} />
+        <PhoneCard key={placedKey(p)} placed={p} now={now} />
       ))}
     </section>
   )
@@ -89,7 +87,7 @@ export function Home() {
               {idleOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
               {t('active.idleCount', { n: standing.length })}
             </button>
-            {idleOpen ? standing.map(p => <PhoneRow key={keyOf(p)} placed={p} now={now} />) : null}
+            {idleOpen ? standing.map(p => <PhoneRow key={placedKey(p)} placed={p} now={now} />) : null}
           </section>
         ) : null}
         {loaded && none ? <p className="m-0 px-4 py-4 text-muted">{t('active.none')}</p> : null}

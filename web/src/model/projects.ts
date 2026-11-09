@@ -190,6 +190,8 @@ export const needs = (projects: Project[]): Session[] =>
 /** A session with the project it runs in. */
 export type Placed = { session: Session; project: Project }
 
+export const placedKey = ({ session }: Placed) => `${session.mid}/${session.paneId}`
+
 /** What a session is at, once its agent has said, else its name. */
 export const placedTitle = ({ session }: Placed) => session.title ?? session.name
 
