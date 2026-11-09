@@ -10,10 +10,12 @@ import { StatusDot } from '../../components/status-dot'
 import { useI18n } from '../../core/i18n'
 import type { Pane } from '../../model/projects'
 import { NameEditor } from './name-editor'
+import { ShareControl } from './share-control'
 
 export type View = 'chat' | 'terminal'
 
 type Props = {
+  mid: string
   pane: Pane
   /** The branch of the worktree it works in, once known; null outside any branch. */
   branch: string | null | undefined
@@ -25,7 +27,7 @@ type Props = {
   actions?: ReactNode
 }
 
-export function Subbar({ pane, branch, view, facts, onEnd, actions }: Props) {
+export function Subbar({ mid, pane, branch, view, facts, onEnd, actions }: Props) {
   const t = useI18n()
   const about =
     'session' in pane
@@ -47,6 +49,7 @@ export function Subbar({ pane, branch, view, facts, onEnd, actions }: Props) {
       </span>
       <span className="ml-auto flex flex-none items-center gap-1">
         {view ? <ViewSwitch {...view} /> : null}
+        <ShareControl mid={mid} paneId={'session' in pane ? pane.session.paneId : pane.shell.paneId} />
         <Popover.Root>
           <Popover.Trigger
             render={

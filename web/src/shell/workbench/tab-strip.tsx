@@ -9,9 +9,9 @@ import { IconButton } from '../../components/icon-button'
 import { StatusDot } from '../../components/status-dot'
 import { useI18n } from '../../core/i18n'
 import { useRecordLookup } from '../../core/session-records'
-import { useProjects } from '../../core/space'
+import { useProjects, useSpaceView } from '../../core/space'
 import { useTabActions, useTabRoute } from '../../core/tabs'
-import type { TabEntry } from '../../model/tabs'
+import { sessionTabId, type TabEntry } from '../../model/tabs'
 import { kindOf, type LabelFrom } from './tab-kinds'
 
 const SMALL = { size: 13, strokeWidth: 1.5, absoluteStrokeWidth: true }
@@ -24,9 +24,9 @@ const ON_HOVER = 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
 const AT_REST =
   'translate-x-[26px] transition-transform duration-75 group-hover:translate-x-0 group-focus-within:translate-x-0'
 
-type TabProps = { tab: TabEntry; shown: boolean; edged: boolean; from: LabelFrom }
+type TabProps = { tab: TabEntry; shown: boolean; edged: boolean; from: LabelFrom; shared: boolean }
 
-function Tab({ tab, shown, edged, from }: TabProps) {
+function Tab({ tab, shown, edged, from, shared }: TabProps) {
   const t = useI18n()
   const { href, togglePin, close } = useTabActions()
   const ref = useRef<HTMLDivElement>(null)
@@ -49,9 +49,13 @@ function Tab({ tab, shown, edged, from }: TabProps) {
         onDoubleClick={() => togglePin(tab.id)}
         className="flex h-full min-w-0 flex-1 items-center gap-1.5 text-inherit no-underline focus-visible:outline-2 focus-visible:outline-accent"
       >
-        {status ? (
+        {status || shared ? (
           <span className="grid size-[13px] flex-none place-items-center">
-            <StatusDot status={status} />
+            {shared ? (
+              <span className="size-[7px] rounded-full bg-danger" />
+            ) : status ? (
+              <StatusDot status={status} />
+            ) : null}
           </span>
         ) : (
           <found.kind.Icon {...SMALL} className="flex-none text-faint" />
@@ -84,15 +88,26 @@ export function TabStrip({ edged }: { edged: boolean }) {
   const t = useI18n()
   const { open, shown } = useTabRoute()
   const projects = useProjects()
+  const { machines } = useSpaceView()
   const lookup = useRecordLookup()
   const from = { projects, lookup }
+  const shared = new Set(
+    machines.flatMap(m => (m.state.shares ?? []).map(s => sessionTabId(m.state.machine.id, s.paneId))),
+  )
   return (
     <nav
       aria-label={t('tabs.label')}
       className="-mr-px flex h-full min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]"
     >
       {open.map((tab, i) => (
-        <Tab key={tab.id} tab={tab} shown={tab.id === shown} edged={edged && i === 0} from={from} />
+        <Tab
+          key={tab.id}
+          tab={tab}
+          shown={tab.id === shown}
+          edged={edged && i === 0}
+          from={from}
+          shared={shared.has(tab.id)}
+        />
       ))}
     </nav>
   )

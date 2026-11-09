@@ -59,6 +59,7 @@ export function SessionView({
     <ShowTerminal value={showTerminal}>
       <div className="flex h-full flex-col">
         <Subbar
+          mid={mid}
           pane={pane}
           branch={branch}
           view={agent ? { shown, onShow } : undefined}

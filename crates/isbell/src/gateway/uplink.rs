@@ -4,10 +4,10 @@
 use std::time::Duration;
 
 use isbell_proto::frame::{Frame, Header, Route};
-use isbell_proto::state::MachineState;
+use isbell_proto::identity::Identity;
+use isbell_proto::state::{MachineInfo, MachineState};
 use tokio::sync::{mpsc, watch};
 
-use super::GatewayOptions;
 use super::calls::ToCalls;
 use super::link::Link;
 use crate::relay::{self, RELAY_IDLE, RelayConn, RelayError};
@@ -32,7 +32,9 @@ impl Outbox {
 
 /// Runs until the relay refuses this gateway for good (taken over, unusable URL or origin).
 pub async fn run(
-    opts: &GatewayOptions,
+    url: &str,
+    identity: &Identity,
+    machine: &MachineInfo,
     calls: mpsc::UnboundedSender<ToCalls>,
     states: watch::Receiver<Option<MachineState>>,
 ) -> Result<(), RelayError> {
@@ -41,15 +43,14 @@ pub async fn run(
     let mut outbox = Outbox { rx, retry: None };
     let mut attempt = 0;
     loop {
-        let served =
-            match relay::connect(&opts.relay, &opts.identity, Some(opts.machine.clone())).await {
-                Ok(conn) => {
-                    tracing::info!(relay = %opts.relay, "connected to relay");
-                    attempt = 0;
-                    serve(conn, &calls, &out, &mut outbox, states.clone()).await
-                }
-                Err(err) => Err(err),
-            };
+        let served = match relay::connect(url, identity, Some(machine.clone())).await {
+            Ok(conn) => {
+                tracing::info!(relay = url, "connected to relay");
+                attempt = 0;
+                serve(conn, &calls, &out, &mut outbox, states.clone()).await
+            }
+            Err(err) => Err(err),
+        };
         match served {
             Err(err) if is_fatal(&err) => return Err(err),
             Err(err) => tracing::warn!(%err, "relay connection lost"),

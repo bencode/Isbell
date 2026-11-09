@@ -1,7 +1,8 @@
 //! `isbell terminal attach | new`: a remote herdr pane in this terminal (raw mode, alternate
-//! screen). `ctrl+]` detaches.
+//! screen). `ctrl+]` detaches. `isbell terminal share`: a read-only link to a pane.
 
 mod local;
+mod share;
 
 use std::io::{IsTerminal, Write};
 use std::time::Duration;
@@ -25,6 +26,19 @@ const OPEN_TIMEOUT: Duration = Duration::from_secs(50);
 
 #[derive(Subcommand)]
 pub enum TerminalCmd {
+    #[command(flatten)]
+    Open(OpenCmd),
+    /// Print a read-only link anyone can use to watch a pane live, for two hours.
+    Share {
+        target: String,
+        /// Stop sharing; the link stops working at once.
+        #[arg(long)]
+        stop: bool,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum OpenCmd {
     /// Attach to a pane or agent; read-only unless --control. Detach with ctrl+].
     Attach {
         target: String,
@@ -44,6 +58,13 @@ pub enum TerminalCmd {
 }
 
 pub async fn run(ctx: &Ctx, cmd: TerminalCmd) -> Result<(), CliError> {
+    match cmd {
+        TerminalCmd::Open(cmd) => open(ctx, cmd).await,
+        TerminalCmd::Share { target, stop } => share::run(ctx, &target, stop).await,
+    }
+}
+
+async fn open(ctx: &Ctx, cmd: OpenCmd) -> Result<(), CliError> {
     if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
         let message = "terminal commands need an interactive terminal";
         return Err(CliError::new("not_a_terminal", message));
@@ -71,15 +92,15 @@ pub async fn run(ctx: &Ctx, cmd: TerminalCmd) -> Result<(), CliError> {
 }
 
 /// The machine to open the terminal on, whether it takes input, and the `isbell.terminal` params.
-fn open_params(cmd: TerminalCmd, cols: u16, rows: u16) -> Result<(String, bool, Value), CliError> {
+fn open_params(cmd: OpenCmd, cols: u16, rows: u16) -> Result<(String, bool, Value), CliError> {
     match cmd {
-        TerminalCmd::Attach { target, control, takeover } => {
+        OpenCmd::Attach { target, control, takeover } => {
             let target = parse_target(&target)?;
             let mode = if control { "control" } else { "observe" };
             let params = json!({"target": target.agent, "mode": mode, "cols": cols, "rows": rows, "takeover": takeover});
             Ok((target.machine.to_owned(), control, params))
         }
-        TerminalCmd::New { machine, cwd } => {
+        OpenCmd::New { machine, cwd } => {
             let params =
                 json!({"new": {"cwd": cwd}, "mode": "control", "cols": cols, "rows": rows});
             Ok((machine, true, params))
@@ -153,8 +174,8 @@ async fn attached(mut stream: Stream, control: bool, mut resized: Option<Signal>
 mod tests {
     use super::*;
 
-    fn attach(control: bool, takeover: bool) -> TerminalCmd {
-        TerminalCmd::Attach { target: "mac/w1:p1".into(), control, takeover }
+    fn attach(control: bool, takeover: bool) -> OpenCmd {
+        OpenCmd::Attach { target: "mac/w1:p1".into(), control, takeover }
     }
 
     #[test]
@@ -168,7 +189,7 @@ mod tests {
         let (_, control, params) = open_params(attach(true, true), 80, 24).unwrap();
         assert!(control);
         assert_eq!((&params["mode"], &params["takeover"]), (&json!("control"), &json!(true)));
-        let new = TerminalCmd::New { machine: "mac".into(), cwd: "~/src".into() };
+        let new = OpenCmd::New { machine: "mac".into(), cwd: "~/src".into() };
         let (_, control, params) = open_params(new, 100, 30).unwrap();
         assert!(control);
         assert_eq!(
@@ -177,7 +198,7 @@ mod tests {
         );
         assert_eq!(
             open_params(
-                TerminalCmd::Attach { target: "mac".into(), control: false, takeover: false },
+                OpenCmd::Attach { target: "mac".into(), control: false, takeover: false },
                 80,
                 24
             )

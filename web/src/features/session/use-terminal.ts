@@ -17,11 +17,11 @@ type TerminalState = {
   error?: unknown
 }
 
-const FONT = '"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace'
+export const FONT = '"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace'
 
 /** xterm measures its cells when it opens, so it opens once its font is in. A font that fails to
  * load leaves the fallback, which only changes how the cells look. */
-const fontReady: Promise<void> = document.fonts.load('13px "IBM Plex Mono"').then(
+export const fontReady: Promise<void> = document.fonts.load('13px "IBM Plex Mono"').then(
   () => undefined,
   err => console.warn('the terminal font did not load; using a fallback', err),
 )
@@ -34,7 +34,7 @@ const utf8 = new TextEncoder()
  * is the shade a program lays under text where it cannot learn the background (herdr answers no
  * OSC 11), as Codex does under your messages, so it is only a little lighter than the background;
  * as text, it is lightened to `MIN_CONTRAST`. */
-const NIGHT: ITheme = {
+export const NIGHT: ITheme = {
   foreground: '#e9e5d9',
   cursor: '#8fb0ff',
   selectionBackground: '#1c2747',
@@ -57,7 +57,7 @@ const NIGHT: ITheme = {
 }
 
 /** The least contrast text keeps with what is under it; the terminal lightens text below it. */
-const MIN_CONTRAST = 3
+export const MIN_CONTRAST = 3
 
 /** `takesKeys`: whether it takes the keys as it opens and shows; on a phone that would bring up the
  * keyboard, which waits to be asked for. */

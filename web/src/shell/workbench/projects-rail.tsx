@@ -20,10 +20,11 @@ import {
 import { MachineFacts } from '../../features/machine/machine-facts'
 import { AddProjectDialog } from '../../features/projects/add-project-dialog'
 import { type ProjectActions, type ProjectConfig, projectActions } from '../../model/project-config'
-import { asking, type Project } from '../../model/projects'
+import { asking, locate, type Project } from '../../model/projects'
 import type { MachineEntry } from '../../model/space'
 import { projectHref } from '../../utils/hrefs'
 import { projectOf } from './address'
+import { sessionTabHref } from './tab-kinds'
 import { ProjectTile, shortName } from './tile'
 
 const SMALL = { ...ICON, size: 14 }
@@ -222,22 +223,58 @@ export function ProjectsRail({ thin }: { thin: boolean }) {
   const { pathname } = useLocation()
   const hereKey = projectOf(pathname)
   return (
-    <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pt-1 pb-2 [scrollbar-width:none]">
-      {machines.map(entry => {
-        const mid = entry.state.machine.id
-        const shown = projects.filter(p => p.mid === mid && p.configured && p.path)
-        return (
-          <MachineGroup
-            key={mid}
-            entry={entry}
-            config={configs[mid]}
-            actions={projectActions(entry, configs[mid], shellsKnown.has(mid), shown)}
-            projects={shown}
-            hereKey={hereKey}
-            thin={thin}
-          />
-        )
-      })}
+    <>
+      <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto pt-1 pb-2 [scrollbar-width:none]">
+        {machines.map(entry => {
+          const mid = entry.state.machine.id
+          const shown = projects.filter(p => p.mid === mid && p.configured && p.path)
+          return (
+            <MachineGroup
+              key={mid}
+              entry={entry}
+              config={configs[mid]}
+              actions={projectActions(entry, configs[mid], shellsKnown.has(mid), shown)}
+              projects={shown}
+              hereKey={hereKey}
+              thin={thin}
+            />
+          )
+        })}
+      </div>
+      <SharingNote projects={projects} thin={thin} />
+    </>
+  )
+}
+
+/** Stays in sight from any session, as what is shared is open to others. Goes to the first. */
+function SharingNote({ projects, thin }: { projects: Project[]; thin: boolean }) {
+  const t = useI18n()
+  const { machines } = useSpaceView()
+  const shares = machines.flatMap(m =>
+    (m.state.shares ?? []).map(s => ({ mid: m.state.machine.id, paneId: s.paneId })),
+  )
+  const first = shares[0]
+  if (!first) return null
+  const found = locate(projects, first.mid, first.paneId)
+  const label = t('share.rail', { n: shares.length })
+  const look = `mx-2 mb-1 flex flex-none items-center gap-2 rounded-lg border border-danger/40 bg-danger/10 px-2.5 py-1.5 text-[12.5px] font-medium text-danger no-underline ${thin ? 'justify-center' : ''}`
+  const inside = (
+    <>
+      <span className="size-[7px] flex-none rounded-full bg-danger" />
+      {thin ? null : <span className="min-w-0 truncate">{label}</span>}
+    </>
+  )
+  return found ? (
+    <Link
+      to={sessionTabHref(found.project.key, first.mid, first.paneId, true)}
+      title={label}
+      className={look}
+    >
+      {inside}
+    </Link>
+  ) : (
+    <div title={label} className={look}>
+      {inside}
     </div>
   )
 }

@@ -37,6 +37,19 @@ pub struct MachineState {
     pub herdr: HerdrState,
     pub caps: Caps,
     pub agents: Vec<Agent>,
+    /// Terminals shared by link; absent from gateways that do not share.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub shares: Vec<ShareInfo>,
+}
+
+/// A terminal being shared. The link's key is not here: this state is cached by the relay.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShareInfo {
+    pub pane_id: String,
+    /// Milliseconds on the gateway's clock.
+    pub expires_at: u64,
+    pub viewers: u32,
 }
 
 impl MachineState {

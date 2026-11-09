@@ -26,6 +26,9 @@ export type Agent = {
   title?: string
 }
 
+/** A terminal being shared; `expiresAt` is on the gateway's clock. */
+export type Share = { paneId: string; expiresAt: number; viewers: number }
+
 export type MachineState = {
   machine: MachineInfo
   /** The gateway process: a higher boot means it restarted. */
@@ -34,6 +37,8 @@ export type MachineState = {
   herdr: HerdrState
   caps: Caps
   agents: Agent[]
+  /** Absent from gateways that do not share. */
+  shares?: Share[]
 }
 
 export const isNewer = (a: MachineState, b: MachineState): boolean =>
