@@ -2,7 +2,7 @@
 // chat and its terminal. The place says which of the two is wanted, and what writing to it and ending
 // it mean there. The terminal attaches once first shown and stays while the chat is.
 
-import { type ReactNode, useCallback, useState } from 'react'
+import { lazy, type ReactNode, Suspense, useCallback, useState } from 'react'
 import { usePaneSession } from '../../core/session-records'
 import { useFilesRoots } from '../../core/worktrees'
 import { rootHolding } from '../../model/files/worktrees'
@@ -13,7 +13,9 @@ import { ShowTerminal } from './context'
 import { EndPane } from './end-pane-dialog'
 import { PaneFacts } from './session-parts'
 import { Subbar, type View } from './subbar'
-import { Terminal } from './terminal'
+
+// With xterm, which a chat alone does not need.
+const Terminal = lazy(() => import('./terminal').then(m => ({ default: m.Terminal })))
 
 type Props = {
   mid: string
@@ -74,7 +76,9 @@ export function SessionView({
           ) : null}
           {attached ? (
             <div className={`absolute inset-0 ${shown === 'terminal' ? '' : 'hidden'}`}>
-              <Terminal mid={mid} paneId={paneId} machine={project.machine} onVia={setVia} />
+              <Suspense>
+                <Terminal mid={mid} paneId={paneId} machine={project.machine} onVia={setVia} />
+              </Suspense>
             </div>
           ) : null}
         </div>
