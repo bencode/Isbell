@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Button } from '../components/button'
 import { ErrorBoundary } from '../components/error-boundary'
 import { useI18n } from '../core/i18n'
@@ -8,7 +8,24 @@ import { SpaceProvider, useProjects, useSpaceView } from '../core/space'
 import { Join, takeKeyFromLink } from '../features/join/join-page'
 import { Loading } from './loading'
 import { useNotifications } from './notify'
-import { WorkbenchRoutes } from './workbench/routes'
+
+/** A phone gets its own shell, decided once at load; by the shorter side, so landscape counts too. */
+const PHONE = matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600
+if (PHONE) {
+  // Lets the phone's styles in styles.css apply.
+  document.documentElement.dataset.shell = 'phone'
+  // iOS shows :active only when the page listens for touches.
+  document.addEventListener('touchstart', () => {}, { passive: true })
+  // The page scrolls, and the home page puts itself back where it was (mobile/home.tsx).
+  history.scrollRestoration = 'manual'
+}
+
+// Each shell is loaded only where it is used.
+const Shell = lazy(() =>
+  PHONE
+    ? import('./mobile/routes').then(m => ({ default: m.MobileRoutes }))
+    : import('./workbench/routes').then(m => ({ default: m.WorkbenchRoutes })),
+)
 
 export function App() {
   const { key } = useLocal()
@@ -51,7 +68,7 @@ function Connected({ onRejected }: { onRejected: () => void }) {
   return (
     <ErrorBoundary fallback={<Broken />}>
       <Suspense fallback={<Loading />}>
-        <WorkbenchRoutes />
+        <Shell />
       </Suspense>
     </ErrorBoundary>
   )

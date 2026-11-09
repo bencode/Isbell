@@ -14,19 +14,19 @@ import {
 } from 'lucide-react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Group, Panel, type PanelSize, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
-import { Button } from '../../components/button'
 import { ICON, IconButton } from '../../components/icon-button'
 import { ResizeHandle } from '../../components/resize-handle'
 import { useI18n } from '../../core/i18n'
 import { toggleRail, useLocal } from '../../core/prefs'
-import { useSpace, useSpaceView } from '../../core/space'
+import { type Overlay, Overlays } from '../../features/settings/settings-dialog'
+import { ReconnectBanner } from '../reconnect-banner'
 import { ActiveSessions } from './active-sessions'
 import { BAR } from './bar'
 import { CommandPalette } from './command-palette'
 import { ListColumn } from './list-column'
 import { Peek } from './peek'
 import { ProjectsRail } from './projects-rail'
-import { type Overlay, Overlays, SettingsMenu } from './settings-menu'
+import { SettingsMenu } from './settings-menu'
 import { TabStrip } from './tab-strip'
 import { TabPanes } from './workspace'
 
@@ -123,22 +123,6 @@ function Projects({ onOverlay }: { onOverlay: (overlay: Overlay) => void }) {
         <SettingsMenu onOverlay={onOverlay} />
       </div>
     </nav>
-  )
-}
-
-/** The strip shown while the relay reconnects, with a way to try at once. */
-function ReconnectBanner() {
-  const t = useI18n()
-  const space = useSpace()
-  const { status } = useSpaceView()
-  if (status !== 'reconnecting') return null
-  return (
-    <div className="flex h-9 flex-none items-center gap-3 border-b border-ask-line bg-ask px-5 text-[13px]">
-      <span className="flex-1">{t('banner.reconnecting')}</span>
-      <Button size="small" onClick={space.reconnectNow}>
-        {t('banner.now')}
-      </Button>
-    </div>
   )
 }
 

@@ -123,3 +123,27 @@ body {
   color: var(--text);
   font: 14px / 1.5 var(--font-sans);
 }
+
+:root[data-shell="phone"] {
+  /* No double-tap zoom, and no delay before a tap. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Tall as what is on them, so the page itself scrolls and a sticky bar stays; each page keeps clear
+   of the notch and the home indicator itself. */
+:root[data-shell="phone"] body,
+:root[data-shell="phone"] #root {
+  height: auto;
+  min-height: 100%;
+}
+
+:root[data-shell="phone"] body {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* Whatever scrolls within the page keeps a gesture that reaches its end from the page's bounce. */
+:root[data-shell="phone"] body * {
+  overscroll-behavior: contain;
+}

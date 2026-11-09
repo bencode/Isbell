@@ -179,3 +179,22 @@ export function LeaveSpace({ open, onOpenChange }: Props) {
     />
   )
 }
+
+export type Overlay = 'settings' | 'leave'
+
+/** Settings and leaving the space; one open at a time. */
+export function Overlays({
+  overlay,
+  setOverlay,
+}: {
+  overlay: Overlay | null
+  setOverlay: (overlay: Overlay | null) => void
+}) {
+  const close = (open: boolean) => !open && setOverlay(null)
+  return (
+    <>
+      <Settings open={overlay === 'settings'} onOpenChange={close} onLeave={() => setOverlay('leave')} />
+      <LeaveSpace open={overlay === 'leave'} onOpenChange={close} />
+    </>
+  )
+}
