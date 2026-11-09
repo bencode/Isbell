@@ -1,6 +1,6 @@
 // The keys a touch keyboard lacks, under the terminal. Those that answer an agent's menu and the one
 // that brings up the keyboard stay in sight, Enter at the right edge under the thumb; the rest scroll
-// beside them.
+// beside them, ^C last, as a second press quits an agent.
 
 import { Keyboard } from 'lucide-react'
 import type { MouseEvent, ReactNode } from 'react'
@@ -14,8 +14,11 @@ const SCROLLED: Key[] = [
   { key: '1', label: '1' },
   { key: '2', label: '2' },
   { key: '3', label: '3' },
-  { key: 'interrupt', label: '^C', aria: 'Ctrl-C' },
+  { key: 'backTab', label: '⇧Tab', aria: 'Shift-Tab' },
+  { key: 'pageUp', label: 'PgUp', aria: 'Page Up' },
+  { key: 'pageDown', label: 'PgDn', aria: 'Page Down' },
   { key: 'tab', label: 'Tab' },
+  { key: 'interrupt', label: '^C', aria: 'Ctrl-C' },
 ]
 const FIXED: Key[] = [
   { key: 'up', label: '↑' },
