@@ -33,7 +33,8 @@ function MachineView({ machines }: { machines: MachineEntry[] }) {
   return (
     <>
       {machines.length > 1 ? (
-        <div className="flex flex-none gap-1.5 overflow-x-auto px-2.5 pb-3">
+        // All in sight up to three rows; past that a part of the fourth shows there are more to scroll to.
+        <div className="flex max-h-44 flex-none flex-wrap gap-1.5 overflow-y-auto px-2.5 pb-3">
           {machines.map(entry => (
             <MachineTab
               key={entry.state.machine.id}
