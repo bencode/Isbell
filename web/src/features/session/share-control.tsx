@@ -74,7 +74,7 @@ function Start({ mid, paneId }: Pane) {
   }
   return (
     <>
-      <h3 className="m-0 text-[14.5px] font-semibold">{t('share.title')}</h3>
+      <h3 className="m-0 text-[14.5px] font-semibold">{t('share.share')}</h3>
       <p className={NOTE}>{t('share.about')}</p>
       <div className="flex gap-2 rounded-lg border border-warn/40 bg-warn/10 px-2.5 py-2 text-[12.5px]">
         <TriangleAlert {...SMALL_ICON} className="mt-0.5 flex-none text-warn" />

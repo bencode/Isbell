@@ -359,7 +359,6 @@ export const en = {
   'session.chat': 'Chat',
   'session.view': 'Show',
   'share.share': 'Share this terminal',
-  'share.title': 'Share this terminal',
   'share.about':
     'Anyone with the link can watch this terminal live. They cannot type, or see your other sessions and files.',
   'share.warning': 'Everything that appears on screen will be seen, including printed secrets and paths.',

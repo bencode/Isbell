@@ -22,7 +22,11 @@ pub async fn run(ctx: &Ctx, target: &str, stop: bool) -> Result<(), CliError> {
     let answer = session.call(&state.machine.id, method, params, Some(CALL_TIMEOUT)).await?;
     session.close().await;
     if stop {
-        println!("stopped sharing {pane}");
+        if ctx.out.json {
+            ctx.out.json(&json!({"stopped": pane}));
+        } else {
+            println!("stopped sharing {pane}");
+        }
         return Ok(());
     }
     report(ctx, &answer)

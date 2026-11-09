@@ -356,7 +356,6 @@ export const zh: Record<Key, string> = {
   'session.chat': '对话',
   'session.view': '显示',
   'share.share': '分享这个终端',
-  'share.title': '分享这个终端',
   'share.about': '拿到链接的人可以实时观看这个终端，不能输入，也看不到你的其他 session 和文件。',
   'share.warning': '屏幕上出现的一切都会被看到，包括打印出来的密钥和路径。',
   'share.terms': '2 小时后自动结束 · 最多 5 人同时观看',

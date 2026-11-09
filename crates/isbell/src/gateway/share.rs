@@ -9,6 +9,7 @@ use std::time::Duration;
 use isbell_proto::frame::RpcError;
 use isbell_proto::identity::Identity;
 use isbell_proto::state::{Caps, HerdrState, HerdrStatus, MachineInfo, MachineState, ShareInfo};
+use rustix::fs::{Mode, OFlags};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio::process::Command;
@@ -24,11 +25,6 @@ const LASTS: Duration = Duration::from_secs(2 * 60 * 60);
 const CHECK_EVERY: Duration = Duration::from_secs(3);
 /// How long the viewers' last frames get to leave before the connection closes.
 const FLUSH_WITHIN: Duration = Duration::from_secs(1);
-#[cfg(target_os = "linux")]
-const STTY_DEVICE: &str = "-F";
-#[cfg(not(target_os = "linux"))]
-const STTY_DEVICE: &str = "-f";
-
 /// The shares running, by pane.
 pub struct Shares {
     running: Mutex<BTreeMap<String, Running>>,
@@ -45,6 +41,12 @@ struct Running {
     streams: Streams,
     /// Dropping it ends the share.
     _stop: oneshot::Sender<()>,
+}
+
+impl Running {
+    fn answer(&self) -> Value {
+        json!({"key": self.key, "expiresAt": self.expires_at})
+    }
 }
 
 #[derive(Deserialize)]
@@ -84,11 +86,15 @@ impl Shares {
     /// Starts sharing a pane, or answers with the share it already has.
     pub async fn start(self: &Arc<Self>, p: Value) -> Result<Value, RpcError> {
         let pane = pane_of(p)?;
+        if let Some(share) = self.running.lock().expect("shares poisoned").get(&pane) {
+            return Ok(share.answer());
+        }
         let herdr = self.herdr().ok_or_else(unavailable)?;
-        let size = pane_size(&herdr, &pane).await?;
+        let device = pane_tty(&herdr, &pane).await?;
+        let size = tty_size(&device)?;
         let mut running = self.running.lock().expect("shares poisoned");
         if let Some(share) = running.get(&pane) {
-            return Ok(json!({"key": share.key, "expiresAt": share.expires_at}));
+            return Ok(share.answer());
         }
         let identity = Identity::generate();
         let key = identity.key_string();
@@ -98,7 +104,7 @@ impl Shares {
         let share = Running { key: key.clone(), expires_at, streams: streams.clone(), _stop: stop };
         running.insert(pane.clone(), share);
         drop(running);
-        let serving = Serving { pane, identity, size, streams, stopped };
+        let serving = Serving { pane, device, identity, size, streams, stopped };
         tokio::spawn(serve(Arc::clone(self), serving));
         nudge(&self.refresh);
         Ok(json!({"key": key, "expiresAt": expires_at}))
@@ -110,7 +116,7 @@ impl Shares {
         let pane = pane_of(p)?;
         let running = self.running.lock().expect("shares poisoned");
         let share = running.get(&pane).ok_or_else(|| RpcError::new("not_found", "not shared"))?;
-        Ok(json!({"key": share.key, "expiresAt": share.expires_at}))
+        Ok(share.answer())
     }
 
     pub fn stop(&self, p: Value) -> Result<Value, RpcError> {
@@ -147,15 +153,24 @@ fn unavailable() -> RpcError {
 
 struct Serving {
     pane: String,
+    device: String,
     identity: Identity,
     size: (u16, u16),
     streams: Streams,
     stopped: oneshot::Receiver<()>,
 }
 
+#[derive(Debug, PartialEq)]
+enum Ending {
+    RelayLost,
+    Expired,
+    Stopped,
+    PaneClosed,
+}
+
 /// Serves a share's viewers until it ends for any reason, then tells them.
 async fn serve(shares: Arc<Shares>, serving: Serving) {
-    let Serving { pane, identity, size, streams, mut stopped } = serving;
+    let Serving { pane, device, identity, size, streams, mut stopped } = serving;
     let key = identity.key_string();
     let (inbox, inbox_rx) = mpsc::unbounded_channel();
     let (screen, seen) = watch::channel::<Screen>(Some(size));
@@ -179,27 +194,18 @@ async fn serve(shares: Arc<Shares>, serving: Serving) {
     tokio::pin!(expiry);
     let mut check = tokio::time::interval(CHECK_EVERY);
     let mut counted = 0;
-    let why = loop {
+    let mut failing = false;
+    let ending = loop {
         tokio::select! {
             ended = &mut uplink.0 => {
                 tracing::warn!(?ended, "a share lost its relay connection");
-                break "relay";
+                break Ending::RelayLost;
             }
-            () = &mut expiry => break "expired",
-            _ = &mut stopped => break "stopped",
+            () = &mut expiry => break Ending::Expired,
+            _ = &mut stopped => break Ending::Stopped,
             _ = check.tick() => {
-                if let Some(herdr) = shares.herdr() {
-                    match pane_size(&herdr, &pane).await {
-                        Ok(now) => {
-                            screen.send_if_modified(|shown| {
-                                let changed = *shown != Some(now);
-                                *shown = Some(now);
-                                changed
-                            });
-                        }
-                        Err(err) if err.code == "pane_not_found" => break "pane closed",
-                        Err(err) => tracing::warn!(code = err.code, msg = err.msg, "cannot check a shared pane"),
-                    }
+                if !look(&shares, &pane, &device, &screen, &mut failing).await {
+                    break Ending::PaneClosed;
                 }
                 let viewing = shares.viewers(&pane);
                 if viewing != counted {
@@ -209,10 +215,10 @@ async fn serve(shares: Arc<Shares>, serving: Serving) {
             }
         }
     };
-    tracing::info!(pane, why, "share ended");
+    tracing::info!(pane, ?ending, "share ended");
     screen.send_replace(None);
     // With the connection gone there is nothing to wait for, and its task must not be polled again.
-    if why != "relay"
+    if ending != Ending::RelayLost
         && let Ok(Ok(Err(err))) = tokio::time::timeout(FLUSH_WITHIN, &mut uplink.0).await
     {
         tracing::debug!(%err, "a share's relay connection failed as it ended");
@@ -245,47 +251,70 @@ fn anonymous_state(machine: &MachineInfo) -> MachineState {
     }
 }
 
-/// The pane's real size, from its tty: herdr's layout does not follow whichever client last sized
-/// the pane, and an observer shown at any other size sees it cut off or surrounded by blanks.
-async fn pane_size(herdr: &Herdr, pane: &str) -> Result<(u16, u16), RpcError> {
+/// Follows the pane's size; false once the pane is gone. A failure is reported when it begins, and
+/// the last size stands meanwhile.
+async fn look(
+    shares: &Shares,
+    pane: &str,
+    device: &str,
+    screen: &watch::Sender<Screen>,
+    failing: &mut bool,
+) -> bool {
+    let Some(herdr) = shares.herdr() else { return true };
+    match shell_pid(&herdr, pane).await.and_then(|_| tty_size(device)) {
+        Ok(now) => {
+            *failing = false;
+            screen.send_if_modified(|shown| {
+                let changed = *shown != Some(now);
+                *shown = Some(now);
+                changed
+            });
+            true
+        }
+        Err(err) if err.code == "pane_not_found" => false,
+        Err(err) => {
+            if !std::mem::replace(failing, true) {
+                tracing::warn!(code = err.code, msg = err.msg, "cannot check a shared pane");
+            }
+            true
+        }
+    }
+}
+
+async fn shell_pid(herdr: &Herdr, pane: &str) -> Result<u64, RpcError> {
     let info = herdr
         .request("pane.process_info", json!({ "pane_id": pane }), Some(REQUEST_TIMEOUT))
         .await?;
     let pid = info.pointer("/process_info/shell_pid").and_then(Value::as_u64);
-    let pid = pid.ok_or_else(|| failed("herdr names no process for the pane"))?;
-    let tty = output("/bin/ps", &["-o", "tty=", "-p", &pid.to_string()]).await?;
-    let device = format!("/dev/{}", tty.trim());
-    let size = output("/bin/stty", &[STTY_DEVICE, &device, "size"]).await?;
-    parse_size(&size).ok_or_else(|| failed("the pane's tty reports no size"))
+    pid.ok_or_else(|| failed("herdr names no process for the pane"))
 }
 
-async fn output(program: &str, args: &[&str]) -> Result<String, RpcError> {
-    let out = Command::new(program).args(args).output().await;
-    let out = out.map_err(|err| failed(format!("cannot run {program}: {err}")))?;
-    if !out.status.success() {
-        return Err(failed(format!("{program} failed")));
+/// The pane's tty device. The size comes from there because herdr's layout does not follow
+/// whichever client last sized the pane, and an observer shown at any other size sees it cut off
+/// or surrounded by blanks.
+async fn pane_tty(herdr: &Herdr, pane: &str) -> Result<String, RpcError> {
+    let pid = shell_pid(herdr, pane).await?.to_string();
+    let out = Command::new("/bin/ps").args(["-o", "tty=", "-p", &pid]).output().await;
+    let out = out.map_err(|err| failed(format!("cannot run ps: {err}")))?;
+    let tty = String::from_utf8_lossy(&out.stdout);
+    if !out.status.success() || tty.trim().is_empty() {
+        return Err(failed("the pane has no tty"));
     }
-    Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+    Ok(format!("/dev/{}", tty.trim()))
 }
 
-/// `stty size` prints `rows cols`.
-fn parse_size(output: &str) -> Option<(u16, u16)> {
-    let (rows, cols) = output.trim().split_once(' ')?;
-    let (rows, cols) = (rows.parse().ok()?, cols.parse().ok()?);
-    (rows > 0 && cols > 0).then_some((cols, rows))
+/// Opened only to read it: held open, it could keep the pane's pty alive after its shell exits.
+fn tty_size(device: &str) -> Result<(u16, u16), RpcError> {
+    let flags = OFlags::RDONLY | OFlags::NOCTTY | OFlags::NONBLOCK;
+    let tty = rustix::fs::open(device, flags, Mode::empty())
+        .map_err(|err| failed(format!("cannot open the pane's tty: {err}")))?;
+    let size = rustix::termios::tcgetwinsize(&tty)
+        .map_err(|err| failed(format!("cannot read the pane's size: {err}")))?;
+    (size.ws_col > 0 && size.ws_row > 0)
+        .then_some((size.ws_col, size.ws_row))
+        .ok_or_else(|| failed("the pane's tty reports no size"))
 }
 
 fn failed(msg: impl Into<String>) -> RpcError {
     RpcError::new("share_failed", msg)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn stty_reads_rows_before_columns() {
-        assert_eq!(parse_size("30 90\n"), Some((90, 30)));
-        assert_eq!(parse_size("0 0\n"), None, "a tty nothing has sized yet");
-    }
 }
