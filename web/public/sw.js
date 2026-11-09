@@ -12,7 +12,9 @@ self.addEventListener('push', event => {
 
 self.addEventListener('notificationclick', event => {
   event.notification.close()
-  const url = event.notification.data?.url ?? '/'
+  const session = event.notification.data?.url
+  // Says where it came from: one still waiting for an answer opens where it is answered.
+  const url = session ? `${session}?from=push` : '/'
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windows => {
       const open = windows[0]

@@ -2,7 +2,7 @@
 // with the page, and its terminal, which is laid over it and attached only while shown.
 
 import { ChevronLeft, Ellipsis } from 'lucide-react'
-import { Activity, lazy, Suspense, useCallback, useState } from 'react'
+import { Activity, lazy, Suspense, useCallback, useLayoutEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { Modal } from '../../components/dialog'
 import { DropdownMenu } from '../../components/menu'
@@ -29,13 +29,17 @@ export function PhoneSession() {
   const t = useI18n()
   const { mid = '', '*': paneId = '' } = useParams()
   const { found, waiting } = useFoundPane(mid, paneId)
-  if (found) return <Opened mid={mid} paneId={paneId} found={found} />
+  const { search } = useLocation()
+  // Just started it is listed as a shell until its agent is made out, and it is the agent that was
+  // asked for, not that shell's terminal.
+  const starting = !!found && !('session' in found.pane) && new URLSearchParams(search).get('from') === 'new'
+  if (found && !starting) return <Opened mid={mid} paneId={paneId} found={found} />
   return (
     <>
       <PhoneBar>
         <BackButton />
       </PhoneBar>
-      <p className="m-0 p-4 text-muted">{t(waiting ? 'board.loading' : 'session.gone')}</p>
+      <p className="m-0 p-4 text-muted">{t(waiting || starting ? 'board.loading' : 'session.gone')}</p>
     </>
   )
 }
@@ -66,6 +70,15 @@ function Opened({ mid, paneId, found }: { mid: string; paneId: string; found: Fo
     [navigate, search],
   )
   const showTerminal = useCallback(() => show('terminal'), [show])
+  // Come from a push or from New, one waiting for an answer opens where it is answered. Once:
+  // answered, it stays.
+  const status = agent?.status
+  useLayoutEffect(() => {
+    const params = new URLSearchParams(search)
+    if (!params.has('from')) return
+    params.delete('from')
+    navigate({ search: withTerminal(params.toString(), status === 'blocked') }, { replace: true })
+  }, [search, status, navigate])
   const [info, setInfo] = useState(false)
   const [ending, setEnding] = useState(false)
   const [via, setVia] = useState<Via>()

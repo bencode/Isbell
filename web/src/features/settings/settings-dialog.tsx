@@ -11,6 +11,7 @@ import { errorText, uiLabels, useI18n } from '../../core/i18n'
 import { applyTheme, clearLocal, type Prefs, updateLocal, useLocal } from '../../core/prefs'
 import { pushMachines, pushSupport, pushTexts, turnOffPush, turnOnPush } from '../../core/push'
 import { useSpace, useSpaceView } from '../../core/space'
+import { PHONE } from '../../utils/phone'
 
 type Props = { open: boolean; onOpenChange: (open: boolean) => void }
 
@@ -84,16 +85,19 @@ export function Settings({ open, onOpenChange, onLeave }: Props & { onLeave: () 
     <Modal open={open} onOpenChange={onOpenChange} title={t('settings.title')} closeLabel={t('close')}>
       <p className="m-0 text-muted">{t('settings.local')}</p>
       <Section title={t('settings.notifications')}>
-        <Row label={t('settings.notify')} hint={t('settings.notifyHint')}>
-          <ToggleSwitch
-            checked={prefs.notify && allowed === 'granted'}
-            onChange={on => void toggleNotify(on)}
-            label={t('settings.notify')}
-          />
-        </Row>
+        {/* A phone is told by its pushes, with Isbell open too. */}
+        {PHONE ? null : (
+          <Row label={t('settings.notify')} hint={t('settings.notifyHint')}>
+            <ToggleSwitch
+              checked={prefs.notify && allowed === 'granted'}
+              onChange={on => void toggleNotify(on)}
+              label={t('settings.notify')}
+            />
+          </Row>
+        )}
         {allowed === 'unsupported' ? <p className="m-0 text-danger">{t('settings.unsupported')}</p> : null}
         {allowed === 'denied' ? <p className="m-0 text-danger">{t('settings.denied')}</p> : null}
-        {prefs.notify && allowed === 'granted' ? (
+        {!PHONE && prefs.notify && allowed === 'granted' ? (
           <Row label={t('settings.allowed')}>
             <Button onClick={() => new Notification('Isbell', { body: t('settings.testBody') })}>
               {t('settings.test')}
