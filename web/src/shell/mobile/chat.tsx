@@ -67,9 +67,9 @@ export function PhoneChat({
         className={`sticky bottom-0 z-10 border-t pb-[calc(env(safe-area-inset-bottom)+8px)] ${asking ? 'border-ask-line bg-ask px-3.5 pt-3' : 'border-line bg-bg px-2.5 pt-2'}`}
       >
         {follow.unseen ? <ToEndButton onClick={follow.toEnd} className="bottom-full mb-2" /> : null}
-        {asking ? (
-          <Asking session={session} />
-        ) : (
+        {asking ? <Asking session={session} /> : null}
+        {/* Hidden, not gone, so that a reply half written is still there once the agent is answered. */}
+        <div className={asking ? 'hidden' : ''}>
           <PhoneComposer
             mid={mid}
             paneId={paneId}
@@ -77,7 +77,7 @@ export function PhoneChat({
             stoppable={session.status === 'working'}
             onSent={follow.onSent}
           />
-        )}
+        </div>
       </div>
     </>
   )
