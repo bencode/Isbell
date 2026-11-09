@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
 import { I18nProvider } from './core/i18n'
 import { registerWorker } from './core/push'
+import { reloadWhenChunksAreGone } from './core/stale-page'
 import { messages } from './locales'
 import { App } from './shell/app'
 import '@fontsource-variable/instrument-sans'
@@ -11,6 +12,7 @@ import '@fontsource/ibm-plex-mono/latin-500.css'
 import './styles.css'
 
 registerWorker()
+reloadWhenChunksAreGone()
 
 const root = document.getElementById('root')
 if (!root) throw new Error('index.html has no #root')
