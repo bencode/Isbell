@@ -1,23 +1,18 @@
 // A terminal on a machine: an `isbell.terminal` stream in control mode. Output is granted back
 // as it reaches the screen, so a slow screen slows the machine instead of piling up.
 
-import type { RpcError } from './frame'
 import type { Space, Via } from './space'
-import { WINDOW } from './streams'
-
-export type TerminalTarget = { target: string } | { new: { cwd: string } }
+import { CallError, WINDOW } from './streams'
 
 export type TerminalEvents = {
   /** Call `done` once the bytes are on screen. */
   output: (bytes: Uint8Array, done: () => void) => void
   size: (cols: number, rows: number) => void
-  end: (error?: RpcError) => void
+  end: (error?: CallError) => void
 }
 
 export type Terminal = {
   via: Via
-  /** The new shell's pane; null when attaching. */
-  paneId: string | null
   input: (bytes: Uint8Array) => void
   resize: (cols: number, rows: number) => void
   /** Detaches; the pane stays in herdr. */
@@ -33,10 +28,9 @@ const INPUT_BATCH_MS = 30
 export async function openTerminal(
   space: Space,
   mid: string,
-  target: TerminalTarget,
+  paneId: string,
   size: { cols: number; rows: number },
   events: TerminalEvents,
-  transport: 'auto' | 'relay' = 'auto',
 ): Promise<Terminal> {
   let shown = { cols: 0, rows: 0 }
   let sent = size
@@ -48,12 +42,12 @@ export async function openTerminal(
     clearInterval(timer)
     clearTimeout(flush)
   }
-  const { result, stream, via } = await space.openStream(
+  const { stream, via } = await space.openStream(
     mid,
     'isbell.terminal',
     // herdr lets one client hold a terminal: the last to open it has it, from another screen or from
     // a connection lost that still holds it until the gateway gives up on it.
-    { ...target, mode: 'control', ...size, takeover: true },
+    { target: paneId, mode: 'control', ...size, takeover: true },
     OPEN_TIMEOUT_MS,
     {
       data: ({ cols, rows, body }) => {
@@ -65,10 +59,9 @@ export async function openTerminal(
       },
       end: error => {
         stop()
-        events.end(error)
+        events.end(error && new CallError(error.code, error.msg))
       },
     },
-    transport,
   )
   stream.grant(WINDOW)
   timer = setInterval(() => stream.send('ping'), PING_EVERY_MS)
@@ -81,7 +74,6 @@ export async function openTerminal(
   }
   return {
     via,
-    paneId: (result as { paneId?: string | null } | null)?.paneId ?? null,
     input: bytes => {
       batch.push(bytes)
       if (via !== 'relay') send()

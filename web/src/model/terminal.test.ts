@@ -22,7 +22,7 @@ async function terminalOver(via: Via) {
   const terminal = await openTerminal(
     space,
     'm',
-    { target: 'w1:p1' },
+    'w1:p1',
     { cols: 80, rows: 24 },
     { output: () => {}, size: () => {}, end: () => {} },
   )

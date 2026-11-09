@@ -5,9 +5,8 @@ import { FitAddon } from '@xterm/addon-fit'
 import { type ITheme, Terminal as XTerm } from '@xterm/xterm'
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { useSpace } from '../../core/space'
-import { paneKey } from '../../model/projects'
 import type { Via } from '../../model/space'
-import { type BarKey, barKeyBytes, withCtrl } from '../../model/term-keys'
+import { type BarKey, barKeyBytes } from '../../model/term-keys'
 import { openTerminal, type Terminal } from '../../model/terminal'
 
 type TerminalState = {
@@ -29,9 +28,6 @@ const fontReady: Promise<void> = document.fonts.load('13px "IBM Plex Mono"').the
 /** Resizing the window fires continuously; the pane is resized once it settles. */
 const RESIZE_SETTLE_MS = 100
 const utf8 = new TextEncoder()
-/** A pane takes one controller at a time: an attach waits until the last one here has let go, in
- * whichever place held it. */
-const letGo = new Map<string, Promise<unknown>>()
 
 /** The terminal stays on the night page in either theme: programs such as agents pick many of their
  * colors for a dark background, and on paper those fade. Its background is `--term`. Bright black
@@ -75,13 +71,6 @@ export function useTerminal(
   const [attempt, setAttempt] = useState(0)
   const [state, setState] = useState<TerminalState>({ phase: 'opening' })
   const xterm = useRef<XTerm | null>(null)
-  // Ctrl from a key bar holds until the next key; `onData` reads the ref, the bar the state.
-  const ctrlOn = useRef(false)
-  const [ctrl, setCtrlState] = useState(false)
-  const setCtrl = useCallback((on: boolean) => {
-    ctrlOn.current = on
-    setCtrlState(on)
-  }, [])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `attempt` is how Reconnect re-attaches; `attach` reads only what is listed, and refs.
   useEffect(() => {
@@ -128,46 +117,34 @@ export function useTerminal(
 
     let live: Terminal | null = null
     let gone = false
-    const pane = paneKey(mid, paneId)
-    const attached = (letGo.get(pane) ?? Promise.resolve())
-      .then(() =>
-        gone
-          ? null
-          : openTerminal(
-              space,
-              mid,
-              { target: paneId },
-              { cols: term.cols, rows: term.rows },
-              {
-                output: (bytes, done) => term.write(bytes, done),
-                size: (cols, rows) => setState(s => ({ ...s, size: { cols, rows } })),
-                // A stream let go of ends too, later, when the next one is already up.
-                end: error => {
-                  if (!gone) setState(s => ({ ...s, phase: 'ended', error }))
-                },
-              },
-            ),
-      )
-      .then(
-        t => {
-          if (t && !gone) {
-            live = t
-            setState(s => ({ ...s, via: t.via, phase: s.phase === 'ended' ? 'ended' : 'open' }))
-          }
-          return t
+    const attached = openTerminal(
+      space,
+      mid,
+      paneId,
+      { cols: term.cols, rows: term.rows },
+      {
+        output: (bytes, done) => term.write(bytes, done),
+        size: (cols, rows) => setState(s => ({ ...s, size: { cols, rows } })),
+        // A stream let go of ends too, later, when the next one is already up.
+        end: error => {
+          if (!gone) setState(s => ({ ...s, phase: 'ended', error }))
         },
-        error => {
-          if (!gone) setState({ phase: 'ended', error })
-          return null
-        },
-      )
+      },
+    ).then(
+      t => {
+        if (!gone) {
+          live = t
+          setState(s => ({ ...s, via: t.via, phase: s.phase === 'ended' ? 'ended' : 'open' }))
+        }
+        return t
+      },
+      error => {
+        if (!gone) setState({ phase: 'ended', error })
+        return null
+      },
+    )
 
-    // A key bar's keys come through here too, so any key lets go of Ctrl.
-    const typed = term.onData(s => {
-      const latched = ctrlOn.current
-      if (latched) setCtrl(false)
-      live?.input(utf8.encode(latched ? withCtrl(s) : s))
-    })
+    const typed = term.onData(s => live?.input(utf8.encode(s)))
     const binary = term.onBinary(s => live?.input(Uint8Array.from(s, c => c.charCodeAt(0))))
     let settle: ReturnType<typeof setTimeout> | undefined
     // Shown again after hiding behind the chat, it takes the keys, as it does on opening.
@@ -193,10 +170,7 @@ export function useTerminal(
       observer.disconnect()
       typed.dispose()
       binary.dispose()
-      letGo.set(
-        pane,
-        attached.then(t => t?.close()),
-      )
+      void attached.then(t => t?.close())
       xterm.current = null
       term.dispose()
     }
@@ -213,8 +187,6 @@ export function useTerminal(
       const term = xterm.current
       term?.input(barKeyBytes(key, term.modes.applicationCursorKeysMode), true)
     },
-    ctrl,
-    toggleCtrl: () => setCtrl(!ctrlOn.current),
     /** Brings up the system keyboard, or puts it away; within a tap, so iOS allows it. */
     toggleKeyboard: () => {
       const term = xterm.current
