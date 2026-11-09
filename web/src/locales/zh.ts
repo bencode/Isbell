@@ -132,6 +132,7 @@ export const zh: Record<Key, string> = {
   'mobile.pickProject': '选一个项目',
   'mobile.noProject': '没有在线的项目。',
   'mobile.noPreview': '手机上打不开这个文件。',
+  'mobile.reply': '回复…',
   'peek.label': '查看 session',
   'peek.next': '下一个等你',
   'peek.open': '在工作区打开',
