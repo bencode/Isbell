@@ -55,9 +55,22 @@ pub enum GatewayError {
     MonitorStopped,
 }
 
+/// Makes `~/.isbell`, where the browser keeps this machine's list of projects: a file write needs
+/// its directory to exist, and nothing else makes this one on a machine without the agent hooks.
+fn make_state_dir() {
+    let Some(dir) = workspace::expand_home("~/.isbell") else {
+        tracing::warn!("HOME is not set, so this machine cannot list projects");
+        return;
+    };
+    if let Err(err) = std::fs::create_dir_all(&dir) {
+        tracing::error!(dir = %dir.display(), %err, "cannot make the directory for this machine's projects");
+    }
+}
+
 /// Runs until another gateway takes over this machine, the relay URL / origin is unusable, or the
 /// monitor dies.
 pub async fn run(opts: GatewayOptions) -> Result<(), GatewayError> {
+    make_state_dir();
     let slot: HerdrSlot = Arc::default();
     let (states, states_rx) = watch::channel(None);
     let (refresh, refresh_rx) = mpsc::channel(1);
