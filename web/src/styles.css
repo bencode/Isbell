@@ -147,3 +147,12 @@ body {
 :root[data-shell="phone"] body * {
   overscroll-behavior: contain;
 }
+
+/* The terminal on a phone is laid over a page that must not move. */
+:root[data-scroll="locked"],
+:root[data-scroll="locked"] body,
+:root[data-scroll="locked"] #root {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}

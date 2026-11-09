@@ -1,8 +1,8 @@
-// A session's page on a phone: the bar that names it and switches between its chat and its terminal,
-// under which the chat scrolls with the page.
+// A session's page on a phone: the bar that names it and switches between its chat, which scrolls
+// with the page, and its terminal, which is laid over it and attached only while shown.
 
 import { ChevronLeft, Ellipsis } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import { Activity, lazy, Suspense, useCallback, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { Modal } from '../../components/dialog'
 import { DropdownMenu } from '../../components/menu'
@@ -16,9 +16,14 @@ import { PaneFacts } from '../../features/session/session-parts'
 import type { View } from '../../features/session/subbar'
 import { useFoundPane } from '../../features/session/use-found-pane'
 import { type Found, placedTitle, placedWhere } from '../../model/projects'
+import type { Via } from '../../model/space'
 import { showsTerminal, withTerminal } from '../../model/tabs'
+import { Loading } from '../loading'
 import { PhoneBar, TAP, useBack } from './bar'
 import { PhoneChat } from './chat'
+
+// With xterm, which a chat alone does not need.
+const PhoneTerminal = lazy(() => import('./terminal').then(m => ({ default: m.PhoneTerminal })))
 
 export function PhoneSession() {
   const t = useI18n()
@@ -63,56 +68,69 @@ function Opened({ mid, paneId, found }: { mid: string; paneId: string; found: Fo
   const showTerminal = useCallback(() => show('terminal'), [show])
   const [info, setInfo] = useState(false)
   const [ending, setEnding] = useState(false)
+  const [via, setVia] = useState<Via>()
+
+  const bar = (
+    <PhoneBar>
+      <BackButton />
+      <div className="min-w-0 flex-1">
+        <b className="block truncate text-[14.5px] leading-tight font-semibold">
+          {placed ? placedTitle(placed) : found.name}
+        </b>
+        <span className="flex min-w-0 items-center gap-[5px] text-[11.5px] leading-tight text-faint">
+          {agent ? <StatusDot status={agent.status} /> : null}
+          <span className="min-w-0 truncate">{placed ? placedWhere(placed) : project.display}</span>
+        </span>
+      </div>
+      {agent ? (
+        <Segmented
+          label={t('session.view')}
+          value={shown}
+          onChange={show}
+          segments={[
+            { value: 'chat', label: t('session.chat') },
+            { value: 'terminal', label: t('session.terminal') },
+          ]}
+        />
+      ) : null}
+      <DropdownMenu
+        trigger={
+          <button type="button" aria-label={t('mobile.more')} className={TAP}>
+            <Ellipsis size={20} />
+          </button>
+        }
+        items={[
+          { label: t('session.info'), onClick: () => setInfo(true) },
+          {
+            label: t(agent ? 'end.confirm' : 'terminal.endConfirm'),
+            onClick: () => setEnding(true),
+            danger: true,
+          },
+        ]}
+      />
+    </PhoneBar>
+  )
 
   return (
     <ShowTerminal value={showTerminal}>
-      <div className="flex min-h-dvh flex-col">
-        <PhoneBar>
-          <BackButton />
-          <div className="min-w-0 flex-1">
-            <b className="block truncate text-[14.5px] leading-tight font-semibold">
-              {placed ? placedTitle(placed) : found.name}
-            </b>
-            <span className="flex min-w-0 items-center gap-[5px] text-[11.5px] leading-tight text-faint">
-              {agent ? <StatusDot status={agent.status} /> : null}
-              <span className="min-w-0 truncate">{placed ? placedWhere(placed) : project.display}</span>
-            </span>
+      {shown === 'terminal' ? (
+        <Suspense fallback={<Loading />}>
+          <PhoneTerminal bar={bar} mid={mid} paneId={paneId} onVia={setVia} />
+        </Suspense>
+      ) : null}
+      {/* Kept behind the terminal: a reply half written, what was just sent, and its place. */}
+      {agent ? (
+        <Activity mode={shown === 'chat' ? 'visible' : 'hidden'}>
+          <div className="flex min-h-dvh flex-col">
+            {bar}
+            <PhoneChat project={project} session={agent} ran={ran} />
           </div>
-          {agent ? (
-            <Segmented
-              label={t('session.view')}
-              value={shown}
-              onChange={show}
-              segments={[
-                { value: 'chat', label: t('session.chat') },
-                { value: 'terminal', label: t('session.terminal') },
-              ]}
-            />
-          ) : null}
-          <DropdownMenu
-            trigger={
-              <button type="button" aria-label={t('mobile.more')} className={TAP}>
-                <Ellipsis size={20} />
-              </button>
-            }
-            items={[
-              { label: t('session.info'), onClick: () => setInfo(true) },
-              {
-                label: t(agent ? 'end.confirm' : 'terminal.endConfirm'),
-                onClick: () => setEnding(true),
-                danger: true,
-              },
-            ]}
-          />
-        </PhoneBar>
-        {agent && shown === 'chat' ? (
-          <PhoneChat project={project} session={agent} ran={ran} />
-        ) : (
-          <p className="m-0 p-4 text-muted">{t('mobile.later')}</p>
-        )}
-      </div>
+        </Activity>
+      ) : null}
       <Modal open={info} onOpenChange={setInfo} title={t('session.info')} closeLabel={t('close')}>
-        {info ? <PaneFacts mid={mid} project={project} pane={pane} via="calls" /> : null}
+        {info ? (
+          <PaneFacts mid={mid} project={project} pane={pane} via={shown === 'terminal' ? via : 'calls'} />
+        ) : null}
       </Modal>
       <EndPane
         open={ending}

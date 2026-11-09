@@ -3,10 +3,11 @@
 
 import { FitAddon } from '@xterm/addon-fit'
 import { type ITheme, Terminal as XTerm } from '@xterm/xterm'
-import { type RefObject, useEffect, useRef, useState } from 'react'
+import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { useSpace } from '../../core/space'
 import { paneKey } from '../../model/projects'
 import type { Via } from '../../model/space'
+import { type BarKey, barKeyBytes, withCtrl } from '../../model/term-keys'
 import { openTerminal, type Terminal } from '../../model/terminal'
 
 type TerminalState = {
@@ -62,11 +63,25 @@ const NIGHT: ITheme = {
 /** The least contrast text keeps with what is under it; the terminal lightens text below it. */
 const MIN_CONTRAST = 3
 
-export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, paneId: string) {
+/** `takesKeys`: whether it takes the keys as it opens and shows; on a phone that would bring up the
+ * keyboard, which waits to be asked for. */
+export function useTerminal(
+  el: RefObject<HTMLDivElement | null>,
+  mid: string,
+  paneId: string,
+  takesKeys = true,
+) {
   const space = useSpace()
   const [attempt, setAttempt] = useState(0)
   const [state, setState] = useState<TerminalState>({ phase: 'opening' })
   const xterm = useRef<XTerm | null>(null)
+  // Ctrl from a key bar holds until the next key; `onData` reads the ref, the bar the state.
+  const ctrlOn = useRef(false)
+  const [ctrl, setCtrlState] = useState(false)
+  const setCtrl = useCallback((on: boolean) => {
+    ctrlOn.current = on
+    setCtrlState(on)
+  }, [])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `attempt` is how Reconnect re-attaches; `attach` reads only what is listed, and refs.
   useEffect(() => {
@@ -92,7 +107,7 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
       waiting?.disconnect()
       detach?.()
     }
-  }, [el, space, mid, paneId, attempt])
+  }, [el, space, mid, paneId, attempt, takesKeys])
 
   /** Opens an xterm in `host` and attaches it to the pane; returns how to let go of both. */
   function attach(host: HTMLDivElement) {
@@ -107,7 +122,7 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
     term.loadAddon(fit)
     term.open(host)
     fit.fit()
-    term.focus()
+    if (takesKeys) term.focus()
     xterm.current = term
     setState({ phase: 'opening' })
 
@@ -126,7 +141,10 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
               {
                 output: (bytes, done) => term.write(bytes, done),
                 size: (cols, rows) => setState(s => ({ ...s, size: { cols, rows } })),
-                end: error => setState(s => ({ ...s, phase: 'ended', error })),
+                // A stream let go of ends too, later, when the next one is already up.
+                end: error => {
+                  if (!gone) setState(s => ({ ...s, phase: 'ended', error }))
+                },
               },
             ),
       )
@@ -144,14 +162,19 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
         },
       )
 
-    const typed = term.onData(s => live?.input(utf8.encode(s)))
+    // A key bar's keys come through here too, so any key lets go of Ctrl.
+    const typed = term.onData(s => {
+      const latched = ctrlOn.current
+      if (latched) setCtrl(false)
+      live?.input(utf8.encode(latched ? withCtrl(s) : s))
+    })
     const binary = term.onBinary(s => live?.input(Uint8Array.from(s, c => c.charCodeAt(0))))
     let settle: ReturnType<typeof setTimeout> | undefined
     // Shown again after hiding behind the chat, it takes the keys, as it does on opening.
     let shown = true
     const observer = new ResizeObserver(([entry]) => {
       const now = (entry?.contentRect.width ?? 0) > 0
-      if (now && !shown) term.focus()
+      if (now && !shown && takesKeys) term.focus()
       shown = now
       clearTimeout(settle)
       // Hidden behind the chat it has no size: the pane keeps the one it has, for the agent in it and
@@ -181,7 +204,23 @@ export function useTerminal(el: RefObject<HTMLDivElement | null>, mid: string, p
 
   return {
     state,
-    reconnect: () => setAttempt(n => n + 1),
+    reconnect: useCallback(() => {
+      setState({ phase: 'opening' })
+      setAttempt(n => n + 1)
+    }, []),
+    /** A key from a key bar, typed into the terminal as if on a keyboard. */
+    press: (key: BarKey) => {
+      const term = xterm.current
+      term?.input(barKeyBytes(key, term.modes.applicationCursorKeysMode), true)
+    },
+    ctrl,
+    toggleCtrl: () => setCtrl(!ctrlOn.current),
+    /** Brings up the system keyboard, or puts it away; within a tap, so iOS allows it. */
+    toggleKeyboard: () => {
+      const term = xterm.current
+      if (term?.textarea && document.activeElement === term.textarea) term.blur()
+      else term?.focus()
+    },
     /** Pastes `text` at the cursor, as the user's own paste would, and takes the keys. */
     paste: (text: string) => {
       xterm.current?.paste(text)

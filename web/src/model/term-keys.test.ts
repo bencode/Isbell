@@ -16,4 +16,5 @@ test('arrows follow the cursor-key mode; the other keys do not', () => {
   expect(barKeyBytes('esc', true)).toBe('\x1b')
   expect(barKeyBytes('enter', false)).toBe('\r')
   expect(barKeyBytes('interrupt', false)).toBe('\x03')
+  expect(barKeyBytes('2', false)).toBe('2')
 })
