@@ -10,21 +10,24 @@ import { Attachments, PickFiles, useAttachments } from './attachments'
 import { useTerminal } from './use-terminal'
 
 /** `machine`: the name of the machine `mid`. `onVia`: the path the terminal's stream took, for the
- * tab's facts. */
+ * tab's facts. `sendsWheel`: whether the wheel goes to the agent in the
+ * pane; a shell would print it. */
 export function Terminal({
   mid,
   paneId,
   machine,
   onVia,
+  sendsWheel,
 }: {
   mid: string
   paneId: string
   machine: string
   onVia: (via: Via | undefined) => void
+  sendsWheel: boolean
 }) {
   const t = useI18n()
   const box = useRef<HTMLDivElement>(null)
-  const { state, reconnect, paste } = useTerminal(box, mid, paneId)
+  const { state, reconnect, paste } = useTerminal(box, mid, paneId, true, sendsWheel)
   const files = useAttachments(mid, machine, path => paste(`${typedPath(path)} `))
   useEffect(() => onVia(state.via), [onVia, state.via])
   return (
