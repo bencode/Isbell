@@ -27,43 +27,13 @@ export function Composer({
   stoppable: boolean
 }) {
   const t = useI18n()
-  const space = useSpace()
-  const [text, setText] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string>()
-  const files = useAttachments(mid, machine)
-  const message = [text.trim(), ...files.paths].filter(Boolean).join('\n')
-  const drafting = text.trim() !== '' || files.items.length > 0
-  useEffect(() => {
-    if (drafting) onDraft()
-  }, [drafting, onDraft])
-
-  const send = async () => {
-    if (!message || busy || files.uploading) return
-    setBusy(true)
-    try {
-      await prompt(space.call, mid, paneId, message)
-      setText('')
-      files.clear()
-      setError(undefined)
-      onSent(message)
-    } catch (err) {
-      setError(errorText(t, err))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const [stopping, setStopping] = useState(false)
-  const stop = () => {
-    setStopping(true)
-    sendKeys(space.call, mid, paneId, ['esc'])
-      .then(
-        () => setError(undefined),
-        (err: unknown) => setError(errorText(t, err)),
-      )
-      .finally(() => setStopping(false))
-  }
+  const { text, setText, send, stop, stopping, ready, error, files } = useComposer({
+    mid,
+    paneId,
+    onSent,
+    onDraft,
+    machine,
+  })
 
   const field = (
     <textarea
@@ -77,7 +47,6 @@ export function Composer({
       className="field-sizing-content max-h-48 min-h-6 flex-1 resize-none border-0 bg-transparent py-1 text-sm text-text outline-none placeholder:text-faint"
     />
   )
-  const ready = !!message && !busy && !files.uploading
   return (
     <div className="flex flex-col gap-1.5">
       <div
@@ -108,4 +77,62 @@ export function Composer({
       {files.problem ? <p className="m-0 text-[13px] text-danger">{files.problem}</p> : null}
     </div>
   )
+}
+
+/** A reply being written, whatever it is laid out as: its words and files, sending it, and stopping
+ * the agent. */
+export function useComposer({
+  mid,
+  paneId,
+  onSent,
+  onDraft,
+  machine,
+}: {
+  mid: string
+  paneId: string
+  onSent: (text: string) => void
+  onDraft?: () => void
+  machine: string
+}) {
+  const t = useI18n()
+  const space = useSpace()
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string>()
+  const files = useAttachments(mid, machine)
+  const message = [text.trim(), ...files.paths].filter(Boolean).join('\n')
+  const drafting = text.trim() !== '' || files.items.length > 0
+  useEffect(() => {
+    if (drafting) onDraft?.()
+  }, [drafting, onDraft])
+
+  const send = async () => {
+    if (!message || busy || files.uploading) return
+    setBusy(true)
+    try {
+      await prompt(space.call, mid, paneId, message)
+      setText('')
+      files.clear()
+      setError(undefined)
+      onSent(message)
+    } catch (err) {
+      setError(errorText(t, err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const [stopping, setStopping] = useState(false)
+  const stop = () => {
+    setStopping(true)
+    sendKeys(space.call, mid, paneId, ['esc'])
+      .then(
+        () => setError(undefined),
+        (err: unknown) => setError(errorText(t, err)),
+      )
+      .finally(() => setStopping(false))
+  }
+
+  const ready = !!message && !busy && !files.uploading
+  return { text, setText, send, stop, stopping, ready, drafting, error, files }
 }

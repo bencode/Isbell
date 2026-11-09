@@ -124,6 +124,7 @@ export const en = {
   'active.finished': 'Just finished',
   'mobile.online': '{n} online',
   'mobile.back': 'Back',
+  'mobile.more': 'More',
   'mobile.later': 'This page is still being built.',
   'peek.label': 'Look at a session',
   'peek.next': 'Next waiting',

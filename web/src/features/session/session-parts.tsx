@@ -58,11 +58,21 @@ export function SessionBody({
   session,
   state,
   pending,
-}: Parts & { pending: readonly Pending[] }) {
+  asksInDock = false,
+  filesOpen = true,
+}: Parts & {
+  pending: readonly Pending[]
+  /** The agent's question is shown by the dock, not under the last turn. */
+  asksInDock?: boolean
+  /** Whether the place has files to open the paths in. */
+  filesOpen?: boolean
+}) {
   const t = useI18n()
   const { log, transcript, read } = state
   const asking =
-    session.status === 'blocked' ? <AskingBanner mid={mid} paneId={paneId} name={session.name} /> : null
+    session.status === 'blocked' && !asksInDock ? (
+      <AskingBanner mid={mid} paneId={paneId} name={session.name} />
+    ) : null
   const note = (children: ReactNode) => (
     <p className="m-0 mb-[18px] text-[13px] leading-relaxed text-muted">{children}</p>
   )
@@ -83,7 +93,7 @@ export function SessionBody({
   )
   return (
     <>
-      <PathRoot value={{ project, cwd: session.cwd ?? project.path }}>
+      <PathRoot value={{ project, cwd: session.cwd ?? project.path, filesOpen }}>
         <Conversation
           turns={log.turns ?? []}
           kind={session.kind}
