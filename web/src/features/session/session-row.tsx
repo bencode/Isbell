@@ -42,7 +42,7 @@ function MarkOf({ mark }: { mark: Mark }) {
   return <StatusDot status={mark} />
 }
 
-function Marked({ text, needle }: { text: string; needle: string }) {
+export function Marked({ text, needle }: { text: string; needle: string }) {
   const at = needle ? text.toLowerCase().indexOf(needle) : -1
   if (at < 0) return text
   const end = at + needle.length

@@ -31,6 +31,8 @@ export type Layout = {
   wrap: boolean
   /** The same on a phone, where they wrap unless told otherwise. */
   wrapOnPhone: boolean
+  /** The project whose sessions a phone last listed. */
+  sessionsProject: string | null
   /** Which sessions the right column shows. */
   activeFilter: 'all' | 'blocked' | 'working' | 'idle'
   /** Whether those standing by are unfolded there. */
@@ -71,6 +73,7 @@ const DEFAULTS: Local = {
     filesAt: {},
     wrap: false,
     wrapOnPhone: true,
+    sessionsProject: null,
     activeFilter: 'all',
     idleOpen: false,
   },
@@ -181,6 +184,9 @@ export const toggleWrap = () => updateLocal(l => ({ layout: { ...l.layout, wrap:
 
 export const toggleWrapOnPhone = () =>
   updateLocal(l => ({ layout: { ...l.layout, wrapOnPhone: !l.layout.wrapOnPhone } }))
+
+export const setSessionsProject = (sessionsProject: string) =>
+  updateLocal(l => ({ layout: { ...l.layout, sessionsProject } }))
 
 export const setReader = (change: Partial<Reader>) =>
   updateLocal(l => ({ reader: { ...l.reader, ...change } }))

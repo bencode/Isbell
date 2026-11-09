@@ -2,20 +2,17 @@
 // when it ran, and resuming it, in a new pane where it ran, which takes the tab's place. A session
 // running again shows as such.
 
-import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { type ReactNode, useEffect } from 'react'
 import { type Params, useParams } from 'react-router'
 import { Button } from '../../components/button'
-import { useChatLog } from '../../core/chat-log'
 import { errorText, type T, useI18n } from '../../core/i18n'
-import { useRecordLookup, useSessionRecords } from '../../core/session-records'
-import { useProjects, useSpace } from '../../core/space'
+import { useProjects } from '../../core/space'
 import { useTabActions } from '../../core/tabs'
 import { parseRootKey } from '../../model/files/worktrees'
-import { startAgent } from '../../model/herdr'
-import { resumeArgs, sessionKey, under } from '../../model/sessions'
 import { sessionTabId } from '../../model/tabs'
 import { PathRoot } from './context'
 import { Conversation, EarlierButton, Marker } from './conversation'
+import { useClosedSession } from './use-closed-session'
 
 const NOTE = 'm-6 text-muted'
 
@@ -45,62 +42,23 @@ export function ClosedTabPane({
   params: Params
 }) {
   const t = useI18n()
-  const space = useSpace()
   // The tab is among its project's.
   const projectKey = parseRootKey(useParams().key ?? '').project
   const project = useProjects().find(p => p.key === projectKey)
-  const records = useSessionRecords(project)
-  const line = useRecordLookup()(mid, agent, sid)
-  const log = useChatLog(mid, agent, line?.transcript, 'done')
   const { replace } = useTabActions()
-  // Starting takes a while: the tab is replaced where the user is by then.
-  const replaceNow = useRef(replace)
-  useEffect(() => {
-    replaceNow.current = replace
-  })
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string>()
-
-  // Not among the latest: it may be in a month before.
-  const { loadAll } = records
-  const missing = records.recent !== undefined && !line
-  useEffect(() => {
-    if (missing) loadAll()
-  }, [missing, loadAll])
-  const pane = records.running.get(sessionKey({ agent, id: sid }))
+  const { line, log, note, pane, where, cannot, busy, error, resume } = useClosedSession(
+    project,
+    mid,
+    agent,
+    sid,
+    paneId => replace(id, sessionTabId(mid, paneId)),
+  )
   useEffect(() => {
     if (pane) replace(id, sessionTabId(mid, pane))
   }, [pane, replace, id, mid])
 
-  if (!project || !line) {
-    const reading = !project || !missing || records.more || records.busy
-    const note = records.error
-      ? t('sessions.failed', { msg: errorText(t, records.error) })
-      : project && !project.online
-        ? t('closed.offline')
-        : reading
-          ? t('board.loading')
-          : t('closed.gone')
-    return <p className={NOTE}>{note}</p>
-  }
+  if (!project || !line) return <p className={NOTE}>{note}</p>
 
-  const args = resumeArgs(agent, sid)
-  const cannot = !args ? t('closed.cannot', { agent }) : !project.online ? t('closed.offline') : undefined
-  const resume = async () => {
-    if (!args || busy) return
-    setBusy(true)
-    setError(undefined)
-    try {
-      const { paneId } = await startAgent(space.call, mid, { cwd: line.cwd, kind: agent, args })
-      replaceNow.current(id, sessionTabId(mid, paneId))
-    } catch (err) {
-      setError(errorText(t, err))
-      setBusy(false)
-    }
-  }
-  const where = under(line.cwd, project.path)
-    ? `${project.display}${line.cwd.slice(project.path.length)}`
-    : line.cwd
   const when =
     line.updated === undefined
       ? dateTime(t, line.started)

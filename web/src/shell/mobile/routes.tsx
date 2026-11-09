@@ -10,6 +10,9 @@ import { PhoneNewSession } from './new-session'
 
 // With the rendering of messages and its highlighter, which the first page does not need.
 const PhoneSession = lazy(() => import('./session').then(m => ({ default: m.PhoneSession })))
+const PhoneEnded = lazy(() => import('./sessions/ended').then(m => ({ default: m.PhoneEnded })))
+// Also apart: a build leaves out the styles of what this file imports directly.
+const PhoneSessions = lazy(() => import('./sessions/sessions').then(m => ({ default: m.PhoneSessions })))
 
 const FILES = '/p/:key/files/*'
 
@@ -30,6 +33,22 @@ export function MobileRoutes() {
               element={
                 <Suspense fallback={<Loading />}>
                   <PhoneSession />
+                </Suspense>
+              }
+            />
+            <Route
+              path="sessions"
+              element={
+                <Suspense fallback={<Loading />}>
+                  <PhoneSessions />
+                </Suspense>
+              }
+            />
+            <Route
+              path="p/:key/sessions/:agent/:id"
+              element={
+                <Suspense fallback={<Loading />}>
+                  <PhoneEnded />
                 </Suspense>
               }
             />
