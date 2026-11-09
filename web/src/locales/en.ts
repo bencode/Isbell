@@ -131,6 +131,7 @@ export const en = {
   'mobile.pickProject': 'Pick a project',
   'mobile.noProject': 'No project is online.',
   'mobile.noPreview': "This file can't be shown on a phone.",
+  'mobile.reply': 'Reply…',
   'peek.label': 'Look at a session',
   'peek.next': 'Next waiting',
   'peek.open': 'Open in workspace',

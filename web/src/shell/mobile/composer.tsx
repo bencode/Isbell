@@ -44,7 +44,7 @@ export function PhoneComposer({
             onChange={e => setText(e.target.value)}
             onPaste={files.paste}
             aria-label={t('composer.placeholder')}
-            placeholder={t('composer.placeholder')}
+            placeholder={t('mobile.reply')}
             className="field-sizing-content max-h-36 min-h-11 min-w-0 flex-1 resize-none border-0 bg-transparent px-1 py-2.5 leading-6 text-text outline-none placeholder:text-faint"
           />
           <button
