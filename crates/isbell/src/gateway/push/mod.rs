@@ -14,7 +14,7 @@ use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use isbell_proto::frame::RpcError;
 use isbell_proto::identity::Identity;
-use isbell_proto::state::{AgentStatus, MachineState};
+use isbell_proto::state::{Agent, AgentStatus, MachineState};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio::sync::watch;
@@ -24,6 +24,8 @@ use web_push_native::{Auth, WebPushBuilder};
 
 use self::store::{Store, Subscription, Texts};
 
+/// Agents often run for minutes: told of every finish, a phone never stops buzzing.
+const LONG_RUN_MS: u64 = 10 * 60 * 1000;
 /// How long the push service holds a push for a phone that is off.
 const TTL: Duration = Duration::from_secs(60 * 60);
 const SEND_TIMEOUT: Duration = Duration::from_secs(30);
@@ -178,19 +180,26 @@ impl Notice {
     }
 }
 
-type Seen = HashMap<String, AgentStatus>;
+/// Each agent's status and since when.
+type Seen = HashMap<String, (AgentStatus, u64)>;
 
 fn seen(state: &MachineState) -> Seen {
-    state.agents.iter().map(|a| (a.pane_id.clone(), a.status)).collect()
+    state.agents.iter().map(|a| (a.pane_id.clone(), (a.status, a.status_since))).collect()
 }
 
-/// The agents of `now` that came to ask or finished since `before`. One not in `before` is not
-/// told of, so a herdr that restarts does not tell again of every agent it finds done.
+fn worth_telling((status, since): (AgentStatus, u64), now: &Agent) -> bool {
+    let long_run = status == AgentStatus::Working
+        && now.status == AgentStatus::Done
+        && now.status_since.saturating_sub(since) >= LONG_RUN_MS;
+    status != now.status && (now.status == AgentStatus::Blocked || long_run)
+}
+
+/// The agents of `now` that came to ask or finished a long run since `before`. One not in `before`
+/// is not told of, so a herdr that restarts does not tell again of every agent it finds done.
 fn due(before: &Seen, now: &MachineState) -> Vec<Notice> {
     now.agents
         .iter()
-        .filter(|a| matches!(a.status, AgentStatus::Blocked | AgentStatus::Done))
-        .filter(|a| before.get(&a.pane_id).is_some_and(|was| *was != a.status))
+        .filter(|a| before.get(&a.pane_id).is_some_and(|was| worth_telling(*was, a)))
         .map(|a| {
             let project = a.cwd.as_deref().and_then(|cwd| cwd.rsplit('/').find(|s| !s.is_empty()));
             Notice {
@@ -260,24 +269,29 @@ mod tests {
     }
 
     #[test]
-    fn an_agent_is_told_of_as_it_comes_to_ask_or_finishes() {
+    fn an_agent_is_told_of_as_it_comes_to_ask_or_finishes_a_long_run() {
         use AgentStatus::*;
+        let after = |pane_id, ms| Agent { status_since: ms, ..agent(pane_id, Done) };
         let before = seen(&state(vec![
             agent("w1:p1", Working),
             agent("w2:p1", Working),
             agent("w3:p1", Done),
+            agent("w5:p1", Working),
+            agent("w6:p1", Idle),
         ]));
         let now = state(vec![
             agent("w1:p1", Blocked),
-            agent("w2:p1", Done),
-            agent("w3:p1", Done),
+            after("w2:p1", LONG_RUN_MS),
+            after("w3:p1", LONG_RUN_MS),
             agent("w4:p1", Done),
+            after("w5:p1", LONG_RUN_MS - 1),
+            after("w6:p1", LONG_RUN_MS),
         ]);
         let told: Vec<_> = due(&before, &now).into_iter().map(|n| (n.pane_id, n.blocked)).collect();
         assert_eq!(
             told,
             [("w1:p1".to_owned(), true), ("w2:p1".to_owned(), false)],
-            "not again, nor a new one"
+            "not again, nor a new one, nor after a short run or none"
         );
         assert!(due(&seen(&now), &state(vec![agent("w1:p1", Working)])).is_empty(), "nor at work");
 

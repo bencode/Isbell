@@ -1,24 +1,22 @@
-// Tells the user when a session starts asking or finishes: a system notification while Isbell is
-// open (in any tab), and the count of what needs them in the tab title. A phone has its pushes for
-// that, which reach it with Isbell open too.
+// Tells the user when a session starts asking or finishes a long run, unless it is in front of them:
+// a system notification while Isbell is open (in any tab), and the count of what needs them in the
+// tab title. A phone has its pushes for that, which reach it with Isbell open too.
 
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
 import { useI18n } from '../core/i18n'
 import { useLocal } from '../core/prefs'
+import { type Seen, showsSession, worthTelling } from '../model/notices'
 import { needs, type Project, paneKey } from '../model/projects'
-import type { AgentStatus } from '../model/state'
 import { PHONE } from '../utils/phone'
 import { sessionTabHref } from './workbench/tab-kinds'
-
-const NOTIFY_ON: AgentStatus[] = ['blocked', 'done']
 
 export function useNotifications(projects: Project[], loaded: boolean) {
   const t = useI18n()
   const navigate = useNavigate()
   const { prefs } = useLocal()
-  // Last status seen per session; null until the first state is in, so it never notifies at load.
-  const last = useRef<Map<string, AgentStatus> | null>(null)
+  // How each session last stood; null until the first state is in, so it never notifies at load.
+  const last = useRef<Map<string, Seen> | null>(null)
 
   useEffect(() => {
     const count = needs(projects).length
@@ -29,7 +27,7 @@ export function useNotifications(projects: Project[], loaded: boolean) {
     if (!loaded) return
     const sessions = projects.flatMap(p => p.sessions.map(s => ({ ...s, project: p.key })))
     const previous = last.current
-    last.current = new Map(sessions.map(s => [paneKey(s.mid, s.paneId), s.status]))
+    last.current = new Map(sessions.map(s => [paneKey(s.mid, s.paneId), s]))
     if (
       PHONE ||
       !previous ||
@@ -39,8 +37,8 @@ export function useNotifications(projects: Project[], loaded: boolean) {
     )
       return
     for (const s of sessions) {
-      const before = previous.get(paneKey(s.mid, s.paneId))
-      if (before === s.status || !NOTIFY_ON.includes(s.status)) continue
+      if (!worthTelling(previous.get(paneKey(s.mid, s.paneId)), s)) continue
+      if (document.hasFocus() && showsSession(window.location.search, s.mid, s.paneId)) continue
       const n = new Notification(
         t(s.status === 'blocked' ? 'notify.blocked' : 'notify.done', { name: s.name }),
         {
