@@ -51,7 +51,9 @@ export async function openTerminal(
   const { result, stream, via } = await space.openStream(
     mid,
     'isbell.terminal',
-    { ...target, mode: 'control', ...size },
+    // herdr lets one client hold a terminal: the last to open it has it, from another screen or from
+    // a connection lost that still holds it until the gateway gives up on it.
+    { ...target, mode: 'control', ...size, takeover: true },
     OPEN_TIMEOUT_MS,
     {
       data: ({ cols, rows, body }) => {

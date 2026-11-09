@@ -29,11 +29,20 @@ export function PhoneChat({
   const state = useSession(mid, paneId, session, project, ran)
   const { log } = state
   const asking = session.status === 'blocked'
+  // Put back as the chat shows again from behind the terminal, before it goes to the end if left there.
+  const place = useRef(0)
+  useLayoutEffect(() => {
+    PAGE.current.scrollTop = place.current
+  }, [])
   const follow = useChatFollow(PAGE, log, asking)
   const { onScrolled } = follow
   useEffect(() => {
-    window.addEventListener('scroll', onScrolled, { passive: true })
-    return () => window.removeEventListener('scroll', onScrolled)
+    const scrolled = () => {
+      place.current = PAGE.current.scrollTop
+      onScrolled()
+    }
+    window.addEventListener('scroll', scrolled, { passive: true })
+    return () => window.removeEventListener('scroll', scrolled)
   }, [onScrolled])
 
   // Safari does not hold the page still when turns come in above what is read, so the distance from
