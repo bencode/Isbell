@@ -1,7 +1,7 @@
 // The bar over a page on a phone, which stays as the page scrolls, and the way back from one.
 
 import type { ReactNode } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { useNavigate } from 'react-router'
 import { ReconnectBanner } from '../reconnect-banner'
 
 /** A button that is only an icon, a finger's size. */
@@ -17,12 +17,13 @@ export function PhoneBar({ children }: { children: ReactNode }) {
   )
 }
 
-/** Back where it came from; a page opened straight, from a notification say, goes home. */
+/** Back where it came from; a page opened straight, from a notification say, goes home. By the
+ * router's place in the history, which stays as the address is replaced where `location.key` does
+ * not. */
 export function useBack() {
-  const { key } = useLocation()
   const navigate = useNavigate()
   return () => {
-    if (key === 'default') void navigate('/', { replace: true })
+    if (window.history.state?.idx === 0) void navigate('/', { replace: true })
     else void navigate(-1)
   }
 }

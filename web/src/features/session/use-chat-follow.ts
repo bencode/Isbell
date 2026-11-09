@@ -34,12 +34,16 @@ export function useChatFollow(scroller: RefObject<HTMLElement | null>, log: Chat
   const pinned = useRef(true)
   const [unseen, setUnseen] = useState(false)
   // A chat left at its end shows what came in meanwhile: the record read further (earlier turns read
-  // before it are no news), what was sent, the agent asking.
+  // before it are no news), what was sent, the agent asking. Shown again from behind something else
+  // this runs with nothing new, which is not to be announced.
+  const known = useRef({ end: log.end, waits, asking })
   useLayoutEffect(() => {
     const el = scroller.current
+    const was = known.current
+    known.current = { end: log.end, waits, asking }
     if (!el || (!log.end && !waits && !asking)) return
     if (pinned.current) el.scrollTop = el.scrollHeight
-    else setUnseen(true)
+    else if (was.end !== log.end || was.waits !== waits || was.asking !== asking) setUnseen(true)
   }, [scroller, log.end, waits, asking])
 
   const onScrolled = useCallback(() => {

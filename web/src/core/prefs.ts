@@ -53,6 +53,8 @@ export type Local = {
   projectAt: Record<string, string>
   /** The project last looked at. */
   lastProject: string | null
+  /** The agent last started on a phone. */
+  lastAgent: string | null
   /** What each machine last listed as its projects, by machine id, for while it is offline. */
   projectPaths: Record<string, string[]>
 }
@@ -73,6 +75,7 @@ const DEFAULTS: Local = {
   projectTabs: {},
   projectAt: {},
   lastProject: null,
+  lastAgent: null,
   projectPaths: {},
 }
 

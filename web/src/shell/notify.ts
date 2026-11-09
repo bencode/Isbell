@@ -1,5 +1,6 @@
 // Tells the user when a session starts asking or finishes: a system notification while Isbell is
-// open (in any tab), and the count of what needs them in the tab title.
+// open (in any tab), and the count of what needs them in the tab title. A phone has its pushes for
+// that, which reach it with Isbell open too.
 
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
@@ -7,6 +8,7 @@ import { useI18n } from '../core/i18n'
 import { useLocal } from '../core/prefs'
 import { needs, type Project, paneKey } from '../model/projects'
 import type { AgentStatus } from '../model/state'
+import { PHONE } from '../utils/phone'
 import { sessionTabHref } from './workbench/tab-kinds'
 
 const NOTIFY_ON: AgentStatus[] = ['blocked', 'done']
@@ -28,7 +30,13 @@ export function useNotifications(projects: Project[], loaded: boolean) {
     const sessions = projects.flatMap(p => p.sessions.map(s => ({ ...s, project: p.key })))
     const previous = last.current
     last.current = new Map(sessions.map(s => [paneKey(s.mid, s.paneId), s.status]))
-    if (!previous || !prefs.notify || !('Notification' in window) || Notification.permission !== 'granted')
+    if (
+      PHONE ||
+      !previous ||
+      !prefs.notify ||
+      !('Notification' in window) ||
+      Notification.permission !== 'granted'
+    )
       return
     for (const s of sessions) {
       const before = previous.get(paneKey(s.mid, s.paneId))

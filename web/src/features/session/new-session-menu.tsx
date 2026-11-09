@@ -17,7 +17,7 @@ const SMALL = { size: 14, strokeWidth: 1.5, absoluteStrokeWidth: true }
 const SHELL = ':shell'
 
 /** Starts `kind` in the project's directory; the pane it runs in. */
-async function start(space: Space, { mid, path }: Project, kind: string): Promise<string> {
+export async function startIn(space: Space, { mid, path }: Project, kind: string): Promise<string> {
   if (kind === SHELL) {
     const paneId = await openShell(space.openThenEnd, mid, path)
     await space.refreshShells(mid)
@@ -58,7 +58,7 @@ export function NewSessionMenu({
     setStarting(kind)
     setError(undefined)
     try {
-      const paneId = await start(space, project, kind)
+      const paneId = await startIn(space, project, kind)
       setOpen(false)
       if (live.current) onStarted(project.mid, paneId, kind === SHELL)
     } catch (err) {

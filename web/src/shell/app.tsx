@@ -6,11 +6,10 @@ import { updateLocal, useLocal } from '../core/prefs'
 import { usePushSync } from '../core/push'
 import { SpaceProvider, useProjects, useSpaceView } from '../core/space'
 import { Join, takeKeyFromLink } from '../features/join/join-page'
+import { PHONE } from '../utils/phone'
 import { Loading } from './loading'
 import { useNotifications } from './notify'
 
-/** A phone gets its own shell, decided once at load; by the shorter side, so landscape counts too. */
-const PHONE = matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600
 if (PHONE) {
   // Lets the phone's styles in styles.css apply.
   document.documentElement.dataset.shell = 'phone'
