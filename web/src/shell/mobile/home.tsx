@@ -1,9 +1,9 @@
 // A phone's first page: every session on the machines online, those that need you first, whichever
 // project they are in. The page itself scrolls.
 
-import { ChevronDown, ChevronRight, Plus, Settings2 } from 'lucide-react'
-import { useLayoutEffect, useState } from 'react'
-import { Link, useNavigationType } from 'react-router'
+import { ChevronDown, ChevronRight, History, Plus, Settings2 } from 'lucide-react'
+import { useState } from 'react'
+import { Link } from 'react-router'
 import { useI18n } from '../../core/i18n'
 import { toggleIdle, useLocal } from '../../core/prefs'
 import { useProjects, useSpaceView } from '../../core/space'
@@ -13,23 +13,7 @@ import { useNow } from '../../utils/time'
 import { PhoneBar, TAP } from './bar'
 import { PhoneCard, PhoneRow } from './card'
 import { MachinesSheet } from './machines-sheet'
-
-// Where the page was left, for coming back to it.
-let left = 0
-
-/** Back at the spot it was left; opened anew, at the top. Its sessions are already in memory, so they
- * are there to scroll to at once. */
-function useHomeScroll() {
-  const how = useNavigationType()
-  useLayoutEffect(() => {
-    window.scrollTo(0, how === 'POP' ? left : 0)
-    const remember = () => {
-      left = window.scrollY
-    }
-    window.addEventListener('scroll', remember, { passive: true })
-    return () => window.removeEventListener('scroll', remember)
-  }, [how])
-}
+import { usePlaceKept } from './page-place'
 
 function Lane({ title, placed, now }: { title: string; placed: Placed[]; now: number }) {
   if (!placed.length) return null
@@ -47,7 +31,7 @@ function Lane({ title, placed, now }: { title: string; placed: Placed[]; now: nu
 }
 
 export function Home() {
-  useHomeScroll()
+  usePlaceKept('home')
   const t = useI18n()
   const now = useNow()
   const { machines, loaded } = useSpaceView()
@@ -62,6 +46,9 @@ export function Home() {
           <span className="text-[17px] font-bold">Isbell</span>
           <MachinesSheet machines={machines} />
         </span>
+        <Link to="/sessions" aria-label={t('workbench.sessions')} className={TAP}>
+          <History size={20} />
+        </Link>
         <button
           type="button"
           onClick={() => setOverlay('settings')}

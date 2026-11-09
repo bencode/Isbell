@@ -2,19 +2,16 @@
 // screen; while the agent asks, what it waits on and the way to its terminal are there instead.
 
 import { SquareTerminal } from 'lucide-react'
-import { useEffect, useLayoutEffect, useRef } from 'react'
 import { useI18n } from '../../core/i18n'
 import type { Ran } from '../../core/session-records'
 import { ToEndButton } from '../../features/session/chat'
 import { useShowTerminal } from '../../features/session/context'
 import { SessionBody, useSession } from '../../features/session/session-parts'
 import { useAgentNote } from '../../features/session/use-agent-note'
-import { useChatFollow } from '../../features/session/use-chat-follow'
 import { toolLine } from '../../model/agent-note'
 import type { Project, Session } from '../../model/projects'
 import { PhoneComposer } from './composer'
-
-const PAGE = { current: document.documentElement }
+import { usePageChat } from './page-chat'
 
 export function PhoneChat({
   project,
@@ -29,34 +26,7 @@ export function PhoneChat({
   const state = useSession(mid, paneId, session, project, ran)
   const { log } = state
   const asking = session.status === 'blocked'
-  // Put back as the chat shows again from behind the terminal, before it goes to the end if left there.
-  const place = useRef(0)
-  useLayoutEffect(() => {
-    PAGE.current.scrollTop = place.current
-  }, [])
-  const follow = useChatFollow(PAGE, log, asking)
-  const { onScrolled } = follow
-  useEffect(() => {
-    const scrolled = () => {
-      place.current = PAGE.current.scrollTop
-      onScrolled()
-    }
-    window.addEventListener('scroll', scrolled, { passive: true })
-    return () => window.removeEventListener('scroll', scrolled)
-  }, [onScrolled])
-
-  // Safari does not hold the page still when turns come in above what is read, so the distance from
-  // the end is held here.
-  const fromEnd = useRef<number>(undefined)
-  const earlier = () => {
-    fromEnd.current = PAGE.current.scrollHeight - PAGE.current.scrollTop
-    log.earlier()
-  }
-  useLayoutEffect(() => {
-    if (fromEnd.current === undefined || log.paging) return
-    PAGE.current.scrollTop = PAGE.current.scrollHeight - fromEnd.current
-    fromEnd.current = undefined
-  }, [log.paging])
+  const { follow, earlier } = usePageChat(log, asking)
 
   return (
     <>
