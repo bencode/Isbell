@@ -19,13 +19,15 @@ type Props = {
   branch: string | null | undefined
   /** The view shown and how to switch it; absent for a shell, which has only its terminal. */
   view: { shown: View; onShow: (view: View) => void } | undefined
+  /** What it has to offer beyond its facts, before them. */
+  tools?: ReactNode
   facts: ReactNode
   onEnd: () => void
   /** What the place it is in adds, at its end. */
   actions?: ReactNode
 }
 
-export function Subbar({ pane, branch, view, facts, onEnd, actions }: Props) {
+export function Subbar({ pane, branch, view, tools, facts, onEnd, actions }: Props) {
   const t = useI18n()
   const about =
     'session' in pane
@@ -47,6 +49,7 @@ export function Subbar({ pane, branch, view, facts, onEnd, actions }: Props) {
       </span>
       <span className="ml-auto flex flex-none items-center gap-1">
         {view ? <ViewSwitch {...view} /> : null}
+        {tools}
         <Popover.Root>
           <Popover.Trigger
             render={
