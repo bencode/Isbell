@@ -5,6 +5,7 @@
 import { lazy, type ReactNode, Suspense, useCallback, useState } from 'react'
 import { usePaneSession } from '../../core/session-records'
 import { useFilesRoots } from '../../core/worktrees'
+import { CHAT_AGENTS } from '../../model/agents'
 import { rootHolding } from '../../model/files/worktrees'
 import type { Found } from '../../model/projects'
 import type { Via } from '../../model/space'
@@ -77,7 +78,13 @@ export function SessionView({
           {attached ? (
             <div className={`absolute inset-0 ${shown === 'terminal' ? '' : 'hidden'}`}>
               <Suspense>
-                <Terminal mid={mid} paneId={paneId} machine={project.machine} onVia={setVia} />
+                <Terminal
+                  mid={mid}
+                  paneId={paneId}
+                  machine={project.machine}
+                  onVia={setVia}
+                  sendsWheel={CHAT_AGENTS.includes(agent?.kind ?? '')}
+                />
               </Suspense>
             </div>
           ) : null}

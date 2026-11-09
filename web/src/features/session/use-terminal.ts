@@ -7,6 +7,7 @@ import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { useSpace } from '../../core/space'
 import type { Via } from '../../model/space'
 import { type BarKey, barKeyBytes } from '../../model/term-keys'
+import { cellAt, turnWheel, wheelReport } from '../../model/term-wheel'
 import { openTerminal, type Terminal } from '../../model/terminal'
 
 type TerminalState = {
@@ -60,17 +61,23 @@ const NIGHT: ITheme = {
 const MIN_CONTRAST = 3
 
 /** `takesKeys`: whether it takes the keys as it opens and shows; on a phone that would bring up the
- * keyboard, which waits to be asked for. */
+ * keyboard, which waits to be asked for. `sendsWheel`: whether the wheel goes to the program in the
+ * pane, which may change while it stays attached. */
 export function useTerminal(
   el: RefObject<HTMLDivElement | null>,
   mid: string,
   paneId: string,
   takesKeys = true,
+  sendsWheel = false,
 ) {
   const space = useSpace()
   const [attempt, setAttempt] = useState(0)
   const [state, setState] = useState<TerminalState>({ phase: 'opening' })
   const xterm = useRef<XTerm | null>(null)
+  const wheelGoesOn = useRef(sendsWheel)
+  useEffect(() => {
+    wheelGoesOn.current = sendsWheel
+  }, [sendsWheel])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `attempt` is how Reconnect re-attaches; `attach` reads only what is listed, and refs.
   useEffect(() => {
@@ -146,6 +153,18 @@ export function useTerminal(
 
     const typed = term.onData(s => live?.input(utf8.encode(s)))
     const binary = term.onBinary(s => live?.input(Uint8Array.from(s, c => c.charCodeAt(0))))
+    let turned = 0
+    term.attachCustomWheelEventHandler(event => {
+      // A pinch arrives as a wheel with Ctrl held.
+      if (!wheelGoesOn.current || event.ctrlKey) return true
+      const box = host.getBoundingClientRect()
+      const { notches, left } = turnWheel(turned, event, box.height / term.rows, term.rows)
+      turned = left
+      const point = { x: event.clientX, y: event.clientY }
+      const { col, row } = cellAt(point, box, term)
+      if (notches) live?.input(utf8.encode(wheelReport(notches, col, row)))
+      return false
+    })
     let settle: ReturnType<typeof setTimeout> | undefined
     // Shown again after hiding behind the chat, it takes the keys, as it does on opening.
     let shown = true
