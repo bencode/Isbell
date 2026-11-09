@@ -88,7 +88,7 @@ export function PhoneTerminal({
   // The home indicator is under the page only while the keyboard is down.
   const keyboard = !!area && area.top + area.height < window.innerHeight - 1
   const box = useRef<HTMLDivElement>(null)
-  const { state, reconnect, press, ctrl, toggleCtrl, toggleKeyboard } = useTerminal(box, mid, paneId, false)
+  const { state, reconnect, press, toggleKeyboard } = useTerminal(box, mid, paneId, false)
   const waiting = useReattach(state.phase, state.error !== undefined, reconnect)
   useEffect(() => onVia(state.via), [onVia, state.via])
   const ended = state.phase === 'ended' && !waiting
@@ -100,7 +100,16 @@ export function PhoneTerminal({
     >
       {bar}
       <div className="relative min-h-0 flex-1 overflow-hidden px-2 py-1.5">
-        <div ref={box} className="h-full w-full bg-term" />
+        {/* In capture, before xterm: it takes the keys on a tap, and up would come the keyboard. A tap
+            leaves the keyboard as it is, either way. */}
+        <div
+          ref={box}
+          onMouseDownCapture={e => {
+            e.preventDefault()
+            e.stopPropagation()
+          }}
+          className="h-full w-full bg-term"
+        />
         {state.phase !== 'open' && !ended ? (
           <p className="absolute inset-0 m-0 grid place-items-center font-mono text-xs text-faint">
             {t('terminal.opening')}
@@ -119,14 +128,7 @@ export function PhoneTerminal({
         ) : null}
       </div>
       <div className={`flex-none bg-[#161c27] ${keyboard ? '' : 'pb-[env(safe-area-inset-bottom)]'}`}>
-        <KeyBar
-          live={state.phase === 'open'}
-          ctrl={ctrl}
-          onCtrl={toggleCtrl}
-          keyboard={keyboard}
-          onKeyboard={toggleKeyboard}
-          onKey={press}
-        />
+        <KeyBar live={state.phase === 'open'} keyboard={keyboard} onKeyboard={toggleKeyboard} onKey={press} />
       </div>
     </div>
   )
