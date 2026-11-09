@@ -59,13 +59,10 @@ export function SessionBody({
   state,
   pending,
   asksInDock = false,
-  filesOpen = true,
 }: Parts & {
   pending: readonly Pending[]
   /** The agent's question is shown by the dock, not under the last turn. */
   asksInDock?: boolean
-  /** Whether the place has files to open the paths in. */
-  filesOpen?: boolean
 }) {
   const t = useI18n()
   const { log, transcript, read } = state
@@ -93,7 +90,7 @@ export function SessionBody({
   )
   return (
     <>
-      <PathRoot value={{ project, cwd: session.cwd ?? project.path, filesOpen }}>
+      <PathRoot value={{ project, cwd: session.cwd ?? project.path }}>
         <Conversation
           turns={log.turns ?? []}
           kind={session.kind}

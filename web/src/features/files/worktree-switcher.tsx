@@ -130,7 +130,7 @@ export function WorktreeSwitcher({ project, roots, root }: Props) {
 }
 
 /** A path cut at its start when too long: its end is what tells worktrees apart. */
-function CutPath({ path, query = '' }: { path: string; query?: string }) {
+export function CutPath({ path, query = '' }: { path: string; query?: string }) {
   return (
     <span title={path} className="truncate text-left font-mono text-[11.5px] text-faint [direction:rtl]">
       <bdi>

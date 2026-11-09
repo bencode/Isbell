@@ -61,7 +61,8 @@ export function CodeRenderer({ text, name, wrap, labels, scroll, ref }: Props) {
           syntaxHighlighting(classHighlighter),
           EditorState.readOnly.of(true),
           EditorState.phrases.of(labels.phrases),
-          EditorView.contentAttributes.of({ 'aria-label': labels.source }),
+          // No keyboard coming up on a phone for a text that cannot be typed in.
+          EditorView.contentAttributes.of({ 'aria-label': labels.source, inputmode: 'none' }),
           parts.current.wrap.of(wrapping(wrap)),
           parts.current.grammar.of([]),
         ],

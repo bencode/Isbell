@@ -18,7 +18,7 @@ export function useMentions() {
   const root = useContext(PathRoot)
   // Paths may lead into the project's other worktrees too, where they can be opened.
   const { roots } = useFilesRoots(root?.project)
-  if (!root || root.filesOpen === false) return null
+  if (!root) return null
   return { find: (text: string) => mentions(text, roots, root.cwd), href: mentionHref }
 }
 

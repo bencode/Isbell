@@ -30,14 +30,17 @@ const PHRASES: Record<string, Key> = {
 export function SourceView({
   text,
   name,
+  wrap,
   ref,
 }: {
   text: string
   name: string
+  /** Whether long lines wrap, where not the reader's setting. */
+  wrap?: boolean
   ref: RefObject<CodeRendererHandle | null>
 }) {
   const t = useI18n()
-  const { wrap } = useLocal().layout
+  const { wrap: wrapped } = useLocal().layout
   const scroll = useTabScroll()
   const labels = useMemo(
     () => ({
@@ -48,7 +51,14 @@ export function SourceView({
   )
   return (
     <Suspense fallback={<Reading />}>
-      <CodeRenderer ref={ref} text={text} name={name} wrap={wrap} labels={labels} scroll={scroll} />
+      <CodeRenderer
+        ref={ref}
+        text={text}
+        name={name}
+        wrap={wrap ?? wrapped}
+        labels={labels}
+        scroll={scroll}
+      />
     </Suspense>
   )
 }

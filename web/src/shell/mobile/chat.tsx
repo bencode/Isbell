@@ -69,7 +69,6 @@ export function PhoneChat({
           state={{ ...state, log: { ...log, earlier } }}
           pending={follow.pending}
           asksInDock
-          filesOpen={false}
         />
       </main>
       <div

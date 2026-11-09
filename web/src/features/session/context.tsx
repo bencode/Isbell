@@ -4,9 +4,8 @@
 import { createContext, type ReactNode, useContext } from 'react'
 import type { Project } from '../../model/projects'
 
-/** The project a reply's paths lead into, read from the agent's directory; `filesOpen` false where
- * there are no files to open them in. */
-export const PathRoot = createContext<{ project: Project; cwd: string; filesOpen?: boolean } | null>(null)
+/** The project a reply's paths lead into, read from the agent's directory. */
+export const PathRoot = createContext<{ project: Project; cwd: string } | null>(null)
 
 /** Shows the session's terminal in its tab. */
 export const ShowTerminal = createContext<(() => void) | null>(null)

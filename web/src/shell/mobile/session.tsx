@@ -1,7 +1,7 @@
 // A session's page on a phone: the bar that names it and switches between its chat, which scrolls
 // with the page, and its terminal, which is laid over it and attached only while shown.
 
-import { ChevronLeft, Ellipsis } from 'lucide-react'
+import { Ellipsis } from 'lucide-react'
 import { Activity, lazy, Suspense, useCallback, useLayoutEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { Modal } from '../../components/dialog'
@@ -10,16 +10,19 @@ import { Segmented } from '../../components/segmented'
 import { StatusDot } from '../../components/status-dot'
 import { useI18n } from '../../core/i18n'
 import { usePaneSession } from '../../core/session-records'
+import { useFilesRoots } from '../../core/worktrees'
 import { ShowTerminal } from '../../features/session/context'
 import { EndPane } from '../../features/session/end-pane-dialog'
 import { PaneFacts } from '../../features/session/session-parts'
 import type { View } from '../../features/session/subbar'
 import { useFoundPane } from '../../features/session/use-found-pane'
+import { rootHolding } from '../../model/files/worktrees'
 import { type Found, placedTitle, placedWhere } from '../../model/projects'
 import type { Via } from '../../model/space'
 import { showsTerminal, withTerminal } from '../../model/tabs'
+import { projectFilesHref } from '../../utils/hrefs'
 import { Loading } from '../loading'
-import { PhoneBar, TAP, useBack } from './bar'
+import { BackButton, PhoneBar, TAP } from './bar'
 import { PhoneChat } from './chat'
 
 // With xterm, which a chat alone does not need.
@@ -41,16 +44,6 @@ export function PhoneSession() {
       </PhoneBar>
       <p className="m-0 p-4 text-muted">{t(waiting || starting ? 'board.loading' : 'session.gone')}</p>
     </>
-  )
-}
-
-function BackButton() {
-  const t = useI18n()
-  const back = useBack()
-  return (
-    <button type="button" onClick={back} aria-label={t('mobile.back')} className={TAP}>
-      <ChevronLeft size={22} />
-    </button>
   )
 }
 
@@ -79,6 +72,10 @@ function Opened({ mid, paneId, found }: { mid: string; paneId: string; found: Fo
     params.delete('from')
     navigate({ search: withTerminal(params.toString(), status === 'blocked') }, { replace: true })
   }, [search, status, navigate])
+  // Where the agent works, which may be another of the project's worktrees.
+  const { roots } = useFilesRoots(project)
+  const cwd = ('session' in pane ? pane.session.cwd : pane.shell.cwd) ?? project.path
+  const filesHref = projectFilesHref(rootHolding(roots, cwd)?.root.key ?? project.key)
   const [info, setInfo] = useState(false)
   const [ending, setEnding] = useState(false)
   const [via, setVia] = useState<Via>()
@@ -113,6 +110,7 @@ function Opened({ mid, paneId, found }: { mid: string; paneId: string; found: Fo
           </button>
         }
         items={[
+          { label: t('workbench.files'), onClick: () => navigate(filesHref) },
           { label: t('session.info'), onClick: () => setInfo(true) },
           {
             label: t(agent ? 'end.confirm' : 'terminal.endConfirm'),

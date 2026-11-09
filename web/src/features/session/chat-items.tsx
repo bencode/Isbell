@@ -191,7 +191,7 @@ function ToolRow({ tool, running }: { tool: ToolItem; running: boolean }) {
             to={mentions?.href(opens) ?? ''}
             aria-label={t('files.openFile')}
             title={t('files.openFile')}
-            className="mr-1.5 inline-flex size-[22px] flex-none items-center justify-center rounded-[5px] text-faint hover:bg-hover hover:text-accent focus-visible:outline-2 focus-visible:outline-accent"
+            className="mr-1.5 inline-flex size-[22px] flex-none pointer-coarse:mr-0 pointer-coarse:size-11 items-center justify-center rounded-[5px] text-faint hover:bg-hover hover:text-accent focus-visible:outline-2 focus-visible:outline-accent"
           >
             <FileText size={14} />
           </Link>

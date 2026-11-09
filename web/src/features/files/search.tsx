@@ -10,7 +10,7 @@ import { projectFilesHref } from '../../utils/hrefs'
 import { FileRow, FolderRow } from './rows'
 import type { Where } from './tree'
 
-const PAUSE_MS = 300
+export const PAUSE_MS = 300
 
 /** The search box; `onQuery` hears the trimmed text once typing pauses, and '' when it is cleared. */
 export function SearchBox({
