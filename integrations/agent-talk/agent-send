@@ -1,0 +1,209 @@
+#!/usr/bin/env python3
+"""Send a message to another coding agent in this herdr session, once it has stopped working.
+
+A prompt sent to a busy agent interrupts or replaces its turn, so this waits for the agent to
+stop first. herdr delivers text as if typed: the header added here is the only thing telling the
+recipient who wrote and how to answer.
+
+Exit codes: 0 sent; 2 usage, not in a herdr pane, or sending to yourself; 3 the recipient is
+waiting for the user; 4 timed out, the message may have been delivered, so do not resend blindly;
+5 the recipient is gone or herdr failed.
+"""
+
+import argparse
+import json
+import os
+import shlex
+import subprocess
+import sys
+import time
+
+READY = {"idle", "done"}
+DEFAULT_TIMEOUT_S = 1800
+CALL_TIMEOUT_S = 30
+SCREEN_LINES = "120"
+
+EXIT_USAGE = 2
+EXIT_BLOCKED = 3
+EXIT_TIMEOUT = 4
+EXIT_FAILED = 5
+
+SANDBOX_HINT = (
+    " If a sandbox blocked access to the herdr socket, run this command again through your"
+    " approval flow, outside the sandbox."
+)
+
+
+class HerdrError(Exception):
+    def __init__(self, code, message):
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
+class Stop(Exception):
+    def __init__(self, status, message):
+        super().__init__(message)
+        self.status = status
+        self.message = message
+
+
+def run(args, timeout_s):
+    try:
+        return subprocess.run(
+            ["herdr", *args], capture_output=True, text=True, timeout=timeout_s
+        )
+    except FileNotFoundError:
+        raise HerdrError("not_installed", "herdr is not on PATH") from None
+    except subprocess.TimeoutExpired:
+        raise HerdrError("timeout", "herdr did not answer in time") from None
+
+
+def failure(done):
+    """The error of a failed herdr call, which is JSON from herdr and plain text from the OS."""
+    text = done.stderr.strip() or done.stdout.strip()
+    try:
+        error = json.loads(text)["error"]
+        return HerdrError(error["code"], error["message"])
+    except (json.JSONDecodeError, KeyError, TypeError):
+        hint = SANDBOX_HINT if "Operation not permitted" in text else ""
+        return HerdrError("failed", f"{text}{hint}")
+
+
+def herdr(args, timeout_s=CALL_TIMEOUT_S):
+    done = run(args, timeout_s)
+    if done.returncode != 0:
+        raise failure(done)
+    return json.loads(done.stdout)["result"]
+
+
+def herdr_text(args):
+    done = run(args, CALL_TIMEOUT_S)
+    if done.returncode != 0:
+        raise failure(done)
+    return done.stdout
+
+
+def get_agent(target):
+    return herdr(["agent", "get", target])["agent"]
+
+
+def address(agent):
+    return agent.get("name") or agent["pane_id"]
+
+
+def is_ready(agent):
+    return agent["agent_status"] in READY
+
+
+def remaining_ms(deadline):
+    return int(max(deadline - time.monotonic(), 0) * 1000)
+
+
+def await_ready(target, deadline):
+    while True:
+        agent = get_agent(target)
+        if is_ready(agent):
+            return agent
+        if agent["agent_status"] == "blocked":
+            raise Stop(EXIT_BLOCKED, f"{address(agent)} is waiting for the user; nothing was sent")
+        left = remaining_ms(deadline)
+        if left == 0:
+            raise Stop(EXIT_TIMEOUT, f"{address(agent)} did not stop in time; nothing was sent")
+        try:
+            herdr(["agent", "wait", target, "--timeout", str(left)], left / 1000 + CALL_TIMEOUT_S)
+        except HerdrError as error:
+            if error.code != "timeout":
+                raise
+
+
+def format_message(sender, recipient, body, reply_command):
+    lines = [
+        f"[agent-talk] From: {sender} · To: {recipient} (that is you)",
+        "Sent through herdr by another agent on this machine.",
+        "",
+        body,
+    ]
+    if reply_command:
+        lines += ["", f"To reply, run: {reply_command}"]
+    return "\n".join(lines)
+
+
+def reply_command(sender):
+    script = shlex.quote(os.path.realpath(__file__))
+    return f'{script} {shlex.quote(sender)} "<your reply>"'
+
+
+def send_and_wait(target, text, deadline):
+    left = remaining_ms(deadline)
+    result = herdr(
+        ["agent", "prompt", target, text, "--wait", "--timeout", str(left)],
+        left / 1000 + CALL_TIMEOUT_S,
+    )
+    screen = herdr_text(
+        ["agent", "read", target, "--source", "recent-unwrapped", "--lines", SCREEN_LINES]
+    )
+    print(screen, end="")
+    if result["agent"]["agent_status"] == "blocked":
+        raise Stop(EXIT_BLOCKED, f"{target} is waiting for the user")
+
+
+def parse_args(argv):
+    parser = argparse.ArgumentParser(
+        prog="agent-send", description="Send a message to another agent in this herdr session."
+    )
+    parser.add_argument("target", help="the agent's name or pane ID")
+    parser.add_argument("message", help="the message, or - to read it from stdin")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--reply", action="store_true", help="ask the agent to reply to you")
+    mode.add_argument("--wait", action="store_true", help="wait and print what the agent shows")
+    parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT_S, metavar="SECONDS")
+    return parser.parse_args(argv)
+
+
+def send(args, pane_id):
+    deadline = time.monotonic() + args.timeout
+    body = sys.stdin.read() if args.message == "-" else args.message
+    if not body.strip():
+        raise Stop(EXIT_USAGE, "the message is empty")
+    me = get_agent(pane_id)
+    if get_agent(args.target)["pane_id"] == me["pane_id"]:
+        raise Stop(EXIT_USAGE, "that is you; pick another agent")
+    agent = await_ready(args.target, deadline)
+    recipient = address(agent)
+    sender = address(me)
+    text = format_message(sender, recipient, body, reply_command(sender) if args.reply else None)
+    if args.wait:
+        send_and_wait(recipient, text, deadline)
+        return
+    herdr(["agent", "prompt", recipient, text])
+    print(f"sent to {recipient}")
+
+
+def status_of(error):
+    if error.code == "agent_blocked":
+        return EXIT_BLOCKED
+    if error.code in ("timeout", "agent_prompt_stalled"):
+        return EXIT_TIMEOUT
+    return EXIT_FAILED
+
+
+def main(argv):
+    args = parse_args(argv)
+    pane_id = os.environ.get("HERDR_PANE_ID")
+    if not pane_id:
+        print("agent-send: not running inside a herdr pane", file=sys.stderr)
+        return EXIT_USAGE
+    try:
+        send(args, pane_id)
+    except Stop as stop:
+        print(f"agent-send: {stop.message}", file=sys.stderr)
+        return stop.status
+    except HerdrError as error:
+        print(f"agent-send: {error.code}: {error.message}", file=sys.stderr)
+        return status_of(error)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
