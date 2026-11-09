@@ -15,7 +15,7 @@ import { ancestors, join } from '../../../model/files/paths'
 import type { FilesRoot } from '../../../model/files/worktrees'
 import type { Project } from '../../../model/projects'
 import { projectFilesHref } from '../../../utils/hrefs'
-import { BackButton, PhoneBar, TAP } from '../bar'
+import { BackButton, BarTitle, PhoneBar, TAP } from '../bar'
 import { SearchField, SearchResults } from './search'
 import { WorktreeSheet } from './worktree-sheet'
 
@@ -44,8 +44,13 @@ export function FilesTree({ project, roots, root, dir }: Props) {
     const timer = setTimeout(() => setQuery(text.trim()), PAUSE_MS)
     return () => clearTimeout(timer)
   }, [text])
+  // Once for the address it came by: a folder closed since stays closed as it shows again from behind
+  // a file.
+  const openedTo = useRef('')
   useEffect(() => {
-    if (dir) openDirs(root.key, [...ancestors(dir), dir])
+    if (!dir || dir === openedTo.current) return
+    openedTo.current = dir
+    openDirs(root.key, [...ancestors(dir), dir])
   }, [root.key, dir])
 
   // Back at the spot it was left each time it shows again from behind a file.
@@ -73,12 +78,7 @@ export function FilesTree({ project, roots, root, dir }: Props) {
     <div className="flex min-h-dvh flex-col">
       <PhoneBar under={under}>
         <BackButton />
-        <div className="min-w-0 flex-1">
-          <b className="block truncate text-[14.5px] leading-tight font-semibold">{t('workbench.files')}</b>
-          <span className="block truncate text-[11.5px] leading-tight text-faint">
-            {project.name} · {project.machine}
-          </span>
-        </div>
+        <BarTitle title={t('workbench.files')} where={`${project.name} · ${project.machine}`} />
         <button type="button" onClick={refresh} aria-label={t('files.refresh')} className={TAP}>
           <RotateCw size={19} />
         </button>

@@ -32,6 +32,16 @@ export function useBack() {
   }
 }
 
+/** What a page is, and under it where. */
+export function BarTitle({ title, where }: { title: ReactNode; where: ReactNode }) {
+  return (
+    <div className="min-w-0 flex-1">
+      <b className="block truncate text-[14.5px] leading-tight font-semibold">{title}</b>
+      <span className="block truncate text-[11.5px] leading-tight text-faint">{where}</span>
+    </div>
+  )
+}
+
 export function BackButton() {
   const t = useI18n()
   const back = useBack()

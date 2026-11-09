@@ -31,7 +31,7 @@ import type { FilesRoot } from '../../../model/files/worktrees'
 import type { Project } from '../../../model/projects'
 import { projectFilesHref } from '../../../utils/hrefs'
 import { useObjectUrl } from '../../../utils/object-url'
-import { BackButton, PhoneBar, TAP } from '../bar'
+import { BackButton, BarTitle, PhoneBar, TAP } from '../bar'
 
 const MarkdownRenderer = lazy(() =>
   import('../../../components/renderers/markdown').then(m => ({ default: m.MarkdownRenderer })),
@@ -104,10 +104,7 @@ function Read({ project, root, rel, again }: Props & { again: () => void }) {
     <div className="flex min-h-dvh flex-col">
       <PhoneBar>
         <BackButton />
-        <div className="min-w-0 flex-1">
-          <b className="block truncate text-[14.5px] leading-tight font-semibold">{name}</b>
-          <span className="block truncate text-[11.5px] leading-tight text-faint">{where}</span>
-        </div>
+        <BarTitle title={name} where={where} />
         <DropdownMenu
           trigger={
             <button type="button" aria-label={t('mobile.more')} className={TAP}>
@@ -118,6 +115,7 @@ function Read({ project, root, rel, again }: Props & { again: () => void }) {
         />
       </PhoneBar>
       <main className="min-w-0 flex-1">
+        {/* The views ask for a scroll to keep; here the page scrolls, so they have none. */}
         <ScrollScope value="phone-file">
           {error ? (
             <p className="m-6 text-danger">{errorText(t, error)}</p>
@@ -153,9 +151,18 @@ function Markdown({ text, rel, hrefOf, asset }: ViewProps) {
   const parts = useMarkdownParts(rel, hrefOf, asset)
   const scroll = useTabScroll()
   return (
-    <Suspense fallback={<Reading />}>
-      <MarkdownRenderer text={text} appearance={APPEARANCE} outline={NO_OUTLINE} scroll={scroll} {...parts} />
-    </Suspense>
+    // A heading jumped to stops clear of the bar that stays over the page.
+    <div className="[&_:is(h1,h2,h3,h4,h5,h6)]:scroll-mt-[calc(60px+env(safe-area-inset-top))]">
+      <Suspense fallback={<Reading />}>
+        <MarkdownRenderer
+          text={text}
+          appearance={APPEARANCE}
+          outline={NO_OUTLINE}
+          scroll={scroll}
+          {...parts}
+        />
+      </Suspense>
+    </div>
   )
 }
 
