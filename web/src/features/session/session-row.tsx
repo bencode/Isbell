@@ -2,6 +2,7 @@
 // when, and under that what it is at and any worktree's branch. A click shows it in the preview tab,
 // a double click keeps it.
 
+import { Clock } from 'lucide-react'
 import { Link, type To } from 'react-router'
 import { StatusDot } from '../../components/status-dot'
 import type { AgentStatus } from '../../model/state'
@@ -17,6 +18,8 @@ type Props = {
   asking?: boolean | undefined
   branch?: string | undefined
   time?: string | undefined
+  /** It has a scheduled message running. */
+  looping?: boolean | undefined
   /** Shown on hovering the row. */
   hint?: string | undefined
   /** What is searched for, in lower case, to pick out. */
@@ -62,6 +65,7 @@ export function SessionRow({
   asking,
   branch,
   time,
+  looping,
   hint,
   needle,
   shown,
@@ -82,6 +86,7 @@ export function SessionRow({
         <span className="min-w-0 flex-1 truncate">
           <Marked text={name} needle={needle} />
         </span>
+        {looping ? <Clock size={11} className="flex-none text-faint" /> : null}
         {time ? (
           <span className="flex-none font-mono text-[11.5px] text-faint tabular-nums">{time}</span>
         ) : null}

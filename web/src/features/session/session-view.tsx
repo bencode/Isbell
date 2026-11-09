@@ -12,6 +12,7 @@ import type { Via } from '../../model/space'
 import { Chat } from './chat'
 import { ShowTerminal } from './context'
 import { EndPane } from './end-pane-dialog'
+import { LoopButton } from './loops/loop-button'
 import { PaneFacts } from './session-parts'
 import { Subbar, type View } from './subbar'
 
@@ -63,6 +64,7 @@ export function SessionView({
           pane={pane}
           branch={branch}
           view={agent ? { shown, onShow } : undefined}
+          tools={agent ? <LoopButton mid={mid} paneId={paneId} project={project.path} /> : undefined}
           facts={
             <PaneFacts mid={mid} project={project} pane={pane} via={shown === 'terminal' ? via : 'calls'} />
           }

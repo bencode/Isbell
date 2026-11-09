@@ -6,6 +6,7 @@ mod file;
 mod git;
 mod herdr;
 mod link;
+mod loops;
 mod monitor;
 mod process;
 mod push;
@@ -81,6 +82,7 @@ pub async fn run(opts: GatewayOptions) -> Result<(), GatewayError> {
     let mut monitor = AbortOnDrop(tokio::spawn(monitor));
     let push = Arc::new(Push::new(&opts.identity, opts.push.clone(), &opts.relay));
     let _push = AbortOnDrop(tokio::spawn(push::run(Arc::clone(&push), states_rx.clone())));
+    let _loops = AbortOnDrop(tokio::spawn(loops::run(Arc::clone(&slot), states_rx.clone())));
     let (inbox, inbox_rx) = mpsc::unbounded_channel();
     tracing::info!(uploads = %opts.uploads.display(), "files sent for agents go here");
     let calls =

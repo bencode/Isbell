@@ -3,18 +3,22 @@
 // before as asked for. Found by part of a name, of what they were asked, or of where they ran: a
 // search reads every month. Each opens in a tab.
 
-import { Search, X } from 'lucide-react'
+import { Clock, Search, Trash2, X } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
 import { Button } from '../../components/button'
+import { IconButton } from '../../components/icon-button'
 import { errorText, type T, useI18n } from '../../core/i18n'
+import { changeLoops, useLoops } from '../../core/loops'
 import { useSessionRecords } from '../../core/session-records'
-import { useProjects } from '../../core/space'
+import { useProjects, useSpace, useSpaceView } from '../../core/space'
 import { useTabActions, useTabRoute } from '../../core/tabs'
 import { useFilesRoots } from '../../core/worktrees'
 import { SessionRow } from '../../features/session/session-row'
 import { type FilesRoot, rootHolding } from '../../model/files/worktrees'
+import { endedLoops, type Loop, loopOf } from '../../model/loops'
 import type { Project } from '../../model/projects'
 import { byDay, dayKey, excerpt, lineTime, matches, sessionKey } from '../../model/sessions'
+import { machineOf } from '../../model/space'
 import type { AgentStatus } from '../../model/state'
 import { closedTabId, sessionTabId, withTerminal } from '../../model/tabs'
 import { clock, dayTitle, since, useNow } from '../../utils/time'
@@ -24,6 +28,7 @@ const NOTE = 'm-3 text-[13px] text-muted'
 /** `query`: what the row opens its tab with, a shell's showing its terminal. */
 type Row = {
   id: string
+  paneId: string
   query?: string
   mark: AgentStatus | 'shell'
   asking?: boolean
@@ -47,6 +52,7 @@ function rowsOf(project: Project): Row[] {
     .map(
       (s): Row => ({
         id: sessionTabId(s.mid, s.paneId),
+        paneId: s.paneId,
         // A finished session looked at stands by, as far as this list goes.
         mark: s.status === 'done' && !s.unread ? 'idle' : s.status,
         asking: s.status === 'blocked',
@@ -62,6 +68,7 @@ function rowsOf(project: Project): Row[] {
     .map(
       (s): Row => ({
         id: sessionTabId(s.mid, s.paneId),
+        paneId: s.paneId,
         query: withTerminal('', true),
         mark: 'shell',
         name: s.title ?? s.paneId,
@@ -93,9 +100,39 @@ function Group({ title, count, children }: { title: string; count?: number; chil
   )
 }
 
+/** A scheduled message whose agent is gone: kept until removed, as it may have taken some writing. */
+function EndedLoop({ mid, loop }: { mid: string; loop: Loop }) {
+  const t = useI18n()
+  const { openStream } = useSpace()
+  const [failed, setFailed] = useState<string>()
+  const remove = () => {
+    setFailed(undefined)
+    changeLoops(openStream, mid, loops => loops.filter(l => l.id !== loop.id)).catch((err: unknown) => {
+      setFailed(errorText(t, err))
+    })
+  }
+  return (
+    <div>
+      <div className="flex min-w-0 items-center gap-2 px-2 py-[3px] text-[13.5px] leading-5 text-faint">
+        <Clock size={12} className="flex-none" />
+        <span className="min-w-0 flex-1 truncate" title={loop.message}>
+          {loop.message}
+        </span>
+        <IconButton label={t('loop.delete')} size="tiny" onClick={remove}>
+          <Trash2 size={12} />
+        </IconButton>
+      </div>
+      {failed ? <p className="m-0 px-2 pb-1 text-[12.5px] text-danger">{failed}</p> : null}
+    </div>
+  )
+}
+
 export function SessionsPanel({ projectKey }: { projectKey: string }) {
   const t = useI18n()
-  const project = useProjects().find(p => p.key === projectKey)
+  const projects = useProjects()
+  const project = projects.find(p => p.key === projectKey)
+  const { machines } = useSpaceView()
+  const { able, loops } = useLoops(project?.mid ?? '')
   const { roots } = useFilesRoots(project)
   const records = useSessionRecords(project)
   const { shown } = useTabRoute()
@@ -122,6 +159,12 @@ export function SessionsPanel({ projectKey }: { projectKey: string }) {
   const found = running.length + history.length
   const none = read && !found
   const inWords = (text: string) => text.toLowerCase().includes(needle)
+  // Only herdr answering can say an agent is gone.
+  const herdrKnows = machineOf(machines, project.mid)?.state.herdr.status === 'ready'
+  const agents = new Set(
+    projects.filter(p => p.mid === project.mid).flatMap(p => p.sessions.map(s => s.paneId)),
+  )
+  const ended = able && herdrKnows && !needle ? endedLoops(loops, project.path, agents) : []
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex-none px-2.5 pt-2.5 pb-1.5">
@@ -171,9 +214,17 @@ export function SessionsPanel({ projectKey }: { projectKey: string }) {
                 asking={r.asking}
                 branch={branchOf(roots, r.cwd)}
                 time={r.since === undefined ? undefined : since(r.since, now)}
+                looping={able && loopOf(loops, r.paneId)?.enabled}
                 needle={needle}
                 {...row(r.id, r.query)}
               />
+            ))}
+          </Group>
+        ) : null}
+        {ended.length ? (
+          <Group title={t('sessions.endedLoops')} count={ended.length}>
+            {ended.map(loop => (
+              <EndedLoop key={loop.id} mid={project.mid} loop={loop} />
             ))}
           </Group>
         ) : null}
