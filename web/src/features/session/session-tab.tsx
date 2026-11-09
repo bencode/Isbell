@@ -4,17 +4,16 @@
 // gone, or its agent has left a shell behind while the chat shows, the session it ran takes the
 // tab's place, when it is among those recorded.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect } from 'react'
 import type { Params } from 'react-router'
 import { useI18n } from '../../core/i18n'
 import { sessionInPane, useRecordLookup } from '../../core/session-records'
-import { useProjects, useSpace, useSpaceView } from '../../core/space'
 import { useTabActions, useTabQuery, useTabRoute } from '../../core/tabs'
-import { type Found, locate } from '../../model/projects'
-import { projectsSettled } from '../../model/space'
+import type { Found } from '../../model/projects'
 import { closedTabId, showsTerminal, withTerminal } from '../../model/tabs'
 import { SessionView } from './session-view'
 import type { View } from './subbar'
+import { useFoundPane } from './use-found-pane'
 
 /** `params`: the machine and the pane, from the tab's id. */
 export function SessionTabPane({
@@ -25,28 +24,8 @@ export function SessionTabPane({
   params: Params
 }) {
   const t = useI18n()
-  const space = useSpace()
-  const view = useSpaceView()
-  const found = locate(useProjects(), mid, paneId)
-  const ready = projectsSettled(view)
+  const { found, waiting } = useFoundPane(mid, paneId)
   const listed = found !== undefined
-  // Panes are pulled every so often, and one started a moment ago may not be listed yet: it is gone
-  // only once the machine, asked again, does not list it. Not answered, it is asked again once the
-  // tab shows again.
-  const [checked, setChecked] = useState(false)
-  useEffect(() => {
-    // Listed again, it is checked anew once it goes.
-    if (listed) setChecked(false)
-    if (!ready || listed) return
-    let live = true
-    void space.refreshShells(mid).then(listedNow => {
-      if (live && listedNow) setChecked(true)
-    })
-    return () => {
-      live = false
-    }
-  }, [ready, listed, space, mid])
-  const waiting = !ready || (!listed && !checked)
   // The session it ran, when it is among those recorded, as only those can be resumed.
   const lookup = useRecordLookup()
   // A shell shown as a terminal is in use, and stays.

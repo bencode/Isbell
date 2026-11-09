@@ -95,7 +95,13 @@ export function useAttachments(mid: string, machine: string, landed?: (path: str
   }
 }
 
-export function PickFiles({ onPick }: { onPick: (files: File[]) => void }) {
+export function PickFiles({
+  onPick,
+  className = 'inline-flex size-6 flex-none cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-muted hover:bg-raised-2 hover:text-text',
+}: {
+  onPick: (files: File[]) => void
+  className?: string
+}) {
   const t = useI18n()
   const picker = useRef<HTMLInputElement>(null)
   return (
@@ -115,7 +121,7 @@ export function PickFiles({ onPick }: { onPick: (files: File[]) => void }) {
         onClick={() => picker.current?.click()}
         aria-label={t('upload.attach')}
         title={t('upload.attach')}
-        className="inline-flex size-6 flex-none cursor-pointer items-center justify-center rounded-md border-0 bg-transparent text-muted hover:bg-raised-2 hover:text-text"
+        className={className}
       >
         <Paperclip size={15} />
       </button>

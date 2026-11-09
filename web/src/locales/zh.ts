@@ -125,6 +125,7 @@ export const zh: Record<Key, string> = {
   'active.finished': '刚完成',
   'mobile.online': '{n} 台在线',
   'mobile.back': '返回',
+  'mobile.more': '更多',
   'mobile.later': '这一页还在做，下一个迭代就有。',
   'peek.label': '查看 session',
   'peek.next': '下一个等你',
