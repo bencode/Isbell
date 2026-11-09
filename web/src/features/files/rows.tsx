@@ -28,7 +28,7 @@ const LEVEL = 14
 export const indent = (depth: number) => ({ paddingLeft: 6 + depth * LEVEL })
 
 /** A line down each level a row is set in by, under the chevrons of the folders it is inside. */
-const guides = (depth: number): CSSProperties =>
+export const guides = (depth: number): CSSProperties =>
   depth === 0
     ? {}
     : {
@@ -52,10 +52,10 @@ const ICONS = new Map(
   ).flatMap(([icon, names]) => names.split(' ').map(name => [name, icon] as const)),
 )
 
-const iconOf = (name: string) => (imageType(name) ? FileImage : (ICONS.get(extensionOf(name)) ?? File))
+export const iconOf = (name: string) => (imageType(name) ? FileImage : (ICONS.get(extensionOf(name)) ?? File))
 
 /** A name that starts with a dot stays in the list, but steps back. */
-const hidden = (name: string) => name.startsWith('.')
+export const hidden = (name: string) => name.startsWith('.')
 
 export function FolderRow({
   depth,

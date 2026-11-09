@@ -29,6 +29,8 @@ export type Layout = {
   filesAt: Record<string, { root: string; rel: string }>
   /** Whether long lines of source wrap. */
   wrap: boolean
+  /** The same on a phone, where they wrap unless told otherwise. */
+  wrapOnPhone: boolean
   /** Which sessions the right column shows. */
   activeFilter: 'all' | 'blocked' | 'working' | 'idle'
   /** Whether those standing by are unfolded there. */
@@ -68,6 +70,7 @@ const DEFAULTS: Local = {
     files: {},
     filesAt: {},
     wrap: false,
+    wrapOnPhone: true,
     activeFilter: 'all',
     idleOpen: false,
   },
@@ -175,6 +178,9 @@ export function rememberFilesAt(project: string, root: string, rel: string) {
 }
 
 export const toggleWrap = () => updateLocal(l => ({ layout: { ...l.layout, wrap: !l.layout.wrap } }))
+
+export const toggleWrapOnPhone = () =>
+  updateLocal(l => ({ layout: { ...l.layout, wrapOnPhone: !l.layout.wrapOnPhone } }))
 
 export const setReader = (change: Partial<Reader>) =>
   updateLocal(l => ({ reader: { ...l.reader, ...change } }))

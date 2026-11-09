@@ -1,17 +1,38 @@
-// A phone's pages. A session lives at the address its push notifications have.
+// A phone's pages. A session lives at the address its push notifications have, and a project's files
+// at the address they have everywhere, over the page they were opened from.
 
-import { Navigate, Route, Routes } from 'react-router'
+import { Activity, useState } from 'react'
+import { matchPath, Navigate, Route, Routes, useLocation } from 'react-router'
+import { PhoneFiles } from './files/files'
 import { Home } from './home'
 import { PhoneNewSession } from './new-session'
 import { PhoneSession } from './session'
 
+const FILES = '/p/:key/files/*'
+
 export function MobileRoutes() {
+  const location = useLocation()
+  const files = !!matchPath(FILES, location.pathname)
+  // The page files were opened from stays behind them as it was left: its place, a reply half written.
+  const [behind, setBehind] = useState(files ? null : location)
+  if (!files && behind !== location) setBehind(location)
   return (
-    <Routes>
-      <Route index element={<Home />} />
-      <Route path="s/:mid/*" element={<PhoneSession />} />
-      <Route path="new" element={<PhoneNewSession />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      {behind ? (
+        <Activity mode={files ? 'hidden' : 'visible'}>
+          <Routes location={behind}>
+            <Route index element={<Home />} />
+            <Route path="s/:mid/*" element={<PhoneSession />} />
+            <Route path="new" element={<PhoneNewSession />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Activity>
+      ) : null}
+      {files ? (
+        <Routes>
+          <Route path={FILES} element={<PhoneFiles />} />
+        </Routes>
+      ) : null}
+    </>
   )
 }
