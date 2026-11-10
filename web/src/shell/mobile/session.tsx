@@ -11,7 +11,7 @@ import { StatusDot } from '../../components/status-dot'
 import { useI18n } from '../../core/i18n'
 import { usePaneSession } from '../../core/session-records'
 import { useFilesRoots } from '../../core/worktrees'
-import { ShowTerminal } from '../../features/session/context'
+import { PathRoot, ShowTerminal } from '../../features/session/context'
 import { EndPane } from '../../features/session/end-pane-dialog'
 import { PaneFacts } from '../../features/session/session-parts'
 import type { View } from '../../features/session/subbar'
@@ -126,7 +126,9 @@ function Opened({ mid, paneId, found }: { mid: string; paneId: string; found: Fo
     <ShowTerminal value={showTerminal}>
       {shown === 'terminal' ? (
         <Suspense fallback={<Loading />}>
-          <PhoneTerminal bar={bar} mid={mid} paneId={paneId} onVia={setVia} />
+          <PathRoot value={{ project, cwd }}>
+            <PhoneTerminal bar={bar} mid={mid} paneId={paneId} onVia={setVia} />
+          </PathRoot>
         </Suspense>
       ) : null}
       {/* Kept behind the terminal: a reply half written, what was just sent, and its place. */}

@@ -17,7 +17,7 @@ const LINE = /(?::\d+){1,2}$/
 const EXTENSION = /\.[A-Za-z][A-Za-z\d]{0,7}$/
 // A word without a '/' is a file only with an extension that is plainly one.
 const KNOWN =
-  /^[\w.-]*\w\.(?:tsx?|jsx?|mjs|cjs|json|mdx?|py|rs|go|java|kt|swift|c|h|cpp|hpp|cs|rb|php|sh|zsh|toml|ya?ml|lock|css|scss|html|sql|txt|csv|vue|svelte)$/
+  /^[\w.-]*\w\.(?:tsx?|jsx?|mjs|cjs|json|mdx?|py|rs|go|java|kt|swift|c|h|cpp|hpp|cs|rb|php|sh|zsh|toml|ya?ml|lock|css|scss|html|sql|txt|csv|vue|svelte|png|jpe?g|gif|webp|avif|svg)$/
 // Library names such as Node.js read as files otherwise.
 const LIBRARY = /^[A-Z][a-z]+\.js$/
 

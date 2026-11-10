@@ -10,7 +10,7 @@ import { rootHolding } from '../../model/files/worktrees'
 import type { Found } from '../../model/projects'
 import type { Via } from '../../model/space'
 import { Chat } from './chat'
-import { ShowTerminal } from './context'
+import { PathRoot, ShowTerminal } from './context'
 import { EndPane } from './end-pane-dialog'
 import { LoopButton } from './loops/loop-button'
 import { PaneFacts } from './session-parts'
@@ -80,13 +80,15 @@ export function SessionView({
           {attached ? (
             <div className={`absolute inset-0 ${shown === 'terminal' ? '' : 'hidden'}`}>
               <Suspense>
-                <Terminal
-                  mid={mid}
-                  paneId={paneId}
-                  machine={project.machine}
-                  onVia={setVia}
-                  sendsWheel={CHAT_AGENTS.includes(agent?.kind ?? '')}
-                />
+                <PathRoot value={{ project, cwd }}>
+                  <Terminal
+                    mid={mid}
+                    paneId={paneId}
+                    machine={project.machine}
+                    onVia={setVia}
+                    sendsWheel={CHAT_AGENTS.includes(agent?.kind ?? '')}
+                  />
+                </PathRoot>
               </Suspense>
             </div>
           ) : null}

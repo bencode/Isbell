@@ -2,13 +2,18 @@
 // running.
 
 import { FitAddon } from '@xterm/addon-fit'
-import { type ITheme, Terminal as XTerm } from '@xterm/xterm'
+import { type IBufferLine, type ILinkProvider, type ITheme, Terminal as XTerm } from '@xterm/xterm'
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router'
 import { useSpace } from '../../core/space'
+import type { Mention, Piece } from '../../model/files/mentions'
 import type { Via } from '../../model/space'
 import { type BarKey, barKeyBytes } from '../../model/term-keys'
+import { type Cell, lineAround, lineLinks } from '../../model/term-links'
 import { cellAt, turnWheel, wheelReport } from '../../model/term-wheel'
 import { openTerminal, type Terminal } from '../../model/terminal'
+import { PHONE } from '../../utils/phone'
+import { useMentions } from './mention-text'
 
 type TerminalState = {
   phase: 'opening' | 'open' | 'ended'
@@ -60,6 +65,45 @@ const NIGHT: ITheme = {
 /** The least contrast text keeps with what is under it; the terminal lightens text below it. */
 const MIN_CONTRAST = 3
 
+/** How the paths on the screen are found, and opened, where the pane's project is known. */
+type Links = { find: (text: string) => Piece[]; open: (mention: Mention) => void }
+
+const cellsOf = (line: IBufferLine, cols: number): Cell[] =>
+  Array.from({ length: cols }, (_, x) => {
+    const cell = line.getCell(x)
+    return { chars: cell?.getChars() ?? '', width: cell?.getWidth() ?? 1 }
+  })
+
+/** The paths on the buffer's row `y`, counted from 1 as the buffer's rows are not. */
+function linksOn(term: XTerm, find: Links['find'], y: number) {
+  const rowAt = (row: number) => {
+    const line = term.buffer.active.getLine(row - 1)
+    return line && cellsOf(line, term.cols)
+  }
+  const { rows, firstY } = lineAround(rowAt, y)
+  return lineLinks(rows, firstY, find).filter(link => link.start.y <= y && y <= link.end.y)
+}
+
+/** The paths on the screen as links that open as they do in chat: at a tap on a phone, elsewhere
+ * with ⌘ or Ctrl held, so that a click or a double click still selects. */
+function pathLinks(term: XTerm, links: RefObject<Links | null>): ILinkProvider {
+  return {
+    provideLinks(y, callback) {
+      const found = links.current
+      if (!found) return callback(undefined)
+      callback(
+        linksOn(term, found.find, y).map(({ mention, start, end }) => ({
+          range: { start, end },
+          text: mention.text,
+          activate: event => {
+            if (PHONE || event.metaKey || event.ctrlKey) found.open(mention)
+          },
+        })),
+      )
+    },
+  }
+}
+
 /** `takesKeys`: whether it takes the keys as it opens and shows; on a phone that would bring up the
  * keyboard, which waits to be asked for. `sendsWheel`: whether the wheel goes to the program in the
  * pane, which may change while it stays attached. */
@@ -78,6 +122,12 @@ export function useTerminal(
   useEffect(() => {
     wheelGoesOn.current = sendsWheel
   }, [sendsWheel])
+  const mentioned = useMentions()
+  const navigate = useNavigate()
+  const links = useRef<Links | null>(null)
+  useEffect(() => {
+    links.current = mentioned && { find: mentioned.find, open: m => navigate(mentioned.href(m)) }
+  }, [mentioned, navigate])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `attempt` is how Reconnect re-attaches; `attach` reads only what is listed, and refs.
   useEffect(() => {
@@ -119,6 +169,7 @@ export function useTerminal(
     term.open(host)
     fit.fit()
     if (takesKeys) term.focus()
+    const linking = term.registerLinkProvider(pathLinks(term, links))
     xterm.current = term
     setState({ phase: 'opening' })
 
@@ -189,6 +240,7 @@ export function useTerminal(
       observer.disconnect()
       typed.dispose()
       binary.dispose()
+      linking.dispose()
       void attached.then(t => t?.close())
       xterm.current = null
       term.dispose()
