@@ -1,21 +1,20 @@
 import { expect, test } from 'vitest'
-import { heldOrder } from './held-order'
+import { pinIn } from './held-order'
 
-test('rows keep their place and group while held; one gone leaves, one new comes last', () => {
-  const held = [
-    { key: 'a', group: 'finished' },
-    { key: 'b', group: 'finished' },
-    { key: 'c', group: 'idle' },
-  ]
-  // a was looked at and stands by now, c went away, d came.
+test('the row opened keeps its part and place; the others go where they now belong', () => {
+  // a was first of those finished when opened; seen, it stands by now, and c finished meanwhile.
   const next = [
+    { key: 'c', group: 'finished' },
     { key: 'b', group: 'finished' },
     { key: 'a', group: 'idle' },
-    { key: 'd', group: 'finished' },
+    { key: 'd', group: 'idle' },
   ]
-  expect(heldOrder(held, next)).toEqual([
+  expect(pinIn(next, { key: 'a', group: 'finished', index: 0 })).toEqual([
     { key: 'a', group: 'finished' },
+    { key: 'c', group: 'finished' },
     { key: 'b', group: 'finished' },
-    { key: 'd', group: 'finished' },
+    { key: 'd', group: 'idle' },
   ])
+  // Gone, it is not put back.
+  expect(pinIn(next.slice(0, 2), { key: 'a', group: 'finished', index: 0 })).toEqual(next.slice(0, 2))
 })

@@ -3,7 +3,7 @@
 // standing by folded. Opening one looks at it over the workspace, unless it is the tab on screen.
 
 import { ChevronDown, ChevronRight } from 'lucide-react'
-import { type ReactNode, useState } from 'react'
+import type { ReactNode } from 'react'
 import { type Key, useI18n } from '../../core/i18n'
 import {
   type Layout,
@@ -15,7 +15,7 @@ import {
 } from '../../core/prefs'
 import { useProjects } from '../../core/space'
 import { lanes, type Placed, type Project, paneKey } from '../../model/projects'
-import { keysIn, useHeld } from '../../utils/held-order'
+import { keysIn, usePinned } from '../../utils/held-order'
 import { useNow } from '../../utils/time'
 import { ActiveCard, StandingRow } from './active-card'
 import { usePeek } from './peek'
@@ -83,7 +83,6 @@ export function ActiveSessions() {
   const live = lanes(projects)
   const { peek, open } = usePeek()
   const shared = sharedNames(projects)
-  const [hovered, setHovered] = useState(false)
 
   const finishedNow = [...live.finished].reverse()
   const lanesNow: Record<Lane, Placed[]> = {
@@ -93,10 +92,10 @@ export function ActiveSessions() {
     earlier: finishedNow.slice(LATEST_FINISHED),
     standing: live.standing,
   }
-  // While the pointer is over the column, each session stays in the part it was in and its place.
-  const { slots, release } = useHeld(
+  // The one looked at stays in the part and place it was opened from, as looking marks it seen.
+  const slots = usePinned(
     LANES.flatMap(lane => lanesNow[lane].map(p => ({ key: keyOf(p), group: lane }))),
-    hovered,
+    peek ? paneKey(peek.mid, peek.paneId) : undefined,
   )
   const placedBy = new Map(LANES.flatMap(lane => lanesNow[lane].map(p => [keyOf(p), p] as const)))
   const laneOf = (lane: Lane) => keysIn(slots, lane).flatMap(key => placedBy.get(key) ?? [])
@@ -130,7 +129,6 @@ export function ActiveSessions() {
   const lines = (list: Placed[]) => list.map(p => <StandingRow key={keyOf(p)} {...propsOf(p)} />)
   const seeAll = () => {
     markAllSeen(finished.map(p => ({ key: keyOf(p), since: p.session.statusSince })))
-    release()
   }
 
   const sections = [
@@ -196,11 +194,7 @@ export function ActiveSessions() {
           </button>
         ))}
       </div>
-      <div
-        onPointerEnter={() => setHovered(true)}
-        onPointerLeave={() => setHovered(false)}
-        className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-auto px-2 pt-0.5 pb-3.5"
-      >
+      <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-auto px-2 pt-0.5 pb-3.5">
         {sections.length ? (
           sections
         ) : (

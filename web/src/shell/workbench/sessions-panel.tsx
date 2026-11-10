@@ -26,7 +26,7 @@ import { matches, type SessionLine, sessionKey } from '../../model/sessions'
 import { machineOf } from '../../model/space'
 import type { AgentStatus } from '../../model/state'
 import { sessionTabId, withTerminal } from '../../model/tabs'
-import { keysIn, useHeld } from '../../utils/held-order'
+import { keysIn, usePinned } from '../../utils/held-order'
 import { useNow } from '../../utils/time'
 import { Group, SessionsHistory } from './sessions-history'
 
@@ -182,11 +182,16 @@ function foldOpen(rows: Row[]) {
   return rows.map(r => ({ key: r.id, group: !standing(r) || latest.has(r) ? 'shown' : 'folded' }))
 }
 
-type OpenProps = { rows: Row[]; all: boolean; holding: boolean; render: (r: Row) => ReactNode }
+type OpenProps = {
+  rows: Row[]
+  all: boolean
+  opened: string | null | undefined
+  render: (r: Row) => ReactNode
+}
 
-/** The open sessions, those folded too when `all`, in their places while `holding`. */
-function OpenRows({ rows, all, holding, render }: OpenProps) {
-  const { slots } = useHeld(foldOpen(rows), holding)
+/** The open sessions, those folded too when `all`; the one `opened` where it was when opened. */
+function OpenRows({ rows, all, opened, render }: OpenProps) {
+  const slots = usePinned(foldOpen(rows), opened ?? undefined)
   const byId = new Map(rows.map(r => [r.id, r]))
   const ids = [...keysIn(slots, 'shown'), ...(all ? keysIn(slots, 'folded') : [])]
   return ids.flatMap(id => byId.get(id) ?? []).map(render)
@@ -207,7 +212,6 @@ export function SessionsPanel({ projectKey }: { projectKey: string }) {
   const now = useNow()
   const [query, setQuery] = useState('')
   const [ending, setEnding] = useState<Row>()
-  const [hovered, setHovered] = useState(false)
   const needle = query.trim().toLowerCase()
   const { loadAll } = records
   useEffect(() => {
@@ -287,11 +291,7 @@ export function SessionsPanel({ projectKey }: { projectKey: string }) {
           <p className="m-0 px-1 pt-1 text-[11.5px] text-faint">{t('sessions.found', { n: count })}</p>
         ) : null}
       </div>
-      <div
-        onPointerEnter={() => setHovered(true)}
-        onPointerLeave={() => setHovered(false)}
-        className="min-h-0 flex-1 overflow-auto px-1.5 pb-2"
-      >
+      <div className="min-h-0 flex-1 overflow-auto px-1.5 pb-2">
         {records.error ? (
           <p className="m-2 text-[12.5px] text-danger">
             {t('sessions.failed', { msg: errorText(t, records.error) })}
@@ -299,7 +299,7 @@ export function SessionsPanel({ projectKey }: { projectKey: string }) {
         ) : null}
         {open.length ? (
           <Group title={t('sessions.open')} count={open.length}>
-            <OpenRows rows={open} all={earlierOpen || !!needle} holding={hovered} render={paneRow} />
+            <OpenRows rows={open} all={earlierOpen || !!needle} opened={shown} render={paneRow} />
             {folded > 0 && !needle ? <FoldButton open={earlierOpen} more={folded} /> : null}
           </Group>
         ) : null}
