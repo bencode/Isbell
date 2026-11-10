@@ -211,3 +211,36 @@ export const byDay = <T>(items: T[], at: (item: T) => number): [T, ...T[]][] =>
     else days.push([item])
     return days
   }, [])
+
+/** The stretch of time a list puts a session under: the day, the day before, the rest of the week
+ * (from Monday), or else its month. */
+export type Period = { kind: 'today' | 'yesterday' | 'week' } | { kind: 'month'; year: number; month: number }
+
+const dayStart = (ms: number, back = 0) => {
+  const d = new Date(ms)
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() - back)
+  return d.getTime()
+}
+
+/** The period `ms` falls in, as seen at `now`. */
+export function periodOf(ms: number, now: number): Period {
+  if (ms >= dayStart(now)) return { kind: 'today' }
+  if (ms >= dayStart(now, 1)) return { kind: 'yesterday' }
+  // Days since Monday: getDay() counts from Sunday.
+  if (ms >= dayStart(now, (new Date(now).getDay() + 6) % 7)) return { kind: 'week' }
+  const d = new Date(ms)
+  return { kind: 'month', year: d.getFullYear(), month: d.getMonth() }
+}
+
+const periodKey = (p: Period) => (p.kind === 'month' ? `${p.year}-${p.month}` : p.kind)
+
+/** The items in the order given, in runs of one period. */
+export const byPeriod = <T>(items: T[], at: (item: T) => number, now: number) =>
+  items.reduce<{ period: Period; items: [T, ...T[]] }[]>((runs, item) => {
+    const period = periodOf(at(item), now)
+    const last = runs.at(-1)
+    if (last && periodKey(last.period) === periodKey(period)) last.items.push(item)
+    else runs.push({ period, items: [item] })
+    return runs
+  }, [])

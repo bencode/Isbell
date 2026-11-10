@@ -37,6 +37,13 @@ export function dayTitle(
   return new Date(ms).toLocaleDateString(locale, { month: 'long', day: 'numeric' })
 }
 
+/** When `ms` was, in short: its time of day today, `yesterday` the day before, its date before that. */
+export function shortDay(locale: string, ms: number, now: number, yesterday: string) {
+  if (sameDay(ms, now)) return clock(locale, ms)
+  if (sameDay(ms, now - DAY_MS)) return yesterday
+  return new Date(ms).toLocaleDateString(locale, { month: 'numeric', day: 'numeric' })
+}
+
 /** How long something took: 48s, 2m 41s, 1h 3m. */
 export function duration(ms: number): string {
   const s = Math.max(0, Math.round(ms / 1000))

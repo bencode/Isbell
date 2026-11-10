@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest'
 import {
   byDay,
+  byPeriod,
   codexRecordFor,
   mergeMonths,
   mergeRecent,
@@ -122,4 +123,24 @@ test('a codex pane runs the session last active in its directory since it starte
   ]
   expect(codexRecordFor(latest, '/srv/a', 100, new Set(['taken']))).toBe('newer')
   expect(codexRecordFor(latest, '/srv/a', 260, new Set())).toBeUndefined()
+})
+
+test('sessions fall in today, yesterday, the rest of the week from Monday, then their month', () => {
+  // A Wednesday.
+  const now = new Date(2026, 10, 11, 10).getTime()
+  const at = [
+    new Date(2026, 10, 11, 9),
+    new Date(2026, 10, 10, 20),
+    new Date(2026, 10, 9, 8),
+    new Date(2026, 10, 8, 23),
+    new Date(2026, 10, 2, 9),
+    new Date(2026, 9, 28, 9),
+  ].map(d => d.getTime())
+  expect(byPeriod(at, t => t, now).map(run => [run.period, run.items.length])).toEqual([
+    [{ kind: 'today' }, 1],
+    [{ kind: 'yesterday' }, 1],
+    [{ kind: 'week' }, 1],
+    [{ kind: 'month', year: 2026, month: 10 }, 2],
+    [{ kind: 'month', year: 2026, month: 9 }, 1],
+  ])
 })

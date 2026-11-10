@@ -4,10 +4,10 @@
 import { SquareTerminal } from 'lucide-react'
 import { StatusDot } from '../../components/status-dot'
 import { useI18n } from '../../core/i18n'
+import { SessionTime } from '../../features/session/session-time'
 import { useCardNote } from '../../features/session/use-agent-note'
 import { toolLine } from '../../model/agent-note'
 import { type Placed, placedTitle, placedWhere } from '../../model/projects'
-import { since } from '../../utils/time'
 
 type Props = {
   placed: Placed
@@ -37,8 +37,8 @@ export function ActiveCard({ placed, now, peeking, onOpen }: Props) {
         {peeking ? (
           <span className="ml-auto flex-none font-medium text-accent">{t('active.peeking')}</span>
         ) : (
-          <span className="ml-auto flex-none font-mono text-[11px] text-faint">
-            {since(session.statusSince, now)}
+          <span className="ml-auto flex">
+            <SessionTime status={session.status} at={session.statusSince} now={now} />
           </span>
         )}
       </div>
@@ -54,7 +54,10 @@ export function ActiveCard({ placed, now, peeking, onOpen }: Props) {
       ) : blocked ? (
         <p className="m-0 text-[12.5px] text-muted">{t('active.waits')}</p>
       ) : asked ? (
-        <p className="m-0 line-clamp-2 text-[12.5px] text-muted">{asked}</p>
+        <p className="m-0 line-clamp-2 text-[12.5px] text-muted">
+          <span className="mr-1 font-semibold">›</span>
+          {asked}
+        </p>
       ) : null}
       {blocked ? (
         <button
@@ -79,9 +82,7 @@ export function StandingRow({ placed, now, peeking, onOpen }: Props) {
     >
       <StatusDot status={placed.session.status} />
       <span className="min-w-0 flex-1 truncate">{placedTitle(placed)}</span>
-      <span className="flex-none font-mono text-[11px] text-faint">
-        {since(placed.session.statusSince, now)}
-      </span>
+      <SessionTime status={placed.session.status} at={placed.session.statusSince} now={now} />
     </button>
   )
 }

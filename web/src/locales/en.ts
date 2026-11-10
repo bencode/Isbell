@@ -415,6 +415,20 @@ export const en = {
   'sessions.asking': 'Asking you',
   'sessions.found': '{n} found',
   'sessions.clear': 'Clear search',
+  'sessions.open': 'Open',
+  'sessions.shells': 'Shells',
+  'sessions.week': 'This week',
+  'sessions.earlier': 'Earlier {n}',
+  'sessions.fold': 'Show fewer',
+  'sessions.menu': 'More',
+  'sessions.inTerminal': 'Open in terminal',
+  'sessions.end': 'End…',
+  'sessions.hide': 'Hide',
+  'sessions.unhide': 'Show again',
+  'sessions.hiddenShow': 'Show hidden {n}',
+  'sessions.hiddenHide': 'Leave out hidden {n}',
+  'time.waiting': 'waiting {d}',
+  'time.working': 'running {d}',
 } as const
 
 export type Key = keyof typeof en

@@ -37,6 +37,10 @@ export type Layout = {
   activeFilter: 'all' | 'blocked' | 'working' | 'idle'
   /** Whether those standing by are unfolded there. */
   idleOpen: boolean
+  /** Whether a project's list shows all its open sessions standing by, not only the latest. */
+  earlierOpen: boolean
+  /** Whether a project's list shows the sessions hidden from it. */
+  hiddenShown: boolean
 }
 
 /** How documents read in the files view. */
@@ -76,6 +80,8 @@ const DEFAULTS: Local = {
     sessionsProject: null,
     activeFilter: 'all',
     idleOpen: false,
+    earlierOpen: false,
+    hiddenShown: false,
   },
   reader: { ...DEFAULT_APPEARANCE, outline: true },
   projectTabs: {},
@@ -141,6 +147,12 @@ export const setActiveFilter = (activeFilter: Layout['activeFilter']) =>
   updateLocal(l => ({ layout: { ...l.layout, activeFilter } }))
 
 export const toggleIdle = () => updateLocal(l => ({ layout: { ...l.layout, idleOpen: !l.layout.idleOpen } }))
+
+export const toggleEarlier = () =>
+  updateLocal(l => ({ layout: { ...l.layout, earlierOpen: !l.layout.earlierOpen } }))
+
+export const toggleHiddenShown = () =>
+  updateLocal(l => ({ layout: { ...l.layout, hiddenShown: !l.layout.hiddenShown } }))
 
 export const toggleRail = () => updateLocal(l => ({ layout: { ...l.layout, rail: !l.layout.rail } }))
 

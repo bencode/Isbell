@@ -1,103 +1,114 @@
-// A project's sessions in the second column: those running, agents asking first, the rest by when
-// they last changed, and then its shells; and under them those that ran, by the day they were last active, the months
-// before as asked for. Found by part of a name, of what they were asked, or of where they ran: a
-// search reads every month. Each opens in a tab.
+// A project's sessions in the second column: those open, the ones that need you or work first, then
+// the latest standing by and the rest folded; under them those that ran, by when they were last
+// active, the months before as asked for; and its shells last. Found by part of a name, of what they
+// were asked, or of where they ran: a search reads every month. Each opens in a tab.
 
-import { Clock, Search, Trash2, X } from 'lucide-react'
-import { type ReactNode, useEffect, useState } from 'react'
+import { ChevronDown, ChevronRight, Clock, Search, Trash2, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { type To, useNavigate } from 'react-router'
 import { Button } from '../../components/button'
 import { IconButton } from '../../components/icon-button'
-import { errorText, type T, useI18n } from '../../core/i18n'
+import type { MenuItem } from '../../components/menu'
+import { errorText, useI18n } from '../../core/i18n'
 import { changeLoops, useLoops } from '../../core/loops'
+import { toggleEarlier, useLocal } from '../../core/prefs'
 import { useSessionRecords } from '../../core/session-records'
 import { useProjects, useSpace, useSpaceView } from '../../core/space'
 import { useTabActions, useTabRoute } from '../../core/tabs'
 import { useFilesRoots } from '../../core/worktrees'
+import { EndPane } from '../../features/session/end-pane-dialog'
 import { SessionRow } from '../../features/session/session-row'
+import { SessionTime } from '../../features/session/session-time'
 import { type FilesRoot, rootHolding } from '../../model/files/worktrees'
 import { endedLoops, type Loop, loopOf } from '../../model/loops'
-import type { Project } from '../../model/projects'
-import { byDay, dayKey, excerpt, lineTime, matches, sessionKey } from '../../model/sessions'
+import type { Project, Session } from '../../model/projects'
+import { matches, type SessionLine, sessionKey } from '../../model/sessions'
 import { machineOf } from '../../model/space'
 import type { AgentStatus } from '../../model/state'
-import { closedTabId, sessionTabId, withTerminal } from '../../model/tabs'
-import { clock, dayTitle, since, useNow } from '../../utils/time'
+import { sessionTabId, withTerminal } from '../../model/tabs'
+import { useNow } from '../../utils/time'
+import { Group, SessionsHistory } from './sessions-history'
 
 const NOTE = 'm-3 text-[13px] text-muted'
+/** How many of those standing by show before the rest fold. */
+const LATEST_IDLE = 5
 
-/** `query`: what the row opens its tab with, a shell's showing its terminal. */
+/** A pane as the list shows it. `query`: what the row opens its tab with, a shell's showing its
+ * terminal. */
 type Row = {
   id: string
   paneId: string
   query?: string
-  mark: AgentStatus | 'shell'
-  asking?: boolean
-  /** The task the agent's terminal is titled with. */
-  title?: string | undefined
+  /** An agent's kind, `?` while herdr has not made it out; none for a shell. */
+  agent?: string
+  status?: AgentStatus
   name: string
+  /** What you last asked it. */
+  said?: string | undefined
+  /** Its herdr name, said on hovering it. */
+  herdrName?: string
   cwd: string
   words: string
-  since?: number
+  /** When it came to its status, or was last active. */
+  at?: number
 }
 
-/** The project's panes as the list shows them, newest agent first and shells after. A pane whose
- * agent herdr has not made out is listed as a shell too; it shows once, as the agent. */
-function rowsOf(project: Project): Row[] {
-  const agentPanes = new Set(project.sessions.map(s => s.paneId))
-  const agents = [...project.sessions]
-    .sort(
-      (a, b) =>
-        Number(b.status === 'blocked') - Number(a.status === 'blocked') || b.statusSince - a.statusSince,
-    )
-    .map(
-      (s): Row => ({
+/** Needs you, works, finished unseen, stands by. */
+const rank = (s: Session) =>
+  s.status === 'blocked' ? 0 : s.status === 'working' ? 1 : s.status === 'done' && s.unread ? 2 : 3
+
+/** The project's agents as the list shows them, those that need you first; what each is about is
+ * the title its agent gives its terminal, else what it was first asked. */
+function agentRows(project: Project, recordOf: (paneId: string) => SessionLine | undefined): Row[] {
+  return project.sessions
+    .map(s => {
+      const record = recordOf(s.paneId)
+      // One standing by was last active when its record last changed, which a restart leaves be.
+      const at = rank(s) < 2 ? s.statusSince : (record?.updated ?? s.statusSince)
+      return { s, record, at }
+    })
+    .sort((a, b) => rank(a.s) - rank(b.s) || b.at - a.at)
+    .map(({ s, record, at }): Row => {
+      const name = s.title ?? record?.first ?? s.name
+      const said = record?.last ?? record?.first
+      return {
         id: sessionTabId(s.mid, s.paneId),
         paneId: s.paneId,
+        agent: s.kind ?? '?',
         // A finished session looked at stands by, as far as this list goes.
-        mark: s.status === 'done' && !s.unread ? 'idle' : s.status,
-        asking: s.status === 'blocked',
-        title: s.title,
-        name: s.name,
+        status: s.status === 'done' && !s.unread ? 'idle' : s.status,
+        name,
+        said: said === name ? undefined : said,
+        herdrName: s.name,
         cwd: s.cwd ?? project.path,
-        words: `${s.name}\n${s.title ?? ''}`,
-        since: s.statusSince,
-      }),
-    )
-  const shells = project.shells
+        words: [s.name, s.title ?? '', record?.first ?? '', record?.last ?? ''].join('\n'),
+        at,
+      }
+    })
+}
+
+/** Its shells; a pane whose agent herdr has not made out is listed as a shell too, and shows once,
+ * as the agent. */
+function shellRows(project: Project): Row[] {
+  const agentPanes = new Set(project.sessions.map(s => s.paneId))
+  return project.shells
     .filter(s => !agentPanes.has(s.paneId))
     .map(
       (s): Row => ({
         id: sessionTabId(s.mid, s.paneId),
         paneId: s.paneId,
         query: withTerminal('', true),
-        mark: 'shell',
         name: s.title ?? s.paneId,
         cwd: s.cwd,
         words: `${s.paneId}\n${s.title ?? ''}`,
       }),
     )
-  return [...agents, ...shells]
 }
 
 /** The branch of the worktree `cwd` is in, if not the project's own directory. */
 function branchOf(roots: FilesRoot[], cwd: string) {
   const root = rootHolding(roots, cwd)?.root
   return root && !root.own ? (root.branch ?? undefined) : undefined
-}
-
-const dayOf = (t: T, ms: number, now: number) =>
-  dayTitle(t.locale, ms, now, { today: t('sessions.today'), yesterday: t('sessions.yesterday') })
-
-function Group({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
-  return (
-    <section className="mb-1">
-      <h3 className="sticky top-0 z-1 m-0 bg-side px-2 pt-2.5 pb-1 text-[11.5px] font-semibold text-faint">
-        {title}
-        {count === undefined ? null : <span className="ml-1 font-mono font-medium">{count}</span>}
-      </h3>
-      {children}
-    </section>
-  )
 }
 
 /** A scheduled message whose agent is gone: kept until removed, as it may have taken some writing. */
@@ -127,6 +138,50 @@ function EndedLoop({ mid, loop }: { mid: string; loop: Loop }) {
   )
 }
 
+type PaneRowProps = {
+  r: Row
+  roots: FilesRoot[]
+  now: number
+  looping: boolean | undefined
+  needle: string
+  link: { shown: boolean; to: To; onKeep: () => void }
+  onTerminal: (() => void) | undefined
+  onEnd: () => void
+}
+
+function PaneRow({ r, roots, now, looping, needle, link, onTerminal, onEnd }: PaneRowProps) {
+  const t = useI18n()
+  const menu: MenuItem[] = [
+    ...(onTerminal ? [{ label: t('sessions.inTerminal'), onClick: onTerminal }] : []),
+    { label: t('sessions.end'), onClick: onEnd, danger: true },
+  ]
+  return (
+    <SessionRow
+      mark={r.agent ? { agent: r.agent, status: r.status } : 'shell'}
+      name={r.name}
+      detail={r.said}
+      said
+      branch={branchOf(roots, r.cwd)}
+      time={r.at === undefined ? undefined : <SessionTime status={r.status} at={r.at} now={now} />}
+      looping={looping}
+      hint={r.herdrName}
+      menu={menu}
+      menuLabel={t('sessions.menu')}
+      needle={needle}
+      {...link}
+    />
+  )
+}
+
+const standing = (r: Row) => r.status === 'idle' || r.status === 'unknown'
+
+/** Those that need you or work, and the latest standing by unless `all`; and how many more stand by. */
+function foldOpen(rows: Row[], all: boolean): { shown: Row[]; more: number } {
+  const latest = new Set(rows.filter(standing).slice(0, LATEST_IDLE))
+  const more = rows.filter(standing).length - latest.size
+  return { shown: all ? rows : rows.filter(r => !standing(r) || latest.has(r)), more }
+}
+
 export function SessionsPanel({ projectKey }: { projectKey: string }) {
   const t = useI18n()
   const projects = useProjects()
@@ -136,9 +191,12 @@ export function SessionsPanel({ projectKey }: { projectKey: string }) {
   const { roots } = useFilesRoots(project)
   const records = useSessionRecords(project)
   const { shown } = useTabRoute()
-  const { href, keep } = useTabActions()
+  const { href, keep, close } = useTabActions()
+  const navigate = useNavigate()
+  const { earlierOpen } = useLocal().layout
   const now = useNow()
   const [query, setQuery] = useState('')
+  const [ending, setEnding] = useState<Row>()
   const needle = query.trim().toLowerCase()
   const { loadAll } = records
   useEffect(() => {
@@ -146,7 +204,16 @@ export function SessionsPanel({ projectKey }: { projectKey: string }) {
   }, [needle, loadAll])
   if (!project) return <p className={NOTE}>{t('board.loading')}</p>
 
-  const running = rowsOf(project).filter(r => !needle || r.words.toLowerCase().includes(needle))
+  const keyOfPane = new Map([...records.running].map(([key, paneId]) => [paneId, key]))
+  const lines = new Map(records.history.map(s => [sessionKey(s), s]))
+  const recordOf = (paneId: string) => {
+    const key = keyOfPane.get(paneId)
+    return key === undefined ? undefined : lines.get(key)
+  }
+  const found = (r: Row) => !needle || r.words.toLowerCase().includes(needle)
+  const open = agentRows(project, recordOf).filter(found)
+  const shells = shellRows(project).filter(found)
+  const folding = foldOpen(open, earlierOpen || !!needle)
   const history = records.history.filter(
     s => !records.running.has(sessionKey(s)) && (!needle || matches(s, needle)),
   )
@@ -156,15 +223,27 @@ export function SessionsPanel({ projectKey }: { projectKey: string }) {
     onKeep: () => keep(id),
   })
   const read = records.recent !== undefined
-  const found = running.length + history.length
-  const none = read && !found
-  const inWords = (text: string) => text.toLowerCase().includes(needle)
+  const count = open.length + shells.length + history.length
+  const none = read && !count
   // Only herdr answering can say an agent is gone.
   const herdrKnows = machineOf(machines, project.mid)?.state.herdr.status === 'ready'
   const agents = new Set(
     projects.filter(p => p.mid === project.mid).flatMap(p => p.sessions.map(s => s.paneId)),
   )
   const ended = able && herdrKnows && !needle ? endedLoops(loops, project.path, agents) : []
+  const paneRow = (r: Row) => (
+    <PaneRow
+      key={r.id}
+      r={r}
+      roots={roots}
+      now={now}
+      looping={able && loopOf(loops, r.paneId)?.enabled}
+      needle={needle}
+      link={row(r.id, r.query)}
+      onTerminal={r.agent ? () => navigate(href(r.id, withTerminal('', true))) : undefined}
+      onEnd={() => setEnding(r)}
+    />
+  )
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex-none px-2.5 pt-2.5 pb-1.5">
@@ -193,8 +272,8 @@ export function SessionsPanel({ projectKey }: { projectKey: string }) {
             </button>
           ) : null}
         </label>
-        {needle && found && !records.busy ? (
-          <p className="m-0 px-1 pt-1 text-[11.5px] text-faint">{t('sessions.found', { n: found })}</p>
+        {needle && count && !records.busy ? (
+          <p className="m-0 px-1 pt-1 text-[11.5px] text-faint">{t('sessions.found', { n: count })}</p>
         ) : null}
       </div>
       <div className="min-h-0 flex-1 overflow-auto px-1.5 pb-2">
@@ -203,22 +282,10 @@ export function SessionsPanel({ projectKey }: { projectKey: string }) {
             {t('sessions.failed', { msg: errorText(t, records.error) })}
           </p>
         ) : null}
-        {running.length ? (
-          <Group title={t('sessions.running')} count={running.length}>
-            {running.map(r => (
-              <SessionRow
-                key={r.id}
-                mark={r.mark}
-                name={r.name}
-                detail={r.asking ? t('sessions.asking') : r.title}
-                asking={r.asking}
-                branch={branchOf(roots, r.cwd)}
-                time={r.since === undefined ? undefined : since(r.since, now)}
-                looping={able && loopOf(loops, r.paneId)?.enabled}
-                needle={needle}
-                {...row(r.id, r.query)}
-              />
-            ))}
+        {open.length ? (
+          <Group title={t('sessions.open')} count={open.length}>
+            {folding.shown.map(paneRow)}
+            {folding.more && !needle ? <FoldButton open={earlierOpen} more={folding.more} /> : null}
           </Group>
         ) : null}
         {ended.length ? (
@@ -228,31 +295,15 @@ export function SessionsPanel({ projectKey }: { projectKey: string }) {
             ))}
           </Group>
         ) : null}
-        {byDay(history, lineTime).map(day => {
-          const first = day[0]
-          return (
-            <Group key={dayKey(lineTime(first))} title={dayOf(t, lineTime(first), now)}>
-              {day.map(s => {
-                const id = closedTabId(project.mid, s.agent, s.id)
-                // Found by something other than its name: what it was found by.
-                const by = needle && !inWords(s.first) ? [s.last ?? '', s.cwd].find(inWords) : undefined
-                return (
-                  <SessionRow
-                    key={id}
-                    mark={{ agent: s.agent }}
-                    name={s.first}
-                    detail={by && excerpt(by, needle)}
-                    time={clock(t.locale, lineTime(s))}
-                    hint={[s.first, branchOf(roots, s.cwd)].filter(Boolean).join(' · ')}
-                    needle={needle}
-                    {...row(id)}
-                  />
-                )
-              })}
-            </Group>
-          )
-        })}
-        {!read && !running.length && !records.error ? <p className={NOTE}>{t('sessions.loading')}</p> : null}
+        <SessionsHistory
+          mid={project.mid}
+          history={history}
+          needle={needle}
+          now={now}
+          branchOf={cwd => branchOf(roots, cwd)}
+          row={row}
+        />
+        {!read && !open.length && !records.error ? <p className={NOTE}>{t('sessions.loading')}</p> : null}
         {none && !records.more ? (
           <p className={NOTE}>{t(needle ? 'sessions.noMatch' : 'sessions.empty')}</p>
         ) : null}
@@ -264,7 +315,45 @@ export function SessionsPanel({ projectKey }: { projectKey: string }) {
           </div>
         ) : null}
         {needle && records.busy ? <p className={NOTE}>{t('sessions.loading')}</p> : null}
+        {shells.length ? (
+          <Group title={t('sessions.shells')} count={shells.length}>
+            {shells.map(paneRow)}
+          </Group>
+        ) : null}
       </div>
+      {ending ? (
+        <EndPane
+          open
+          onOpenChange={keepOpen => {
+            if (!keepOpen) setEnding(undefined)
+          }}
+          mid={project.mid}
+          paneId={ending.paneId}
+          name={ending.herdrName ?? ending.paneId}
+          machine={project.machine}
+          path={project.display}
+          agent={!!ending.agent}
+          onEnded={() => {
+            close(ending.id, shown === ending.id)
+            setEnding(undefined)
+          }}
+        />
+      ) : null}
     </div>
+  )
+}
+
+function FoldButton({ open, more }: { open: boolean; more: number }) {
+  const t = useI18n()
+  return (
+    <button
+      type="button"
+      onClick={toggleEarlier}
+      aria-expanded={open}
+      className="mx-1 mt-px flex cursor-pointer items-center gap-1 rounded-md border-0 bg-transparent px-1.5 py-1 text-[12.5px] text-muted hover:bg-hover hover:text-text"
+    >
+      {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+      {open ? t('sessions.fold') : t('sessions.earlier', { n: more })}
+    </button>
   )
 }
