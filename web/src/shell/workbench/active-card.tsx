@@ -55,7 +55,7 @@ export function ActiveCard({ placed, now, peeking, sharedName, onOpen }: Props) 
       className={`relative flex flex-none flex-col gap-1 rounded-[9px] border px-[11px] pt-[9px] pb-2.5 transition-colors duration-75 ${blocked ? 'bg-ask' : 'bg-raised'} ${edge}`}
     >
       <div className="flex min-w-0 items-center gap-2 text-xs text-muted">
-        <AgentMark mark={markOf(session)} ring={blocked ? 'ring-ask' : 'ring-raised'} />
+        <AgentMark mark={markOf(session)} />
         <span className="min-w-0 truncate" title={at.title}>
           {at.name}
           {at.machine ? <span className="text-faint"> · {at.machine}</span> : null}
@@ -109,7 +109,7 @@ export function StandingRow({ placed, now, peeking, sharedName, onOpen }: Props)
       onClick={() => onOpen(false)}
       className={`flex h-7 w-full flex-none cursor-pointer items-center gap-2 rounded-md border-0 px-2 text-left text-[12.5px] text-muted transition-colors duration-75 hover:bg-hover hover:text-text focus-visible:outline-2 focus-visible:outline-accent ${peeking ? 'bg-selected' : 'bg-transparent'}`}
     >
-      <AgentMark mark={markOf(session)} ring="ring-bg" />
+      <AgentMark mark={markOf(session)} />
       <span className="min-w-0 flex-1 truncate">{session.title ?? topic ?? session.name}</span>
       <span className="max-w-28 flex-none truncate text-[11.5px] text-faint" title={at.title}>
         {at.machine ? `${at.name} · ${at.machine}` : at.name}
