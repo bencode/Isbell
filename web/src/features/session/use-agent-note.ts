@@ -47,12 +47,14 @@ export function useAgentNote({ mid, paneId, status, statusSince }: NoteTarget): 
   return read?.since === statusSince ? read.note : undefined
 }
 
-/** What a card says under its title: the tool it waits on or is using, or what it was asked. */
+/** What a card says under its title: the tool it waits on or is using, or what it was asked; and
+ * `topic`, what the turn was asked whatever its status, for a title where its terminal has none. */
 export function useCardNote(session: NoteTarget) {
   const note = useAgentNote(session)
   return {
     tool:
       session.status === 'blocked' ? note?.asking : session.status === 'working' ? note?.doing : undefined,
     asked: session.status === 'done' ? note?.asked : undefined,
+    topic: note?.asked,
   }
 }

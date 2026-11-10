@@ -39,7 +39,8 @@ const LETTERS: Readonly<Record<string, string>> = { claude: 'C', codex: 'X', pi:
 /** Statuses worth a dot: one standing by needs nothing said. */
 const DOTTED: ReadonlySet<AgentStatus> = new Set(['blocked', 'working', 'done'])
 
-function MarkOf({ mark }: { mark: Mark }) {
+/** `ring`: the background the status dot sits on, for it to stand out from the letter. */
+export function AgentMark({ mark, ring = 'ring-side' }: { mark: Mark; ring?: string }) {
   if (mark === 'shell') return <span className="mx-0.5 size-2 flex-none rounded-[2px] bg-line-strong" />
   return (
     <span
@@ -48,7 +49,7 @@ function MarkOf({ mark }: { mark: Mark }) {
     >
       {LETTERS[mark.agent] ?? mark.agent.charAt(0).toUpperCase()}
       {mark.status && DOTTED.has(mark.status) ? (
-        <span className="absolute -top-px -right-1 flex rounded-full ring-2 ring-side">
+        <span className={`absolute -top-px -right-1 flex rounded-full ring-2 ${ring}`}>
           <StatusDot status={mark.status} />
         </span>
       ) : null}
@@ -101,7 +102,7 @@ export function SessionRow({
         className={`block rounded-[7px] px-2 text-inherit no-underline transition-colors duration-75 hover:bg-hover active:bg-press focus-visible:outline-2 focus-visible:outline-accent ${under ? 'pt-[5px] pb-1.5' : 'py-[3px]'} ${shown ? 'bg-selected' : ''}`}
       >
         <span className="flex min-w-0 items-center gap-2 text-[13.5px] leading-5">
-          <MarkOf mark={mark} />
+          <AgentMark mark={mark} />
           <span className="min-w-0 flex-1 truncate">
             <Marked text={name} needle={needle} />
           </span>
