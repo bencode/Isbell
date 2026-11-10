@@ -121,7 +121,6 @@ export const en = {
   'active.none': 'Nothing right now.',
   'active.answer': 'Answer',
   'active.waits': 'Waiting for your answer',
-  'active.peeking': 'Viewing',
   'active.finished': 'Just finished',
   'active.olderFinished': 'Finished earlier {n}',
   'active.markAllSeen': 'Mark all seen',

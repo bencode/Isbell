@@ -60,13 +60,9 @@ export function ActiveCard({ placed, now, peeking, sharedName, onOpen }: Props) 
           {at.name}
           {at.machine ? <span className="text-faint"> · {at.machine}</span> : null}
         </span>
-        {peeking ? (
-          <span className="ml-auto flex-none font-medium text-accent">{t('active.peeking')}</span>
-        ) : (
-          <span className="ml-auto flex">
-            <SessionTime status={session.status} at={session.statusSince} now={now} />
-          </span>
-        )}
+        <span className="ml-auto flex">
+          <SessionTime status={session.status} at={session.statusSince} now={now} />
+        </span>
       </div>
       <button
         type="button"

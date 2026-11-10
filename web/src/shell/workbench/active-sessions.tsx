@@ -3,7 +3,7 @@
 // standing by folded. Opening one looks at it over the workspace, unless it is the tab on screen.
 
 import { ChevronDown, ChevronRight } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { type ReactNode, useState } from 'react'
 import { type Key, useI18n } from '../../core/i18n'
 import {
   type Layout,
@@ -15,6 +15,7 @@ import {
 } from '../../core/prefs'
 import { useProjects } from '../../core/space'
 import { lanes, type Placed, type Project, paneKey } from '../../model/projects'
+import { keysIn, useHeld } from '../../utils/held-order'
 import { useNow } from '../../utils/time'
 import { ActiveCard, StandingRow } from './active-card'
 import { usePeek } from './peek'
@@ -33,6 +34,10 @@ const FILTERS: { value: Filter; label: Key }[] = [
 const LATEST_FINISHED = 3
 
 const keyOf = ({ session }: Placed) => paneKey(session.mid, session.paneId)
+
+/** The parts of the column, in order. */
+const LANES = ['asking', 'running', 'latest', 'earlier', 'standing'] as const
+type Lane = (typeof LANES)[number]
 
 /** The names of projects open on more than one machine. */
 function sharedNames(projects: Project[]) {
@@ -75,13 +80,32 @@ export function ActiveSessions() {
   const now = useNow()
   const { activeFilter: filter, idleOpen, finishedOpen } = useLocal().layout
   const projects = useProjects()
-  const { asking, finished: oldestFirst, running, standing } = lanes(projects)
+  const live = lanes(projects)
   const { peek, open } = usePeek()
   const shared = sharedNames(projects)
+  const [hovered, setHovered] = useState(false)
 
-  const finished = [...oldestFirst].reverse()
-  const latest = finished.slice(0, LATEST_FINISHED)
-  const earlier = finished.slice(LATEST_FINISHED)
+  const finishedNow = [...live.finished].reverse()
+  const lanesNow: Record<Lane, Placed[]> = {
+    asking: live.asking,
+    running: live.running,
+    latest: finishedNow.slice(0, LATEST_FINISHED),
+    earlier: finishedNow.slice(LATEST_FINISHED),
+    standing: live.standing,
+  }
+  // While the pointer is over the column, each session stays in the part it was in and its place.
+  const { slots, release } = useHeld(
+    LANES.flatMap(lane => lanesNow[lane].map(p => ({ key: keyOf(p), group: lane }))),
+    hovered,
+  )
+  const placedBy = new Map(LANES.flatMap(lane => lanesNow[lane].map(p => [keyOf(p), p] as const)))
+  const laneOf = (lane: Lane) => keysIn(slots, lane).flatMap(key => placedBy.get(key) ?? [])
+  const asking = laneOf('asking')
+  const running = laneOf('running')
+  const latest = laneOf('latest')
+  const earlier = laneOf('earlier')
+  const standing = laneOf('standing')
+  const finished = [...latest, ...earlier]
   const counts: Record<Filter, number> = {
     all: asking.length + running.length + finished.length + standing.length,
     blocked: asking.length,
@@ -104,7 +128,10 @@ export function ActiveSessions() {
   }
   const cards = (list: Placed[]) => list.map(p => <ActiveCard key={keyOf(p)} {...propsOf(p)} />)
   const lines = (list: Placed[]) => list.map(p => <StandingRow key={keyOf(p)} {...propsOf(p)} />)
-  const seeAll = () => markAllSeen(finished.map(p => ({ key: keyOf(p), since: p.session.statusSince })))
+  const seeAll = () => {
+    markAllSeen(finished.map(p => ({ key: keyOf(p), since: p.session.statusSince })))
+    release()
+  }
 
   const sections = [
     shows('blocked') && asking.length ? (
@@ -169,7 +196,11 @@ export function ActiveSessions() {
           </button>
         ))}
       </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-auto px-2 pt-0.5 pb-3.5">
+      <div
+        onPointerEnter={() => setHovered(true)}
+        onPointerLeave={() => setHovered(false)}
+        className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-auto px-2 pt-0.5 pb-3.5"
+      >
         {sections.length ? (
           sections
         ) : (
