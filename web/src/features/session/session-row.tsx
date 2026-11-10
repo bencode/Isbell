@@ -88,7 +88,9 @@ export function SessionRow({
 }: Props) {
   const under = detail || branch
   // Hovering, or with its menu open, the row shows the menu's button where its time is.
-  const behindMenu = menu ? 'group-hover:invisible group-has-[[data-popup-open]]:invisible' : ''
+  const behindMenu = menu
+    ? 'group-hover:invisible group-has-[[data-popup-open]]:invisible group-has-[button:focus-visible]:invisible'
+    : ''
   return (
     <div className={`group relative mb-px ${faded ? 'opacity-60' : ''}`}>
       <Link
@@ -108,7 +110,7 @@ export function SessionRow({
         </span>
         {under ? (
           <span
-            className={`flex min-w-0 gap-1.5 pl-5 text-xs leading-4 ${shown ? 'text-muted' : 'text-faint'}`}
+            className={`mt-[3px] flex min-w-0 gap-1.5 pl-5 text-xs leading-4 ${shown ? 'text-muted' : 'text-faint'}`}
           >
             <span className="min-w-0 flex-1 truncate">
               {said && detail ? <span className="mr-1 font-semibold text-muted">›</span> : null}
