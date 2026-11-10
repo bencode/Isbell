@@ -1,7 +1,7 @@
 // A pane's terminal on a phone: laid over a page that does not move, as tall as what the keyboard
 // leaves of the screen, so that it loses rows as any terminal would and the cursor and the keys stay
-// in sight. A menu is answered from the keys under it; the keyboard waits to be asked for. Back from
-// the background, it attaches again by itself.
+// in sight. A menu is answered from the keys under it; the keyboard comes up at a tap, as in any
+// terminal, and its key puts it away. Back from the background, it attaches again by itself.
 
 import '@xterm/xterm/css/xterm.css'
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
@@ -100,16 +100,7 @@ export function PhoneTerminal({
     >
       {bar}
       <div className="relative min-h-0 flex-1 overflow-hidden px-2 py-1.5">
-        {/* In capture, before xterm: it takes the keys on a tap, and up would come the keyboard. A tap
-            leaves the keyboard as it is, either way. */}
-        <div
-          ref={box}
-          onMouseDownCapture={e => {
-            e.preventDefault()
-            e.stopPropagation()
-          }}
-          className="h-full w-full bg-term"
-        />
+        <div ref={box} className="h-full w-full bg-term" />
         {state.phase !== 'open' && !ended ? (
           <p className="absolute inset-0 m-0 grid place-items-center font-mono text-xs text-faint">
             {t('terminal.opening')}
