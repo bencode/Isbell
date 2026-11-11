@@ -21,8 +21,14 @@ const BACKLOG: usize = WINDOW as usize;
 /// What herdr reports on the session's stdout.
 #[derive(Debug, PartialEq)]
 pub enum Event {
-    Frame { bytes: Vec<u8>, full: bool, cols: u16, rows: u16 },
-    Closed,
+    Frame {
+        bytes: Vec<u8>,
+        full: bool,
+        cols: u16,
+        rows: u16,
+    },
+    /// Why, when herdr says.
+    Closed(Option<String>),
 }
 
 /// What a client's input asks of the session.
@@ -59,7 +65,7 @@ pub fn release_command() -> Value {
 pub fn read_event(line: std::io::Result<Option<String>>) -> Result<Event, String> {
     match line {
         Ok(Some(line)) => parse_line(&line),
-        Ok(None) => Ok(Event::Closed),
+        Ok(None) => Ok(Event::Closed(None)),
         Err(err) => Err(err.to_string()),
     }
 }
@@ -77,7 +83,10 @@ pub fn parse_line(line: &str) -> Result<Event, String> {
             height: u16,
         },
         #[serde(rename = "terminal.closed")]
-        Closed {},
+        Closed {
+            #[serde(default)]
+            reason: Option<String>,
+        },
     }
     match serde_json::from_str::<Line>(line)
         .map_err(|err| format!("unexpected herdr output: {err}"))?
@@ -88,7 +97,7 @@ pub fn parse_line(line: &str) -> Result<Event, String> {
             cols: width,
             rows: height,
         }),
-        Line::Closed {} => Ok(Event::Closed),
+        Line::Closed { reason } => Ok(Event::Closed(reason)),
     }
 }
 
@@ -131,7 +140,7 @@ impl Coalescer {
                 let (next, output) = next.flush();
                 (next, output, false)
             }
-            Event::Closed => {
+            Event::Closed(_) => {
                 let (next, mut output) = self.flush();
                 output.push(Output::End(None));
                 (next, output, true)
@@ -205,8 +214,11 @@ mod tests {
     fn parses_frames_and_close() {
         let line = r#"{"type":"terminal.frame","seq":3,"encoding":"ansi","width":80,"height":24,"full":true,"bytes":"aGk="}"#;
         assert_eq!(parse_line(line), Ok(frame(b"hi".to_vec(), true, 80)));
-        assert_eq!(parse_line(r#"{"type":"terminal.closed","reason":"exit"}"#), Ok(Event::Closed));
-        assert_eq!(read_event(Ok(None)), Ok(Event::Closed));
+        assert_eq!(
+            parse_line(r#"{"type":"terminal.closed","reason":"exit"}"#),
+            Ok(Event::Closed(Some("exit".into())))
+        );
+        assert_eq!(read_event(Ok(None)), Ok(Event::Closed(None)));
         assert!(parse_line(r#"{"type":"terminal.other"}"#).is_err());
         assert!(
             parse_line(r#"{"type":"terminal.frame","width":1,"height":1,"bytes":"!"}"#).is_err()
@@ -264,7 +276,7 @@ mod tests {
     fn close_flushes_pending_output_then_ends() {
         let now = Instant::now();
         let (out, _, _) = credited().push(frame(vec![1; 5], false, 80), now);
-        let (_, output, closed) = out.push(Event::Closed, now);
+        let (_, output, closed) = out.push(Event::Closed(None), now);
         assert!(closed);
         assert_eq!(shapes(&output), [(5, false, 80)]);
         assert!(matches!(output.last(), Some(Output::End(None))));
