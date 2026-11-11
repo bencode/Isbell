@@ -1,5 +1,5 @@
-// One authenticated WebSocket to the relay, as a client. Calls are matched by id; the connection
-// comes back on its own after a drop, except when the relay rejects the key.
+// One authenticated WebSocket to the relay, as a client. Calls and streams are matched by id; the
+// connection comes back on its own after a drop, except when the relay rejects the key.
 
 import Foundation
 import os
@@ -42,6 +42,11 @@ public final class RelayConnection {
         let timer: Task<Void, Never>
     }
 
+    private struct Open {
+        let mid: String
+        let events: StreamEvents
+    }
+
     private let url: URL
     private let origin: String?
     private let identity: Identity
@@ -57,6 +62,7 @@ public final class RelayConnection {
     /// Closed here, or refused by the relay: it does not dial again, and a call fails at once.
     private var closed = false
     private var pending: [UInt64: Pending] = [:]
+    private var streams: [UInt64: Open] = [:]
     private var nextId: UInt64 = 1
     /// Calls waiting for the connection: told true once the snapshot arrives.
     private var waiters: [Int: CheckedContinuation<Bool, Never>] = [:]
@@ -76,6 +82,30 @@ public final class RelayConnection {
         try await whenConnected()
         let id = nextId
         nextId += 1
+        return try await request(id, mid, m, p, timeout)
+    }
+
+    /// Opens a stream: a call whose result starts it. Registered before the call goes out, so data
+    /// right behind the result is not lost.
+    public func open(_ mid: String, _ m: String, _ p: JSON, timeout: Duration, events: StreamEvents)
+        async throws(CallError) -> (result: JSON, stream: RelayStream)
+    {
+        try await whenConnected()
+        let id = nextId
+        nextId += 1
+        streams[id] = Open(mid: mid, events: events)
+        let result = try await request(id, mid, m, p, timeout)
+        return (result, RelayStream(id: id, mid: mid, connection: self))
+    }
+
+    /// Fails calls in flight to a machine that restarted, and ends its streams.
+    public func failMachine(_ mid: String) {
+        fail(code: "machine_offline", msg: "the machine restarted") { $0 == mid }
+    }
+
+    private func request(_ id: UInt64, _ mid: String, _ m: String, _ p: JSON, _ timeout: Duration)
+        async throws(CallError) -> JSON
+    {
         do {
             return try await withCheckedThrowingContinuation { continuation in
                 let timer = Task { [weak self] in
@@ -192,8 +222,13 @@ public final class RelayConnection {
             onEvent(.presence(mid: mid, online: online))
         case .res(let id, let ok, let r, let e, _):
             settle(id, ok ? .success(r ?? .null) : .failure(CallError(code: e?.code ?? "error", msg: e?.msg ?? "the call failed")))
+        // A terminal's frames carry its screen; a file's chunks are bytes alone.
+        case .data(let id, let k, _, _, _, _) where k == .frame || k == .chunk:
+            streams[id]?.events.data(frame.body ?? Data())
+        case .end(let id, let e, _):
+            streams.removeValue(forKey: id)?.events.end(e)
         default:
-            // auth_ok needs nothing; streams are not opened yet.
+            // auth_ok needs nothing; credit is for streams this side writes, which come later.
             break
         }
     }
@@ -248,20 +283,37 @@ public final class RelayConnection {
         all.values.forEach { $0.resume(returning: ok) }
     }
 
+    /// A stream whose call fails never opens: its caller hears of it from the call.
     private func settle(_ id: UInt64, _ result: Result<JSON, CallError>) {
         guard let p = pending.removeValue(forKey: id) else { return }
         p.timer.cancel()
+        if case .failure = result { streams.removeValue(forKey: id) }
         p.continuation.resume(with: result.mapError { $0 as any Error })
     }
 
+    /// Fails the pending calls and ends the open streams whose machine matches.
     private func fail(code: String, msg: String, where match: (String) -> Bool) {
         let ids = pending.filter { match($0.value.mid) }.map(\.key)
         ids.forEach { settle($0, .failure(CallError(code: code, msg: msg))) }
+        let ended = streams.filter { match($0.value.mid) }
+        ended.keys.forEach { streams.removeValue(forKey: $0) }
+        ended.values.forEach { $0.events.end(RpcError(code: code, msg: msg)) }
+    }
+
+    // MARK: - Streams
+
+    func streamSend(_ id: UInt64, _ header: Header) {
+        if streams[id] != nil { send(Frame(header: header)) }
+    }
+
+    func streamClose(_ id: UInt64, _ header: Header) {
+        guard streams.removeValue(forKey: id) != nil else { return }
+        send(Frame(header: header))
     }
 }
 
 /// Sleeps; false when the task was cancelled instead, the only way Task.sleep fails.
-private func pause(_ duration: Duration) async -> Bool {
+public func pause(_ duration: Duration) async -> Bool {
     do {
         try await Task.sleep(for: duration)
         return true

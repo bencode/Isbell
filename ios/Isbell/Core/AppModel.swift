@@ -1,5 +1,5 @@
 // The space key's life in the app: read at launch, stored on joining, dropped on leaving or when
-// the relay rejects it.
+// the relay rejects it. What the app remembers of a space goes with it.
 
 import IsbellKit
 import Observation
@@ -12,7 +12,9 @@ final class AppModel {
         case joined(SpaceStore)
     }
 
+    let prefs = Prefs()
     private(set) var phase: Phase = .join(rejected: false)
+    @ObservationIgnored private var active = false
 
     init() {
         guard let key = Self.storedKey() else { return }
@@ -30,26 +32,30 @@ final class AppModel {
     }
 
     func leave() {
-        close()
-        forgetKey()
+        drop()
         phase = .join(rejected: false)
     }
 
-    func reconnectNow() {
-        if case .joined(let store) = phase { store.reconnectNow() }
+    /// Whether the app is in front, for the space to keep up with its machines.
+    func setActive(_ on: Bool) {
+        active = on
+        if case .joined(let store) = phase { store.setActive(on) }
     }
 
     private func open(_ identity: Identity) -> SpaceStore {
-        SpaceStore(identity: identity) { [weak self] in
+        let store = SpaceStore(identity: identity, prefs: prefs) { [weak self] in
             guard let self else { return }
-            close()
-            forgetKey()
+            drop()
             phase = .join(rejected: true)
         }
+        store.setActive(active)
+        return store
     }
 
-    private func close() {
+    private func drop() {
         if case .joined(let store) = phase { store.close() }
+        forgetKey()
+        prefs.clearSpace()
     }
 
     private static func storedKey() -> String? {
