@@ -6,7 +6,6 @@ import { Clock, MoreHorizontal } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link, type To } from 'react-router'
 import { DropdownMenu, type MenuItem } from '../../components/menu'
-import { StatusDot } from '../../components/status-dot'
 import type { AgentStatus } from '../../model/state'
 
 /** A shell, or the agent of a session, with its status while it runs. */
@@ -36,22 +35,32 @@ type Props = {
 }
 
 const LETTERS: Readonly<Record<string, string>> = { claude: 'C', codex: 'X', pi: 'π' }
-/** Statuses worth a dot: one standing by needs nothing said. */
-const DOTTED: ReadonlySet<AgentStatus> = new Set(['blocked', 'working', 'done'])
+/** The dot before the letter, for statuses worth one: one standing by needs nothing said. A working
+ * agent's ring starts a little out from its dot, to read at its size. */
+const DOTS: Partial<Readonly<Record<AgentStatus, string>>> = {
+  blocked: 'bg-warn',
+  done: 'bg-ok',
+  working:
+    "bg-accent after:absolute after:-inset-px after:rounded-full after:bg-accent after:content-[''] after:animate-ring motion-reduce:after:hidden",
+}
 
-function MarkOf({ mark }: { mark: Mark }) {
-  if (mark === 'shell') return <span className="mx-0.5 size-2 flex-none rounded-[2px] bg-line-strong" />
+/** How far a row's second line sits in, under its title: the mark, then the gap after it. */
+const UNDER_MARK = 'pl-[30px]'
+
+/** The status dot in a slot of its own, kept for every row so dots and letters line up, then the
+ * agent's letter, or a shell's square. */
+export function AgentMark({ mark }: { mark: Mark }) {
+  const dot = mark === 'shell' || !mark.status ? undefined : DOTS[mark.status]
   return (
-    <span
-      title={mark.agent}
-      className="relative w-3 flex-none text-center font-mono text-[11px] font-medium text-faint"
-    >
-      {LETTERS[mark.agent] ?? mark.agent.charAt(0).toUpperCase()}
-      {mark.status && DOTTED.has(mark.status) ? (
-        <span className="absolute -top-px -right-1 flex rounded-full ring-2 ring-side">
-          <StatusDot status={mark.status} />
+    <span className="flex flex-none items-center gap-1">
+      <span aria-hidden className={`relative size-1.5 flex-none rounded-full ${dot ?? ''}`} />
+      {mark === 'shell' ? (
+        <span className="mx-0.5 size-2 flex-none rounded-[2px] bg-line-strong" />
+      ) : (
+        <span title={mark.agent} className="w-3 text-center font-mono text-[11px] font-medium text-faint">
+          {LETTERS[mark.agent] ?? mark.agent.charAt(0).toUpperCase()}
         </span>
-      ) : null}
+      )}
     </span>
   )
 }
@@ -101,7 +110,7 @@ export function SessionRow({
         className={`block rounded-[7px] px-2 text-inherit no-underline transition-colors duration-75 hover:bg-hover active:bg-press focus-visible:outline-2 focus-visible:outline-accent ${under ? 'pt-[5px] pb-1.5' : 'py-[3px]'} ${shown ? 'bg-selected' : ''}`}
       >
         <span className="flex min-w-0 items-center gap-2 text-[13.5px] leading-5">
-          <MarkOf mark={mark} />
+          <AgentMark mark={mark} />
           <span className="min-w-0 flex-1 truncate">
             <Marked text={name} needle={needle} />
           </span>
@@ -110,7 +119,7 @@ export function SessionRow({
         </span>
         {under ? (
           <span
-            className={`mt-[3px] flex min-w-0 gap-1.5 pl-5 text-xs leading-4 ${shown ? 'text-muted' : 'text-faint'}`}
+            className={`mt-[3px] flex min-w-0 gap-1.5 ${UNDER_MARK} text-xs leading-4 ${shown ? 'text-muted' : 'text-faint'}`}
           >
             <span className="min-w-0 flex-1 truncate">
               {said && detail ? <span className="mr-1 font-semibold text-muted">›</span> : null}

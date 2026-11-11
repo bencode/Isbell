@@ -4,7 +4,7 @@
 // were asked, or of where they ran: a search reads every month. Each opens in a tab.
 
 import { ChevronDown, ChevronRight, Clock, Search, Trash2, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { type To, useNavigate } from 'react-router'
 import { Button } from '../../components/button'
 import { IconButton } from '../../components/icon-button'
@@ -26,6 +26,7 @@ import { matches, type SessionLine, sessionKey } from '../../model/sessions'
 import { machineOf } from '../../model/space'
 import type { AgentStatus } from '../../model/state'
 import { sessionTabId, withTerminal } from '../../model/tabs'
+import { keysIn, usePinned } from '../../utils/held-order'
 import { useNow } from '../../utils/time'
 import { Group, SessionsHistory } from './sessions-history'
 
@@ -175,11 +176,25 @@ function PaneRow({ r, roots, now, looping, needle, link, onTerminal, onEnd }: Pa
 
 const standing = (r: Row) => r.status === 'idle' || r.status === 'unknown'
 
-/** Those that need you or work, and the latest standing by unless `all`; and how many more stand by. */
-function foldOpen(rows: Row[], all: boolean): { shown: Row[]; more: number } {
+/** Each row, as one that need you or work or among the latest standing by, or else one folded. */
+function foldOpen(rows: Row[]) {
   const latest = new Set(rows.filter(standing).slice(0, LATEST_IDLE))
-  const more = rows.filter(standing).length - latest.size
-  return { shown: all ? rows : rows.filter(r => !standing(r) || latest.has(r)), more }
+  return rows.map(r => ({ key: r.id, group: !standing(r) || latest.has(r) ? 'shown' : 'folded' }))
+}
+
+type OpenProps = {
+  rows: Row[]
+  all: boolean
+  opened: string | null | undefined
+  render: (r: Row) => ReactNode
+}
+
+/** The open sessions, those folded too when `all`; the one `opened` where it was when opened. */
+function OpenRows({ rows, all, opened, render }: OpenProps) {
+  const slots = usePinned(foldOpen(rows), opened ?? undefined)
+  const byId = new Map(rows.map(r => [r.id, r]))
+  const ids = [...keysIn(slots, 'shown'), ...(all ? keysIn(slots, 'folded') : [])]
+  return ids.flatMap(id => byId.get(id) ?? []).map(render)
 }
 
 export function SessionsPanel({ projectKey }: { projectKey: string }) {
@@ -213,7 +228,7 @@ export function SessionsPanel({ projectKey }: { projectKey: string }) {
   const found = (r: Row) => !needle || r.words.toLowerCase().includes(needle)
   const open = agentRows(project, recordOf).filter(found)
   const shells = shellRows(project).filter(found)
-  const folding = foldOpen(open, earlierOpen || !!needle)
+  const folded = open.filter(standing).length - LATEST_IDLE
   const history = records.history.filter(
     s => !records.running.has(sessionKey(s)) && (!needle || matches(s, needle)),
   )
@@ -284,8 +299,8 @@ export function SessionsPanel({ projectKey }: { projectKey: string }) {
         ) : null}
         {open.length ? (
           <Group title={t('sessions.open')} count={open.length}>
-            {folding.shown.map(paneRow)}
-            {folding.more && !needle ? <FoldButton open={earlierOpen} more={folding.more} /> : null}
+            <OpenRows rows={open} all={earlierOpen || !!needle} opened={shown} render={paneRow} />
+            {folded > 0 && !needle ? <FoldButton open={earlierOpen} more={folded} /> : null}
           </Group>
         ) : null}
         {ended.length ? (

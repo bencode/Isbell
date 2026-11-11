@@ -34,9 +34,11 @@ export type Layout = {
   /** The project whose sessions a phone last listed. */
   sessionsProject: string | null
   /** Which sessions the right column shows. */
-  activeFilter: 'all' | 'blocked' | 'working' | 'idle'
+  activeFilter: 'all' | 'blocked' | 'working' | 'finished' | 'idle'
   /** Whether those standing by are unfolded there. */
   idleOpen: boolean
+  /** Whether those that finished before the latest are unfolded there. */
+  finishedOpen: boolean
   /** Whether a project's list shows all its open sessions standing by, not only the latest. */
   earlierOpen: boolean
   /** Whether a project's list shows the sessions hidden from it. */
@@ -80,6 +82,7 @@ const DEFAULTS: Local = {
     sessionsProject: null,
     activeFilter: 'all',
     idleOpen: false,
+    finishedOpen: false,
     earlierOpen: false,
     hiddenShown: false,
   },
@@ -154,6 +157,9 @@ export const toggleEarlier = () =>
 export const toggleHiddenShown = () =>
   updateLocal(l => ({ layout: { ...l.layout, hiddenShown: !l.layout.hiddenShown } }))
 
+export const toggleFinished = () =>
+  updateLocal(l => ({ layout: { ...l.layout, finishedOpen: !l.layout.finishedOpen } }))
+
 export const toggleRail = () => updateLocal(l => ({ layout: { ...l.layout, rail: !l.layout.rail } }))
 
 const withOpenDirs = (project: string, change: (dirs: string[]) => string[]) =>
@@ -207,6 +213,13 @@ export const setReader = (change: Partial<Reader>) =>
 export function markSeen(key: string, since: number) {
   if ((current.seen[key] ?? 0) >= since) return
   updateLocal(l => ({ seen: { ...l.seen, [key]: since } }))
+}
+
+/** `markSeen` for each at once. */
+export function markAllSeen(entries: readonly { key: string; since: number }[]) {
+  const later = entries.filter(({ key, since }) => (current.seen[key] ?? 0) < since)
+  if (!later.length) return
+  updateLocal(l => ({ seen: { ...l.seen, ...Object.fromEntries(later.map(e => [e.key, e.since])) } }))
 }
 
 export const useLocal = () => useSyncExternalStore(subscribe, getLocal)
