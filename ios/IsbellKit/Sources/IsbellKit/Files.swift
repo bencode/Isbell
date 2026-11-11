@@ -6,7 +6,7 @@ import os
 
 /// Opens a stream on machine `mid`, as `RelayConnection.open` does.
 public typealias Opener = @MainActor (_ mid: String, _ m: String, _ p: JSON, _ timeout: Duration,
-                                      _ events: StreamEvents) async throws(CallError) -> (result: JSON, stream: RelayStream)
+                                      _ events: StreamEvents) async throws(CallError) -> (result: JSON, stream: RpcStream)
 
 /// `bytes` is left out when the file is larger than the reader's limit.
 public struct FileRead: Sendable, Equatable {
@@ -22,7 +22,7 @@ private let fileTimeout: Duration = .seconds(20)
 private final class Reading {
     let limit: Int
     var bytes = Data()
-    var stream: RelayStream?
+    var stream: RpcStream?
     private var waiting: CheckedContinuation<RpcError?, Never>?
     private var outcome: RpcError??
 

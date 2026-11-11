@@ -1,7 +1,8 @@
 // What this client knows of its space: each machine's latest state and whether it is online (pushed
 // by the relay), each machine's plain shells and its agents' titles (pulled from herdr, since
 // machine state lists only agents), and the projects it lists and its recorded sessions ran in (read
-// from the machine's files). As web/src/model/space.ts, over the relay only, and reading only.
+// from the machine's files). Calls and streams take a machine's direct link when one is open, else
+// the relay. As web/src/model/space.ts, reading only.
 
 import Foundation
 import Observation
@@ -20,6 +21,11 @@ public struct MachineEntry: Sendable, Equatable, Identifiable {
 
 /// Far above what years of projects take.
 private let rootsMax = 1 << 20
+/// After a direct link fails, streams and calls to that machine use the relay this long before trying again.
+private let directRetry: Duration = .seconds(5 * 60)
+/// How long a stream waits for a direct link being set up before it takes the relay; the link keeps
+/// opening, for the streams after it.
+private let directWait: Duration = .seconds(4)
 
 @MainActor
 @Observable
@@ -43,6 +49,13 @@ public final class Space {
 
     @ObservationIgnored private var connection: RelayConnection?
     @ObservationIgnored private let onRejected: @MainActor () -> Void
+    @ObservationIgnored private let openDirect: DirectOpener?
+    // Per machine: the attempt at a link, being opened or open (gone once it failed), the open link,
+    // and when the last attempt failed. An attempt's id tells it from one made after a reset.
+    @ObservationIgnored private var links: [String: (id: Int, task: Task<DirectLink?, Never>)] = [:]
+    @ObservationIgnored private var nextAttempt = 0
+    @ObservationIgnored private var direct: [String: DirectLink] = [:]
+    @ObservationIgnored private var failures: [String: ContinuousClock.Instant] = [:]
     // A newer pull for a machine wins over a slower, older one: the pull each started, and the one
     // whose shells it shows.
     @ObservationIgnored private var pulls: [String: Int] = [:]
@@ -53,24 +66,59 @@ public final class Space {
     @ObservationIgnored private var reads: Set<String> = []
     @ObservationIgnored private var again: Set<String> = []
 
-    public init(url: URL, identity: Identity, onRejected: @escaping @MainActor () -> Void) {
+    /// `openDirect` sets up direct links; without it everything goes through the relay.
+    public init(url: URL, identity: Identity, openDirect: DirectOpener? = nil,
+                onRejected: @escaping @MainActor () -> Void) {
         self.onRejected = onRejected
+        self.openDirect = openDirect
         connection = RelayConnection(url: url, identity: identity) { [weak self] in self?.handle($0) }
     }
 
-    /// Calls machine `mid` through the relay.
+    /// Calls machine `mid` over its direct link when one is open and takes pieces, else over the
+    /// relay; a call to the relay starts a link for the calls after it.
     public var call: Caller {
-        { [connection] mid, m, p, timeout async throws(CallError) -> JSON in
-            guard let connection else { throw CallError(code: "disconnected", msg: "not connected to the relay") }
-            return try await connection.call(mid, m, p, timeout: timeout)
+        { [weak self] mid, m, p, timeout async throws(CallError) -> JSON in
+            guard let self else { throw CallError(code: "disconnected", msg: "not connected to the relay") }
+            if let link = callLink(mid) { return try await link.call(m, p, timeout: timeout) }
+            // Not waited for, unlike a stream: it serves the calls after this one.
+            _ = directTo(mid)
+            return try await relayCall(mid, m, p, timeout: timeout)
         }
     }
 
+    /// Opens a stream on machine `mid`, over its direct link when one is open or opens in time.
     private var open: Opener {
-        { [connection] mid, m, p, timeout, events async throws(CallError) in
+        { [weak self] mid, m, p, timeout, events async throws(CallError) in
+            guard let self else { throw CallError(code: "disconnected", msg: "not connected to the relay") }
+            if let opening = directTo(mid), let link = await within(directWait, opening) {
+                return try await link.open(m, p, timeout: timeout, events: events)
+            }
             guard let connection else { throw CallError(code: "disconnected", msg: "not connected to the relay") }
             return try await connection.open(mid, m, p, timeout: timeout, events: events)
         }
+    }
+
+    /// Where machine `mid`'s direct link stands.
+    public func directStatus(_ mid: String) -> DirectStatus {
+        if let link = direct[mid] { return .open(link.path) }
+        if links[mid] != nil { return .opening }
+        if let at = recentFailure(mid) { return .failed(retryIn: at + directRetry - ContinuousClock.now) }
+        return directable(mid) ? .none : .unsupported
+    }
+
+    /// The path calls to `mid` take now; nil for the relay.
+    public func callVia(_ mid: String) -> LinkPath? { callLink(mid)?.path }
+
+    /// The pair machine `mid`'s open direct link uses, if one is open.
+    public func directStats(_ mid: String) async -> LinkStats? { await direct[mid]?.stats() }
+
+    /// Closes every direct link and forgets their failures, for a network that changed or an app
+    /// that went to the background: the next call sets one up again.
+    public func resetDirect() {
+        direct.values.forEach { $0.close() }
+        direct = [:]
+        links = [:]
+        failures = [:]
     }
 
     /// Pulls the shells of every machine online.
@@ -93,6 +141,9 @@ public final class Space {
     }
 
     public func close() {
+        direct.values.forEach { $0.close() }
+        direct = [:]
+        links = [:]
         connection?.close()
         connection = nil
     }
@@ -159,7 +210,11 @@ public final class Space {
         let mid = state.machine.id
         if let old = machine(mid) {
             guard isNewer(state, than: old.state) else { return }
-            if state.boot > old.state.boot { connection?.failMachine(mid) }
+            if state.boot > old.state.boot {
+                connection?.failMachine(mid)
+                // Its onClosed drops it only later, and the pull below must not go to the closed link.
+                direct.removeValue(forKey: mid)?.close()
+            }
         }
         machines = Self.sorted(Self.applying(state: state, to: machines))
         findRepos(mid)
@@ -178,7 +233,80 @@ public final class Space {
         } else {
             shellsByMachine[mid] = nil
             titles[mid] = nil
+            direct.removeValue(forKey: mid)?.close()
         }
+    }
+
+    // MARK: - Direct links
+
+    private func directable(_ mid: String) -> Bool {
+        guard openDirect != nil, let m = machine(mid) else { return false }
+        return m.online && m.state.caps.methods.contains("isbell.rtc.offer")
+    }
+
+    /// The last failure, while it still keeps streams and calls on the relay.
+    private func recentFailure(_ mid: String) -> ContinuousClock.Instant? {
+        failures[mid].flatMap { ContinuousClock.now - $0 < directRetry ? $0 : nil }
+    }
+
+    /// The link calls to `mid` take: an open one that takes pieces, since without them an answer too
+    /// long for one message would end it.
+    private func callLink(_ mid: String) -> DirectLink? {
+        direct[mid].flatMap { $0.pieces ? $0 : nil }
+    }
+
+    /// Machine `mid`'s direct link, open or being opened, else a new attempt at one; nil when there
+    /// is none to have.
+    private func directTo(_ mid: String) -> Task<DirectLink?, Never>? {
+        if let known = links[mid] { return known.task }
+        guard let openDirect, directable(mid), recentFailure(mid) == nil else { return nil }
+        let relay: Caller = { [weak self] mid, m, p, timeout async throws(CallError) -> JSON in
+            guard let self else { throw CallError(code: "disconnected", msg: "not connected to the relay") }
+            return try await relayCall(mid, m, p, timeout: timeout)
+        }
+        let id = nextAttempt
+        nextAttempt += 1
+        let task = Task { [weak self] () -> DirectLink? in
+            let link: DirectLink?
+            do throws(CallError) {
+                link = try await openDirect(relay, mid)
+            } catch {
+                logger.warning("no direct link to \(mid); streams and calls use the relay: \(error.msg)")
+                link = nil
+            }
+            guard let self else {
+                link?.close()
+                return nil
+            }
+            return took(link, for: mid, attempt: id)
+        }
+        links[mid] = (id, task)
+        return task
+    }
+
+    /// Keeps what attempt `id` opened, unless a reset or a close came first.
+    private func took(_ link: DirectLink?, for mid: String, attempt id: Int) -> DirectLink? {
+        guard links[mid]?.id == id else {
+            link?.close()
+            return nil
+        }
+        guard let link else {
+            links[mid] = nil
+            failures[mid] = .now
+            return nil
+        }
+        direct[mid] = link
+        link.onClosed = { [weak self, weak link] in
+            guard let self else { return }
+            if let link, direct[mid] === link { direct[mid] = nil }
+            if links[mid]?.id == id { links[mid] = nil }
+        }
+        return link
+    }
+
+    private func relayCall(_ mid: String, _ m: String, _ p: JSON, timeout: Duration) async throws(CallError) -> JSON {
+        guard let connection else { throw CallError(code: "disconnected", msg: "not connected to the relay") }
+        return try await connection.call(mid, m, p, timeout: timeout)
     }
 
     // MARK: - Pulling from the machines
@@ -273,6 +401,28 @@ public final class Space {
             // The last read stands, so the projects stay as they were.
             logger.warning("could not read where the sessions recorded on \(mid) ran: \(error.msg)")
         }
+    }
+}
+
+/// What `opening` gives, or nil once `limit` passes first; the attempt goes on either way.
+@MainActor
+private func within(_ limit: Duration, _ opening: Task<DirectLink?, Never>) async -> DirectLink? {
+    let race = Race()
+    return await withCheckedContinuation { continuation in
+        race.continuation = continuation
+        Task { race.settle(await opening.value) }
+        Task { if await pause(limit) { race.settle(nil) } }
+    }
+}
+
+/// Resumes its continuation with whichever value comes first.
+@MainActor
+private final class Race {
+    var continuation: CheckedContinuation<DirectLink?, Never>?
+
+    func settle(_ value: DirectLink?) {
+        continuation?.resume(returning: value)
+        continuation = nil
     }
 }
 

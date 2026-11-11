@@ -1,5 +1,6 @@
 // What a machine is and how loaded it is, read every 2 s while the sheet is open, and how this
-// iPhone reaches it. As the PC sidebar's machine panel (web/src/features/machine/facts.ts).
+// iPhone reaches it: over the relay or a direct link, and how long a message takes there and back.
+// As the PC sidebar's machine panel (web/src/features/machine/facts.ts).
 
 import IsbellKit
 import SwiftUI
@@ -11,6 +12,10 @@ struct MachineInfoSheet: View {
     @State private var system: System?
     /// The time an `isbell.system` call takes there and back, but the first, which waits for a CPU sample.
     @State private var roundTrip: Duration?
+    // Space does not publish these, so they are read with the system.
+    @State private var via: LinkPath?
+    @State private var direct: DirectStatus = .none
+    @State private var stats: LinkStats?
 
     var body: some View {
         let entry = store.space.machines.first { $0.id == mid }
@@ -69,11 +74,14 @@ struct MachineInfoSheet: View {
     }
 
     private func connection(_ entry: MachineEntry?) -> some View {
-        Section("Connection") {
-            LabeledContent("Route") { Text("Relay") }
+        // ICE measures the link itself; over the relay, the call's time is all there is.
+        let rtt = via != nil ? stats?.rtt ?? roundTrip : roundTrip
+        return Section("Connection") {
+            LabeledContent("Route") { via.map { Text("Direct · \(pathName($0))") } ?? Text("Relay") }
             LabeledContent("Round trip") {
-                Text(verbatim: roundTrip.map { "\(Int(($0 / .milliseconds(1)).rounded())) ms" } ?? "—")
+                Text(verbatim: rtt.map { "\(Int(($0 / .milliseconds(1)).rounded())) ms" } ?? "—")
             }
+            LabeledContent("Direct link") { statusText(direct) }
             LabeledContent("Machine") { entry?.online == true ? Text("Online") : Text("Offline") }
         }
     }
@@ -92,7 +100,28 @@ struct MachineInfoSheet: View {
                 // The last reading stays.
                 logger.warning("could not read the system of \(mid): \(error.msg)")
             }
+            via = store.space.callVia(mid)
+            direct = store.space.directStatus(mid)
+            stats = via != nil ? await store.space.directStats(mid) : nil
         } while await pause(.seconds(2))
+    }
+}
+
+private func pathName(_ path: LinkPath) -> Text {
+    switch path {
+    case .lan: Text("LAN")
+    case .vpn: Text("VPN")
+    case .internet: Text("Internet")
+    }
+}
+
+private func statusText(_ status: DirectStatus) -> Text {
+    switch status {
+    case .open: Text("Open")
+    case .opening: Text("Opening…")
+    case .failed(let retryIn): Text("Failed, retrying in \(max(1, Int((retryIn / .seconds(60)).rounded(.up)))) min")
+    case .unsupported: Text("Not available")
+    case .none: Text("Not tried")
     }
 }
 

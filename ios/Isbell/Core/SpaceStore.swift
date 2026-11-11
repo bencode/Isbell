@@ -1,9 +1,11 @@
 // One space as the screens see it: what IsbellKit's Space knows, made into projects and lanes with
 // what this iPhone remembers. While the app is in front, the machines' panes are pulled again every
-// 15 s, as the web does; a network that comes back reconnects at once.
+// 15 s, as the web does; a network that comes back reconnects at once. Direct links are closed when
+// the app goes behind or the network changes, and set up again by the next call.
 
 import Foundation
 import IsbellKit
+import IsbellRTC
 import Network
 import Observation
 
@@ -26,7 +28,9 @@ final class SpaceStore {
     init(identity: Identity, prefs: Prefs, onRejected: @escaping @MainActor () -> Void) {
         self.identity = identity
         self.prefs = prefs
-        space = Space(url: Self.relayURL, identity: identity, onRejected: onRejected)
+        space = Space(url: Self.relayURL, identity: identity, openDirect: { call, mid async throws(CallError) in
+            try await openDirect(call, mid: mid)
+        }, onRejected: onRejected)
         keepListed()
         watchNetwork()
     }
@@ -41,12 +45,16 @@ final class SpaceStore {
 
     var call: Caller { space.call }
 
-    /// In front, the panes are pulled now and every 15 s; behind, not at all.
+    /// In front, the panes are pulled now and every 15 s; behind, not at all, and the direct links,
+    /// which iOS cuts while the app is suspended, are closed.
     func setActive(_ on: Bool) {
         active = on
         ticking?.cancel()
         ticking = nil
-        guard on else { return }
+        guard on else {
+            space.resetDirect()
+            return
+        }
         space.reconnectNow()
         ticking = Task { [weak self] in
             repeat {
@@ -85,6 +93,8 @@ final class SpaceStore {
     private func took(path satisfied: Bool) {
         defer { pathKnown = true }
         guard pathKnown, satisfied else { return }
+        // Links on the old network no longer carry, and one that failed there may work on this one.
+        space.resetDirect()
         space.reconnectNow()
         if active { Task { await space.refreshShells() } }
     }
