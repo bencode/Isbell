@@ -5,7 +5,7 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router'
 import { useI18n } from '../core/i18n'
-import { useLocal } from '../core/prefs'
+import { lastInTerminal, useLocal } from '../core/prefs'
 import { type Seen, showsSession, worthTelling } from '../model/notices'
 import { needs, type Project, paneKey } from '../model/projects'
 import { PHONE } from '../utils/phone'
@@ -48,7 +48,7 @@ export function useNotifications(projects: Project[], loaded: boolean) {
       )
       n.onclick = () => {
         window.focus()
-        navigate(sessionTabHref(s.project, s.mid, s.paneId))
+        navigate(sessionTabHref(s.project, s.mid, s.paneId, lastInTerminal(paneKey(s.mid, s.paneId))))
         n.close()
       }
     }

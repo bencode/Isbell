@@ -8,7 +8,7 @@ import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { IconButton } from '../../components/icon-button'
 import { errorText, useI18n } from '../../core/i18n'
-import { inTerminalLast } from '../../core/prefs'
+import { lastInTerminal } from '../../core/prefs'
 import { useProjects, useSpace, useSpaceView } from '../../core/space'
 import {
   type Found,
@@ -18,12 +18,17 @@ import {
   type Placed,
   type Project,
   paneKey,
+  type Session,
 } from '../../model/projects'
 import { projectsSettled } from '../../model/space'
 import { type Peek as Peeked, peekOf, sessionTabId, tabOf, withPeek } from '../../model/tabs'
 import { isTab, sessionTabHref } from './tab-kinds'
 
 const SMALL = { size: 14, strokeWidth: 1.5, absoluteStrokeWidth: true }
+
+/** One that asks opens where it is answered; the rest as they were last viewed. */
+export const opensInTerminal = ({ mid, paneId, status }: Session) =>
+  status === 'blocked' || lastInTerminal(paneKey(mid, paneId))
 
 // It brings the terminal, which loads with the first session looked at.
 const SessionView = lazy(() =>
@@ -37,11 +42,10 @@ export function usePeek() {
     (to: Peeked | null) => navigate({ pathname, search: withPeek(search, to) }, { replace: true }),
     [navigate, pathname, search],
   )
-  /** Looks at a session, in the view asked for or else the one it was last looked at in, unless it is
-   * the tab on screen: that one shows its terminal if asked for. */
+  /** Looks at a session; the tab on screen keeps its view unless the terminal is asked for. */
   const open = ({ session: { mid, paneId }, project }: Placed, terminal?: boolean) => {
     if (tabOf(search, isTab) !== sessionTabId(mid, paneId))
-      go({ mid, paneId, terminal: terminal ?? inTerminalLast(paneKey(mid, paneId)) })
+      go({ mid, paneId, terminal: terminal ?? lastInTerminal(paneKey(mid, paneId)) })
     else if (terminal) navigate(sessionTabHref(project.key, mid, paneId, true), { replace: true })
     else if (peekOf(search)) go(null)
   }
@@ -97,12 +101,7 @@ function Looking({ peek, found, go }: { peek: Peeked; found: Found; go: (to: Pee
             size="small"
             disabled={!other}
             onClick={() =>
-              other &&
-              go({
-                mid: other.mid,
-                paneId: other.paneId,
-                terminal: other.status === 'blocked' || inTerminalLast(paneKey(other.mid, other.paneId)),
-              })
+              other && go({ mid: other.mid, paneId: other.paneId, terminal: opensInTerminal(other) })
             }
           >
             <SkipForward {...SMALL} />

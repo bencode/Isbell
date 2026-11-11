@@ -1,10 +1,10 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { Route, Routes, useLocation, useNavigate, useParams } from 'react-router'
-import { rememberProjectAt, useLocal } from '../../core/prefs'
+import { lastInTerminal, rememberProjectAt, useLocal } from '../../core/prefs'
 import { useProjects, useSpaceView } from '../../core/space'
 import { TabsProvider, useTabRoute } from '../../core/tabs'
 import { parseRootKey } from '../../model/files/worktrees'
-import { locate } from '../../model/projects'
+import { locate, paneKey } from '../../model/projects'
 import { projectsSettled } from '../../model/space'
 import { keptQuery, withoutPeek } from '../../model/tabs'
 import { projectHref } from '../../utils/hrefs'
@@ -49,7 +49,8 @@ function SessionRedirect() {
   const settled = projectsSettled(view)
   const navigate = useNavigate()
   useEffect(() => {
-    if (key) navigate(sessionTabHref(key, mid, paneId), { replace: true })
+    if (key)
+      navigate(sessionTabHref(key, mid, paneId, lastInTerminal(paneKey(mid, paneId))), { replace: true })
     else if (settled) navigate('/', { replace: true })
   }, [key, settled, mid, paneId, navigate])
   return <Frame inProject={false} />

@@ -49,7 +49,8 @@ export function SessionView({
   const cwd = 'session' in pane ? (pane.session.cwd ?? project.path) : pane.shell.cwd
   // A pane just started is listed as a shell until its agent is made out.
   const shown: View = agent && !terminal ? 'chat' : 'terminal'
-  // The view the user turns to is the one the session opens in next time, wherever it is opened.
+  // Only the toggle is a choice of view, remembered for the next opening; the chat's links to the
+  // terminal are not.
   const isAgent = agent !== undefined
   const show = useCallback(
     (view: View) => {
@@ -58,7 +59,7 @@ export function SessionView({
     },
     [isAgent, mid, paneId, onShow],
   )
-  const showTerminal = useCallback(() => show('terminal'), [show])
+  const showTerminal = useCallback(() => onShow('terminal'), [onShow])
   // The terminal, once shown, stays attached behind the chat.
   const [attached, setAttached] = useState(shown === 'terminal')
   if (shown === 'terminal' && !attached) setAttached(true)

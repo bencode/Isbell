@@ -55,8 +55,8 @@ export type Local = {
   key: string | null
   prefs: Prefs
   seen: Seen
-  /** The sessions last looked at in their terminal rather than their chat, by pane key. */
-  terminalViews: Record<string, true>
+  /** Whether each session was last viewed in its terminal rather than its chat, by pane key. */
+  terminalViews: Record<string, boolean>
   layout: Layout
   reader: Reader
   /** The tabs open in each project, by project key, read back by `restore` in model/tabs. */
@@ -225,16 +225,14 @@ export function markAllSeen(entries: readonly { key: string; since: number }[]) 
   updateLocal(l => ({ seen: { ...l.seen, ...Object.fromEntries(later.map(e => [e.key, e.since])) } }))
 }
 
+/** Whether the session was last viewed in its terminal. */
+export const lastInTerminal = (key: string) => current.terminalViews[key] === true
+
 /** Notes the view the user last chose for a session, its terminal or its chat. */
 export function rememberView(key: string, terminal: boolean) {
-  if ((current.terminalViews[key] === true) === terminal) return
-  updateLocal(({ terminalViews: { [key]: _was, ...rest } }) => ({
-    terminalViews: terminal ? { ...rest, [key]: true } : rest,
-  }))
+  if (lastInTerminal(key) === terminal) return
+  updateLocal(l => ({ terminalViews: { ...l.terminalViews, [key]: terminal } }))
 }
-
-/** Whether a session was last looked at in its terminal, read as it is now, for an opening. */
-export const inTerminalLast = (key: string) => current.terminalViews[key] === true
 
 export const useLocal = () => useSyncExternalStore(subscribe, getLocal)
 

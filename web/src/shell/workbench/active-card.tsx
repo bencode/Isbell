@@ -18,7 +18,7 @@ type Props = {
   peeking: boolean
   /** Its project's name is that of a project on another machine too. */
   sharedName: boolean
-  /** Opens it in its terminal, or, not saying, in the view it was last looked at in. */
+  /** Opens it in its terminal, or else as it was last viewed. */
   onOpen: (terminal?: boolean) => void
 }
 
