@@ -1,6 +1,16 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "%@ is asking you": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 在问你"
+          }
+        }
+      }
+    },
     "%lld machines online": {
       "localizations": {
         "en": {
@@ -25,6 +35,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld 台机器在线"
+          }
+        }
+      }
+    },
+    "%lld tools": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld tool"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld tools"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个工具"
           }
         }
       }
@@ -65,6 +103,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Agent"
+          }
+        }
+      }
+    },
+    "Answer it in its terminal": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "去它的终端里回答"
           }
         }
       }
@@ -163,6 +211,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "连接"
+          }
+        }
+      }
+    },
+    "Context compacted": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上下文已压缩"
           }
         }
       }
@@ -285,8 +343,28 @@
         }
       }
     },
+    "Interrupted": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已中断"
+          }
+        }
+      }
+    },
     "Isbell": {
       "shouldTranslate": false
+    },
+    "It is gone, or too large.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文件不在了，或者太大。"
+          }
+        }
+      }
     },
     "Join": {
       "localizations": {
@@ -394,6 +472,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "内存 · %@"
+          }
+        }
+      }
+    },
+    "New below": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下面有新内容"
+          }
+        }
+      }
+    },
+    "No conversation recorded": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有对话记录"
           }
         }
       }
@@ -528,6 +626,26 @@
         }
       }
     },
+    "Reading earlier turns…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在读取更早的轮次…"
+          }
+        }
+      }
+    },
+    "Reading its record…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在读会话记录…"
+          }
+        }
+      }
+    },
     "Reconnecting…": {
       "localizations": {
         "zh-Hans": {
@@ -618,6 +736,26 @@
         }
       }
     },
+    "Show earlier turns": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看更早的轮次"
+          }
+        }
+      }
+    },
+    "Something went wrong": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出错了"
+          }
+        }
+      }
+    },
     "Space": {
       "localizations": {
         "zh-Hans": {
@@ -634,6 +772,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "待命"
+          }
+        }
+      }
+    },
+    "Start of the session": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "session 开头"
           }
         }
       }
@@ -718,6 +866,16 @@
         }
       }
     },
+    "The record can't be read": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "读不了会话记录"
+          }
+        }
+      }
+    },
     "The relay did not accept this key.": {
       "localizations": {
         "zh-Hans": {
@@ -748,12 +906,52 @@
         }
       }
     },
+    "Thinking": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "思考过程"
+          }
+        }
+      }
+    },
     "This machine": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "本机"
+          }
+        }
+      }
+    },
+    "This session has ended": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个会话已经结束"
+          }
+        }
+      }
+    },
+    "Thought for %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "思考了 %@"
+          }
+        }
+      }
+    },
+    "Today": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天"
           }
         }
       }
@@ -798,12 +996,42 @@
         }
       }
     },
+    "What is said shows here once the agent records it. If its terminal has a conversation that never shows here, its record can't be found (start Codex with --no-daemon).": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "说过的话会在 agent 写进会话记录后出现在这里。如果终端里已有对话，这里却一直没有，说明读不到它的会话记录（Codex 要用 --no-daemon 启动）。"
+          }
+        }
+      }
+    },
     "Working": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "运行中"
+          }
+        }
+      }
+    },
+    "Yesterday": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "昨天"
+          }
+        }
+      }
+    },
+    "failed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "失败"
           }
         }
       }
@@ -820,6 +1048,16 @@
     },
     "isbk1-…": {
       "shouldTranslate": false
+    },
+    "took %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用时 %@"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

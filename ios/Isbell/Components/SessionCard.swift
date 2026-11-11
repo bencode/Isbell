@@ -1,5 +1,6 @@
-// A live session in a list: a card for one that asks, has finished or works, a line for one standing
-// by. A card reads what herdr knows of its agent: once for each status, and every 5 s while it works.
+// A live session in a list, opening its page: a card for one that asks, has finished or works, a
+// line for one standing by. A card reads what herdr knows of its agent: once for each status, and
+// every 5 s while it works.
 // As web/src/shell/mobile/card.tsx and features/session/use-agent-note.ts.
 
 import IsbellKit
@@ -29,8 +30,16 @@ struct SessionCard: View {
     private var note: AgentNote? { read?.since == session.statusSince ? read?.note : nil }
 
     var body: some View {
+        NavigationLink(value: SessionRoute(mid: session.mid, paneId: session.paneId)) { card }
+            .buttonStyle(.plain)
+            .task(id: NoteKey(id: session.id, status: session.status, since: session.statusSince)) {
+                await readNotes()
+            }
+    }
+
+    private var card: some View {
         let asking = session.status == .blocked
-        VStack(alignment: .leading, spacing: 4) {
+        return VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 7) {
                 StatusDot(status: session.status)
                 Text(place).lineLimit(1)
@@ -53,9 +62,7 @@ struct SessionCard: View {
             RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(asking ? Color.orange.opacity(0.5) : Color(.separator), lineWidth: 0.5)
         }
-        .task(id: NoteKey(id: session.id, status: session.status, since: session.statusSince)) {
-            await readNotes()
-        }
+        .contentShape(.rect(cornerRadius: 12))
     }
 
     /// The tool it waits on or is using, or what it was asked once it finished.
@@ -101,6 +108,11 @@ struct StandingRow: View {
     let placed: Placed
 
     var body: some View {
+        NavigationLink(value: SessionRoute(mid: placed.session.mid, paneId: placed.session.paneId)) { row }
+            .buttonStyle(.plain)
+    }
+
+    private var row: some View {
         HStack(spacing: 8) {
             StatusDot(status: placed.session.status)
             VStack(alignment: .leading, spacing: 1) {
@@ -111,6 +123,7 @@ struct StandingRow: View {
             Elapsed(since: placed.session.statusSince).font(.caption2.monospaced()).foregroundStyle(.tertiary)
         }
         .padding(.vertical, 6)
+        .contentShape(.rect)
     }
 }
 

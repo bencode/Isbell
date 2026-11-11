@@ -4,7 +4,8 @@ A native iPhone client for an Isbell space. It talks to the same relay as the we
 reads the same protocol, checked against `crates/isbell-proto/tests/vectors.json`. Like the web
 client, it opens a WebRTC direct link to each machine when it can, and uses the relay otherwise.
 
-Work in progress: it joins a space and lists its sessions, projects and machines.
+Work in progress: it joins a space, lists its sessions, projects and machines, and reads a
+session's conversation as its agent records it.
 
 ## Layout
 
@@ -16,13 +17,14 @@ ios/
 │   ├── Shell/          the root and the screens around the features
 │   └── Features/       one folder per feature
 ├── IsbellKit/          the protocol: frames, identity, machine state, the relay connection,
-│                       direct links once open and when to use them
+│                       direct links once open and when to use them, agents' records as chat
 └── IsbellRTC/          setting up a direct link over WebRTC
 ```
 
 IsbellKit is a Swift package with no UI and no third-party dependencies, so it builds and tests
 on the Mac alone. WebRTC ([stasel/WebRTC](https://github.com/stasel/WebRTC), pinned by
-`Package.resolved`) is used only by IsbellRTC, which the app hands to IsbellKit.
+`Package.resolved`) is used only by IsbellRTC, which the app hands to IsbellKit. The app renders
+Markdown with [Textual](https://github.com/gonzalezreal/textual), pinned to an exact version.
 
 ## Requirements
 

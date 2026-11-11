@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		1B0A00000000000000000001 /* IsbellKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1B0A00000000000000000002 /* IsbellKit */; };
 		1B0A00000000000000000020 /* IsbellRTC in Frameworks */ = {isa = PBXBuildFile; productRef = 1B0A00000000000000000021 /* IsbellRTC */; };
+		1B0A00000000000000000030 /* Textual in Frameworks */ = {isa = PBXBuildFile; productRef = 1B0A00000000000000000031 /* Textual */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -26,6 +27,7 @@
 			files = (
 				1B0A00000000000000000001 /* IsbellKit in Frameworks */,
 				1B0A00000000000000000020 /* IsbellRTC in Frameworks */,
+				1B0A00000000000000000030 /* Textual in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -70,6 +72,7 @@
 			packageProductDependencies = (
 				1B0A00000000000000000002 /* IsbellKit */,
 				1B0A00000000000000000021 /* IsbellRTC */,
+				1B0A00000000000000000031 /* Textual */,
 			);
 			productName = Isbell;
 			productReference = 1B0A00000000000000000003 /* Isbell.app */;
@@ -103,6 +106,7 @@
 			packageReferences = (
 				1B0A0000000000000000000E /* XCLocalSwiftPackageReference "IsbellKit" */,
 				1B0A00000000000000000022 /* XCLocalSwiftPackageReference "IsbellRTC" */,
+				1B0A00000000000000000032 /* XCRemoteSwiftPackageReference "textual" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1B0A00000000000000000007 /* Products */;
@@ -267,6 +271,17 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		1B0A00000000000000000032 /* XCRemoteSwiftPackageReference "textual" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/gonzalezreal/textual.git";
+			requirement = {
+				kind = exactVersion;
+				version = 0.5.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		1B0A00000000000000000002 /* IsbellKit */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -275,6 +290,11 @@
 		1B0A00000000000000000021 /* IsbellRTC */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = IsbellRTC;
+		};
+		1B0A00000000000000000031 /* Textual */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1B0A00000000000000000032 /* XCRemoteSwiftPackageReference "textual" */;
+			productName = Textual;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -32,6 +32,7 @@ struct ProjectsView: View {
             }
             .navigationTitle("Projects")
             .navigationDestination(for: String.self) { ProjectView(id: $0) }
+            .navigationDestination(for: SessionRoute.self) { SessionView(route: $0) }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink {

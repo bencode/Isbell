@@ -24,6 +24,7 @@ struct ActiveView: View {
             .overlay { placeholder(lanes) }
             .navigationTitle("Active")
             .navigationSubtitle(statusLine)
+            .navigationDestination(for: SessionRoute.self) { SessionView(route: $0) }
         }
     }
 
