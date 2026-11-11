@@ -73,3 +73,22 @@ private final class FakeChannel: DirectChannel {
     #expect(closedCount == 1)
     #expect(channel.closes == 1)
 }
+
+@MainActor
+@Test func closingTheLinksKeepsTheirFailuresAndOnlyAResetForgetsThem() async {
+    let links = DirectLinks(open: { _, _ async throws(CallError) in throw CallError(code: "timeout", msg: "no answer") },
+                            relay: { _, _, _, _ async throws(CallError) in .null }, directable: { _ in true })
+    #expect(await links.to("m")?.value == nil)
+    #expect(failed(links.status("m")))
+    // As when the app goes behind: the machine that could not be reached is not tried again.
+    links.closeAll()
+    #expect(failed(links.status("m")))
+    #expect(links.to("m") == nil)
+    // As when the network is of another kind.
+    links.reset()
+    #expect(links.status("m") == .none)
+}
+
+private func failed(_ status: DirectStatus) -> Bool {
+    if case .failed = status { true } else { false }
+}

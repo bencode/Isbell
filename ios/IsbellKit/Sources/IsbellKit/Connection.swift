@@ -10,6 +10,8 @@ private let backoff: [Duration] = [.seconds(1), .seconds(2), .seconds(4), .secon
 /// How long a call made while the connection is down waits for it, as when the app comes back
 /// from the background and dials again.
 private let readyWait: Duration = .seconds(5)
+/// How long a ping may go unanswered before the socket is taken for dead.
+private let probeWait: Duration = .seconds(2)
 /// herdr answers with up to 4 MiB; URLSession takes 1 MiB by default.
 private let maxMessage = 16 << 20
 
@@ -88,6 +90,36 @@ public final class RelayConnection {
         guard let retry else { return }
         retry.cancel()
         dial()
+    }
+
+    /// After the app was behind, or the network changed: iOS may have cut the socket without a word.
+    /// A ping not answered within `probeWait` drops it and dials at once; with no socket open, as
+    /// reconnectNow.
+    public func probe() {
+        guard let socket = task, ready else { return reconnectNow() }
+        let current = generation
+        let once = Once()
+        socket.sendPing { [weak self] error in
+            Task { @MainActor in
+                guard let error else { return _ = once.settle() }
+                self?.abandon(socket, current, once, error)
+            }
+        }
+        Task { [weak self] in
+            guard await pause(probeWait) else { return }
+            self?.abandon(socket, current, once, CallError(code: "timeout", msg: "no answer to a ping"))
+        }
+    }
+
+    /// Drops a socket that did not answer a ping, unless it answered first or was replaced, and
+    /// dials at once.
+    private func abandon(_ socket: URLSessionWebSocketTask, _ current: Int, _ once: Once, _ error: any Error) {
+        guard once.settle(), current == generation else { return }
+        logger.info("the relay did not answer a ping in time; dialing again")
+        generation += 1
+        socket.cancel(with: .goingAway, reason: nil)
+        dropped(socket, error)
+        reconnectNow()
     }
 
     public func close() {
@@ -241,6 +273,17 @@ public final class RelayConnection {
 
     private func fail(code: String, msg: String, where match: (String) -> Bool) {
         router.fail(code: code, msg: msg, where: match)
+    }
+}
+
+/// True the first time only: of a ping's answer and its time running out, the first counts.
+@MainActor
+private final class Once {
+    private var settled = false
+
+    func settle() -> Bool {
+        defer { settled = true }
+        return !settled
     }
 }
 

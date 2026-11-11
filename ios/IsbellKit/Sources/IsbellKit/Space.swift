@@ -103,9 +103,13 @@ public final class Space {
     /// The pair machine `mid`'s open direct link uses, if one is open.
     public func directStats(_ mid: String) async -> LinkStats? { await links.stats(mid) }
 
-    /// Closes every direct link and forgets their failures, for a network that changed or an app
-    /// that went to the background: the next call sets one up again.
+    /// Closes every direct link and forgets their failures, for a network of another kind: the next
+    /// call sets one up again.
     public func resetDirect() { links.reset() }
+
+    /// Closes every direct link and keeps their failures, for an app going behind: iOS cuts the
+    /// links while it is suspended, and a machine that could not be reached still cannot.
+    public func closeDirect() { links.closeAll() }
 
     /// Pulls the shells of every machine online.
     public func refreshShells() async {
@@ -121,9 +125,10 @@ public final class Space {
         }
     }
 
-    /// Skips the remaining backoff when the network or the app comes back.
-    public func reconnectNow() {
-        connection?.reconnectNow()
+    /// Checks the relay connection is still there, as after the app was behind: see
+    /// RelayConnection.probe.
+    public func probeRelay() {
+        connection?.probe()
     }
 
     public func close() {
