@@ -6,6 +6,10 @@ target/
 # Local, untracked design notes
 priv/
 
+# Local secrets
+.env
+.env.*
+
 .DS_Store
 *.log
 
