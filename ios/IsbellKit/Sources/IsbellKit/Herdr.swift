@@ -89,4 +89,15 @@ public func agentNote(_ call: Caller, mid: String, paneId: String) async throws(
     }
 }
 
+/// Types `text` into the agent of pane `paneId` and submits it.
+public func prompt(_ call: Caller, mid: String, paneId: String, text: String) async throws(CallError) {
+    _ = try await herdr(call, mid, "agent.prompt", .object(["target": .string(paneId), "text": .string(text)]))
+}
+
+/// Presses `keys`, as herdr names them ("esc"), in pane `paneId`.
+public func sendKeys(_ call: Caller, mid: String, paneId: String, keys: [String]) async throws(CallError) {
+    _ = try await herdr(call, mid, "agent.send_keys",
+                        .object(["target": .string(paneId), "keys": .array(keys.map { .string($0) })]))
+}
+
 private let logger = Logger(subsystem: "dev.fmap.isbell", category: "herdr")
