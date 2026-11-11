@@ -4,6 +4,7 @@
 //! reconnect still reaches its caller. One task owns them; relayed and direct frames both reach it
 //! through its inbox.
 
+pub mod readers;
 mod route;
 mod streams;
 
@@ -18,10 +19,11 @@ use tokio::task::JoinSet;
 pub use self::route::methods;
 pub(super) use self::route::response_frame;
 use self::route::{Inbound, Method, route};
-use self::streams::{Emit, Streams, close_caller, feed, register, serve_stream};
+use self::streams::{Emit, MAX_STREAMS, Streams, close_caller, feed, register, serve_stream};
 use super::herdr::HerdrError;
 use super::link::Link;
 use super::push::Push;
+use super::share::Shares;
 use super::stream::Input;
 use super::system::Sampler;
 use super::terminal;
@@ -55,6 +57,7 @@ pub struct Calls {
     /// Where files sent for agents go.
     uploads: PathBuf,
     push: Arc<Push>,
+    shares: Arc<Shares>,
     system: Arc<Sampler>,
     /// The calls' own inbox, for the frames of direct links.
     inbox: mpsc::UnboundedSender<ToCalls>,
@@ -67,6 +70,7 @@ impl Calls {
         ice: Vec<String>,
         uploads: PathBuf,
         push: Arc<Push>,
+        shares: Arc<Shares>,
         inbox: mpsc::UnboundedSender<ToCalls>,
     ) -> Calls {
         Calls {
@@ -77,6 +81,7 @@ impl Calls {
             ice,
             uploads,
             push,
+            shares,
             system: Arc::new(Sampler::new()),
             inbox,
         }
@@ -166,6 +171,14 @@ impl Calls {
                 let (ice, inbox) = (self.ice.clone(), self.inbox.clone());
                 self.tasks.spawn(direct::serve(link, id, p, ice, inbox));
             }
+            Method::ShareStart => {
+                let shares = Arc::clone(&self.shares);
+                self.tasks.spawn(async move {
+                    link.send(response_frame(id, shares.start(p).await));
+                });
+            }
+            Method::ShareLink => link.send(response_frame(id, self.shares.link(p))),
+            Method::ShareStop => link.send(response_frame(id, self.shares.stop(p))),
         }
     }
 
@@ -181,7 +194,7 @@ impl Calls {
         S: Send + 'static,
         R: Future<Output = ()> + Send + 'static,
     {
-        match register(&self.streams, (link.key().to_owned(), id)) {
+        match register(&self.streams, (link.key().to_owned(), id), MAX_STREAMS) {
             Ok(slot) => {
                 self.tasks.spawn(serve_stream(link, id, slot, open, run));
             }
@@ -211,7 +224,9 @@ mod tests {
         let uploads = dir.path().join("uploads");
         let identity = isbell_proto::identity::Identity::generate();
         let push = Arc::new(Push::new(&identity, dir.path().join("push.json"), ""));
-        let calls = Calls::new(HerdrSlot::default(), refresh, vec![], uploads, push, inbox.clone());
+        let slot = HerdrSlot::default();
+        let shares = Shares::new(refresh.clone(), String::new(), vec![], String::new());
+        let calls = Calls::new(slot, refresh, vec![], uploads, push, shares, inbox.clone());
         let streams = Arc::clone(&calls.streams);
         let _calls = crate::AbortOnDrop(tokio::spawn(run(calls, inbox_rx)));
 

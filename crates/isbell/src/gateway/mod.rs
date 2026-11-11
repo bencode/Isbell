@@ -11,6 +11,7 @@ mod monitor;
 mod process;
 mod push;
 mod rpc;
+mod share;
 mod state;
 mod stream;
 mod system;
@@ -28,6 +29,7 @@ use tokio::sync::{mpsc, watch};
 use self::calls::Calls;
 use self::herdr::Herdr;
 use self::push::Push;
+use self::share::Shares;
 use self::state::Reporter;
 use crate::relay::RelayError;
 use crate::{AbortOnDrop, now_ms};
@@ -78,18 +80,38 @@ pub async fn run(opts: GatewayOptions) -> Result<(), GatewayError> {
     let path = std::env::var_os("PATH");
     let caps = Caps { methods: calls::methods(), agent_kinds: state::agent_kinds(path.as_deref()) };
     let reporter = Reporter { machine: opts.machine.clone(), caps, boot: now_ms() };
-    let monitor = monitor::run(reporter, Arc::clone(&slot), states, refresh.clone(), refresh_rx);
+    let shares = Shares::new(
+        refresh.clone(),
+        opts.relay.clone(),
+        opts.ice.clone(),
+        opts.machine.version.clone(),
+    );
+    let monitor = monitor::run(
+        reporter,
+        Arc::clone(&slot),
+        states,
+        refresh.clone(),
+        refresh_rx,
+        Arc::clone(&shares),
+    );
     let mut monitor = AbortOnDrop(tokio::spawn(monitor));
     let push = Arc::new(Push::new(&opts.identity, opts.push.clone(), &opts.relay));
     let _push = AbortOnDrop(tokio::spawn(push::run(Arc::clone(&push), states_rx.clone())));
     let _loops = AbortOnDrop(tokio::spawn(loops::run(Arc::clone(&slot), states_rx.clone())));
     let (inbox, inbox_rx) = mpsc::unbounded_channel();
     tracing::info!(uploads = %opts.uploads.display(), "files sent for agents go here");
-    let calls =
-        Calls::new(slot, refresh, opts.ice.clone(), opts.uploads.clone(), push, inbox.clone());
+    let calls = Calls::new(
+        slot,
+        refresh,
+        opts.ice.clone(),
+        opts.uploads.clone(),
+        push,
+        shares,
+        inbox.clone(),
+    );
     let _calls = AbortOnDrop(tokio::spawn(calls::run(calls, inbox_rx)));
     tokio::select! {
-        result = uplink::run(&opts, inbox, states_rx) => Ok(result?),
+        result = uplink::run(&opts.relay, &opts.identity, &opts.machine, inbox, states_rx) => Ok(result?),
         joined = &mut monitor.0 => {
             if let Err(err) = joined {
                 tracing::error!(%err, "herdr monitor failed");

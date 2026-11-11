@@ -4,6 +4,7 @@
 
 mod list;
 mod read;
+mod scoped;
 mod search;
 mod write;
 
@@ -18,6 +19,7 @@ use super::workspace::expand_home;
 
 pub use self::list::list;
 pub use self::read::{open_read, pump_read};
+pub use self::scoped::scoped;
 pub use self::search::search;
 pub use self::write::{open_upload, open_write, pump_write};
 

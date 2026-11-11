@@ -3,7 +3,9 @@
 use std::ffi::OsStr;
 use std::path::PathBuf;
 
-use isbell_proto::state::{Agent, AgentStatus, Caps, HerdrState, MachineInfo, MachineState};
+use isbell_proto::state::{
+    Agent, AgentStatus, Caps, HerdrState, MachineInfo, MachineState, ShareInfo,
+};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -98,8 +100,9 @@ pub fn next_state(
     prev: Option<&MachineState>,
     herdr: HerdrState,
     agents: Vec<Agent>,
+    shares: Vec<ShareInfo>,
 ) -> Option<MachineState> {
-    if prev.is_some_and(|s| s.herdr == herdr && s.agents == agents) {
+    if prev.is_some_and(|s| s.herdr == herdr && s.agents == agents && s.shares == shares) {
         return None;
     }
     Some(MachineState {
@@ -109,6 +112,7 @@ pub fn next_state(
         herdr,
         caps: reporter.caps.clone(),
         agents,
+        shares,
     })
 }
 
@@ -165,10 +169,10 @@ mod tests {
         let reporter = Reporter { machine, caps: Caps::default(), boot: 7 };
         let ready = || HerdrState { status: HerdrStatus::Ready, version: None, protocol: None };
         let agents = derive_agents(fixture(), &[], 1);
-        let first = next_state(&reporter, None, ready(), agents.clone()).unwrap();
+        let first = next_state(&reporter, None, ready(), agents.clone(), Vec::new()).unwrap();
         assert_eq!((first.rev, first.boot), (0, 7));
-        assert!(next_state(&reporter, Some(&first), ready(), agents.clone()).is_none());
-        let fewer = next_state(&reporter, Some(&first), ready(), agents[..1].to_vec());
+        assert!(next_state(&reporter, Some(&first), ready(), agents.clone(), Vec::new()).is_none());
+        let fewer = next_state(&reporter, Some(&first), ready(), agents[..1].to_vec(), Vec::new());
         assert_eq!(fewer.map(|s| s.rev), Some(1));
     }
 

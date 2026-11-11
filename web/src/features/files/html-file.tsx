@@ -11,10 +11,11 @@ import { Tip } from '../../components/tip'
 import { useI18n } from '../../core/i18n'
 import { SourceTools, SourceView } from './code-file'
 import { FilePage, type FileViewProps } from './file-page'
+import { ShareButton } from './share-button'
 
 type Mode = 'preview' | 'source'
 
-export function HtmlFile({ shell, text, rel, asset, apartHref }: FileViewProps) {
+export function HtmlFile({ shell, text, rel, asset, apartHref, share }: FileViewProps) {
   const t = useI18n()
   const [mode, setMode] = useState<Mode>('preview')
   const source = useRef<CodeRendererHandle>(null)
@@ -54,6 +55,7 @@ export function HtmlFile({ shell, text, rel, asset, apartHref }: FileViewProps) 
               <ExternalLink {...SMALL_ICON} />
             </a>
           </Tip>
+          <ShareButton {...share} />
         </>
       )}
     </>

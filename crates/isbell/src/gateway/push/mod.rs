@@ -265,6 +265,7 @@ mod tests {
             herdr: HerdrState { status: HerdrStatus::Ready, version: None, protocol: None },
             caps: Caps { methods: vec![], agent_kinds: vec![] },
             agents,
+            shares: vec![],
         }
     }
 
