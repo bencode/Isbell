@@ -1,6 +1,8 @@
-// The turns read, from where they begin: it opens at the end and stays there as the agent adds to
-// it, unless scrolled up, when a pill says there is more below. Reading earlier turns keeps the
-// turn in view where it was. As web/src/features/session/use-chat-follow.ts and conversation.tsx.
+// The turns read, from where they begin, then what was sent that the record does not have yet: it
+// opens at the end and stays there as the agent adds to it, unless scrolled up, when a pill says
+// there is more below; what is sent goes to the end. Reading earlier turns keeps the turn in view
+// where it was. Dragging the turns down takes the keyboard with them. As
+// web/src/features/session/use-chat-follow.ts and conversation.tsx.
 
 import IsbellKit
 import SwiftUI
@@ -27,6 +29,14 @@ struct ChatList: View {
                              working: last && session.status == .working ? session.statusSince : nil,
                              asking: last && session.status == .blocked)
                 }
+                ForEach(model.pending, id: \.at) { sent in
+                    VStack(alignment: .trailing, spacing: 6) {
+                        You(asked: Asked(text: sent.text), mid: session.mid, at: sent.at).opacity(0.75)
+                        Text("Sent · waiting for the record").font(.caption2.monospaced()).foregroundStyle(.tertiary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.bottom, 16)
+                }
                 if let error = model.error {
                     Text(verbatim: error.msg).font(.footnote).foregroundStyle(.red)
                 }
@@ -37,6 +47,7 @@ struct ChatList: View {
             .scrollTargetLayout()
         }
         .scrollPosition($position)
+        .scrollDismissesKeyboard(.interactively)
         .defaultScrollAnchor(.bottom, for: .initialOffset)
         .onScrollGeometryChange(for: Bool.self) { $0.visibleRect.maxY >= $0.contentSize.height - 24 } action: { _, end in
             atEnd = end
@@ -50,6 +61,10 @@ struct ChatList: View {
             } else {
                 more = true
             }
+        }
+        .onChange(of: model.pending.count) { was, now in
+            // Just sent: to see it go in.
+            if now > was { withAnimation { position.scrollTo(edge: .bottom) } }
         }
         .onChange(of: turns.first?.id) {
             guard let kept else { return }

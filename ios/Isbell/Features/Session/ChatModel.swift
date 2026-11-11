@@ -2,6 +2,7 @@
 // pane and the file Isbell's hook keeps for the session, then read from its end, more before it as
 // asked, and what is added while the agent works. One read at a time. As web/src/core/chat-log.ts.
 
+import Foundation
 import IsbellKit
 import Observation
 import os
@@ -28,6 +29,10 @@ final class ChatModel {
     private(set) var paging = false
     /// The last read failed; what was read before stays.
     private(set) var error: CallError?
+    /// What was sent from this page, kept until the record has it.
+    private(set) var sent: [Sent] = []
+    /// What was sent that the record does not have yet.
+    var pending: [Sent] { unrecorded(sent, turns: turns) }
 
     @ObservationIgnored private let mid: String
     @ObservationIgnored private let paneId: String
@@ -78,6 +83,12 @@ final class ChatModel {
                 }
             }
         }
+    }
+
+    /// After a reply went out: it shows at once, until the record has it.
+    func didSend(_ text: String) {
+        let after: SentAfter = turns.map { $0.last.map { .turn($0.id) } ?? .start } ?? .notRead
+        sent = pending + [Sent(text: text, at: Int64(Date.now.timeIntervalSince1970 * 1000), after: after)]
     }
 
     /// What there is to know of the record is known: there is none, or it is read.

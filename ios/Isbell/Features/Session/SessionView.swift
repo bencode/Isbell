@@ -1,6 +1,7 @@
 // A live session's page: its conversation as the agent records it, followed while the app is in
-// front; while the agent asks, what it waits on and where to answer. Looking at a finished session
-// marks it read. As web/src/shell/mobile/chat.tsx and features/session/session-parts.tsx.
+// front, and a reply bar under it; while the agent asks, what it waits on and where to answer
+// instead. Looking at a finished session marks it read. As web/src/shell/mobile/chat.tsx and
+// features/session/session-parts.tsx.
 
 import IsbellKit
 import SwiftUI
@@ -16,6 +17,8 @@ struct SessionView: View {
     @Environment(\.scenePhase) private var phase
     let route: SessionRoute
     @State private var model: ChatModel
+    /// What is written to the agent, kept while it asks and the reply bar is away.
+    @State private var draft = ""
 
     /// The record is followed again when the status changes, and only while the app is in front.
     private struct FollowKey: Hashable {
@@ -73,7 +76,11 @@ struct SessionView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .safeAreaInset(edge: .bottom) {
-            if session.status == .blocked { AskingDock(session: session) }
+            if session.status == .blocked {
+                AskingDock(session: session)
+            } else {
+                ReplyBar(session: session, draft: $draft) { model.didSend($0) }
+            }
         }
         .task(id: FollowKey(status: session.status, since: session.statusSince, active: phase == .active)) {
             guard phase == .active else { return }

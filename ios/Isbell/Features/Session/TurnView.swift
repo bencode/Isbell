@@ -26,7 +26,7 @@ struct TurnView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             if turn.at > 0 && !sameDay(turn.at, before) { DayLine(at: turn.at) }
-            if let you = turn.you { You(asked: you, mid: mid) }
+            if let you = turn.you { You(asked: you, mid: mid, at: turn.at) }
             if !turn.items.isEmpty || working != nil {
                 AgentHead(name: agentName(kind), model: turn.model)
                 ChatItems(items: turn.items, working: working != nil)
@@ -111,25 +111,36 @@ private struct AgentHead: View {
     }
 }
 
-/// What was asked, on the right: its images, then its words.
-private struct You: View {
+/// What was asked, on the right: its images, then its words, which a long press tells when they
+/// were asked and copies.
+struct You: View {
     let asked: Asked
     let mid: String
+    /// Milliseconds since the epoch; 0 where the record does not tell.
+    let at: Int64
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 6) {
             if !asked.images.isEmpty || !asked.data.isEmpty { PromptImages(mid: mid, paths: asked.images, data: asked.data) }
             if !asked.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 Text(verbatim: asked.text)
-                    .textSelection(.enabled)
                     .padding(.horizontal, 13)
                     .padding(.vertical, 9)
-                    .background(Color.accentColor.opacity(0.14),
-                                in: UnevenRoundedRectangle(topLeadingRadius: 14, bottomLeadingRadius: 14,
-                                                           bottomTrailingRadius: 4, topTrailingRadius: 14))
+                    .background(Color.accentColor.opacity(0.14), in: bubble)
+                    .contentShape(.contextMenuPreview, bubble)
+                    .contextMenu {
+                        if at > 0 {
+                            Text(Date(milliseconds: at), format: .dateTime.month().day().hour().minute())
+                        }
+                        Button("Copy", systemImage: "doc.on.doc") { UIPasteboard.general.string = asked.text }
+                    }
             }
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
         .padding(.leading, 48)
+    }
+
+    private var bubble: UnevenRoundedRectangle {
+        UnevenRoundedRectangle(topLeadingRadius: 14, bottomLeadingRadius: 14, bottomTrailingRadius: 4, topTrailingRadius: 14)
     }
 }

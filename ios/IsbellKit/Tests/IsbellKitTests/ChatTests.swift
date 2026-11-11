@@ -116,3 +116,35 @@ private let piLines = #"""
 {"type": "message", "id": "", "message": {"role": "toolResult", "toolCallId": "k1", "content": [{"type": "text", "text": "not found"}], "isError": true, "timestamp": 3}}
 {"type": "message", "id": "", "message": {"role": "assistant", "stopReason": "error", "errorMessage": "503", "timestamp": 4, "content": []}}
 """#
+
+private func asked(_ id: String, _ text: String) -> ChatTurn {
+    ChatTurn(id: id, you: Asked(text: text), at: 0, took: nil, model: nil, items: [])
+}
+
+@Test func whatWasSentShowsUntilATurnAfterItsAnchorHasIt() {
+    let hi = Sent(text: "hi", at: 1, after: .turn("a"))
+    #expect(unrecorded([hi], turns: [asked("a", "hi")]) == [hi], "the same words before it are another turn")
+    #expect(unrecorded([hi], turns: [asked("a", "x"), asked("b", "hi")]).isEmpty)
+    // The agent may change what it was given, as pasted text it folds: the next turn asked is it.
+    #expect(unrecorded([hi], turns: [asked("a", "x"), asked("b", "hello")]).isEmpty)
+}
+
+@Test func sentBeforeTheRecordWasReadIsKnownOnlyByItsWords() {
+    let hi = Sent(text: "hi", at: 1, after: .notRead)
+    #expect(unrecorded([hi], turns: nil) == [hi])
+    #expect(unrecorded([hi], turns: [asked("a", "hello")]) == [hi])
+    #expect(unrecorded([hi], turns: [asked("a", "hello"), asked("b", "hi")]).isEmpty)
+}
+
+@Test func eachTurnTakesOneSentInOrder() {
+    let one = Sent(text: "one", at: 1, after: .start)
+    let two = Sent(text: "two", at: 2, after: .start)
+    #expect(unrecorded([one, two], turns: [asked("a", "one")]) == [two])
+    #expect(unrecorded([one, two], turns: [asked("a", "x")]) == [two], "the first sent takes the first turn")
+    #expect(unrecorded([one, two], turns: [asked("a", "x"), asked("b", "y")]).isEmpty)
+}
+
+@Test func sentWithUploadsIsComparedByItsWords() {
+    let shot = Sent(text: "look\n/tmp/isbell-uploads/0123abcd/a.png", at: 1, after: .notRead)
+    #expect(unrecorded([shot], turns: [asked("a", "look")]).isEmpty)
+}
