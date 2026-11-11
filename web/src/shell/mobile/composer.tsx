@@ -5,6 +5,7 @@ import { ArrowUp, Square } from 'lucide-react'
 import { useI18n } from '../../core/i18n'
 import { Attachments, PickFiles } from '../../features/session/attachments'
 import { useComposer } from '../../features/session/composer'
+import { VOICE_LABEL, VoiceIcon, VoicePill } from '../../features/session/voice'
 import { TAP } from './bar'
 
 export function PhoneComposer({
@@ -21,7 +22,7 @@ export function PhoneComposer({
   onSent: (text: string) => void
 }) {
   const t = useI18n()
-  const { text, setText, send, stop, stopping, ready, drafting, error, files } = useComposer({
+  const { text, setText, send, stop, stopping, ready, drafting, error, files, voice } = useComposer({
     mid,
     paneId,
     onSent,
@@ -30,7 +31,8 @@ export function PhoneComposer({
   const stops = stoppable && !drafting
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex flex-col gap-1 rounded-[14px] border border-line-strong bg-raised p-[3px] focus-within:border-accent">
+      <div className="relative flex flex-col gap-1 rounded-[14px] border border-line-strong bg-raised p-[3px] focus-within:border-accent">
+        <VoicePill voice={voice} className="absolute bottom-full left-1/2 mb-2 -translate-x-1/2" />
         {files.items.length ? (
           <div className="px-2 pt-1.5">
             <Attachments items={files.items} onRemove={files.remove} />
@@ -47,6 +49,17 @@ export function PhoneComposer({
             placeholder={t('mobile.reply')}
             className="field-sizing-content max-h-36 min-h-11 min-w-0 flex-1 resize-none border-0 bg-transparent px-1 py-2.5 leading-6 text-text outline-none placeholder:text-faint"
           />
+          {voice.available ? (
+            <button
+              type="button"
+              onClick={voice.toggle}
+              disabled={voice.state === 'working'}
+              aria-label={t(VOICE_LABEL[voice.state])}
+              className={voice.state === 'recording' ? `${TAP} text-danger!` : TAP}
+            >
+              <VoiceIcon state={voice.state} size={20} />
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={stops ? stop : () => void send()}
@@ -60,6 +73,7 @@ export function PhoneComposer({
       </div>
       {error ? <p className="m-0 px-1 text-[13px] text-danger">{error}</p> : null}
       {files.problem ? <p className="m-0 px-1 text-[13px] text-danger">{files.problem}</p> : null}
+      {voice.error ? <p className="m-0 px-1 text-[13px] text-danger">{voice.error}</p> : null}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-const MAC = /Mac|iPhone|iPad/.test(navigator.platform)
+export const MAC = /Mac|iPhone|iPad/.test(navigator.platform)
 
 /** The palette's key, ⌘K on a Mac and Ctrl+K elsewhere, from anywhere: a text field or the terminal
  * too. A Mac's Ctrl+K is left alone, as text fields there cut to the end of the line with it. */

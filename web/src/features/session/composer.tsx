@@ -6,6 +6,7 @@ import { useSpace } from '../../core/space'
 import { prompt, sendKeys } from '../../model/herdr'
 import { onSubmitKey } from '../../utils/submit-key'
 import { Attachments, PickFiles, useAttachments } from './attachments'
+import { useVoice, VOICE_LABEL, VoiceIcon, VoicePill } from './voice'
 
 /** A reply, or something more the agent should know. `machine`: the name of the agent's machine;
  * where it takes files, those pasted, dropped or picked go along, the reply naming where they
@@ -27,7 +28,7 @@ export function Composer({
   stoppable: boolean
 }) {
   const t = useI18n()
-  const { text, setText, send, stop, stopping, ready, error, files } = useComposer({
+  const { text, setText, send, stop, stopping, ready, error, files, voice } = useComposer({
     mid,
     paneId,
     onSent,
@@ -51,11 +52,24 @@ export function Composer({
     <div className="flex flex-col gap-1.5">
       <div
         {...files.drop}
-        className="flex flex-col gap-2 rounded-xl border border-line-strong bg-raised py-2 pr-2 pl-3.5 focus-within:border-accent"
+        className="relative flex flex-col gap-2 rounded-xl border border-line-strong bg-raised py-2 pr-2 pl-3.5 focus-within:border-accent"
       >
+        <VoicePill voice={voice} className="absolute bottom-full left-1/2 mb-2 -translate-x-1/2" />
         <Attachments items={files.items} onRemove={files.remove} />
         <div className="flex items-end gap-2.5">
           {field}
+          {voice.available ? (
+            <Button
+              size="icon"
+              variant={voice.state === 'recording' ? 'danger' : 'quiet'}
+              onClick={voice.toggle}
+              disabled={voice.state === 'working'}
+              aria-label={t(VOICE_LABEL[voice.state])}
+              title={t(VOICE_LABEL[voice.state])}
+            >
+              <VoiceIcon state={voice.state} size={16} />
+            </Button>
+          ) : null}
           {stoppable ? (
             <Button onClick={stop} disabled={stopping}>
               <Square size={11} fill="currentColor" />
@@ -75,6 +89,7 @@ export function Composer({
       ) : null}
       {error ? <p className="m-0 text-[13px] text-danger">{error}</p> : null}
       {files.problem ? <p className="m-0 text-[13px] text-danger">{files.problem}</p> : null}
+      {voice.error ? <p className="m-0 text-[13px] text-danger">{voice.error}</p> : null}
     </div>
   )
 }
@@ -100,6 +115,10 @@ export function useComposer({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const files = useAttachments(mid, machine)
+  // What is said goes after what is written, on a line of its own.
+  const voice = useVoice(said =>
+    setText(written => (written.trim() ? `${written.trimEnd()}\n${said}` : said)),
+  )
   const message = [text.trim(), ...files.paths].filter(Boolean).join('\n')
   const drafting = text.trim() !== '' || files.items.length > 0
   useEffect(() => {
@@ -134,5 +153,5 @@ export function useComposer({
   }
 
   const ready = !!message && !busy && !files.uploading
-  return { text, setText, send, stop, stopping, ready, drafting, error, files }
+  return { text, setText, send, stop, stopping, ready, drafting, error, files, voice }
 }
