@@ -8,10 +8,26 @@ import os
 public typealias Opener = @MainActor (_ mid: String, _ m: String, _ p: JSON, _ timeout: Duration,
                                       _ events: StreamEvents) async throws(CallError) -> (result: JSON, stream: RpcStream)
 
-/// `bytes` is left out when the file is larger than the reader's limit.
+/// `bytes` is left out when what is read would be larger than the reader's limit. `offset`: where
+/// the bytes begin, for a read with a range; a gateway too old for ranges reads from the start and
+/// gives none.
 public struct FileRead: Sendable, Equatable {
     public var size: Int
     public var bytes: Data?
+    public var offset: Int?
+}
+
+/// Where a read starts, in bytes from the start or from the end, and how much of it is wanted.
+public struct FileRange: Sendable, Equatable {
+    public var offset: Int?
+    public var tail: Int?
+    public var want: Int?
+
+    public init(offset: Int? = nil, tail: Int? = nil, want: Int? = nil) {
+        self.offset = offset
+        self.tail = tail
+        self.want = want
+    }
 }
 
 /// The gateway stops a search after 2 s; the rest is the trip.
@@ -21,6 +37,8 @@ private let fileTimeout: Duration = .seconds(20)
 @MainActor
 private final class Reading {
     let limit: Int
+    /// Where a read that wants less than the rest stops; otherwise it goes to the end.
+    var stopAt = Int.max
     var bytes = Data()
     var stream: RpcStream?
     private var waiting: CheckedContinuation<RpcError?, Never>?
@@ -30,8 +48,8 @@ private final class Reading {
 
     func take(_ chunk: Data) {
         bytes.append(chunk)
-        // The file grew past the limit while being read: it stops here.
-        if bytes.count > limit {
+        // Enough is read, or the file grew past the limit while being read: it stops here.
+        if bytes.count >= stopAt || bytes.count > limit {
             stream?.close()
             finish(nil)
         } else {
@@ -52,32 +70,45 @@ private final class Reading {
     }
 }
 
-/// Reads the file at `path`, or only its size when it is larger than `limit`.
+/// Reads the file at `path`, or only its size when what is read would be larger than `limit`. With
+/// `range`, from where it says, as far as it wants.
 @MainActor
-public func readFile(_ open: Opener, mid: String, path: String, limit: Int) async throws(CallError) -> FileRead {
+public func readFile(_ open: Opener, mid: String, path: String, limit: Int, range: FileRange = FileRange())
+    async throws(CallError) -> FileRead
+{
     let reading = Reading(limit: limit)
     let events = StreamEvents(data: { reading.take($0) }, end: { reading.finish($0) })
-    let (result, stream) = try await open(mid, "isbell.file.read", .object(["path": .string(path)]), fileTimeout, events)
+    var params: [String: JSON] = ["path": .string(path)]
+    if let offset = range.offset { params["offset"] = .int(Int64(offset)) }
+    if let tail = range.tail { params["tail"] = .int(Int64(tail)) }
+    let (result, stream) = try await open(mid, "isbell.file.read", .object(params), fileTimeout, events)
     reading.stream = stream
     guard let size = result["size"]?.uint.map(Int.init) else {
         stream.close()
         throw CallError(code: "bad_response", msg: "a file read without its size")
     }
-    if size > limit {
+    let offset = result["offset"]?.uint.map(Int.init)
+    let opened = FileRead(size: size, bytes: nil, offset: offset)
+    let rest = size - (offset ?? 0)
+    let need = min(range.want ?? rest, rest)
+    if need > limit {
         stream.close()
-        return FileRead(size: size, bytes: nil)
+        return opened
     }
-    if size == 0 {
+    if need <= 0 {
         stream.close()
-        return FileRead(size: 0, bytes: Data())
+        return FileRead(size: size, bytes: Data(), offset: offset)
     }
+    if need < rest { reading.stopAt = need }
     // No data comes before credit is granted, by which time the stream is known. The gateway ends
     // the stream on finding the file's end, which it looks for only with credit left: a grant of
-    // just `size` would leave it waiting.
-    stream.grant(streamWindow)
+    // just the rest would leave it waiting. A read that stops short closes the stream itself.
+    stream.grant(min(reading.stopAt, streamWindow))
     if let error = await reading.ended() { throw CallError(code: error.code, msg: error.msg) }
-    let bytes = reading.bytes
-    return bytes.count > limit ? FileRead(size: bytes.count, bytes: nil) : FileRead(size: size, bytes: bytes)
+    // More than asked for can come as the credit runs ahead; only what was asked counts.
+    let bytes = reading.bytes.prefix(reading.stopAt)
+    return bytes.count > limit ? FileRead(size: bytes.count, bytes: nil, offset: offset)
+        : FileRead(size: size, bytes: Data(bytes), offset: offset)
 }
 
 /// A home directory or above is never a project's root, even when it is a repository.

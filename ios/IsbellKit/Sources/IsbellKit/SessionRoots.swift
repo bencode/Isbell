@@ -1,11 +1,13 @@
 // Every project a machine's agents have had a session in, as Isbell's agent hook
-// (integrations/agent-hook.sh) records them in ~/.isbell/sessions/roots.json. As the roots part of
+// (integrations/agent-hook.sh) records them in ~/.isbell/sessions/roots.json, and the file it keeps
+// for each session there, which names the agent's own record of it. As the roots part of
 // web/src/model/sessions.ts.
 
 import Foundation
 import os
 
-public let rootsPath = "~/.isbell/sessions/roots.json"
+private let store = "~/.isbell/sessions"
+public let rootsPath = "\(store)/roots.json"
 
 /// Where a project's records are, and when one of them last changed.
 public struct RootInfo: Sendable, Equatable {
@@ -32,6 +34,29 @@ public func parseRoots(_ text: String) -> Roots {
         return RootInfo(key: key, updated: updated)
     }
     .filter { $0.key.hasPrefix("/") }
+}
+
+/// The key of the records of the project at `path`, else of the directory `cwd`, as the hook files a
+/// session under the repository it ran in, or the directory itself.
+public func recordKey(_ roots: Roots, path: String, cwd: String?) -> String? {
+    roots[path]?.key ?? cwd.flatMap { roots[$0]?.key }
+}
+
+/// The file the hook keeps for a session once it is asked something.
+public func sessionFilePath(key: String, agent: String, id: String) -> String {
+    "\(store)/\(key)/sessions/\(agent)-\(id).json"
+}
+
+/// Where the agent keeps the conversation, as the session's file names it (hook v5 on); nil for a
+/// file that does not say, or cannot be read.
+public func transcriptOf(_ text: String) -> String? {
+    do {
+        let found = try JSONDecoder().decode(JSON.self, from: Data(text.utf8))
+        return found["transcript"]?.string.flatMap { $0.hasPrefix("/") ? $0 : nil }
+    } catch {
+        logger.warning("ignoring an unreadable session file: \(error)")
+        return nil
+    }
 }
 
 private func time(_ value: JSON?) -> Int64? {

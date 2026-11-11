@@ -47,6 +47,13 @@ final class Prefs {
         theme = defaults.string(forKey: Key.theme).flatMap(Theme.init) ?? .system
     }
 
+    /// Session `id` is looked at under the status it has had since `since`.
+    func markSeen(_ id: String, at since: UInt64) {
+        guard seen[id] != since else { return }
+        seen[id] = since
+        save(seen, Key.seen)
+    }
+
     func keep(_ listed: [String: [String]]) {
         guard listed != keptPaths else { return }
         keptPaths = listed
