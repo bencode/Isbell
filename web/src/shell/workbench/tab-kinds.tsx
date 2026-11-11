@@ -6,10 +6,11 @@
 import { FileText, History, type LucideIcon, SquareTerminal } from 'lucide-react'
 import { type ComponentType, lazy } from 'react'
 import { matchPath, type Params, type To } from 'react-router'
+import { inTerminalLast } from '../../core/prefs'
 import type { Lookup } from '../../core/session-records'
 import { nameOf } from '../../model/files/paths'
 import { parseRootKey } from '../../model/files/worktrees'
-import { locate, type Project } from '../../model/projects'
+import { locate, type Project, paneKey } from '../../model/projects'
 import { under } from '../../model/sessions'
 import type { AgentStatus } from '../../model/state'
 import { sessionTabId, withTab, withTerminal } from '../../model/tabs'
@@ -96,8 +97,13 @@ const KINDS: TabKind[] = [
 /** A file's tab, by the key of the root it is under. */
 export const fileTabId = (key: string, rel: string) => `file/${key}/${rel}`
 
-/** A session's tab in its project. */
-export const sessionTabHref = (projectKey: string, mid: string, paneId: string, terminal = false): To => ({
+/** A session's tab in its project, in its terminal or, not saying, the view it was last looked at in. */
+export const sessionTabHref = (
+  projectKey: string,
+  mid: string,
+  paneId: string,
+  terminal = inTerminalLast(paneKey(mid, paneId)),
+): To => ({
   pathname: projectHref(projectKey),
   search: withTab(withTerminal('', terminal), sessionTabId(mid, paneId)),
 })

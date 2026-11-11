@@ -3,11 +3,12 @@
 // it mean there. The terminal attaches once first shown and stays while the chat is.
 
 import { lazy, type ReactNode, Suspense, useCallback, useState } from 'react'
+import { rememberView } from '../../core/prefs'
 import { usePaneSession } from '../../core/session-records'
 import { useFilesRoots } from '../../core/worktrees'
 import { CHAT_AGENTS } from '../../model/agents'
 import { rootHolding } from '../../model/files/worktrees'
-import type { Found } from '../../model/projects'
+import { type Found, paneKey } from '../../model/projects'
 import type { Via } from '../../model/space'
 import { Chat } from './chat'
 import { PathRoot, ShowTerminal } from './context'
@@ -48,7 +49,16 @@ export function SessionView({
   const cwd = 'session' in pane ? (pane.session.cwd ?? project.path) : pane.shell.cwd
   // A pane just started is listed as a shell until its agent is made out.
   const shown: View = agent && !terminal ? 'chat' : 'terminal'
-  const showTerminal = useCallback(() => onShow('terminal'), [onShow])
+  // The view the user turns to is the one the session opens in next time, wherever it is opened.
+  const isAgent = agent !== undefined
+  const show = useCallback(
+    (view: View) => {
+      if (isAgent) rememberView(paneKey(mid, paneId), view === 'terminal')
+      onShow(view)
+    },
+    [isAgent, mid, paneId, onShow],
+  )
+  const showTerminal = useCallback(() => show('terminal'), [show])
   // The terminal, once shown, stays attached behind the chat.
   const [attached, setAttached] = useState(shown === 'terminal')
   if (shown === 'terminal' && !attached) setAttached(true)
@@ -63,7 +73,7 @@ export function SessionView({
         <Subbar
           pane={pane}
           branch={branch}
-          view={agent ? { shown, onShow } : undefined}
+          view={agent ? { shown, onShow: show } : undefined}
           tools={agent ? <LoopButton mid={mid} paneId={paneId} project={project.path} /> : undefined}
           facts={
             <PaneFacts mid={mid} project={project} pane={pane} via={shown === 'terminal' ? via : 'calls'} />

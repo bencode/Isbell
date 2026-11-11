@@ -8,8 +8,17 @@ import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { IconButton } from '../../components/icon-button'
 import { errorText, useI18n } from '../../core/i18n'
+import { inTerminalLast } from '../../core/prefs'
 import { useProjects, useSpace, useSpaceView } from '../../core/space'
-import { type Found, lanes, locate, nextNeeding, type Placed, type Project } from '../../model/projects'
+import {
+  type Found,
+  lanes,
+  locate,
+  nextNeeding,
+  type Placed,
+  type Project,
+  paneKey,
+} from '../../model/projects'
 import { projectsSettled } from '../../model/space'
 import { type Peek as Peeked, peekOf, sessionTabId, tabOf, withPeek } from '../../model/tabs'
 import { isTab, sessionTabHref } from './tab-kinds'
@@ -28,9 +37,11 @@ export function usePeek() {
     (to: Peeked | null) => navigate({ pathname, search: withPeek(search, to) }, { replace: true }),
     [navigate, pathname, search],
   )
-  /** Looks at a session, unless it is the tab on screen: that one shows the view asked for. */
-  const open = ({ session: { mid, paneId }, project }: Placed, terminal: boolean) => {
-    if (tabOf(search, isTab) !== sessionTabId(mid, paneId)) go({ mid, paneId, terminal })
+  /** Looks at a session, in the view asked for or else the one it was last looked at in, unless it is
+   * the tab on screen: that one shows its terminal if asked for. */
+  const open = ({ session: { mid, paneId }, project }: Placed, terminal?: boolean) => {
+    if (tabOf(search, isTab) !== sessionTabId(mid, paneId))
+      go({ mid, paneId, terminal: terminal ?? inTerminalLast(paneKey(mid, paneId)) })
     else if (terminal) navigate(sessionTabHref(project.key, mid, paneId, true), { replace: true })
     else if (peekOf(search)) go(null)
   }
@@ -86,7 +97,12 @@ function Looking({ peek, found, go }: { peek: Peeked; found: Found; go: (to: Pee
             size="small"
             disabled={!other}
             onClick={() =>
-              other && go({ mid: other.mid, paneId: other.paneId, terminal: other.status === 'blocked' })
+              other &&
+              go({
+                mid: other.mid,
+                paneId: other.paneId,
+                terminal: other.status === 'blocked' || inTerminalLast(paneKey(other.mid, other.paneId)),
+              })
             }
           >
             <SkipForward {...SMALL} />

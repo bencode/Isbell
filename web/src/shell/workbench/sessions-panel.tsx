@@ -11,7 +11,7 @@ import { IconButton } from '../../components/icon-button'
 import type { MenuItem } from '../../components/menu'
 import { errorText, useI18n } from '../../core/i18n'
 import { changeLoops, useLoops } from '../../core/loops'
-import { toggleEarlier, useLocal } from '../../core/prefs'
+import { rememberView, toggleEarlier, useLocal } from '../../core/prefs'
 import { useSessionRecords } from '../../core/session-records'
 import { useProjects, useSpace, useSpaceView } from '../../core/space'
 import { useTabActions, useTabRoute } from '../../core/tabs'
@@ -21,7 +21,7 @@ import { SessionRow } from '../../features/session/session-row'
 import { SessionTime } from '../../features/session/session-time'
 import { type FilesRoot, rootHolding } from '../../model/files/worktrees'
 import { endedLoops, type Loop, loopOf } from '../../model/loops'
-import type { Project, Session } from '../../model/projects'
+import { type Project, paneKey, type Session } from '../../model/projects'
 import { matches, type SessionLine, sessionKey } from '../../model/sessions'
 import { machineOf } from '../../model/space'
 import type { AgentStatus } from '../../model/state'
@@ -205,10 +205,13 @@ export function SessionsPanel({ projectKey }: { projectKey: string }) {
   const { able, loops } = useLoops(project?.mid ?? '')
   const { roots } = useFilesRoots(project)
   const records = useSessionRecords(project)
-  const { shown } = useTabRoute()
+  const { shown, open: tabs } = useTabRoute()
   const { href, keep, close } = useTabActions()
   const navigate = useNavigate()
-  const { earlierOpen } = useLocal().layout
+  const {
+    layout: { earlierOpen },
+    terminalViews,
+  } = useLocal()
   const now = useNow()
   const [query, setQuery] = useState('')
   const [ending, setEnding] = useState<Row>()
@@ -246,6 +249,15 @@ export function SessionsPanel({ projectKey }: { projectKey: string }) {
     projects.filter(p => p.mid === project.mid).flatMap(p => p.sessions.map(s => s.paneId)),
   )
   const ended = able && herdrKnows && !needle ? endedLoops(loops, project.path, agents) : []
+  // An agent's tab opens in the view it was last looked at in; one open shows as it was left.
+  const viewKey = (r: Row) => paneKey(project.mid, r.paneId)
+  const ownQuery = (r: Row) =>
+    r.query ??
+    (tabs.some(tab => tab.id === r.id) ? undefined : withTerminal('', terminalViews[viewKey(r)] === true))
+  const openInTerminal = (r: Row) => {
+    rememberView(viewKey(r), true)
+    navigate(href(r.id, withTerminal('', true)))
+  }
   const paneRow = (r: Row) => (
     <PaneRow
       key={r.id}
@@ -254,8 +266,8 @@ export function SessionsPanel({ projectKey }: { projectKey: string }) {
       now={now}
       looping={able && loopOf(loops, r.paneId)?.enabled}
       needle={needle}
-      link={row(r.id, r.query)}
-      onTerminal={r.agent ? () => navigate(href(r.id, withTerminal('', true))) : undefined}
+      link={row(r.id, ownQuery(r))}
+      onTerminal={r.agent ? () => openInTerminal(r) : undefined}
       onEnd={() => setEnding(r)}
     />
   )

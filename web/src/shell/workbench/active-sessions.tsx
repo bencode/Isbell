@@ -122,7 +122,7 @@ export function ActiveSessions() {
       now,
       peeking: peek?.mid === mid && peek.paneId === paneId,
       sharedName: shared.has(placed.project.configured ? placed.project.name : placed.project.display),
-      onOpen: (terminal: boolean) => open(placed, terminal),
+      onOpen: (terminal?: boolean) => open(placed, terminal),
     }
   }
   const cards = (list: Placed[]) => list.map(p => <ActiveCard key={keyOf(p)} {...propsOf(p)} />)

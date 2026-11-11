@@ -18,7 +18,8 @@ type Props = {
   peeking: boolean
   /** Its project's name is that of a project on another machine too. */
   sharedName: boolean
-  onOpen: (terminal: boolean) => void
+  /** Opens it in its terminal, or, not saying, in the view it was last looked at in. */
+  onOpen: (terminal?: boolean) => void
 }
 
 /** A machine's name without its owner's (`bencodes-Mac-mini` is `Mac-mini`). */
@@ -66,7 +67,7 @@ export function ActiveCard({ placed, now, peeking, sharedName, onOpen }: Props) 
       </div>
       <button
         type="button"
-        onClick={() => onOpen(false)}
+        onClick={() => onOpen()}
         className="line-clamp-2 w-full cursor-pointer border-0 bg-transparent p-0 text-left leading-[1.35] font-semibold text-text outline-none after:absolute after:inset-0 after:rounded-[8px] focus-visible:after:outline-2 focus-visible:after:outline-accent"
       >
         {title}
@@ -102,7 +103,7 @@ export function StandingRow({ placed, now, peeking, sharedName, onOpen }: Props)
   return (
     <button
       type="button"
-      onClick={() => onOpen(false)}
+      onClick={() => onOpen()}
       className={`flex h-7 w-full flex-none cursor-pointer items-center gap-2 rounded-md border-0 px-2 text-left text-[12.5px] text-muted transition-colors duration-75 hover:bg-hover hover:text-text focus-visible:outline-2 focus-visible:outline-accent ${peeking ? 'bg-selected' : 'bg-transparent'}`}
     >
       <AgentMark mark={markOf(session)} />

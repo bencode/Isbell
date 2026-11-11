@@ -52,7 +52,8 @@ function Choices({ onClose }: { onClose: () => void }) {
       ]
   const go = (placed: Placed) => {
     onClose()
-    open(placed, placed.session.status === 'blocked')
+    // One that asks opens where it is answered.
+    open(placed, placed.session.status === 'blocked' || undefined)
   }
 
   return (
