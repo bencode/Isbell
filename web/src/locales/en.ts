@@ -408,6 +408,7 @@ export const en = {
   'voice.denied': 'The microphone is not allowed',
   'voice.empty': 'Nothing was heard',
   'voice.limited': 'Too many recordings; wait a minute',
+  'voice.usedUp': "Today's voice input is used up; it is back tomorrow",
   'voice.keyHint': 'Tap {key} to speak',
   'voice.again': 'Tap {key} to finish',
   'upload.attach': 'Attach files',

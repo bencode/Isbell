@@ -58,7 +58,9 @@ export function useVoice(onText: (text: string) => void) {
       const reply: Reply = res.headers.get('content-type')?.includes('json')
         ? await res.json()
         : { error: `${res.status} ${res.statusText}` }
-      if (res.status === 429) setError(t('voice.limited'))
+      // Over the minute's recordings, or the day's minutes: told apart by how long to wait.
+      if (res.status === 429)
+        setError(t(Number(res.headers.get('retry-after')) > 60 ? 'voice.usedUp' : 'voice.limited'))
       else if ('error' in reply) setError(t('error.unknown', { msg: reply.error }))
       else if (!reply.polished) setError(t('voice.empty'))
       else onText(reply.polished)

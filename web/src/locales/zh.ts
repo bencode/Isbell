@@ -403,6 +403,7 @@ export const zh: Record<Key, string> = {
   'voice.denied': '没有麦克风权限',
   'voice.empty': '没有听到内容',
   'voice.limited': '录音太频繁了，稍等一分钟',
+  'voice.usedUp': '今天的语音额度用完了，明天再来',
   'voice.keyHint': '按 {key} 说话',
   'voice.again': '再按 {key} 结束',
   'upload.attach': '添加文件',
