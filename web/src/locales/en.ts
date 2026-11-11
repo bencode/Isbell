@@ -314,7 +314,9 @@ export const en = {
   'facts.dir': 'Directory',
   'facts.agent': 'Agent',
   'facts.pane': 'Pane',
-  'facts.attach': 'To work in it by hand from your own terminal:',
+  'facts.attach': 'To work in it from your own terminal:',
+  'facts.attachNote':
+    'It takes the terminal over: a page showing it lets go, and Reconnect there takes it back. Leave out --control --takeover to only watch. Ctrl+] detaches.',
   'facts.title': 'Title',
   'info.session': 'Session',
   'info.terminal': 'Terminal',

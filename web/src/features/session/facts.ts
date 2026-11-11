@@ -11,9 +11,9 @@ import { shellArg } from '../../utils/shell'
 import { since } from '../../utils/time'
 
 /** How to reach a pane by hand: an agent by its name in herdr, a shell or an agent without one by its
- * pane. */
+ * pane. It takes the pane over, since herdr lets one client hold it and the page showing this may. */
 export const attachCommand = (project: Project, pane: Pane) =>
-  `isbell terminal attach --control ${shellArg(
+  `isbell terminal attach --control --takeover ${shellArg(
     `${project.machine}/${'session' in pane ? (pane.session.herdrName ?? pane.session.paneId) : pane.shell.paneId}`,
   )}`
 
