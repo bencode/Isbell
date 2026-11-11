@@ -8,7 +8,7 @@ struct RootView: View {
         case .join(let rejected):
             NavigationStack { WelcomeView(rejected: rejected) }
         case .joined(let store):
-            ConnectedView(store: store)
+            MainTabs().environment(store)
         }
     }
 }
