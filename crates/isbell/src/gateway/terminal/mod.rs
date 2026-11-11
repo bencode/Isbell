@@ -125,7 +125,7 @@ async fn first_event(
     // Reading why herdr failed counts too: it may close stdout but keep stderr open.
     let first = async {
         match stdout.next_line().await {
-            Ok(Some(line)) => parse_line(&line).map_err(herdr_error),
+            Ok(Some(line)) => parse_line(&line).map_err(herdr_error).and_then(refused),
             Ok(None) => {
                 let mut message = String::new();
                 if let Err(err) = stderr.read_to_string(&mut message).await {
@@ -139,4 +139,31 @@ async fn first_event(
     tokio::time::timeout(FIRST_FRAME_WITHIN, first)
         .await
         .unwrap_or_else(|_| Err(RpcError::new("timeout", "herdr sent no terminal frame")))
+}
+
+/// herdr refuses a session, such as one for a pane another client holds, by closing it at once;
+/// its reason fails the open.
+fn refused(first: Event) -> Result<Event, RpcError> {
+    match first {
+        Event::Closed(reason) => Err(RpcError::new(
+            "terminal_failed",
+            reason.unwrap_or_else(|| "herdr closed the terminal".into()),
+        )),
+        frame @ Event::Frame { .. } => Ok(frame),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_session_closed_at_once_fails_the_open_with_herdrs_reason() {
+        let held = r#"{"type":"terminal.closed","reason":"terminal attach failed: terminal t1 already has an attached client; retry with --takeover"}"#;
+        let err = parse_line(held).map_err(herdr_error).and_then(refused).unwrap_err();
+        assert_eq!(err.code, "terminal_failed");
+        assert!(err.msg.ends_with("retry with --takeover"));
+        let frame = r#"{"type":"terminal.frame","width":80,"height":24,"bytes":""}"#;
+        assert!(parse_line(frame).map_err(herdr_error).and_then(refused).is_ok());
+    }
 }

@@ -25,7 +25,7 @@ pub async fn pump(
     mut input: mpsc::Receiver<Input>,
     mut emit: impl FnMut(Output),
 ) {
-    let first = std::mem::replace(&mut session.first, Event::Closed);
+    let first = std::mem::replace(&mut session.first, Event::Closed(None));
     let Some(mut out) = on_herdr(Coalescer::default(), Ok(first), &mut emit) else { return };
     let mut last_client = Instant::now();
     let mut idle_check = tokio::time::interval(IDLE_CHECK_EVERY);
