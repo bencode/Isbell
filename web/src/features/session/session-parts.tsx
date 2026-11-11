@@ -160,7 +160,12 @@ export function PaneFacts({
           ? [connectionFacts(t, { via, relay: { url: RELAY_URL, status: view.status }, ...link })]
           : []),
       ]}
-      command={{ label: t('facts.attach'), text: attachCommand(project, pane) }}
+      command={{
+        label: t('facts.attach'),
+        text: attachCommand(project, pane),
+        note: t('facts.attachNote'),
+        copy: { copy: t('copy'), copied: t('copied') },
+      }}
     />
   )
 }

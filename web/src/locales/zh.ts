@@ -309,7 +309,9 @@ export const zh: Record<Key, string> = {
   'facts.dir': '目录',
   'facts.agent': 'Agent',
   'facts.pane': 'Pane',
-  'facts.attach': '想在自己的终端里直接操作：',
+  'facts.attach': '在自己的终端里操作它：',
+  'facts.attachNote':
+    '会接管这个终端：正开着它的网页会断开，在那边点「重连」可以拿回来。去掉 --control --takeover 就只看不操作。按 Ctrl+] 退出。',
   'facts.title': '标题',
   'info.session': 'Session',
   'info.terminal': '终端',
