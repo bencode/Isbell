@@ -57,8 +57,9 @@ public final class Router {
             streams[id]?.events.data(frame.body ?? Data())
         case .end(let id, let e, _):
             streams.removeValue(forKey: id)?.events.end(e)
+        case .credit(let id, let n, _):
+            streams[id]?.events.credit(Int(n))
         default:
-            // Credit is for streams this side writes, which come later.
             break
         }
     }
@@ -72,8 +73,8 @@ public final class Router {
         ended.values.forEach { $0.events.end(RpcError(code: code, msg: msg)) }
     }
 
-    func streamSend(_ id: UInt64, _ header: Header) {
-        if streams[id] != nil { send(Frame(header: header)) }
+    func streamSend(_ id: UInt64, _ header: Header, body: Data? = nil) {
+        if streams[id] != nil { send(Frame(header: header, body: body)) }
     }
 
     func streamClose(_ id: UInt64, _ header: Header) {
