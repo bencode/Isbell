@@ -6,10 +6,10 @@ import { type IBufferLine, type ILinkProvider, type ITheme, Terminal as XTerm } 
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useSpace } from '../../core/space'
-import type { Mention, Piece } from '../../model/files/mentions'
+import type { Mention } from '../../model/files/mentions'
 import type { Via } from '../../model/space'
 import { type BarKey, barKeyBytes } from '../../model/term-keys'
-import { type Cell, lineAround, lineLinks } from '../../model/term-links'
+import { type Cell, type FindPaths, lineAround, lineLinks } from '../../model/term-links'
 import { cellAt, turnWheel, wheelReport } from '../../model/term-wheel'
 import { openTerminal, type Terminal } from '../../model/terminal'
 import { PHONE } from '../../utils/phone'
@@ -66,7 +66,7 @@ const NIGHT: ITheme = {
 const MIN_CONTRAST = 3
 
 /** How the paths on the screen are found, and opened, where the pane's project is known. */
-type Links = { find: (text: string) => Piece[]; open: (mention: Mention) => void }
+type Links = { find: FindPaths; open: (mention: Mention) => void }
 
 const cellsOf = (line: IBufferLine, cols: number): Cell[] =>
   Array.from({ length: cols }, (_, x) => {
@@ -74,29 +74,30 @@ const cellsOf = (line: IBufferLine, cols: number): Cell[] =>
     return { chars: cell?.getChars() ?? '', width: cell?.getWidth() ?? 1 }
   })
 
-/** The paths on the buffer's row `y`, counted from 1 as the buffer's rows are not. */
-function linksOn(term: XTerm, find: Links['find'], y: number) {
+/** The links on the buffer's row `y`, counted from 1 as the buffer's rows are not. */
+function linksOn(term: XTerm, paths: FindPaths | undefined, y: number) {
   const rowAt = (row: number) => {
     const line = term.buffer.active.getLine(row - 1)
     return line && cellsOf(line, term.cols)
   }
   const { rows, firstY } = lineAround(rowAt, y)
-  return lineLinks(rows, firstY, find).filter(link => link.start.y <= y && y <= link.end.y)
+  return lineLinks(rows, firstY, paths).filter(link => link.start.y <= y && y <= link.end.y)
 }
 
-/** The paths on the screen as links that open as they do in chat: at a tap on a phone, elsewhere
- * with ⌘ or Ctrl held, so that a click or a double click still selects. */
-function pathLinks(term: XTerm, links: RefObject<Links | null>): ILinkProvider {
+/** The web addresses on the screen, and its paths where the pane's project is known, as links that
+ * open as they do in chat: at a tap on a phone, elsewhere with ⌘ or Ctrl held, so that a click or a
+ * double click still selects. An address opens in a new tab. */
+function termLinks(term: XTerm, links: RefObject<Links | null>): ILinkProvider {
   return {
     provideLinks(y, callback) {
-      const found = links.current
-      if (!found) return callback(undefined)
       callback(
-        linksOn(term, found.find, y).map(({ mention, start, end }) => ({
+        linksOn(term, links.current?.find, y).map(({ target, start, end }) => ({
           range: { start, end },
-          text: mention.text,
+          text: target.text,
           activate: event => {
-            if (PHONE || event.metaKey || event.ctrlKey) found.open(mention)
+            if (!(PHONE || event.metaKey || event.ctrlKey)) return
+            if (target.kind === 'url') window.open(target.url, '_blank', 'noopener,noreferrer')
+            else links.current?.open(target.mention)
           },
         })),
       )
@@ -169,7 +170,7 @@ export function useTerminal(
     term.open(host)
     fit.fit()
     if (takesKeys) term.focus()
-    const linking = term.registerLinkProvider(pathLinks(term, links))
+    const linking = term.registerLinkProvider(termLinks(term, links))
     xterm.current = term
     setState({ phase: 'opening' })
 
