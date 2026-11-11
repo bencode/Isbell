@@ -9,6 +9,7 @@ import { Button } from '../../components/button'
 import { errorText, useI18n } from '../../core/i18n'
 import { useSpaceView } from '../../core/space'
 import { useTerminal } from '../../features/session/use-terminal'
+import { useVoice, VoicePill } from '../../features/session/voice'
 import type { Via } from '../../model/space'
 import { KeyBar } from './key-bar'
 
@@ -88,7 +89,9 @@ export function PhoneTerminal({
   // The home indicator is under the page only while the keyboard is down.
   const keyboard = !!area && area.top + area.height < window.innerHeight - 1
   const box = useRef<HTMLDivElement>(null)
-  const { state, reconnect, press, toggleKeyboard } = useTerminal(box, mid, paneId, false)
+  const { state, reconnect, press, toggleKeyboard, paste } = useTerminal(box, mid, paneId, false)
+  // What is said is pasted at the cursor; Enter sends it.
+  const voice = useVoice(paste)
   const waiting = useReattach(state.phase, state.error !== undefined, reconnect)
   useEffect(() => onVia(state.via), [onVia, state.via])
   const ended = state.phase === 'ended' && !waiting
@@ -101,6 +104,7 @@ export function PhoneTerminal({
       {bar}
       <div className="relative min-h-0 flex-1 overflow-hidden px-2 py-1.5">
         <div ref={box} className="h-full w-full bg-term" />
+        <VoicePill voice={voice} className="absolute bottom-2 left-1/2 -translate-x-1/2" />
         {state.phase !== 'open' && !ended ? (
           <p className="absolute inset-0 m-0 grid place-items-center font-mono text-xs text-faint">
             {t('terminal.opening')}
@@ -119,7 +123,16 @@ export function PhoneTerminal({
         ) : null}
       </div>
       <div className={`flex-none bg-[#161c27] ${keyboard ? '' : 'pb-[env(safe-area-inset-bottom)]'}`}>
-        <KeyBar live={state.phase === 'open'} keyboard={keyboard} onKeyboard={toggleKeyboard} onKey={press} />
+        {voice.error ? (
+          <p className="m-0 truncate px-3 pt-1.5 font-mono text-xs text-[#ff8a80]">{voice.error}</p>
+        ) : null}
+        <KeyBar
+          live={state.phase === 'open'}
+          keyboard={keyboard}
+          onKeyboard={toggleKeyboard}
+          onKey={press}
+          voice={voice.available ? voice : undefined}
+        />
       </div>
     </div>
   )

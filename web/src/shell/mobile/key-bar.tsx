@@ -5,6 +5,7 @@
 import { Keyboard } from 'lucide-react'
 import type { MouseEvent, ReactNode } from 'react'
 import { useI18n } from '../../core/i18n'
+import { VOICE_LABEL, VoiceIcon, type VoiceState } from '../../features/session/voice'
 import type { BarKey } from '../../model/term-keys'
 
 type Key = { key: BarKey; label: ReactNode; aria?: string }
@@ -35,17 +36,20 @@ const ENTER = 'w-12! border-[#8fb0ff]! bg-[#8fb0ff]! text-[17px] font-bold text-
 // Focus stays where it is, so the system keyboard stays as it is.
 const keepFocus = (e: MouseEvent) => e.preventDefault()
 
-/** `keyboard`: the system keyboard is up. `live`: the terminal is connected, so a key would arrive. */
+/** `keyboard`: the system keyboard is up. `live`: the terminal is connected, so a key would arrive.
+ * `voice`: voice input, when there is a speech service. */
 export function KeyBar({
   live,
   keyboard,
   onKeyboard,
   onKey,
+  voice,
 }: {
   live: boolean
   keyboard: boolean
   onKeyboard: () => void
   onKey: (key: BarKey) => void
+  voice?: { state: VoiceState; toggle: () => void } | undefined
 }) {
   const t = useI18n()
   const button = ({ key, label, aria }: Key, extra = '') => (
@@ -67,6 +71,18 @@ export function KeyBar({
         {SCROLLED.map(k => button(k))}
       </div>
       <div className="ml-1.5 flex flex-none gap-1 border-l border-[#2c3546] pl-1.5">
+        {voice ? (
+          <button
+            type="button"
+            disabled={voice.state === 'working' || (voice.state === 'idle' && !live)}
+            onMouseDown={keepFocus}
+            onClick={voice.toggle}
+            aria-label={t(VOICE_LABEL[voice.state])}
+            className={`${KEY} ${voice.state === 'recording' ? 'border-[#ff8a80]! text-[#ff8a80]!' : ''}`}
+          >
+            <VoiceIcon state={voice.state} size={18} />
+          </button>
+        ) : null}
         <button
           type="button"
           disabled={!live}
