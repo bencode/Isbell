@@ -1,0 +1,260 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "%lld agents": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld agent"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld agents"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个 agent"
+          }
+        }
+      }
+    },
+    "A space key starts with isbk1-.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空间密钥以 isbk1- 开头。"
+          }
+        }
+      }
+    },
+    "Connect your machines": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连上你的机器"
+          }
+        }
+      }
+    },
+    "Connected": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已连接"
+          }
+        }
+      }
+    },
+    "Connecting…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在连接…"
+          }
+        }
+      }
+    },
+    "Could not save the key on this iPhone.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法在这台 iPhone 上保存密钥。"
+          }
+        }
+      }
+    },
+    "Isbell": {
+      "shouldTranslate": false
+    },
+    "Join": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加入"
+          }
+        }
+      }
+    },
+    "Leave Space": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出空间"
+          }
+        }
+      }
+    },
+    "Leave this space?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出这个空间？"
+          }
+        }
+      }
+    },
+    "No machines in this space yet": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个空间里还没有机器"
+          }
+        }
+      }
+    },
+    "No space yet? How to install": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还没有空间？看安装说明"
+          }
+        }
+      }
+    },
+    "Offline": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "离线"
+          }
+        }
+      }
+    },
+    "Online": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在线"
+          }
+        }
+      }
+    },
+    "Paste Key": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "粘贴密钥"
+          }
+        }
+      }
+    },
+    "Paste the key printed by `isbell space show` on any of your machines.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "粘贴任意一台机器上 `isbell space show` 打印的密钥。"
+          }
+        }
+      }
+    },
+    "Reconnecting…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在重连…"
+          }
+        }
+      }
+    },
+    "Run `isbell gateway` on a machine to bring it here.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在机器上运行 `isbell gateway`，它就会出现在这里。"
+          }
+        }
+      }
+    },
+    "That is not a whole key. Check for a missing character.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这不是一个完整的密钥，请检查是否少了字符。"
+          }
+        }
+      }
+    },
+    "That key failed its checksum. Check for a mistyped character.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密钥校验没通过，请检查是否有字符打错。"
+          }
+        }
+      }
+    },
+    "The key is complete.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密钥完整。"
+          }
+        }
+      }
+    },
+    "The key is removed from this iPhone. You can join again with the same key.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密钥会从这台 iPhone 上删除。之后可以用同一个密钥重新加入。"
+          }
+        }
+      }
+    },
+    "The key stays in this iPhone's Keychain and on your machines. There is no account.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密钥只存在这台 iPhone 的钥匙串和你的机器上，没有账号。"
+          }
+        }
+      }
+    },
+    "The relay did not accept this key.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "relay 没有接受这个密钥。"
+          }
+        }
+      }
+    },
+    "isbk1-…": {
+      "shouldTranslate": false
+    }
+  },
+  "version": "1.0"
+}
