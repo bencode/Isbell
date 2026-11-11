@@ -41,6 +41,7 @@ struct SessionView: View {
             }
         }
         .background(Color(.systemGroupedBackground))
+        .safeAreaInset(edge: .top) { Reconnecting(status: store.space.status) }
         .navigationTitle(placed.map(placedTitle) ?? "")
         .navigationSubtitle(Text(verbatim: placed.map(placedWhere) ?? ""))
         .navigationBarTitleDisplayMode(.inline)
@@ -78,6 +79,27 @@ struct SessionView: View {
             guard phase == .active else { return }
             if session.status == .done { store.prefs.markSeen(session.id, at: session.statusSince) }
             await model.follow(store.space, session: session, project: placed.project)
+        }
+    }
+}
+
+/// While the relay connection is down: what is read stays, and nothing new comes until it is back.
+private struct Reconnecting: View {
+    let status: ConnStatus
+
+    var body: some View {
+        if status == .connecting || status == .reconnecting {
+            Label {
+                Text(status == .connecting ? "Connecting…" : "Reconnecting…")
+            } icon: {
+                ProgressView().controlSize(.mini)
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(.bar, in: .capsule)
+            .padding(.top, 4)
         }
     }
 }

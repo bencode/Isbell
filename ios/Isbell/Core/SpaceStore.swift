@@ -1,13 +1,26 @@
 // One space as the screens see it: what IsbellKit's Space knows, made into projects and lanes with
 // what this iPhone remembers. While the app is in front, the machines' panes are pulled again every
-// 15 s, as the web does; a network that comes back reconnects at once. Direct links are closed when
-// the app goes behind or the network changes, and set up again by the next call.
+// 15 s, as the web does. Coming back to the front or onto a network of another kind, the relay
+// connection is checked and dialed again if it is gone. Direct links are closed when the app goes
+// behind and set up again by the next call; a network of another kind also forgets their failures.
 
 import Foundation
 import IsbellKit
 import IsbellRTC
 import Network
 import Observation
+import os
+
+/// The kind of network the phone is on; a change between kinds, not within one (LTE to 5G), is a
+/// new network.
+private enum NetKind: String {
+    case wifi, cellular, wired, other
+
+    nonisolated init(_ path: NWPath) {
+        let kinds: [(NWInterface.InterfaceType, NetKind)] = [(.wifi, .wifi), (.cellular, .cellular), (.wiredEthernet, .wired)]
+        self = kinds.first { path.usesInterfaceType($0.0) }?.1 ?? .other
+    }
+}
 
 @Observable
 final class SpaceStore {
@@ -22,7 +35,9 @@ final class SpaceStore {
     @ObservationIgnored private var active = false
     @ObservationIgnored private var closed = false
     @ObservationIgnored private let monitor = NWPathMonitor()
-    // The first path the monitor reports is the one at start, not a change.
+    /// The network the phone is on, nil while there is none or none was reported yet.
+    @ObservationIgnored private var netKind: NetKind?
+    // The first network the monitor reports is the one at start, not a change.
     @ObservationIgnored private var pathKnown = false
 
     init(identity: Identity, prefs: Prefs, onRejected: @escaping @MainActor () -> Void) {
@@ -45,17 +60,18 @@ final class SpaceStore {
 
     var call: Caller { space.call }
 
-    /// In front, the panes are pulled now and every 15 s; behind, not at all, and the direct links,
-    /// which iOS cuts while the app is suspended, are closed.
+    /// In front, the relay connection is checked, which iOS may have cut while the app was
+    /// suspended, and the panes are pulled now and every 15 s; behind, not at all, and the direct
+    /// links, which iOS cuts too, are closed.
     func setActive(_ on: Bool) {
         active = on
         ticking?.cancel()
         ticking = nil
         guard on else {
-            space.resetDirect()
+            space.closeDirect()
             return
         }
-        space.reconnectNow()
+        space.probeRelay()
         ticking = Task { [weak self] in
             repeat {
                 guard let self else { return }
@@ -84,18 +100,24 @@ final class SpaceStore {
 
     private func watchNetwork() {
         monitor.pathUpdateHandler = { [weak self] path in
-            let satisfied = path.status == .satisfied
-            Task { @MainActor in self?.took(path: satisfied) }
+            let kind = path.status == .satisfied ? NetKind(path) : nil
+            Task { @MainActor in self?.took(network: kind) }
         }
         monitor.start(queue: .main)
     }
 
-    private func took(path satisfied: Bool) {
+    /// `kind`: nil for no network.
+    private func took(network kind: NetKind?) {
+        let was = netKind
+        netKind = kind
         defer { pathKnown = true }
-        guard pathKnown, satisfied else { return }
+        guard pathKnown, let kind, kind != was else { return }
+        logger.info("network is now \(kind.rawValue)")
         // Links on the old network no longer carry, and one that failed there may work on this one.
         space.resetDirect()
-        space.reconnectNow()
+        space.probeRelay()
         if active { Task { await space.refreshShells() } }
     }
 }
+
+private let logger = Logger(subsystem: "dev.fmap.isbell", category: "network")
