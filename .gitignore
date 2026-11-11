@@ -8,3 +8,8 @@ priv/
 
 .DS_Store
 *.log
+
+# iOS: Xcode per-user state and SwiftPM build output
+ios/**/xcuserdata/
+ios/IsbellKit/.build/
+ios/IsbellKit/.swiftpm/
