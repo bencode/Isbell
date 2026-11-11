@@ -83,7 +83,7 @@ public final class Space {
     }
 
     /// Opens a stream on machine `mid`, over its direct link when one is open or opens in time.
-    private var open: Opener {
+    public var open: Opener {
         { [weak self] mid, m, p, timeout, events async throws(CallError) in
             guard let self else { throw CallError(code: "disconnected", msg: "not connected to the relay") }
             if let opening = links.to(mid), let link = await within(directWait, opening) {
