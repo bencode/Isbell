@@ -1,4 +1,4 @@
-// Sharing a page by link, from its bar: first what the link opens and for how long, then the link,
+// Sharing a file by link, from its bar: first what the link opens and for how long, then the link,
 // how long it has left, and how to stop it. While shared, the mark stays in the bar.
 
 import { Popover } from '@base-ui/react/popover'
@@ -42,7 +42,7 @@ export function ShareButton({ mid, root, rel }: ShareTarget) {
           share ? (
             <button
               type="button"
-              className="mr-1 inline-flex h-[22px] flex-none cursor-pointer items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-2.5 text-xs font-medium text-accent"
+              className="ml-1 inline-flex h-[22px] flex-none cursor-pointer items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-2.5 text-xs font-medium text-accent"
             >
               <span className="size-[7px] rounded-full bg-accent" />
               {t('share.sharing')}

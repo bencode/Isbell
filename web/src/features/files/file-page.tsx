@@ -1,6 +1,7 @@
 // What every file view shares: a bar saying what the file is and when it changed, with the
-// view's own tools and the ones every file has (read again, download); the scroll its tab had, for
-// the views (which scroll themselves) to go back to; and the notice for a file that is not shown.
+// view's own tools and the ones every file has (read again, download, share); the scroll its tab
+// had, for the views (which scroll themselves) to go back to; and the notice for a file that is not
+// shown.
 
 import { Download, RotateCw } from 'lucide-react'
 import { createContext, type ReactNode, useContext } from 'react'
@@ -10,7 +11,7 @@ import { useI18n } from '../../core/i18n'
 import { formatSize } from '../../model/files/content'
 import type { FileRead } from '../../model/files/remote'
 import { since, useNow } from '../../utils/time'
-import type { ShareTarget } from './share-button'
+import { ShareButton, type ShareTarget } from './share-button'
 
 /** Marks a tool that is on. */
 export const TOOL_ON = 'aria-pressed:bg-selected aria-pressed:text-text'
@@ -27,6 +28,8 @@ export type FileShell = {
   again: () => void
   download: () => void
   saveError: string | undefined
+  /** The file, for sharing it by link. */
+  share: ShareTarget
 }
 
 /** What a view of one kind of text file is given. */
@@ -39,10 +42,8 @@ export type FileViewProps = {
   /** Reads a file under the root (root-relative), for the documents that show more than themselves:
    * a document's images, a page's files. */
   asset: (rel: string) => Promise<Blob>
-  /** The file alone in a browser tab of its own. */
-  apartHref: string
-  /** The file, for sharing it by link. */
-  share: ShareTarget
+  /** The file alone in a browser tab of its own, where it can be. */
+  apartHref?: string | undefined
 }
 
 export function FilePage({
@@ -68,6 +69,7 @@ export function FilePage({
         <IconButton label={t('files.download')} size="small" onClick={shell.download}>
           <Download {...SMALL_ICON} />
         </IconButton>
+        <ShareButton {...shell.share} />
       </header>
       {shell.saveError ? (
         <p className="m-0 px-3 py-1.5 text-[12.5px] text-danger">{shell.saveError}</p>

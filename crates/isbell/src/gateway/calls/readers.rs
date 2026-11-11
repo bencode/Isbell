@@ -1,6 +1,7 @@
-//! What a shared file's readers reach: files under the share's root, read, and nothing else. Anyone
-//! with the link can send frames here, so calls are allowed by name, and which file is read is
-//! decided by `file::scoped`, never by the path as asked.
+//! What a shared file's readers reach: files under the share's root, read, and nothing else. To
+//! them the root is `/`, so they read as they would on their own machine. Anyone with the link can
+//! send frames here, so calls are allowed by name, and which file is read is decided by
+//! `file::scoped`, never by the path as asked.
 
 use std::path::PathBuf;
 
@@ -73,7 +74,7 @@ impl Readers {
         }
     }
 
-    /// Reads the file the caller names, relative to the root, once `file::scoped` allows it.
+    /// Reads the file the caller names under the root, once `file::scoped` allows it.
     fn read(&mut self, link: Link, id: u64, mut p: Value) {
         let slot = match register(&self.streams, (link.key().to_owned(), id), MAX_READS) {
             Ok(slot) => slot,
@@ -81,7 +82,8 @@ impl Readers {
         };
         let root = self.root.clone();
         let open = async move {
-            let rel = p["path"].as_str().ok_or_else(|| RpcError::bad_request("path is missing"))?;
+            let path = p["path"].as_str().and_then(|path| path.strip_prefix('/'));
+            let rel = path.ok_or_else(|| RpcError::bad_request("path must start with /"))?;
             let path = file::scoped(&root, rel)?;
             p["path"] = json!(path.to_string_lossy());
             file::open_read(p).await

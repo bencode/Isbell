@@ -24,15 +24,15 @@ if (!root) throw new Error('index.html has no #root')
 createRoot(root).render(
   <StrictMode>
     <I18nProvider messages={messages}>
-      {sharing ? (
-        <Suspense>
-          <SharePage />
-        </Suspense>
-      ) : (
-        <BrowserRouter>
+      <BrowserRouter>
+        {sharing ? (
+          <Suspense>
+            <SharePage />
+          </Suspense>
+        ) : (
           <App />
-        </BrowserRouter>
-      )}
+        )}
+      </BrowserRouter>
     </I18nProvider>
   </StrictMode>,
 )
