@@ -99,6 +99,7 @@ isbell machine probe <machine>                        # tries a direct link, sho
 isbell agent prompt <machine>/<agent> "..." --wait
 isbell terminal attach <machine>/<pane-or-agent> --control
 isbell file get <machine>:<absolute path>
+isbell file share <path> --for 1d                     # a link to read it, live, from a browser
 ```
 
 ## Privacy and how it works

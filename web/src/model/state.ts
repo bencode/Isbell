@@ -26,6 +26,15 @@ export type Agent = {
   title?: string
 }
 
+/** A file being shared by link; its key is not in state, which the relay keeps. */
+export type Share = {
+  id: string
+  /** The file, absolute. */
+  path: string
+  /** Milliseconds on the gateway's clock. */
+  expiresAt: number
+}
+
 export type MachineState = {
   machine: MachineInfo
   /** The gateway process: a higher boot means it restarted. */
@@ -34,6 +43,8 @@ export type MachineState = {
   herdr: HerdrState
   caps: Caps
   agents: Agent[]
+  /** Absent from gateways that share nothing, or cannot. */
+  shares?: Share[]
 }
 
 export const isNewer = (a: MachineState, b: MachineState): boolean =>

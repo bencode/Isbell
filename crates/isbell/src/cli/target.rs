@@ -93,6 +93,7 @@ mod tests {
                 herdr,
                 caps: Caps::default(),
                 agents: vec![],
+                shares: vec![],
             },
             true,
         )

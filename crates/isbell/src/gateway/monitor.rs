@@ -1,15 +1,17 @@
 //! Follows the local herdr server and publishes this machine's state whenever it changes. The watch
 //! channel holds the last state published; a new one is published only when it differs.
 
+use std::sync::Arc;
 use std::time::Duration;
 
-use isbell_proto::state::{Agent, HerdrState, MachineState};
+use isbell_proto::state::{Agent, HerdrState, MachineState, ShareInfo};
 use serde_json::json;
 use tokio::sync::{mpsc, watch};
 use tokio::task::JoinHandle;
 use tokio::time::Interval;
 
 use super::herdr::{self, Herdr, HerdrError};
+use super::share::Shares;
 use super::state::{Reporter, derive_agents, next_state, snapshot_agents};
 use super::{AbortOnDrop, HerdrSlot, nudge};
 use crate::now_ms;
@@ -31,20 +33,26 @@ pub async fn run(
     states: States,
     refresh: mpsc::Sender<()>,
     mut refresh_rx: mpsc::Receiver<()>,
+    shares: Arc<Shares>,
 ) {
     loop {
         match herdr::discover().await {
             Ok((herdr, herdr_state)) => {
                 *slot.write().expect("herdr slot poisoned") = Some(herdr.clone());
                 tracing::info!(version = ?herdr_state.version, "herdr connected");
-                let followed =
-                    Following { herdr: &herdr, herdr_state, reporter: &reporter, states: &states };
+                let followed = Following {
+                    herdr: &herdr,
+                    herdr_state,
+                    reporter: &reporter,
+                    states: &states,
+                    shares: &shares,
+                };
                 let err = followed.run(&refresh, &mut refresh_rx).await;
                 tracing::warn!(%err, "lost herdr");
                 *slot.write().expect("herdr slot poisoned") = None;
             }
             Err(herdr_state) => {
-                if publish(&reporter, &states, herdr_state.clone(), Vec::new()) {
+                if publish(&reporter, &states, herdr_state.clone(), Vec::new(), shares.infos()) {
                     tracing::warn!(status = ?herdr_state.status, "herdr not available");
                 }
             }
@@ -60,9 +68,10 @@ fn publish(
     states: &States,
     herdr_state: HerdrState,
     agents: Vec<Agent>,
+    shares: Vec<ShareInfo>,
 ) -> bool {
     states.send_if_modified(|current| {
-        match next_state(reporter, current.as_ref(), herdr_state, agents) {
+        match next_state(reporter, current.as_ref(), herdr_state, agents, shares) {
             Some(state) => {
                 *current = Some(state);
                 true
@@ -78,6 +87,7 @@ struct Following<'a> {
     herdr_state: HerdrState,
     reporter: &'a Reporter,
     states: &'a States,
+    shares: &'a Shares,
 }
 
 impl Following<'_> {
@@ -95,7 +105,13 @@ impl Following<'_> {
                 Err(err) => return err,
             };
             let panes: Vec<String> = agents.iter().map(|a| a.pane_id.clone()).collect();
-            publish(self.reporter, self.states, self.herdr_state.clone(), agents);
+            publish(
+                self.reporter,
+                self.states,
+                self.herdr_state.clone(),
+                agents,
+                self.shares.infos(),
+            );
             // A finished watcher has lost its subscription; changed panes need a new one.
             let watching =
                 watcher.as_ref().filter(|(_, task)| !task.0.is_finished()).map(|(p, _)| p);

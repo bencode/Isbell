@@ -83,6 +83,7 @@ function Read({ mid, root, rel, hrefOf, again }: Props & { again: () => void }) 
         hrefOf={hrefOf}
         asset={asset}
         apartHref={pageHref(root.key, rel)}
+        share={{ mid, root, rel }}
       />
     )
   }

@@ -10,6 +10,7 @@ import { useI18n } from '../../core/i18n'
 import { formatSize } from '../../model/files/content'
 import type { FileRead } from '../../model/files/remote'
 import { since, useNow } from '../../utils/time'
+import type { ShareTarget } from './share-button'
 
 /** Marks a tool that is on. */
 export const TOOL_ON = 'aria-pressed:bg-selected aria-pressed:text-text'
@@ -40,6 +41,8 @@ export type FileViewProps = {
   asset: (rel: string) => Promise<Blob>
   /** The file alone in a browser tab of its own. */
   apartHref: string
+  /** The file, for sharing it by link. */
+  share: ShareTarget
 }
 
 export function FilePage({

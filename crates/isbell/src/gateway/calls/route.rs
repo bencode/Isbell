@@ -25,10 +25,13 @@ pub enum Method {
     PushSubscribe,
     RtcOffer,
     System,
+    ShareStart,
+    ShareLink,
+    ShareStop,
 }
 
 impl Method {
-    const ALL: [Method; 14] = [
+    pub(super) const ALL: [Method; 17] = [
         Method::Herdr,
         Method::StartAgent,
         Method::PaneProcesses,
@@ -43,6 +46,9 @@ impl Method {
         Method::PushSubscribe,
         Method::RtcOffer,
         Method::System,
+        Method::ShareStart,
+        Method::ShareLink,
+        Method::ShareStop,
     ];
 
     pub fn name(self) -> &'static str {
@@ -61,6 +67,9 @@ impl Method {
             Method::PushSubscribe => "isbell.push.subscribe",
             Method::RtcOffer => "isbell.rtc.offer",
             Method::System => "isbell.system",
+            Method::ShareStart => "isbell.share.start",
+            Method::ShareLink => "isbell.share.link",
+            Method::ShareStop => "isbell.share.stop",
         }
     }
 

@@ -13,7 +13,7 @@ use crate::gateway::link::Link;
 use crate::gateway::stream::{Input, Output};
 
 /// Open terminals and files together.
-const MAX_STREAMS: usize = 8;
+pub const MAX_STREAMS: usize = 8;
 /// Queued caller input per stream; input beyond this is dropped while the stream lags.
 const STREAM_INPUT_BUFFER: usize = 256;
 
@@ -64,10 +64,10 @@ impl Drop for Registered {
     }
 }
 
-/// Takes a place for the stream `key`, unless too many streams are open.
-pub fn register(streams: &Streams, key: StreamKey) -> Result<Slot, RpcError> {
+/// Takes a place for the stream `key`, unless `max` streams are open.
+pub fn register(streams: &Streams, key: StreamKey, max: usize) -> Result<Slot, RpcError> {
     let mut open = streams.lock().expect("streams poisoned");
-    if open.len() >= MAX_STREAMS {
+    if open.len() >= max {
         return Err(RpcError::new("too_many_streams", "too many open streams"));
     }
     // Taking the place would leave the open stream unreachable, and its end would free ours.
@@ -106,8 +106,8 @@ mod tests {
     #[test]
     fn closing_a_caller_closes_only_its_streams() {
         let streams = Streams::default();
-        let mut mine = register(&streams, ("peer-1".into(), 1)).unwrap();
-        let mut theirs = register(&streams, ("c1".into(), 1)).unwrap();
+        let mut mine = register(&streams, ("peer-1".into(), 1), MAX_STREAMS).unwrap();
+        let mut theirs = register(&streams, ("c1".into(), 1), MAX_STREAMS).unwrap();
         close_caller(&streams, "peer-1");
         assert_eq!(mine.input.try_recv().unwrap(), Input::Close);
         assert!(theirs.input.try_recv().is_err(), "another caller's stream stays open");
@@ -116,8 +116,8 @@ mod tests {
     #[test]
     fn an_open_stream_keeps_its_id() {
         let streams = Streams::default();
-        let _open = register(&streams, ("c1".into(), 7)).unwrap();
-        let again = register(&streams, ("c1".into(), 7)).err().expect("refused");
+        let _open = register(&streams, ("c1".into(), 7), MAX_STREAMS).unwrap();
+        let again = register(&streams, ("c1".into(), 7), MAX_STREAMS).err().expect("refused");
         assert_eq!(again.code, "bad_request");
         assert!(streams.lock().unwrap().contains_key(&("c1".into(), 7)), "the first stays");
     }

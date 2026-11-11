@@ -1,7 +1,9 @@
 //! `isbell file get | put`: copies a file from or to a machine. Either way the destination appears
-//! only once all of it arrived; until then it is a temporary file next to it.
+//! only once all of it arrived; until then it is a temporary file next to it. `isbell file share`:
+//! a link to read a file live from its machine; the machine keeps the share.
 
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use clap::Subcommand;
 use isbell_proto::flow::MAX_CHUNK;
@@ -12,6 +14,9 @@ use super::Ctx;
 use super::output::CliError;
 use super::target::parse_remote_path;
 use crate::client::{FileRead, FileWrite};
+use crate::now_ms;
+
+const CALL_TIMEOUT: Duration = Duration::from_secs(15);
 
 #[derive(Subcommand)]
 pub enum FileCmd {
@@ -21,12 +26,22 @@ pub enum FileCmd {
     /// Copy a file to a machine. DEST is `<machine>:<absolute path>` in an existing directory. An
     /// existing file is replaced, keeping its permissions.
     Put { source: String, dest: String },
+    /// Share a file by link: anyone with it can read the file, and the files beside it under its
+    /// repository except hidden ones, live from the machine while it is online. PATH is
+    /// `<machine>:<absolute path>`, or a path on this machine. Sharing it again keeps the link.
+    Share {
+        path: String,
+        /// How long the link works: `<n>m`, `<n>h` or `<n>d`, at most 7d.
+        #[arg(long = "for", default_value = "1d", value_parser = parse_lasts)]
+        lasts: u64,
+    },
 }
 
 pub async fn run(ctx: &Ctx, cmd: FileCmd) -> Result<(), CliError> {
     match cmd {
         FileCmd::Get { source, dest } => get(ctx, source, dest).await,
         FileCmd::Put { source, dest } => put(ctx, source, dest).await,
+        FileCmd::Share { path, lasts } => share(ctx, &path, lasts).await,
     }
 }
 
@@ -86,6 +101,85 @@ async fn put(ctx: &Ctx, source: String, dest: String) -> Result<(), CliError> {
         false => println!("sent {source} → {dest} ({size} bytes, via {via})"),
     }
     Ok(())
+}
+
+async fn share(ctx: &Ctx, path: &str, lasts_ms: u64) -> Result<(), CliError> {
+    let (machine, path) = match parse_remote_path(path) {
+        Ok(remote) => (remote.machine.to_owned(), remote.path.to_owned()),
+        Err(_) => (this_machine(ctx)?, local_file(path)?),
+    };
+    let (session, state) = ctx.machine(&machine).await?;
+    let params = json!({"path": path, "lastsMs": lasts_ms});
+    let answer = session.call(&state.machine.id, "isbell.share.start", params, Some(CALL_TIMEOUT));
+    let answer = answer.await?;
+    session.close().await;
+    let (key, entry) = (answer["key"].as_str(), answer["entry"].as_str());
+    let (Some(key), Some(entry), Some(expires_at)) = (key, entry, answer["expiresAt"].as_u64())
+    else {
+        return Err(CliError::new("bad_response", "the machine's answer has no link"));
+    };
+    let url = share_url(&ctx.relay, key, entry);
+    if ctx.out.json {
+        ctx.out.json(&json!({"url": url, "expiresAt": expires_at}));
+        return Ok(());
+    }
+    let minutes = expires_at.saturating_sub(now_ms()) / 60_000;
+    println!("{url}");
+    println!(
+        "Anyone with this link can read it, and the files beside it under its repository except \
+         hidden ones, while {} is online, for {}h {}m.",
+        state.machine.name,
+        minutes / 60,
+        minutes % 60
+    );
+    Ok(())
+}
+
+/// This machine's id, for a path on it.
+fn this_machine(ctx: &Ctx) -> Result<String, CliError> {
+    let machine = ctx.config.machine.as_ref();
+    machine.map(|m| m.id.clone()).ok_or_else(|| {
+        CliError::new(
+            "no_gateway",
+            "this machine runs no gateway: name one, as <machine>:<absolute path>",
+        )
+    })
+}
+
+fn local_file(path: &str) -> Result<String, CliError> {
+    let path = std::fs::canonicalize(path).map_err(local_error)?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
+/// `<n>m`, `<n>h` or `<n>d`, in milliseconds.
+fn parse_lasts(text: &str) -> Result<u64, String> {
+    let unit = match text.chars().last() {
+        Some('m') => 60_000,
+        Some('h') => 60 * 60_000,
+        Some('d') => 24 * 60 * 60_000,
+        _ => return Err(format!("expected <n>m, <n>h or <n>d, got {text:?}")),
+    };
+    let n: u64 = text[..text.len() - 1].parse().map_err(|_| format!("not a number: {text:?}"))?;
+    Ok(n * unit)
+}
+
+/// The web app is served where the relay is: `wss://host/v1/ws` → `https://host/share#<key>/<entry>`,
+/// each part of the entry encoded as the page decodes it.
+fn share_url(relay: &str, key: &str, entry: &str) -> String {
+    let (scheme, rest) = relay.split_once("://").unwrap_or(("wss", relay));
+    let host = rest.split('/').next().unwrap_or(rest);
+    let web = if scheme == "ws" { "http" } else { "https" };
+    let entry: Vec<String> = entry.split('/').map(encode_segment).collect();
+    format!("{web}://{host}/share#{key}/{}", entry.join("/"))
+}
+
+/// Each byte but the unreserved ones as `%XX`, as the page decodes it.
+fn encode_segment(segment: &str) -> String {
+    let plain = |b: u8| b.is_ascii_alphanumeric() || b"-_.~".contains(&b);
+    segment
+        .bytes()
+        .map(|b| if plain(b) { (b as char).to_string() } else { format!("%{b:02X}") })
+        .collect()
 }
 
 /// The way a file went, as reported.
