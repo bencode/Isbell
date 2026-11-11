@@ -19,21 +19,22 @@ public struct StreamEvents: Sendable {
 }
 
 @MainActor
-public final class RelayStream {
+public final class RpcStream {
     private let id: UInt64
-    private let mid: String
-    private weak var connection: RelayConnection?
+    /// Its machine, on the relay; nothing on a direct link.
+    private let route: Route
+    private weak var router: Router?
     private var unacked = 0
 
-    init(id: UInt64, mid: String, connection: RelayConnection) {
+    init(id: UInt64, route: Route, router: Router) {
         self.id = id
-        self.mid = mid
-        self.connection = connection
+        self.route = route
+        self.router = router
     }
 
     /// Lets the far side send `n` more body bytes.
     public func grant(_ n: Int) {
-        connection?.streamSend(id, .credit(id: id, n: UInt64(n), route: Route(mid: mid)))
+        router?.streamSend(id, .credit(id: id, n: UInt64(n), route: route))
     }
 
     /// Counts body bytes handled; grants them back once they reach half the window.
@@ -46,6 +47,6 @@ public final class RelayStream {
 
     /// Ends the stream from this side; no event comes after.
     public func close() {
-        connection?.streamClose(id, .end(id: id, e: nil, route: Route(mid: mid)))
+        router?.streamClose(id, .end(id: id, e: nil, route: route))
     }
 }

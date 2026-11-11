@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		1B0A00000000000000000001 /* IsbellKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1B0A00000000000000000002 /* IsbellKit */; };
+		1B0A00000000000000000020 /* IsbellRTC in Frameworks */ = {isa = PBXBuildFile; productRef = 1B0A00000000000000000021 /* IsbellRTC */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -24,6 +25,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				1B0A00000000000000000001 /* IsbellKit in Frameworks */,
+				1B0A00000000000000000020 /* IsbellRTC in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -67,6 +69,7 @@
 			name = Isbell;
 			packageProductDependencies = (
 				1B0A00000000000000000002 /* IsbellKit */,
+				1B0A00000000000000000021 /* IsbellRTC */,
 			);
 			productName = Isbell;
 			productReference = 1B0A00000000000000000003 /* Isbell.app */;
@@ -99,6 +102,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				1B0A0000000000000000000E /* XCLocalSwiftPackageReference "IsbellKit" */,
+				1B0A00000000000000000022 /* XCLocalSwiftPackageReference "IsbellRTC" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1B0A00000000000000000007 /* Products */;
@@ -181,6 +185,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Isbell;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Isbell connects straight to your machines on this network when it can.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -208,6 +213,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Isbell;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Isbell connects straight to your machines on this network when it can.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -255,12 +261,20 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = IsbellKit;
 		};
+		1B0A00000000000000000022 /* XCLocalSwiftPackageReference "IsbellRTC" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = IsbellRTC;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		1B0A00000000000000000002 /* IsbellKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = IsbellKit;
+		};
+		1B0A00000000000000000021 /* IsbellRTC */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = IsbellRTC;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

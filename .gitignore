@@ -13,3 +13,5 @@ priv/
 ios/**/xcuserdata/
 ios/IsbellKit/.build/
 ios/IsbellKit/.swiftpm/
+ios/IsbellRTC/.build/
+ios/IsbellRTC/.swiftpm/
