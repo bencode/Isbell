@@ -1,29 +1,27 @@
-// What someone opening a file share's link sees: the page, run as it runs for whoever shared it,
-// its files read live through the share's own space, and little else. It stands apart from the app,
-// needs no space of the reader's own, and names neither the machine nor the project.
+// What someone opening a file share's link sees: the file as Files shows it to whoever shared it,
+// with the files beside it read live through the share's own space, and little else. It stands
+// apart from the app, needs no space of the reader's own, and names neither the machine nor the
+// project: to the reader the share's root is `/`.
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { HtmlRenderer } from '../../components/renderers/html'
+import { useCallback, useEffect, useState } from 'react'
+import { useLocation } from 'react-router'
 import { useI18n } from '../../core/i18n'
-import { RELAY_URL } from '../../core/space'
-import { assetReader } from '../../model/files/assets'
+import { ProvideSpace, RELAY_URL, useSpaceView } from '../../core/space'
+import { ScrollScope } from '../../features/files/file-page'
+import { Preview } from '../../features/files/preview'
 import { nameOf } from '../../model/files/paths'
-import { PREVIEW_MAX, read } from '../../model/files/remote'
+import type { FilesRoot } from '../../model/files/worktrees'
 import { parseKey } from '../../model/identity'
-import { parseShareHash } from '../../model/share'
+import { parseShareHash, shareUrl } from '../../model/share'
 import { createSpace, type Space } from '../../model/space'
 
 const REPO = 'https://github.com/bencode/Isbell'
+const ROOT: FilesRoot = { key: '', path: '/', display: '', branch: null, own: true }
 
 export function SharePage() {
-  // Another share's link, pasted over this one, changes only the part after the #.
-  useEffect(() => {
-    const reload = () => window.location.reload()
-    window.addEventListener('hashchange', reload)
-    return () => window.removeEventListener('hashchange', reload)
-  }, [])
   const t = useI18n()
-  const link = parseShareHash(window.location.hash)
+  // A link to another file of the share changes only the part after the #.
+  const link = parseShareHash(useLocation().hash)
   const space = useShareSpace(link?.key)
   const name = link ? nameOf(link.entry) : ''
   useEffect(() => {
@@ -31,22 +29,18 @@ export function SharePage() {
   }, [name])
   return (
     <div className="flex h-dvh flex-col bg-bg text-text">
-      <header className="flex h-9 flex-none items-center gap-2.5 border-b border-line px-3.5 text-[13px]">
+      <header className="flex h-9 flex-none items-center border-b border-line px-3.5 text-[13px]">
         <b className="text-[14px] font-bold">Isbell</b>
-        <span className="min-w-0 truncate text-muted">{name}</span>
-        <a
-          href={REPO}
-          target="_blank"
-          rel="noreferrer"
-          className="ml-auto flex-none text-[12.5px] text-faint"
-        >
+        <a href={REPO} target="_blank" rel="noreferrer" className="ml-auto text-[12.5px] text-faint">
           {t('shared.what')}
         </a>
       </header>
       {!link || space === null ? (
         <Notice />
       ) : space ? (
-        <Reading space={space} entry={link.entry} />
+        <ProvideSpace space={space}>
+          <Reading shareKey={link.key} entry={link.entry} />
+        </ProvideSpace>
       ) : (
         <Notice connecting />
       )}
@@ -73,17 +67,20 @@ function useShareSpace(key: string | undefined) {
   return key ? space : null
 }
 
-/** The page, while the share's machine is there; it comes back with the machine. */
-function Reading({ space, entry }: { space: Space; entry: string }) {
-  const view = useSyncExternalStore(space.subscribe, space.getSnapshot)
+/** The file, while the share's machine is there; it comes back with the machine. */
+function Reading({ shareKey, entry }: { shareKey: string; entry: string }) {
+  const view = useSpaceView()
   const mid = view.machines.find(m => m.online)?.state.machine.id
-  const files = useMemo(
-    () => (mid ? assetReader(rel => read(space.openStream, mid, rel, PREVIEW_MAX)) : undefined),
-    [space, mid],
-  )
+  const hrefOf = useCallback((rel: string) => shareUrl('', shareKey, rel), [shareKey])
   if (!view.loaded) return <Notice connecting />
-  if (!mid || !files) return <Notice />
-  return <HtmlRenderer key={mid} entry={entry} title={nameOf(entry)} read={files} />
+  if (!mid) return <Notice />
+  return (
+    <ScrollScope value={`share:${entry}`}>
+      <div className="flex min-h-0 flex-1">
+        <Preview mid={mid} root={ROOT} rel={entry} hrefOf={hrefOf} />
+      </div>
+    </ScrollScope>
+  )
 }
 
 function Notice({ connecting = false }: { connecting?: boolean }) {

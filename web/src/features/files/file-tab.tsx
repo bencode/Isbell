@@ -7,7 +7,7 @@ import { useI18n } from '../../core/i18n'
 import { useSpaceView } from '../../core/space'
 import { useRootOf } from '../../core/worktrees'
 import { machineOf } from '../../model/space'
-import { projectFilesHref } from '../../utils/hrefs'
+import { pageHref, projectFilesHref } from '../../utils/hrefs'
 import { ScrollScope } from './file-page'
 import { filesNote } from './notes'
 import { Preview } from './preview'
@@ -18,12 +18,13 @@ export function FileTabPane({ id, params: { key = '', '*': rel = '' } }: { id: s
   const { project, root, settled } = useRootOf(key)
   const { machines } = useSpaceView()
   const hrefOf = useCallback((to: string) => projectFilesHref(key, to), [key])
+  const apartOf = useCallback((to: string) => pageHref(key, to), [key])
   const note = filesNote(t, { project, root, settled, machine: project && machineOf(machines, project.mid) })
   if (note || !project || !root) return <p className="m-6 text-muted">{note}</p>
   return (
     <ScrollScope value={`tab:${id}`}>
       <div className="flex h-full">
-        <Preview mid={project.mid} root={root} rel={rel} hrefOf={hrefOf} />
+        <Preview mid={project.mid} root={root} rel={rel} hrefOf={hrefOf} apartOf={apartOf} />
       </div>
     </ScrollScope>
   )

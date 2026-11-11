@@ -7,10 +7,17 @@ import { openSearchPanel, search } from '@codemirror/search'
 import { Compartment, EditorState, type Extension } from '@codemirror/state'
 import { classHighlighter } from '@lezer/highlight'
 import { basicSetup, EditorView } from 'codemirror'
-import { type Ref, useEffect, useImperativeHandle, useLayoutEffect, useRef } from 'react'
+import { type Ref, use, useEffect, useImperativeHandle, useLayoutEffect, useRef } from 'react'
 import styles from './code.module.scss'
 
 export type CodeRendererHandle = { openSearch(): void }
+
+/** Lines measured in a fallback font keep those heights in the gutter, so the editor waits for its
+ * font, plain and in the weight highlighted names are drawn in: on a first visit, as a share's
+ * reader's always is, they come after the page. */
+const codeFont: Promise<unknown> = Promise.all(
+  ['400', '600'].map(weight => document.fonts.load(`${weight} 12.5px "IBM Plex Mono"`)),
+).catch((err: unknown) => console.warn('the code font did not load; using a fallback', err))
 
 type Props = {
   text: string
@@ -32,6 +39,7 @@ const grammarFor = async (name: string): Promise<Extension> => {
 const wrapping = (wrap: boolean): Extension => (wrap ? EditorView.lineWrapping : [])
 
 export function CodeRenderer({ text, name, wrap, labels, scroll, ref }: Props) {
+  use(codeFont)
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView>(null)
   const parts = useRef({ wrap: new Compartment(), grammar: new Compartment() })

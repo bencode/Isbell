@@ -11,11 +11,10 @@ import { Tip } from '../../components/tip'
 import { useI18n } from '../../core/i18n'
 import { SourceTools, SourceView } from './code-file'
 import { FilePage, type FileViewProps } from './file-page'
-import { ShareButton } from './share-button'
 
 type Mode = 'preview' | 'source'
 
-export function HtmlFile({ shell, text, rel, asset, apartHref, share }: FileViewProps) {
+export function HtmlFile({ shell, text, rel, asset, apartHref }: FileViewProps) {
   const t = useI18n()
   const [mode, setMode] = useState<Mode>('preview')
   const source = useRef<CodeRendererHandle>(null)
@@ -44,18 +43,19 @@ export function HtmlFile({ shell, text, rel, asset, apartHref, share }: FileView
               <Shield {...SMALL_ICON} />
             </span>
           </Tip>
-          <Tip label={t('files.openApart')}>
-            <a
-              href={apartHref}
-              target="_blank"
-              rel="noopener"
-              aria-label={t('files.openApart')}
-              className={iconButtonClass('small')}
-            >
-              <ExternalLink {...SMALL_ICON} />
-            </a>
-          </Tip>
-          <ShareButton {...share} />
+          {apartHref ? (
+            <Tip label={t('files.openApart')}>
+              <a
+                href={apartHref}
+                target="_blank"
+                rel="noopener"
+                aria-label={t('files.openApart')}
+                className={iconButtonClass('small')}
+              >
+                <ExternalLink {...SMALL_ICON} />
+              </a>
+            </Tip>
+          ) : null}
         </>
       )}
     </>

@@ -11,7 +11,6 @@ import { decodeText, type FileKind, formatSize, imageType, kindOf } from '../../
 import { dirOf, join, nameOf } from '../../model/files/paths'
 import { type FileRead, PREVIEW_MAX, read } from '../../model/files/remote'
 import type { FilesRoot } from '../../model/files/worktrees'
-import { pageHref } from '../../utils/hrefs'
 import { CodeFile } from './code-file'
 import { FilePage, type FileShell, type FileViewProps, Notice, Reading } from './file-page'
 import { HtmlFile } from './html-file'
@@ -32,6 +31,8 @@ type Props = {
   root: FilesRoot
   rel: string
   hrefOf: (rel: string) => string
+  /** Where a file opens alone in a tab of its own, where it can. */
+  apartOf?: (rel: string) => string
 }
 
 export function Preview(props: Props) {
@@ -40,7 +41,7 @@ export function Preview(props: Props) {
   return <Read key={round} {...props} again={() => setRound(r => r + 1)} />
 }
 
-function Read({ mid, root, rel, hrefOf, again }: Props & { again: () => void }) {
+function Read({ mid, root, rel, hrefOf, apartOf, again }: Props & { again: () => void }) {
   const t = useI18n()
   const { openStream } = useSpace()
   const path = join(root.path, rel)
@@ -71,20 +72,13 @@ function Read({ mid, root, rel, hrefOf, again }: Props & { again: () => void }) 
     again,
     download,
     saveError,
+    share: { mid, root, rel },
   }
   if (type && data?.bytes) return <ImageFile shell={shell} bytes={data.bytes} type={type} />
   if (text !== null) {
     const View = VIEWS[kindOf(rel)]
     return (
-      <View
-        shell={shell}
-        text={text}
-        rel={rel}
-        hrefOf={hrefOf}
-        asset={asset}
-        apartHref={pageHref(root.key, rel)}
-        share={{ mid, root, rel }}
-      />
+      <View shell={shell} text={text} rel={rel} hrefOf={hrefOf} asset={asset} apartHref={apartOf?.(rel)} />
     )
   }
   return (

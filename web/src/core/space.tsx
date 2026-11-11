@@ -52,6 +52,11 @@ export function SpaceProvider({ spaceKey, children }: { spaceKey: string; childr
   return space ? <SpaceContext.Provider value={space}>{children}</SpaceContext.Provider> : null
 }
 
+/** A space made elsewhere, such as a share's, for the views that read through one. */
+export function ProvideSpace({ space, children }: { space: Space; children: ReactNode }) {
+  return <SpaceContext.Provider value={space}>{children}</SpaceContext.Provider>
+}
+
 export function useSpace(): Space {
   const space = useContext(SpaceContext)
   if (!space) throw new Error('useSpace outside SpaceProvider')
