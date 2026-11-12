@@ -217,6 +217,7 @@ export const zh: Record<Key, string> = {
   'facts.used': '已用 {used} / {total}',
   'facts.free': '可用 {free} / {total}',
 
+  'settings.open': '设置…',
   'settings.title': '设置',
   'settings.local': '只保存在这个浏览器里，没有账号。',
   'settings.notifications': '提醒',
