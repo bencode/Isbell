@@ -9,16 +9,21 @@ public let streamWindow = 1 << 20
 public let maxChunk = 63 * 1024
 
 public struct StreamEvents: Sendable {
-    /// The body of each data frame: a file's chunk, or a terminal's screen.
+    /// A file's chunk.
     public var data: @MainActor (Data) -> Void
+    /// A terminal's screen: bytes to write, and the pane's size when the frame says it.
+    public var frame: @MainActor (Data, TermSize?) -> Void
     /// The far side lets this side send `n` more body bytes: for a stream this side writes.
     public var credit: @MainActor (Int) -> Void
     /// Once, when the far side ends the stream or the link is lost; not after `close`.
     public var end: @MainActor (RpcError?) -> Void
 
-    public init(data: @escaping @MainActor (Data) -> Void, credit: @escaping @MainActor (Int) -> Void = { _ in },
+    public init(data: @escaping @MainActor (Data) -> Void = { _ in },
+                frame: @escaping @MainActor (Data, TermSize?) -> Void = { _, _ in },
+                credit: @escaping @MainActor (Int) -> Void = { _ in },
                 end: @escaping @MainActor (RpcError?) -> Void) {
         self.data = data
+        self.frame = frame
         self.credit = credit
         self.end = end
     }
@@ -53,7 +58,12 @@ public final class RpcStream {
 
     /// Sends a file's chunk: no larger than `maxChunk`, within the credit granted.
     public func send(chunk body: Data) {
-        router?.streamSend(id, .data(id: id, k: .chunk, full: nil, cols: nil, rows: nil, route: route), body: body)
+        send(.chunk, body: body)
+    }
+
+    /// Sends a terminal's keys (.input), its size (.resize) or a ping.
+    public func send(_ k: DataKind, cols: UInt16? = nil, rows: UInt16? = nil, body: Data? = nil) {
+        router?.streamSend(id, .data(id: id, k: k, full: nil, cols: cols, rows: rows, route: route), body: body)
     }
 
     /// Ends what this side sends; the far side's end, with its outcome, still comes.

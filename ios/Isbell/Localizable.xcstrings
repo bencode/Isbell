@@ -107,16 +107,6 @@
         }
       }
     },
-    "Answer it in its terminal": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "去它的终端里回答"
-          }
-        }
-      }
-    },
     "Appearance": {
       "localizations": {
         "zh-Hans": {
@@ -201,6 +191,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "芯片"
+          }
+        }
+      }
+    },
+    "Close": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭"
           }
         }
       }
@@ -301,6 +301,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "直连 · %@"
+          }
+        }
+      }
+    },
+    "Disconnected": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已断开"
           }
         }
       }
@@ -416,6 +426,16 @@
         }
       }
     },
+    "Keyboard": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "键盘"
+          }
+        }
+      }
+    },
     "LAN": {
       "localizations": {
         "zh-Hans": {
@@ -502,6 +522,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "内存 · %@"
+          }
+        }
+      }
+    },
+    "More": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更多"
           }
         }
       }
@@ -616,6 +646,26 @@
         }
       }
     },
+    "Open terminal": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开终端"
+          }
+        }
+      }
+    },
+    "Opening the terminal…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在打开终端…"
+          }
+        }
+      }
+    },
     "Opening…": {
       "localizations": {
         "zh-Hans": {
@@ -692,6 +742,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "正在读会话记录…"
+          }
+        }
+      }
+    },
+    "Reconnect": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新连接"
           }
         }
       }
@@ -892,6 +952,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "系统"
+          }
+        }
+      }
+    },
+    "Terminal": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "终端"
+          }
+        }
+      }
+    },
+    "Terminal · %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "终端 · %@"
           }
         }
       }
