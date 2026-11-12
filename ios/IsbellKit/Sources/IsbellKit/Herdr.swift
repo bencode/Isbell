@@ -94,6 +94,28 @@ public func prompt(_ call: Caller, mid: String, paneId: String, text: String) as
     _ = try await herdr(call, mid, "agent.prompt", .object(["target": .string(paneId), "text": .string(text)]))
 }
 
+/// An agent started: what herdr calls it, and the pane it runs in.
+public struct Started: Sendable, Equatable {
+    public var name: String
+    public var paneId: String
+}
+
+/// Starting waits for the agent to come up, which can take long on a machine slow to start it.
+let startTimeout: Duration = .seconds(150)
+
+/// Starts an agent of `kind` in `cwd` on machine `mid`. pi starts in its regular mode, which leaves the
+/// conversation in the terminal's history for the chat to read. As `startIn` in
+/// web/src/features/session/new-session-menu.tsx.
+public func startAgent(_ call: Caller, mid: String, cwd: String, kind: String) async throws(CallError) -> Started {
+    var params: [String: JSON] = ["cwd": .string(cwd), "kind": .string(kind)]
+    if kind == "pi" { params["args"] = .array([.string("--tui-mode"), .string("regular")]) }
+    let result = try await call(mid, "isbell.agent.start", .object(params), startTimeout)
+    guard let paneId = result["paneId"]?.string else {
+        throw CallError(code: "bad_response", msg: "an agent started without its pane")
+    }
+    return Started(name: result["name"]?.string ?? "", paneId: paneId)
+}
+
 /// Presses `keys`, as herdr names them ("esc"), in pane `paneId`.
 public func sendKeys(_ call: Caller, mid: String, paneId: String, keys: [String]) async throws(CallError) {
     _ = try await herdr(call, mid, "agent.send_keys",

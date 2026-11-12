@@ -1,15 +1,17 @@
 // The first tab: the live sessions of every machine online, by what they wait on, as the web's phone
-// home page lists them. Reconnecting, the list stays as it was.
+// home page lists them, and a new one started from it. Reconnecting, the list stays as it was.
 
 import IsbellKit
 import SwiftUI
 
 struct ActiveView: View {
     @Environment(SpaceStore.self) private var store
+    @State private var path = NavigationPath()
+    @State private var creating = false
 
     var body: some View {
         let lanes = store.lanes
-        NavigationStack {
+        NavigationStack(path: $path) {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 10) {
                     lane("Asking you", lanes.asking)
@@ -25,6 +27,12 @@ struct ActiveView: View {
             .navigationTitle("Active")
             .navigationSubtitle(statusLine)
             .navigationDestination(for: SessionRoute.self) { SessionView(route: $0) }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("New session", systemImage: "plus") { creating = true }.disabled(!store.space.loaded)
+                }
+            }
+            .sheet(isPresented: $creating) { NewSessionSheet { path.append($0) } }
         }
     }
 
