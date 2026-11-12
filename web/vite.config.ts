@@ -46,4 +46,9 @@ function isbellVersion(): string {
 export default defineConfig({
   plugins: [react(), tailwindcss(), previewOrigin()],
   define: { __ISBELL_VERSION__: JSON.stringify(isbellVersion()) },
+  // A speech service run locally (isbell-voice on :8080), at /voice as the host's proxy serves it: a
+  // dev server built with VITE_VOICE_URL=/voice records as the site does.
+  server: {
+    proxy: { '/voice': { target: 'http://localhost:8080', rewrite: path => path.replace(/^\/voice/, '') } },
+  },
 })

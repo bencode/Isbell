@@ -10,6 +10,8 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 COPY web ./
 # The app is built with isbell's version, which vite.config.ts reads from ../Cargo.toml.
 COPY Cargo.toml /Cargo.toml
+# The speech service voice input goes to, if any (compose.yml).
+ARG VITE_VOICE_URL
 RUN pnpm build
 
 FROM caddy:2-alpine
