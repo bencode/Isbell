@@ -13,6 +13,7 @@ use crate::gateway::stream::{Input, Output};
 pub enum Method {
     Herdr,
     StartAgent,
+    LaunchAgent,
     PaneProcesses,
     Terminal,
     FileList,
@@ -32,9 +33,10 @@ pub enum Method {
 }
 
 impl Method {
-    pub(super) const ALL: [Method; 18] = [
+    pub(super) const ALL: [Method; 19] = [
         Method::Herdr,
         Method::StartAgent,
+        Method::LaunchAgent,
         Method::PaneProcesses,
         Method::Terminal,
         Method::FileList,
@@ -57,6 +59,7 @@ impl Method {
         match self {
             Method::Herdr => "herdr",
             Method::StartAgent => "isbell.agent.start",
+            Method::LaunchAgent => "isbell.agent.launch",
             Method::PaneProcesses => "isbell.pane.processes",
             Method::Terminal => "isbell.terminal",
             Method::FileList => "isbell.file.list",

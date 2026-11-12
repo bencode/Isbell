@@ -79,7 +79,7 @@ pub async fn open(herdr: &Herdr, p: Value) -> Result<(Session, Value), RpcError>
 
 async fn new_shell(herdr: &Herdr, cwd: &str) -> Result<String, RpcError> {
     let cwd = workspace::resolve_cwd(cwd)?;
-    workspace::create(herdr, &cwd, &format!("shell-{}", workspace::dir_name(&cwd))).await
+    workspace::create(herdr, &cwd, &format!("shell-{}", workspace::dir_name(&cwd)), json!({})).await
 }
 
 async fn start_session(

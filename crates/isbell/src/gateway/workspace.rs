@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use isbell_proto::frame::RpcError;
-use serde_json::json;
+use serde_json::{Value, json};
 
 use super::herdr::{Herdr, REQUEST_TIMEOUT};
 use crate::env_path;
@@ -30,9 +30,15 @@ pub fn dir_name(cwd: &Path) -> String {
     cwd.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()
 }
 
-/// Creates a background workspace in `cwd`; returns its root pane.
-pub async fn create(herdr: &Herdr, cwd: &Path, label: &str) -> Result<String, RpcError> {
-    let params = json!({"cwd": cwd, "label": label, "focus": false, "env": {}});
+/// Creates a background workspace in `cwd`, its shell given `env` (an object of strings); returns its
+/// root pane.
+pub async fn create(
+    herdr: &Herdr,
+    cwd: &Path,
+    label: &str,
+    env: Value,
+) -> Result<String, RpcError> {
+    let params = json!({"cwd": cwd, "label": label, "focus": false, "env": env});
     let created = herdr.request("workspace.create", params, Some(REQUEST_TIMEOUT)).await?;
     created["root_pane"]["pane_id"]
         .as_str()

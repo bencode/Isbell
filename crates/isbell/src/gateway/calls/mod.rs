@@ -27,7 +27,7 @@ use super::share::Shares;
 use super::stream::Input;
 use super::system::Sampler;
 use super::terminal;
-use super::{HerdrSlot, direct, file, git, nudge, process, rpc, upgrade};
+use super::{HerdrSlot, direct, file, git, launch, nudge, process, rpc, upgrade};
 
 /// What reaches the calls: a frame from a caller, or the end of a direct caller's link.
 pub enum ToCalls {
@@ -125,6 +125,14 @@ impl Calls {
                 let refresh = self.refresh.clone();
                 self.tasks.spawn(async move {
                     let result = async { rpc::start_agent(&herdr?, p).await }.await;
+                    nudge(&refresh);
+                    link.send(response_frame(id, result));
+                });
+            }
+            Method::LaunchAgent => {
+                let refresh = self.refresh.clone();
+                self.tasks.spawn(async move {
+                    let result = async { launch::launch_agent(&herdr?, p).await }.await;
                     nudge(&refresh);
                     link.send(response_frame(id, result));
                 });

@@ -5,10 +5,12 @@ import { useEffect, useRef, useState } from 'react'
 import { useChatLog } from '../../core/chat-log'
 import { errorText, useI18n } from '../../core/i18n'
 import { useRecordLookup, useSessionRecords } from '../../core/session-records'
-import { useSpace } from '../../core/space'
-import { startAgent } from '../../model/herdr'
+import { useSpace, useSpaceView } from '../../core/space'
+import { launchAgent, startAgent } from '../../model/herdr'
 import type { Project } from '../../model/projects'
 import { resumeArgs, sessionKey, under } from '../../model/sessions'
+import { machineOf } from '../../model/space'
+import { LAUNCH_METHOD } from '../../model/start-templates'
 
 /** `onResumed`: the pane it now runs in. The session may be running again, in `pane`. `note`: what to
  * say while there is no `line`. */
@@ -49,13 +51,25 @@ export function useClosedSession(
         : t('closed.gone')
 
   const args = resumeArgs(agent, sid)
-  const cannot = !args ? t('closed.cannot', { agent }) : !project?.online ? t('closed.offline') : undefined
+  // Started by a template's own command, it resumes by the same, which takes a gateway that types it.
+  const launch = line?.launch
+  const launches = !!machineOf(useSpaceView().machines, mid)?.state.caps.methods.includes(LAUNCH_METHOD)
+  const cannot = !args
+    ? t('closed.cannot', { agent })
+    : !project?.online
+      ? t('closed.offline')
+      : launch && !launches
+        ? t('closed.oldLaunch', { launch })
+        : undefined
   const resume = async () => {
-    if (!args || !line || busy) return
+    if (!args || !line || busy || cannot) return
     setBusy(true)
     setError(undefined)
     try {
-      const { paneId } = await startAgent(space.call, mid, { cwd: line.cwd, kind: agent, args })
+      const at = { cwd: line.cwd, kind: agent, args }
+      const { paneId } = launch
+        ? await launchAgent(space.call, mid, { ...at, command: launch })
+        : await startAgent(space.call, mid, at)
       resumed.current(paneId)
     } catch (err) {
       setError(errorText(t, err))
