@@ -44,8 +44,11 @@ command line:
 
 ```sh
 xcodebuild -project ios/Isbell.xcodeproj -scheme Isbell \
-  -destination 'platform=iOS Simulator,name=iPhone 17' build
+  -destination 'platform=iOS Simulator,name=iPhone 17' -skipPackagePluginValidation build
 ```
+
+SwiftTerm comes with a build plugin that writes its version and terminfo tables: Xcode asks to trust
+it on the first build, and the command line needs `-skipPackagePluginValidation`.
 
 On first launch, paste the key that `isbell space show` prints on any of your machines, or a link
 carrying it as `#k=…`. The key is kept in the iPhone's Keychain, on this device only.
