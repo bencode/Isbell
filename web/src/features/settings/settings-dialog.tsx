@@ -145,8 +145,8 @@ export function Settings({ open, onOpenChange, onLeave }: Props & { onLeave: () 
             onChange={lang => setPrefs({ lang })}
             segments={[
               { value: 'system', label: t('lang.system') },
-              { value: 'en', label: 'English' },
               { value: 'zh', label: '中文' },
+              { value: 'en', label: 'English' },
             ]}
           />
         </Row>

@@ -218,6 +218,7 @@ export const en = {
   'facts.used': '{used} of {total} used',
   'facts.free': '{free} free of {total}',
 
+  'settings.open': 'Settings…',
   'settings.title': 'Settings',
   'settings.local': 'Saved in this browser only. There is no account.',
   'settings.notifications': 'Notifications',
