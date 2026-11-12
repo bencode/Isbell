@@ -65,7 +65,8 @@ export function HtmlFile({ shell, text, rel, asset, apartHref }: FileViewProps) 
       {mode === 'source' ? (
         <SourceView ref={source} text={text} name={shell.name} />
       ) : (
-        <HtmlRenderer entry={rel} title={shell.name} read={asset} />
+        // Run again when the page has changed.
+        <HtmlRenderer key={shell.file?.mtime} entry={rel} title={shell.name} read={asset} />
       )}
     </FilePage>
   )
