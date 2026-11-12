@@ -1,5 +1,6 @@
 // The keys a phone keyboard lacks, in the web's order (web/src/shell/mobile/key-bar.tsx): Esc 1 2 3
-// ⇧Tab PgUp PgDn Tab ^C scroll, ^C last as a second press quits an agent; ⌨ ↑ ↓ ⏎ stay in reach.
+// ⇧Tab PgUp PgDn Tab ^C scroll, ^C last as a second press quits an agent; 🎤 ⌨ ↑ ↓ ⏎ stay in reach.
+// While recording, the bar is the recording's.
 
 import SwiftUI
 
@@ -32,6 +33,9 @@ struct KeyBar: View {
     let keyboard: Bool
     let press: (BarKey) -> Void
     let toggleKeyboard: () -> Void
+    let voice: VoiceInput
+    /// Where the words said go.
+    let heard: (String) -> Void
 
     private static let scrolled: [(BarKey, String)] = [
         (.esc, "Esc"), (.one, "1"), (.two, "2"), (.three, "3"), (.backTab, "⇧Tab"),
@@ -40,16 +44,32 @@ struct KeyBar: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            ScrollView(.horizontal) {
-                HStack(spacing: 6) {
-                    ForEach(Self.scrolled, id: \.0) { key, label in
-                        KeyButton(label: Text(verbatim: label)) { press(key) }
-                    }
-                }
-                .padding(.leading, 8)
+            switch voice.state {
+            case .idle: keys
+            case .recording: recording
+            case .working: transcribing
             }
-            .scrollIndicators(.hidden)
-            Divider().frame(height: 28).overlay(KeyStyle.line)
+        }
+        .frame(minHeight: 44)
+        .padding(.vertical, 6)
+        .background(KeyStyle.bar)
+    }
+
+    @ViewBuilder private var keys: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 6) {
+                ForEach(Self.scrolled, id: \.0) { key, label in
+                    KeyButton(label: Text(verbatim: label)) { press(key) }
+                }
+            }
+            .padding(.leading, 8)
+        }
+        .scrollIndicators(.hidden)
+        .disabled(!live)
+        Divider().frame(height: 28).overlay(KeyStyle.line)
+        Group {
+            KeyButton(label: Image(systemName: "mic")) { Task { await voice.start(onText: heard) } }
+                .accessibilityLabel(Text("Voice input"))
             KeyButton(label: Image(systemName: "keyboard"), on: keyboard, action: toggleKeyboard)
                 .accessibilityLabel(Text("Keyboard"))
             KeyButton(label: Image(systemName: "arrow.up")) { press(.up) }
@@ -57,9 +77,29 @@ struct KeyBar: View {
             KeyButton(label: Image(systemName: "return"), accent: true) { press(.enter) }
                 .padding(.trailing, 8)
         }
-        .padding(.vertical, 6)
-        .background(KeyStyle.bar)
         .disabled(!live)
+    }
+
+    /// Drop it, how it sounds, or send it to be recognised.
+    @ViewBuilder private var recording: some View {
+        KeyButton(label: Image(systemName: "xmark"), alarm: true) { voice.discard() }
+            .accessibilityLabel(Text("Discard recording"))
+            .padding(.leading, 8)
+        VoiceMeter(voice: voice, ink: KeyStyle.text)
+            .padding(.horizontal, 6)
+        KeyButton(label: Image(systemName: "checkmark"), accent: true) { voice.finish() }
+            .accessibilityLabel(Text("Stop recording"))
+            .padding(.trailing, 8)
+    }
+
+    private var transcribing: some View {
+        HStack(spacing: 10) {
+            ProgressView().tint(KeyStyle.text)
+            Text("Transcribing…")
+        }
+        .font(.system(size: 14, design: .monospaced))
+        .foregroundStyle(KeyStyle.text)
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -67,17 +107,19 @@ private struct KeyButton<Label: View>: View {
     let label: Label
     var on = false
     var accent = false
+    /// Drops what is under way.
+    var alarm = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             label
                 .font(.system(size: 15, weight: .medium, design: .monospaced))
-                .foregroundStyle(accent ? KeyStyle.accentText : KeyStyle.text)
+                .foregroundStyle(accent ? KeyStyle.accentText : alarm ? KeyStyle.alarm : KeyStyle.text)
                 .frame(minWidth: accent ? 52 : 40, minHeight: 44)
                 .padding(.horizontal, 4)
                 .background(accent ? KeyStyle.accent : on ? KeyStyle.on : KeyStyle.key, in: .rect(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(on ? KeyStyle.accent : KeyStyle.line))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(on ? KeyStyle.accent : alarm ? KeyStyle.alarm : KeyStyle.line))
         }
         .buttonStyle(.plain)
     }
@@ -92,4 +134,5 @@ private enum KeyStyle {
     static let text = Color(hex: 0xd8dce6)
     static let accent = Color(hex: 0x8fb0ff)
     static let accentText = Color(hex: 0x0c1018)
+    static let alarm = Color(hex: 0xff8a80)
 }
