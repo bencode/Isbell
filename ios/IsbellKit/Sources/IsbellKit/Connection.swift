@@ -56,6 +56,8 @@ public final class RelayConnection {
     /// Calls waiting for the connection: told true once the snapshot arrives.
     private var waiters: [Int: CheckedContinuation<Bool, Never>] = [:]
     private var nextWaiter = 0
+    /// The socket whose ping is not answered yet, by its generation: until it is, it may be dead.
+    private var unanswered: Int?
 
     /// Dials at once.
     public init(url: URL, identity: Identity, onEvent: @escaping @MainActor (ConnectionEvent) -> Void) {
@@ -65,6 +67,10 @@ public final class RelayConnection {
         self.onEvent = onEvent
         dial()
     }
+
+    /// Whether the relay carries calls now: the socket is open and authenticated, and no ping sent on
+    /// it is waiting for an answer.
+    public var live: Bool { ready && task != nil && unanswered != generation }
 
     /// Resolves with the result, or throws a CallError.
     public func call(_ mid: String, _ m: String, _ p: JSON, timeout: Duration) async throws(CallError) -> JSON {
@@ -98,10 +104,14 @@ public final class RelayConnection {
     public func probe() {
         guard let socket = task, ready else { return reconnectNow() }
         let current = generation
+        unanswered = current
         let once = Once()
         socket.sendPing { [weak self] error in
             Task { @MainActor in
-                guard let error else { return _ = once.settle() }
+                guard let error else {
+                    if once.settle() { self?.unanswered = nil }
+                    return
+                }
                 self?.abandon(socket, current, once, error)
             }
         }

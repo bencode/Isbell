@@ -2,7 +2,8 @@
 // by the relay), each machine's plain shells and its agents' titles (pulled from herdr, since
 // machine state lists only agents), and the projects it lists and its recorded sessions ran in (read
 // from the machine's files). Calls and streams take a machine's direct link when one is open, else
-// the relay. As web/src/model/space.ts, reading only.
+// the relay; a link is set up only while the relay is known to carry. As web/src/model/space.ts,
+// reading only.
 
 import Foundation
 import Observation
@@ -67,11 +68,12 @@ public final class Space {
         links = DirectLinks(open: openDirect, relay: { [weak self] mid, m, p, timeout async throws(CallError) -> JSON in
             guard let self else { throw CallError(code: "disconnected", msg: "not connected to the relay") }
             return try await relayCall(mid, m, p, timeout: timeout)
-        }, directable: { [weak self] in self?.directable($0) ?? false })
+        }, signals: { [weak self] in self?.connection?.live ?? false },
+        directable: { [weak self] in self?.directable($0) ?? false })
     }
 
     /// Calls machine `mid` over its direct link when one is open and takes pieces, else over the
-    /// relay; a call to the relay starts a link for the calls after it.
+    /// relay; a call to the relay, once the relay is known to carry, starts a link for the calls after it.
     public var call: Caller {
         { [weak self] mid, m, p, timeout async throws(CallError) -> JSON in
             guard let self else { throw CallError(code: "disconnected", msg: "not connected to the relay") }

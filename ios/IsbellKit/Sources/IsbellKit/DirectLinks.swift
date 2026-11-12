@@ -12,6 +12,7 @@ private let directRetry: Duration = .seconds(5 * 60)
 final class DirectLinks {
     private let openDirect: DirectOpener?
     private let relay: Caller
+    private let signals: @MainActor () -> Bool
     private let directable: @MainActor (String) -> Bool
     // Per machine: the attempt at a link, being opened or open (gone once it failed), the open link,
     // and when the last attempt failed. An attempt's id tells it from one made after a reset.
@@ -20,10 +21,13 @@ final class DirectLinks {
     private var direct: [String: DirectLink] = [:]
     private var failures: [String: ContinuousClock.Instant] = [:]
 
-    /// `relay` signals a link through the relay; `directable` says whether a machine can have one.
-    init(open: DirectOpener?, relay: @escaping Caller, directable: @escaping @MainActor (String) -> Bool) {
+    /// `relay` signals a link through the relay, and `signals` says whether it can now; `directable`
+    /// says whether a machine can have one.
+    init(open: DirectOpener?, relay: @escaping Caller, signals: @escaping @MainActor () -> Bool,
+         directable: @escaping @MainActor (String) -> Bool) {
         openDirect = open
         self.relay = relay
+        self.signals = signals
         self.directable = directable
     }
 
@@ -34,10 +38,11 @@ final class DirectLinks {
     }
 
     /// Machine `mid`'s direct link, open or being opened, else a new attempt at one; nil when there
-    /// is none to have.
+    /// is none to have, or the relay cannot carry an offer now: one sent on a socket iOS cut would
+    /// fail and keep the machine on the relay for directRetry.
     func to(_ mid: String) -> Task<DirectLink?, Never>? {
         if let known = links[mid] { return known.task }
-        guard let openDirect, worthTrying(mid) else { return nil }
+        guard let openDirect, signals(), worthTrying(mid) else { return nil }
         let relay = relay
         let id = nextAttempt
         nextAttempt += 1
