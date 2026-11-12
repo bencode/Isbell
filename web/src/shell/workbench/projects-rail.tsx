@@ -244,11 +244,13 @@ function MachineGroup({
               <span className="min-w-0 flex-1 truncate">{machine.name}</span>
               {offline ? <span className="pr-1.5 font-normal">{offline}</span> : null}
               {lit ? (
-                // Lit, the mark stays, taking its room from the name.
+                // Lit, the mark stays where pointing shows it, beside the add button's kept room.
                 <span className="flex flex-none">
                   {details}
                   {add ? (
-                    <span className="hidden group-focus-within:flex group-hover:flex">{add}</span>
+                    <span className="invisible flex group-focus-within:visible group-hover:visible">
+                      {add}
+                    </span>
                   ) : null}
                 </span>
               ) : (
