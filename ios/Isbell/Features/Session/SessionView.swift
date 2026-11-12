@@ -1,7 +1,7 @@
 // A live session's page: its conversation as the agent records it, followed while the app is in
-// front, and a reply bar under it; while the agent asks, what it waits on and where to answer
-// instead. Looking at a finished session marks it read. As web/src/shell/mobile/chat.tsx and
-// features/session/session-parts.tsx.
+// front, and a reply bar under it; while the agent asks, what it waits on and its terminal to answer
+// in instead. Its terminal opens full screen from the menu. Looking at a finished session marks it
+// read. As web/src/shell/mobile/chat.tsx and features/session/session-parts.tsx.
 
 import IsbellKit
 import SwiftUI
@@ -21,6 +21,8 @@ struct SessionView: View {
     /// is away.
     @State private var draft = ""
     @State private var attachments: Attachments
+    /// Whether its terminal is open, full screen.
+    @State private var terminal = false
 
     /// The record is followed again when the status changes, and only while the app is in front.
     private struct FollowKey: Hashable {
@@ -42,6 +44,12 @@ struct SessionView: View {
         Group {
             if let placed {
                 content(placed)
+                    .toolbar {
+                        Menu("More", systemImage: "ellipsis.circle") {
+                            Button("Terminal", systemImage: "apple.terminal") { terminal = true }
+                        }
+                    }
+                    .fullScreenCover(isPresented: $terminal) { TerminalScreen(placed: placed) }
             } else {
                 ContentUnavailableView("This session has ended", systemImage: "checkmark.circle")
             }
@@ -66,6 +74,8 @@ struct SessionView: View {
                     Label("No conversation recorded", systemImage: "text.bubble")
                 } description: {
                     Text("What is said shows here once the agent records it. If its terminal has a conversation that never shows here, its record can't be found (start Codex with --no-daemon).")
+                } actions: {
+                    Button("Open terminal") { terminal = true }.buttonStyle(.borderedProminent)
                 }
             case .unreadable:
                 ContentUnavailableView("The record can't be read", systemImage: "doc.questionmark",
@@ -80,7 +90,7 @@ struct SessionView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .safeAreaInset(edge: .bottom) {
             if session.status == .blocked {
-                AskingDock(session: session)
+                AskingDock(session: session) { terminal = true }
             } else {
                 ReplyBar(session: session, draft: $draft, attachments: attachments) { model.didSend($0) }
             }
@@ -118,6 +128,7 @@ private struct Reconnecting: View {
 private struct AskingDock: View {
     @Environment(SpaceStore.self) private var store
     let session: Session
+    let openTerminal: () -> Void
     @State private var asking: ToolUse?
 
     var body: some View {
@@ -141,7 +152,8 @@ private struct AskingDock: View {
                 .padding(.vertical, 7)
                 .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 8))
             }
-            Text("Answer it in its terminal").font(.footnote).foregroundStyle(.secondary)
+            Button("Open terminal", systemImage: "apple.terminal", action: openTerminal)
+                .buttonStyle(.borderedProminent)
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)

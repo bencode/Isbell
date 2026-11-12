@@ -52,8 +52,11 @@ public final class Router {
         switch frame.header {
         case .res(let id, let ok, let r, let e, _):
             settle(id, ok ? .success(r ?? .null) : .failure(CallError(code: e?.code ?? "error", msg: e?.msg ?? "the call failed")))
-        // A terminal's frames carry its screen; a file's chunks are bytes alone.
-        case .data(let id, let k, _, _, _, _) where k == .frame || k == .chunk:
+        // A terminal's frames carry its screen, and the pane's size; a file's chunks are bytes alone.
+        case .data(let id, .frame, _, let cols, let rows, _):
+            let size: TermSize? = if let cols, let rows, cols > 0, rows > 0 { TermSize(cols: Int(cols), rows: Int(rows)) } else { nil }
+            streams[id]?.events.frame(frame.body ?? Data(), size)
+        case .data(let id, .chunk, _, _, _, _):
             streams[id]?.events.data(frame.body ?? Data())
         case .end(let id, let e, _):
             streams.removeValue(forKey: id)?.events.end(e)
