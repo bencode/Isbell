@@ -31,7 +31,7 @@ struct ChatList: View {
                 }
                 ForEach(model.pending, id: \.at) { sent in
                     VStack(alignment: .trailing, spacing: 6) {
-                        You(asked: Asked(text: sent.text), mid: session.mid, at: sent.at).opacity(0.75)
+                        You(asked: sent.asked, mid: session.mid, at: sent.at).opacity(0.75)
                         Text("Sent · waiting for the record").font(.caption2.monospaced()).foregroundStyle(.tertiary)
                     }
                     .frame(maxWidth: .infinity, alignment: .trailing)

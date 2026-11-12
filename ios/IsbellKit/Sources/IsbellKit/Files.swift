@@ -1,5 +1,6 @@
-// A machine's files through its gateway: a file read as a stream, and the git repository a
-// directory is in. As web/src/model/files/{remote,repo}.ts, for what this client reads so far.
+// A machine's files through its gateway: a file read as a stream, one sent for an agent, and the
+// git repository a directory is in. As web/src/model/files/{remote,repo}.ts, for what this client
+// does so far.
 
 import Foundation
 import os
@@ -32,6 +33,11 @@ public struct FileRange: Sendable, Equatable {
 
 /// The gateway stops a search after 2 s; the rest is the trip.
 private let fileTimeout: Duration = .seconds(20)
+/// Over this a file is not sent.
+public let uploadMax = 20 << 20
+/// Over the relay a client may send 50 messages a second, and the app sends others meanwhile; one
+/// chunk every 40 ms leaves them room.
+private let chunkEvery: Duration = .milliseconds(40)
 
 /// What a read has taken in so far, and its end once it comes.
 @MainActor
@@ -109,6 +115,79 @@ public func readFile(_ open: Opener, mid: String, path: String, limit: Int, rang
     let bytes = reading.bytes.prefix(reading.stopAt)
     return bytes.count > limit ? FileRead(size: bytes.count, bytes: nil, offset: offset)
         : FileRead(size: size, bytes: Data(bytes), offset: offset)
+}
+
+/// What a write knows of its stream: the credit the far side gave, and its end once it comes.
+@MainActor
+private final class Writing {
+    var credit = 0
+    private(set) var outcome: RpcError??
+    private var waiting: CheckedContinuation<Void, Never>?
+
+    func grant(_ n: Int) {
+        credit += n
+        wake()
+    }
+
+    func finish(_ error: RpcError?) {
+        if outcome == nil { outcome = .some(error) }
+        wake()
+    }
+
+    /// Until more credit or the end comes, or the task is cancelled.
+    func changed() async {
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { waiting = $0 }
+        } onCancel: {
+            Task { @MainActor in self.wake() }
+        }
+    }
+
+    private func wake() {
+        waiting?.resume()
+        waiting = nil
+    }
+}
+
+/// Sends `bytes` to machine `mid` as a file named `name` for an agent, as fast as the machine grants
+/// credit and the pace allows; the file's absolute path there.
+@MainActor
+public func upload(_ open: Opener, mid: String, name: String, bytes: Data,
+                   progress: @escaping @MainActor (Int) -> Void) async throws(CallError) -> String
+{
+    let params = JSON.object(["name": .string(name), "size": .int(Int64(bytes.count))])
+    let result = try await send(open, mid: mid, method: "isbell.file.upload", params: params, bytes: bytes, progress: progress)
+    guard let path = result["path"]?.string else { throw CallError(code: "bad_response", msg: "an upload without its path") }
+    return path
+}
+
+/// Sends `bytes` on a stream opened with `method`, as fast as credit and the relay allow; the
+/// stream's result once the machine has them all.
+@MainActor
+private func send(_ open: Opener, mid: String, method: String, params: JSON, bytes: Data,
+                  progress: @escaping @MainActor (Int) -> Void) async throws(CallError) -> JSON
+{
+    let writing = Writing()
+    let events = StreamEvents(data: { _ in }, credit: { writing.grant($0) }, end: { writing.finish($0) })
+    let (result, stream) = try await open(mid, method, params, fileTimeout, events)
+    var sent = 0
+    while sent < bytes.count, writing.outcome == nil, !Task.isCancelled {
+        let chunk = bytes[bytes.startIndex + sent ..< bytes.startIndex + min(sent + maxChunk, bytes.count)]
+        while writing.credit < chunk.count, writing.outcome == nil, !Task.isCancelled { await writing.changed() }
+        guard await pause(chunkEvery), writing.outcome == nil else { break }
+        stream.send(chunk: Data(chunk))
+        writing.credit -= chunk.count
+        sent += chunk.count
+        progress(sent)
+    }
+    if writing.outcome == nil, !Task.isCancelled { stream.finish() }
+    while writing.outcome == nil, !Task.isCancelled { await writing.changed() }
+    guard let outcome = writing.outcome else {
+        stream.close()
+        throw CallError(code: "cancelled", msg: "the upload was stopped")
+    }
+    if let error = outcome { throw CallError(code: error.code, msg: error.msg) }
+    return result
 }
 
 /// A home directory or above is never a project's root, even when it is a repository.

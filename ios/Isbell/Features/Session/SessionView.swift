@@ -17,8 +17,10 @@ struct SessionView: View {
     @Environment(\.scenePhase) private var phase
     let route: SessionRoute
     @State private var model: ChatModel
-    /// What is written to the agent, kept while it asks and the reply bar is away.
+    /// What is written to the agent and the files added for it, kept while it asks and the reply bar
+    /// is away.
     @State private var draft = ""
+    @State private var attachments: Attachments
 
     /// The record is followed again when the status changes, and only while the app is in front.
     private struct FollowKey: Hashable {
@@ -30,6 +32,7 @@ struct SessionView: View {
     init(route: SessionRoute) {
         self.route = route
         _model = State(initialValue: ChatModel(mid: route.mid, paneId: route.paneId))
+        _attachments = State(initialValue: Attachments(mid: route.mid))
     }
 
     var body: some View {
@@ -79,7 +82,7 @@ struct SessionView: View {
             if session.status == .blocked {
                 AskingDock(session: session)
             } else {
-                ReplyBar(session: session, draft: $draft) { model.didSend($0) }
+                ReplyBar(session: session, draft: $draft, attachments: attachments) { model.didSend($0) }
             }
         }
         .task(id: FollowKey(status: session.status, since: session.statusSince, active: phase == .active)) {

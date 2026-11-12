@@ -137,6 +137,16 @@
         }
       }
     },
+    "Attach": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加文件"
+          }
+        }
+      }
+    },
     "CPU %@ · Memory %@": {
       "localizations": {
         "zh-Hans": {
@@ -171,6 +181,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "CPU · %lld 核"
+          }
+        }
+      }
+    },
+    "Camera": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拍照"
           }
         }
       }
@@ -319,6 +339,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "失败，%lld 分钟后重试"
+          }
+        }
+      }
+    },
+    "Files": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文件"
           }
         }
       }
@@ -596,6 +626,16 @@
         }
       }
     },
+    "Over 20 MB": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "超过 20 MB"
+          }
+        }
+      }
+    },
     "Paste Key": {
       "localizations": {
         "zh-Hans": {
@@ -612,6 +652,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "粘贴任意一台机器上 `isbell space show` 打印的密钥。"
+          }
+        }
+      }
+    },
+    "Photos": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "照片"
           }
         }
       }
@@ -662,6 +712,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "relay"
+          }
+        }
+      }
+    },
+    "Remove": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除"
           }
         }
       }
@@ -902,6 +962,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "这台机器离线"
+          }
+        }
+      }
+    },
+    "The photo can't be read": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "照片读不出来"
           }
         }
       }

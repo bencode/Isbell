@@ -23,6 +23,14 @@ public struct Sent: Sendable, Equatable {
     }
 }
 
+extension Sent {
+    /// What it asked as a turn shows it: its words, and the images uploaded with it.
+    public var asked: Asked {
+        let (text, images) = splitUploads(text)
+        return Asked(text: text, images: images)
+    }
+}
+
 /// What was sent that the record does not have yet, in order. Each takes a turn asking after the one
 /// last when it was sent, the one asking the same first; without a turn to tell by, only that one.
 public func unrecorded(_ sent: [Sent], turns: [ChatTurn]?) -> [Sent] {
