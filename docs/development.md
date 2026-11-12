@@ -88,8 +88,19 @@ pnpm typecheck && pnpm test && pnpm lint && pnpm build
 - Release when the gateway or the CLI changed; a change to the web app alone needs none.
 - Bump `version` in the root `Cargo.toml` (the patch for fixes, the minor for features), commit,
   then push the tag `v<version>`.
-- `.github/workflows/release.yml` builds isbell for Apple silicon and publishes the release that
-  `install.sh` and `isbell upgrade` download; it fails when the tag and the version differ.
-- Deploy the web app only once the release is published. The app is built with the version in
+- `.github/workflows/release.yml` builds isbell for Apple silicon and publishes it as a GitHub
+  release; it fails when the tag and the version differ.
+- Mirror the release to the server, which serves `/root/isbell-releases` at
+  `isbell.fmap.dev/releases`: `install.sh`, and so `isbell upgrade` and the web app's update, download
+  from there, as many networks reach GitHub's downloads too slowly. Then point `latest` at it:
+
+  ```sh
+  v=v<version>; d=$(mktemp -d)
+  gh release download "$v" -R bencode/Isbell -D "$d" && (cd "$d" && shasum -a 256 -c ./*.sha256)
+  ssh i "mkdir -p /root/isbell-releases/$v" && scp "$d"/* "i:/root/isbell-releases/$v/"
+  ssh i "ln -sfn $v /root/isbell-releases/latest"
+  ```
+
+- Deploy the web app only once the release is mirrored. The app is built with the version in
   `Cargo.toml` and tells every machine on an older one to upgrade; deployed first, it would send
   them to a release that does not exist yet.

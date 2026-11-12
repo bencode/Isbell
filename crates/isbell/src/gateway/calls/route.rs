@@ -28,10 +28,11 @@ pub enum Method {
     ShareStart,
     ShareLink,
     ShareStop,
+    Upgrade,
 }
 
 impl Method {
-    pub(super) const ALL: [Method; 17] = [
+    pub(super) const ALL: [Method; 18] = [
         Method::Herdr,
         Method::StartAgent,
         Method::PaneProcesses,
@@ -49,6 +50,7 @@ impl Method {
         Method::ShareStart,
         Method::ShareLink,
         Method::ShareStop,
+        Method::Upgrade,
     ];
 
     pub fn name(self) -> &'static str {
@@ -70,6 +72,7 @@ impl Method {
             Method::ShareStart => "isbell.share.start",
             Method::ShareLink => "isbell.share.link",
             Method::ShareStop => "isbell.share.stop",
+            Method::Upgrade => "isbell.upgrade",
         }
     }
 

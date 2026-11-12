@@ -17,3 +17,6 @@ export function behind(version: string, latest: string = NEWEST): boolean {
   const differs = have.findIndex((n, i) => n !== want[i])
   return differs >= 0 && (have[differs] ?? 0) < (want[differs] ?? 0)
 }
+
+/** What a gateway serves to upgrade its machine from afar. */
+export const UPGRADE_METHOD = 'isbell.upgrade'

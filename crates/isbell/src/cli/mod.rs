@@ -8,7 +8,7 @@ mod output;
 mod space;
 mod target;
 mod terminal;
-mod upgrade;
+pub(crate) mod upgrade;
 mod watch;
 
 use clap::{Parser, Subcommand};

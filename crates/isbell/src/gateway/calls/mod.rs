@@ -27,7 +27,7 @@ use super::share::Shares;
 use super::stream::Input;
 use super::system::Sampler;
 use super::terminal;
-use super::{HerdrSlot, direct, file, git, nudge, process, rpc};
+use super::{HerdrSlot, direct, file, git, nudge, process, rpc, upgrade};
 
 /// What reaches the calls: a frame from a caller, or the end of a direct caller's link.
 pub enum ToCalls {
@@ -179,6 +179,10 @@ impl Calls {
             }
             Method::ShareLink => link.send(response_frame(id, self.shares.link(p))),
             Method::ShareStop => link.send(response_frame(id, self.shares.stop(p))),
+            Method::Upgrade => {
+                self.tasks
+                    .spawn(async move { link.send(response_frame(id, upgrade::upgrade().await)) });
+            }
         }
     }
 

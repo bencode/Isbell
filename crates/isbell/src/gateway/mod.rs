@@ -5,6 +5,7 @@ mod direct;
 mod file;
 mod git;
 mod herdr;
+mod hook;
 mod link;
 mod loops;
 mod monitor;
@@ -16,6 +17,7 @@ mod state;
 mod stream;
 mod system;
 mod terminal;
+mod upgrade;
 mod uplink;
 mod workspace;
 
@@ -74,6 +76,7 @@ fn make_state_dir() {
 /// monitor dies.
 pub async fn run(opts: GatewayOptions) -> Result<(), GatewayError> {
     make_state_dir();
+    hook::refresh();
     let slot: HerdrSlot = Arc::default();
     let (states, states_rx) = watch::channel(None);
     let (refresh, refresh_rx) = mpsc::channel(1);
