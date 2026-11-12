@@ -5,7 +5,10 @@
 import Foundation
 import os
 
-/// After a direct link fails, streams and calls to that machine use the relay this long before trying again.
+/// After a direct link fails, streams and calls to that machine use the relay this long before trying
+/// again: briefly the first time, as one tried while the relay and STUN are slow to answer just after
+/// the app comes up fails, and longer once it fails again.
+private let firstRetry: Duration = .seconds(30)
 private let directRetry: Duration = .seconds(5 * 60)
 
 @MainActor
@@ -15,11 +18,12 @@ final class DirectLinks {
     private let signals: @MainActor () -> Bool
     private let directable: @MainActor (String) -> Bool
     // Per machine: the attempt at a link, being opened or open (gone once it failed), the open link,
-    // and when the last attempt failed. An attempt's id tells it from one made after a reset.
+    // and when the last attempt failed, of how many in a row. An attempt's id tells it from one made
+    // after a reset.
     private var links: [String: (id: Int, task: Task<DirectLink?, Never>)] = [:]
     private var nextAttempt = 0
     private var direct: [String: DirectLink] = [:]
-    private var failures: [String: ContinuousClock.Instant] = [:]
+    private var failures: [String: (at: ContinuousClock.Instant, count: Int)] = [:]
 
     /// `relay` signals a link through the relay, and `signals` says whether it can now; `directable`
     /// says whether a machine can have one.
@@ -39,7 +43,7 @@ final class DirectLinks {
 
     /// Machine `mid`'s direct link, open or being opened, else a new attempt at one; nil when there
     /// is none to have, or the relay cannot carry an offer now: one sent on a socket iOS cut would
-    /// fail and keep the machine on the relay for directRetry.
+    /// fail and keep the machine on the relay for a while.
     func to(_ mid: String) -> Task<DirectLink?, Never>? {
         if let known = links[mid] { return known.task }
         guard let openDirect, signals(), worthTrying(mid) else { return nil }
@@ -67,7 +71,7 @@ final class DirectLinks {
     func status(_ mid: String) -> DirectStatus {
         if let link = direct[mid] { return .open(link.path) }
         if links[mid] != nil { return .opening }
-        if let at = recentFailure(mid) { return .failed(retryIn: at + directRetry - ContinuousClock.now) }
+        if let at = retryAt(mid) { return .failed(retryIn: at - ContinuousClock.now) }
         return openDirect != nil && directable(mid) ? .none : .unsupported
     }
 
@@ -92,12 +96,15 @@ final class DirectLinks {
     }
 
     private func worthTrying(_ mid: String) -> Bool {
-        directable(mid) && recentFailure(mid) == nil
+        directable(mid) && retryAt(mid) == nil
     }
 
-    /// The last failure, while it still keeps streams and calls on the relay.
-    private func recentFailure(_ mid: String) -> ContinuousClock.Instant? {
-        failures[mid].flatMap { ContinuousClock.now - $0 < directRetry ? $0 : nil }
+    /// When a link is tried again, while the failures keep streams and calls on the relay.
+    private func retryAt(_ mid: String) -> ContinuousClock.Instant? {
+        failures[mid].flatMap { f in
+            let at = f.at + (f.count == 1 ? firstRetry : directRetry)
+            return ContinuousClock.now < at ? at : nil
+        }
     }
 
     /// Keeps what attempt `id` opened, unless a reset or a close came first.
@@ -108,9 +115,10 @@ final class DirectLinks {
         }
         guard let link else {
             links[mid] = nil
-            failures[mid] = .now
+            failures[mid] = (.now, (failures[mid]?.count ?? 0) + 1)
             return nil
         }
+        failures[mid] = nil
         direct[mid] = link
         link.onClosed = { [weak self, weak link] in
             guard let self else { return }

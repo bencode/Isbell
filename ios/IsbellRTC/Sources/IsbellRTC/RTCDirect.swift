@@ -1,19 +1,30 @@
 // Sets up a direct link to one machine: a WebRTC DataChannel offered to its gateway's
-// `isbell.rtc.offer` through the relay. As the connecting part of web/src/model/direct.ts.
+// `isbell.rtc.offer` through the relay. As the connecting part of web/src/model/direct.ts, but for
+// what a phone's native WebRTC needs over cellular: STUN names resolved by the system, servers it
+// reaches from China, fewer addresses offered, and longer waits.
 
 import Foundation
 import IsbellKit
 import WebRTC
+import os
 
-/// The gateway's default STUN servers, so both sides look for their public addresses alike.
-private let stun = ["stun:stun.l.google.com:19302", "stun:stun.cloudflare.com:3478"]
-/// The offer goes out once gathering completes, `settle` after the first public address, or after this.
-private let gatherLimit: Duration = .milliseconds(2_500)
+/// STUN servers that answered from China within 40 ms, and Cloudflare's for elsewhere. Google's, which
+/// the gateway also asks, a phone in China mostly does not reach.
+private let stun = [
+    (host: "stun.miwifi.com", port: 3478), (host: "stun.chat.bilibili.com", port: 3478),
+    (host: "stun.cloudflare.com", port: 3478),
+]
+/// The offer goes out once gathering completes, `settle` after the public IPv4 address, or after this.
+/// Over cellular that address takes up to several seconds to come, and without it the machine has no
+/// way through the carrier's NAT.
+private let gatherLimit: Duration = .seconds(5)
 /// STUN servers answer within a few hundred milliseconds of each other, so waiting this long after
-/// the first public address brings the other family's too.
+/// the public IPv4 address brings the IPv6 one too.
 private let settle: Duration = .milliseconds(500)
-/// Offer, answer and the channel opening together.
-private let directLimit: Duration = .seconds(10)
+/// The offer and its answer, through the relay, which took 8 s just after it connected.
+private let answerLimit: Duration = .seconds(10)
+/// The channel opening once the answer is in: as long as the gateway waits for it.
+private let openLimit: Duration = .seconds(10)
 
 @MainActor private let factory: RTCPeerConnectionFactory = {
     RTCInitializeSSL()
@@ -23,10 +34,9 @@ private let directLimit: Duration = .seconds(10)
 /// Opens a direct link to machine `mid`, or throws `direct_failed` saying why not.
 @MainActor
 public func openDirect(_ call: @escaping Caller, mid: String) async throws(CallError) -> DirectLink {
-    let deadline = ContinuousClock.now + directLimit
-    guard let peer = RTCChannel.make() else { throw CallError(code: "direct_failed", msg: "could not set up a peer connection") }
+    guard let peer = RTCChannel.make(stun: await stunURLs()) else { throw CallError(code: "direct_failed", msg: "could not set up a peer connection") }
     do throws(CallError) {
-        let pieces = try await peer.connect(call, mid: mid, deadline: deadline)
+        let pieces = try await peer.connect(call, mid: mid)
         let path = await peer.stats().map { pathOf($0.remote) } ?? .internet
         return DirectLink(channel: peer, path: path, pieces: pieces)
     } catch {
@@ -48,11 +58,17 @@ final class RTCChannel: NSObject {
     private var onMessage: (@MainActor (Message) -> Void)?
     private var onClosed: (@MainActor () -> Void)?
 
-    static func make() -> RTCChannel? {
+    static func make(stun: [String]) -> RTCChannel? {
         let config = RTCConfiguration()
         config.iceServers = [RTCIceServer(urlStrings: stun)]
         config.sdpSemantics = .unifiedPlan
         config.continualGatheringPolicy = .gatherOnce
+        // Only UDP, which is all the gateway checks, no link-local addresses, and one IPv6 network of
+        // the several cellular ones a phone has: each address more is pairs the gateway checks, IPv6
+        // ones first, before the one that works, its LAN address to the phone's public IPv4.
+        config.tcpCandidatePolicy = .disabled
+        config.disableLinkLocalNetworks = true
+        config.maxIPv6Networks = 1
         let constraints = RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil)
         guard let pc = factory.peerConnection(with: config, constraints: constraints, delegate: nil),
               let channel = pc.dataChannel(forLabel: "isbell", configuration: RTCDataChannelConfiguration())
@@ -68,9 +84,8 @@ final class RTCChannel: NSObject {
         channel.delegate = self
     }
 
-    /// Whether the gateway agreed to pieces. Every step is bounded by `deadline`, but for gathering.
-    func connect(_ call: Caller, mid: String, deadline: ContinuousClock.Instant) async throws(CallError) -> Bool {
-        let left = { max(.zero, deadline - ContinuousClock.now) }
+    /// Whether the gateway agreed to pieces.
+    func connect(_ call: Caller, mid: String) async throws(CallError) -> Bool {
         let offer = try await describe { done in
             self.pc.offer(for: RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil)) { @Sendable sdp, error in
                 done(sdp.map { .success($0.sdp) } ?? .failure(failure("no offer", error)))
@@ -83,22 +98,22 @@ final class RTCChannel: NSObject {
         // Candidates are not trickled: the offer sent carries them all.
         guard let local = pc.localDescription else { throw CallError(code: "direct_failed", msg: "no local description") }
         let params = offerParams(type: RTCSessionDescription.string(for: local.type), sdp: local.sdp)
-        let result = try await call(mid, "isbell.rtc.offer", params, left())
+        let result = try await call(mid, "isbell.rtc.offer", params, answerLimit)
         guard let (sdp, pieces) = readAnswer(result) else {
             throw CallError(code: "direct_failed", msg: "the machine's answer has no description")
         }
         try await settled { done in
             self.pc.setRemoteDescription(RTCSessionDescription(type: .answer, sdp: sdp)) { @Sendable error in done(error) }
         }
-        guard await opened(within: left()) else {
-            throw CallError(code: "direct_failed", msg: "no direct link within \(directLimit)")
+        guard await opened(within: openLimit) else {
+            throw CallError(code: "direct_failed", msg: "no direct link within \(openLimit) of the answer")
         }
         return pieces
     }
 
     // MARK: - Waiting
 
-    /// The end of gathering, `settle` past the first public address, or `gatherLimit`.
+    /// The end of gathering, `settle` past the public IPv4 address, or `gatherLimit`.
     private func gathered() async {
         if gatherDone || pc.iceGatheringState == .complete { return }
         await withCheckedContinuation { continuation in
@@ -116,7 +131,7 @@ final class RTCChannel: NSObject {
     }
 
     private func tookCandidate(_ sdp: String) {
-        guard !settling, sdp.contains(" typ srflx") else { return }
+        guard !settling, publicIPv4(sdp) else { return }
         settling = true
         Task { [weak self] in
             if await pause(settle) { self?.finishGathering() }
@@ -226,6 +241,57 @@ extension RTCChannel: RTCPeerConnectionDelegate {
     nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didRemove candidates: [RTCIceCandidate]) {}
     nonisolated func peerConnection(_ peerConnection: RTCPeerConnection, didOpen dataChannel: RTCDataChannel) {}
 }
+
+/// Whether a candidate is a public IPv4 address, as STUN tells it: `candidate:<f> <c> <proto>
+/// <priority> <address> <port> typ <type> …`.
+private func publicIPv4(_ candidate: String) -> Bool {
+    let fields = candidate.split(separator: " ")
+    return fields.count > 7 && fields[7] == "srflx" && !fields[4].contains(":")
+}
+
+// MARK: - STUN servers
+
+/// The STUN servers by address, as the system resolves their names: WebRTC's own lookup of them over
+/// cellular took seconds or never ended, which left the offer without the phone's public address. A
+/// name the system cannot resolve is left to WebRTC.
+private func stunURLs() async -> [String] {
+    await withTaskGroup(of: [String].self) { group in
+        for server in stun { group.addTask { await stunURLs(server.host, server.port) } }
+        return await group.reduce(into: []) { $0 += $1 }
+    }
+}
+
+/// Resolved off the concurrency pool, as a lookup blocks its thread until the system answers.
+private func stunURLs(_ host: String, _ port: Int) async -> [String] {
+    let addresses = await withCheckedContinuation { continuation in
+        DispatchQueue.global().async { continuation.resume(returning: resolve(host)) }
+    }
+    if addresses.isEmpty { return ["stun:\(host):\(port)"] }
+    return addresses.map { $0.contains(":") ? "stun:[\($0)]:\(port)" : "stun:\($0):\(port)" }
+}
+
+/// The addresses the system gives for `host`, IPv4 and IPv6.
+private func resolve(_ host: String) -> [String] {
+    var hints = addrinfo()
+    hints.ai_family = AF_UNSPEC
+    hints.ai_socktype = SOCK_DGRAM
+    var list: UnsafeMutablePointer<addrinfo>?
+    let status = getaddrinfo(host, nil, &hints, &list)
+    guard status == 0, let first = list else {
+        logger.warning("cannot resolve \(host), left to WebRTC: \(String(cString: gai_strerror(status)))")
+        return []
+    }
+    defer { freeaddrinfo(first) }
+    let names = sequence(first: first) { $0.pointee.ai_next }.compactMap { info -> String? in
+        var name = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+        guard getnameinfo(info.pointee.ai_addr, info.pointee.ai_addrlen, &name, socklen_t(name.count), nil, 0, NI_NUMERICHOST) == 0
+        else { return nil }
+        return String(decoding: name.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }, as: UTF8.self)
+    }
+    return names.reduce(into: []) { found, name in if !found.contains(name) { found.append(name) } }
+}
+
+private let logger = Logger(subsystem: "dev.fmap.isbell", category: "direct")
 
 // MARK: - Completion handlers
 
