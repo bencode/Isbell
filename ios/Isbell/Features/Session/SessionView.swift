@@ -77,7 +77,7 @@ struct SessionView: View {
         return Group {
             switch model.record {
             case .found where model.turns != nil:
-                ChatList(model: model, session: session) {
+                ChatList(model: model, mid: session.mid, kind: session.kind, live: (session.status, session.statusSince)) {
                     if let kind = session.kind { model.earlier(store.space, kind: kind) }
                 }
             case .unrecorded where route.starting:

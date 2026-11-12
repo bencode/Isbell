@@ -1,6 +1,7 @@
 // A session's conversation as its agent records it: the record found through what herdr says of the
 // pane and the file Isbell's hook keeps for the session, then read from its end, more before it as
-// asked, and what is added while the agent works. One read at a time. As web/src/core/chat-log.ts.
+// asked, and what is added while the agent works; of a session that has ended, the record its
+// recorded line names, read from its end. One read at a time. As web/src/core/chat-log.ts.
 
 import Foundation
 import IsbellKit
@@ -35,11 +36,12 @@ final class ChatModel {
     var pending: [Sent] { unrecorded(sent, turns: turns) }
 
     @ObservationIgnored private let mid: String
-    @ObservationIgnored private let paneId: String
+    /// Nil for a session that has ended.
+    @ObservationIgnored private let paneId: String?
     @ObservationIgnored private var part: RecordPart?
     @ObservationIgnored private var queue: Task<Void, Never>?
 
-    init(mid: String, paneId: String) {
+    init(mid: String, paneId: String? = nil) {
         self.mid = mid
         self.paneId = paneId
     }
@@ -66,6 +68,16 @@ final class ChatModel {
                 oneMore = false
             }
         } while await pause(part?.whole == true ? .seconds(10) : .seconds(2))
+    }
+
+    /// The record of a session that has ended, as its recorded line names it, read from its end.
+    func readPast(_ space: Space, kind: String, transcript: String?) async {
+        guard readsRecord(kind), let transcript else {
+            record = .unrecorded
+            return
+        }
+        record = .found(transcript)
+        await inTurn { await self.readOn(space, kind: kind) }
     }
 
     /// Reads the turns before those read.
@@ -124,6 +136,11 @@ final class ChatModel {
             end = 0
             atStart = false
         }
+        await readOn(space, kind: kind)
+    }
+
+    /// What the record has after what is read, or its end when nothing is read yet.
+    private func readOn(_ space: Space, kind: String) async {
         guard case .found(let path) = record else { return }
         do throws(CallError) {
             if let part, let next = try await readAfter(space.open, mid: mid, path: path, part) {
@@ -146,7 +163,7 @@ final class ChatModel {
     /// herdr found it (pi's); nil while it cannot be told.
     private func find(_ space: Space, kind: String, session: Session, project: Project) async -> Record? {
         // Until the machine says where its records are, none can be found.
-        guard let roots = space.recorded[mid] else { return nil }
+        guard let roots = space.recorded[mid], let paneId else { return nil }
         do throws(CallError) {
             let note = try await agentNote(space.call, mid: mid, paneId: paneId)
             var transcript: String?
@@ -180,7 +197,7 @@ final class ChatModel {
     }
 
     private func failed(_ error: CallError) {
-        logger.warning("could not read the record of \(self.paneId): \(error.msg)")
+        logger.warning("could not read the record of \(self.paneId ?? self.mid): \(error.msg)")
         self.error = error
     }
 }

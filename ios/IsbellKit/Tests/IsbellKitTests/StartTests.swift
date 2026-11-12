@@ -78,7 +78,38 @@ private func template(_ agent: String, _ command: String? = nil) -> StartTemplat
     #expect(asked == 2)
 
     let never: Caller = { _, _, _, _ async throws(CallError) in
-        throw CallError(code: "agent_not_found", msg: "gone")
+        throw CallError(code: "timeout", msg: "no answer")
     }
     #expect(!(await waitReady(never, mid: "m1", paneId: "w1:p1", limit: .milliseconds(20), every: .milliseconds(1))))
+}
+
+@MainActor
+@Test func aSessionResumesWhereItRanByTheCommandItWasStartedWith() async throws {
+    let sent = Sent()
+    let plain = SessionRecord(agent: "codex", id: "c1", cwd: "/w/app", first: "x", last: "x", started: 1, updated: 2)
+    _ = try await resumeSession(sent.caller, mid: "m1", record: plain)
+    #expect(sent.calls[0].method == "isbell.agent.start")
+    #expect(sent.calls[0].params == .object([
+        "cwd": .string("/w/app"), "kind": .string("codex"), "args": .array([.string("resume"), .string("c1")]),
+    ]))
+    var launched = plain
+    launched.agent = "claude"
+    launched.launch = "reclaude"
+    _ = try await resumeSession(sent.caller, mid: "m1", record: launched)
+    #expect(sent.calls[1].method == "isbell.agent.launch")
+    #expect(sent.calls[1].params == .object([
+        "cwd": .string("/w/app"), "kind": .string("claude"), "command": .string("reclaude"),
+        "args": .array([.string("--resume"), .string("c1")]),
+    ]))
+}
+
+@MainActor
+@Test func waitingStopsOnceThePaneIsGone() async {
+    var asked = 0
+    let gone: Caller = { _, _, _, _ async throws(CallError) in
+        asked += 1
+        throw CallError(code: "agent_not_found", msg: "gone")
+    }
+    #expect(!(await waitReady(gone, mid: "m1", paneId: "w1:p1", limit: .seconds(5), every: .milliseconds(1))))
+    #expect(asked == 1)
 }

@@ -119,11 +119,29 @@ let startTimeout: Duration = .seconds(150)
 public func startTemplate(_ call: Caller, mid: String, cwd: String, template t: StartTemplate)
     async throws(CallError) -> Started
 {
-    var params: [String: JSON] = ["cwd": .string(cwd), "kind": .string(t.agent)]
-    if t.agent == "pi" { params["args"] = .array([.string("--tui-mode"), .string("regular")]) }
-    if !plain(t) { params["command"] = .string(t.command.trimmingCharacters(in: .whitespacesAndNewlines)) }
-    let method = plain(t) ? "isbell.agent.start" : launchMethod
-    let result = try await call(mid, method, .object(params), startTimeout)
+    try await startIn(call, mid: mid, cwd: cwd, kind: t.agent,
+                      command: plain(t) ? nil : t.command.trimmingCharacters(in: .whitespacesAndNewlines),
+                      args: t.agent == "pi" ? ["--tui-mode", "regular"] : [])
+}
+
+/// Resumes `record` in a new pane where it ran, by the command it was started with where that was a
+/// template's own. As `resume` in web/src/features/session/use-closed-session.ts.
+public func resumeSession(_ call: Caller, mid: String, record: SessionRecord) async throws(CallError) -> Started {
+    guard let args = resumeArgs(agent: record.agent, id: record.id) else {
+        throw CallError(code: "bad_request", msg: "\(record.agent) sessions can't be resumed")
+    }
+    return try await startIn(call, mid: mid, cwd: record.cwd, kind: record.agent, command: record.launch, args: args)
+}
+
+/// Starts an agent of `kind` in `cwd`: by herdr, or with `command`, by the gateway typing it and then
+/// `args` into a new shell.
+func startIn(_ call: Caller, mid: String, cwd: String, kind: String, command: String?, args: [String])
+    async throws(CallError) -> Started
+{
+    var params: [String: JSON] = ["cwd": .string(cwd), "kind": .string(kind)]
+    if !args.isEmpty { params["args"] = .array(args.map { .string($0) }) }
+    if let command { params["command"] = .string(command) }
+    let result = try await call(mid, command == nil ? "isbell.agent.start" : launchMethod, .object(params), startTimeout)
     guard let paneId = result["paneId"]?.string else {
         throw CallError(code: "bad_response", msg: "an agent started without its pane")
     }
@@ -140,7 +158,7 @@ func readyOf(_ agent: JSON?) -> Bool {
 }
 
 /// Waits for the agent just started in pane `paneId` to take a message; false when it did not
-/// within `limit`.
+/// within `limit`, or its pane is gone.
 public func waitReady(_ call: Caller, mid: String, paneId: String, limit: Duration = .seconds(30),
                       every: Duration = .milliseconds(500)) async -> Bool
 {
@@ -149,6 +167,9 @@ public func waitReady(_ call: Caller, mid: String, paneId: String, limit: Durati
         do throws(CallError) {
             let info = try await herdr(call, mid, "agent.get", .object(["target": .string(paneId)]))
             if readyOf(info["agent"]) { return true }
+        } catch where error.code == "agent_not_found" {
+            logger.warning("\(paneId) is gone before it got ready")
+            return false
         } catch {
             logger.warning("cannot tell whether \(paneId) is ready: \(error.msg)")
         }

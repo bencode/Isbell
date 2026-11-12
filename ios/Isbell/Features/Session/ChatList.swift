@@ -9,7 +9,10 @@ import SwiftUI
 
 struct ChatList: View {
     let model: ChatModel
-    let session: Session
+    let mid: String
+    let kind: String?
+    /// What the agent is doing, for a live session; nil for one that has ended.
+    let live: (status: AgentStatus, since: UInt64)?
     let earlier: () -> Void
     @State private var position = ScrollPosition(edge: .bottom)
     @State private var atEnd = true
@@ -25,13 +28,13 @@ struct ChatList: View {
                 top(turns)
                 ForEach(Array(turns.enumerated()), id: \.element.id) { i, turn in
                     let last = i == turns.count - 1
-                    TurnView(turn: turn, before: i > 0 ? turns[i - 1].at : 0, mid: session.mid, kind: session.kind,
-                             working: last && session.status == .working ? session.statusSince : nil,
-                             asking: last && session.status == .blocked)
+                    TurnView(turn: turn, before: i > 0 ? turns[i - 1].at : 0, mid: mid, kind: kind,
+                             working: last && live?.status == .working ? live?.since : nil,
+                             asking: last && live?.status == .blocked)
                 }
                 ForEach(model.pending, id: \.at) { sent in
                     VStack(alignment: .trailing, spacing: 6) {
-                        You(asked: sent.asked, mid: session.mid, at: sent.at).opacity(0.75)
+                        You(asked: sent.asked, mid: mid, at: sent.at).opacity(0.75)
                         Text("Sent · waiting for the record").font(.caption2.monospaced()).foregroundStyle(.tertiary)
                     }
                     .frame(maxWidth: .infinity, alignment: .trailing)
