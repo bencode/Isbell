@@ -73,7 +73,8 @@ public final class Space {
     }
 
     /// Calls machine `mid` over its direct link when one is open and takes pieces, else over the
-    /// relay; a call to the relay, once the relay is known to carry, starts a link for the calls after it.
+    /// relay; a call to the relay, once the relay is known to carry, starts a link for the calls
+    /// after it.
     public var call: Caller {
         { [weak self] mid, m, p, timeout async throws(CallError) -> JSON in
             guard let self else { throw CallError(code: "disconnected", msg: "not connected to the relay") }
