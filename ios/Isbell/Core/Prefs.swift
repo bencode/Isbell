@@ -1,6 +1,6 @@
 // What this iPhone remembers between launches: when sessions were looked at, the projects each
-// machine last listed, and how the screens were left. In UserDefaults; what cannot be read back
-// starts over.
+// machine last listed, what was last started where, and how the screens were left. In UserDefaults;
+// what cannot be read back starts over.
 
 import Foundation
 import IsbellKit
@@ -29,6 +29,10 @@ final class Prefs {
     /// Whether the sessions standing by are shown.
     var idleOpen: Bool { didSet { defaults.set(idleOpen, forKey: Key.idleOpen) } }
     var theme: Theme { didSet { defaults.set(theme.rawValue, forKey: Key.theme) } }
+    /// The projects started in lately, the latest first: `Project.id`s, three at most.
+    private(set) var recentProjects: [String]
+    /// The kind of agent last started.
+    private(set) var lastAgent: String?
 
     @ObservationIgnored private let defaults: UserDefaults
 
@@ -37,6 +41,8 @@ final class Prefs {
         static let keptPaths = "keptPaths"
         static let idleOpen = "idleOpen"
         static let theme = "theme"
+        static let recentProjects = "recentProjects"
+        static let lastAgent = "lastAgent"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -45,6 +51,8 @@ final class Prefs {
         keptPaths = Self.decoded(defaults, Key.keptPaths) ?? [:]
         idleOpen = defaults.bool(forKey: Key.idleOpen)
         theme = defaults.string(forKey: Key.theme).flatMap(Theme.init) ?? .system
+        recentProjects = defaults.stringArray(forKey: Key.recentProjects) ?? []
+        lastAgent = defaults.string(forKey: Key.lastAgent)
     }
 
     /// Session `id` is looked at under the status it has had since `since`.
@@ -60,12 +68,22 @@ final class Prefs {
         save(listed, Key.keptPaths)
     }
 
-    /// Forgets what belonged to the space left; how the screens look stays.
+    /// Started `agent` in project `project` (a `Project.id`).
+    func used(project: String, agent: String) {
+        recentProjects = Array(([project] + recentProjects.filter { $0 != project }).prefix(3))
+        lastAgent = agent
+        defaults.set(recentProjects, forKey: Key.recentProjects)
+        defaults.set(agent, forKey: Key.lastAgent)
+    }
+
+    /// Forgets what belonged to the space left; how the screens look, and the agent liked, stay.
     func clearSpace() {
         seen = [:]
         keptPaths = [:]
+        recentProjects = []
         defaults.removeObject(forKey: Key.seen)
         defaults.removeObject(forKey: Key.keptPaths)
+        defaults.removeObject(forKey: Key.recentProjects)
     }
 
     private func save<T: Encodable>(_ value: T, _ key: String) {

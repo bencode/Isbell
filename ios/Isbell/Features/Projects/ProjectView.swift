@@ -1,5 +1,5 @@
-// A project's page: its live sessions, as cards like the first tab's. Its history and files come
-// later.
+// A project's page: its live sessions, as cards like the first tab's, and a new one started in it.
+// Its history and files come later.
 
 import IsbellKit
 import SwiftUI
@@ -8,6 +8,9 @@ struct ProjectView: View {
     @Environment(SpaceStore.self) private var store
     /// A `Project.id`, looked up on each change so the page stays live.
     let id: String
+    /// Opens a session started from here, over this page.
+    let open: (SessionRoute) -> Void
+    @State private var creating = false
 
     var body: some View {
         let project = store.projects.first { $0.id == id }
@@ -32,5 +35,12 @@ struct ProjectView: View {
         }
         .navigationTitle(project?.name ?? "")
         .navigationSubtitle(Text(verbatim: project.map { "\($0.machine) · \($0.display)" } ?? ""))
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("New session", systemImage: "plus") { creating = true }
+                    .disabled(project?.online != true || project?.path.isEmpty != false)
+            }
+        }
+        .sheet(isPresented: $creating) { NewSessionSheet(preset: id, onStarted: open) }
     }
 }

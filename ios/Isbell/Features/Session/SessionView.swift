@@ -10,6 +10,8 @@ import os
 struct SessionRoute: Hashable {
     let mid: String
     let paneId: String
+    /// Just started: until its agent is made out, the pane is not a session yet.
+    var starting = false
 }
 
 struct SessionView: View {
@@ -52,6 +54,8 @@ struct SessionView: View {
                         }
                     }
                     .fullScreenCover(isPresented: $terminal) { TerminalScreen(placed: placed) }
+            } else if route.starting {
+                ProgressView("Starting…")
             } else {
                 ContentUnavailableView("This session has ended", systemImage: "checkmark.circle")
             }

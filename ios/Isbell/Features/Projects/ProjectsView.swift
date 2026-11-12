@@ -8,6 +8,7 @@ import os
 struct ProjectsView: View {
     @Environment(SpaceStore.self) private var store
     @State private var shown: ShownMachine?
+    @State private var path = NavigationPath()
 
     private struct ShownMachine: Identifiable {
         let id: String
@@ -15,7 +16,7 @@ struct ProjectsView: View {
 
     var body: some View {
         let projects = store.projects
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 ForEach(store.space.machines) { entry in
                     Section {
@@ -31,7 +32,7 @@ struct ProjectsView: View {
                 if !store.space.loaded { ProgressView("Connecting…") }
             }
             .navigationTitle("Projects")
-            .navigationDestination(for: String.self) { ProjectView(id: $0) }
+            .navigationDestination(for: String.self) { ProjectView(id: $0) { path.append($0) } }
             .navigationDestination(for: SessionRoute.self) { SessionView(route: $0) }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
