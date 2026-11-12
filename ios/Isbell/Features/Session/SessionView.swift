@@ -80,6 +80,16 @@ struct SessionView: View {
                 ChatList(model: model, session: session) {
                     if let kind = session.kind { model.earlier(store.space, kind: kind) }
                 }
+            case .unrecorded where route.starting:
+                // Just started here: nothing is recorded until something is said, and what the agent says
+                // before, such as that it is not logged in, is only in its terminal.
+                ContentUnavailableView {
+                    Label("Say something to start", systemImage: "text.bubble")
+                } description: {
+                    Text("The conversation shows here as it goes.")
+                } actions: {
+                    Button("Open terminal") { terminal = true }
+                }
             case .unrecorded:
                 ContentUnavailableView {
                     Label("No conversation recorded", systemImage: "text.bubble")

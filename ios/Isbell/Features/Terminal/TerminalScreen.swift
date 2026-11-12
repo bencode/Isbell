@@ -1,4 +1,4 @@
-// A session's terminal, full screen and dark, with the key bar under it, above the keyboard when it is
+// A pane's terminal, a session's or a shell's, full screen and dark, with the key bar under it, above the keyboard when it is
 // up. It holds the pane while shown and lets it go when closed. What is said is pasted at the cursor.
 // As web/src/shell/mobile/terminal.tsx.
 
@@ -10,16 +10,24 @@ struct TerminalScreen: View {
     @Environment(SpaceStore.self) private var store
     @Environment(\.scenePhase) private var phase
     @Environment(\.dismiss) private var dismiss
-    let placed: Placed
+    let title: String
+    /// Which project and machine, and the agent where there is one, in a line.
+    let place: String
     @State private var model: TerminalModel
     @State private var handle = TermHandle()
     @State private var keyboard = false
     /// What is said into the terminal, pasted at its cursor.
     @State private var voice = VoiceInput()
 
+    init(mid: String, paneId: String, title: String, place: String) {
+        self.title = title
+        self.place = place
+        _model = State(initialValue: TerminalModel(mid: mid, paneId: paneId))
+    }
+
     init(placed: Placed) {
-        self.placed = placed
-        _model = State(initialValue: TerminalModel(mid: placed.session.mid, paneId: placed.session.paneId))
+        self.init(mid: placed.session.mid, paneId: placed.session.paneId, title: placedTitle(placed),
+                  place: placedWhere(placed))
     }
 
     var body: some View {
@@ -43,8 +51,8 @@ struct TerminalScreen: View {
                 }
                 .background(Color(hex: 0x161c27))
             }
-            .navigationTitle(placedTitle(placed))
-            .navigationSubtitle(Text("Terminal · \(placedWhere(placed))"))
+            .navigationTitle(title)
+            .navigationSubtitle(Text("Terminal · \(place)"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

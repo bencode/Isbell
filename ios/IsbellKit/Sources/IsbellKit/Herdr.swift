@@ -98,22 +98,67 @@ public func prompt(_ call: Caller, mid: String, paneId: String, text: String) as
 public struct Started: Sendable, Equatable {
     public var name: String
     public var paneId: String
+    /// Whether herdr saw the agent come up. Started by a command of its own, one it did not is the shell
+    /// the command ran in, showing what it said.
+    public var recognized: Bool
+
+    public init(name: String, paneId: String, recognized: Bool = true) {
+        self.name = name
+        self.paneId = paneId
+        self.recognized = recognized
+    }
 }
 
 /// Starting waits for the agent to come up, which can take long on a machine slow to start it.
 let startTimeout: Duration = .seconds(150)
 
-/// Starts an agent of `kind` in `cwd` on machine `mid`. pi starts in its regular mode, which leaves the
-/// conversation in the terminal's history for the chat to read. As `startIn` in
+/// Starts template `t` in `cwd` on machine `mid`: by herdr where its command is the agent's own name,
+/// else by the gateway typing the command into a new shell. pi starts in its regular mode, which leaves
+/// the conversation in the terminal's history for the chat to read. As `startIn` in
 /// web/src/features/session/new-session-menu.tsx.
-public func startAgent(_ call: Caller, mid: String, cwd: String, kind: String) async throws(CallError) -> Started {
-    var params: [String: JSON] = ["cwd": .string(cwd), "kind": .string(kind)]
-    if kind == "pi" { params["args"] = .array([.string("--tui-mode"), .string("regular")]) }
-    let result = try await call(mid, "isbell.agent.start", .object(params), startTimeout)
+public func startTemplate(_ call: Caller, mid: String, cwd: String, template t: StartTemplate)
+    async throws(CallError) -> Started
+{
+    var params: [String: JSON] = ["cwd": .string(cwd), "kind": .string(t.agent)]
+    if t.agent == "pi" { params["args"] = .array([.string("--tui-mode"), .string("regular")]) }
+    if !plain(t) { params["command"] = .string(t.command.trimmingCharacters(in: .whitespacesAndNewlines)) }
+    let method = plain(t) ? "isbell.agent.start" : launchMethod
+    let result = try await call(mid, method, .object(params), startTimeout)
     guard let paneId = result["paneId"]?.string else {
         throw CallError(code: "bad_response", msg: "an agent started without its pane")
     }
-    return Started(name: result["name"]?.string ?? "", paneId: paneId)
+    return Started(name: result["name"]?.string ?? "", paneId: paneId, recognized: result["recognized"]?.bool ?? true)
+}
+
+/// Whether herdr's info on a just-started agent says it can take a message: herdr's own start says
+/// so once it is up; one a command started, once it stands; either, once it asks something, which is
+/// for you to answer. As `wait_until_ready` in crates/isbell/src/gateway/rpc.rs.
+func readyOf(_ agent: JSON?) -> Bool {
+    let status = agent?["agent_status"]?.string
+    if status == "blocked" || agent?["interactive_ready"]?.bool == true { return true }
+    return agent?["launch_pending"]?.bool != true && (status == "idle" || status == "done")
+}
+
+/// Waits for the agent just started in pane `paneId` to take a message; false when it did not
+/// within `limit`.
+public func waitReady(_ call: Caller, mid: String, paneId: String, limit: Duration = .seconds(30),
+                      every: Duration = .milliseconds(500)) async -> Bool
+{
+    let deadline = ContinuousClock.now + limit
+    while true {
+        do throws(CallError) {
+            let info = try await herdr(call, mid, "agent.get", .object(["target": .string(paneId)]))
+            if readyOf(info["agent"]) { return true }
+        } catch {
+            logger.warning("cannot tell whether \(paneId) is ready: \(error.msg)")
+        }
+        guard ContinuousClock.now < deadline else { return false }
+        do {
+            try await Task.sleep(for: every)
+        } catch {
+            return false
+        }
+    }
 }
 
 /// Presses `keys`, as herdr names them ("esc"), in pane `paneId`.
