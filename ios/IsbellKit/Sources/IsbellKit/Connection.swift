@@ -7,8 +7,8 @@ import os
 /// Close code the relay uses when the key does not verify.
 private let closeAuthFailed = 4003
 private let backoff: [Duration] = [.seconds(1), .seconds(2), .seconds(4), .seconds(8), .seconds(16), .seconds(30)]
-/// How long a call made while the connection is down waits for it, as when the app comes back
-/// from the background and dials again.
+/// How long a call made while the connection is down, or while a ping checks it, waits for it, as
+/// when the app comes back from the background and dials again.
 private let readyWait: Duration = .seconds(5)
 /// How long a ping may go unanswered before the socket is taken for dead.
 private let probeWait: Duration = .seconds(2)
@@ -56,6 +56,8 @@ public final class RelayConnection {
     /// Calls waiting for the connection: told true once the snapshot arrives.
     private var waiters: [Int: CheckedContinuation<Bool, Never>] = [:]
     private var nextWaiter = 0
+    /// The socket whose ping is not answered yet, by its generation: until it is, it may be dead.
+    private var unanswered: Int?
 
     /// Dials at once.
     public init(url: URL, identity: Identity, onEvent: @escaping @MainActor (ConnectionEvent) -> Void) {
@@ -65,6 +67,10 @@ public final class RelayConnection {
         self.onEvent = onEvent
         dial()
     }
+
+    /// Whether the relay carries calls now: the socket is open and authenticated, and no ping sent on
+    /// it is waiting for an answer.
+    public var live: Bool { ready && task != nil && unanswered != generation }
 
     /// Resolves with the result, or throws a CallError.
     public func call(_ mid: String, _ m: String, _ p: JSON, timeout: Duration) async throws(CallError) -> JSON {
@@ -98,10 +104,14 @@ public final class RelayConnection {
     public func probe() {
         guard let socket = task, ready else { return reconnectNow() }
         let current = generation
+        unanswered = current
         let once = Once()
         socket.sendPing { [weak self] error in
             Task { @MainActor in
-                guard let error else { return _ = once.settle() }
+                guard let error else {
+                    if once.settle() { self?.answered() }
+                    return
+                }
                 self?.abandon(socket, current, once, error)
             }
         }
@@ -109,6 +119,12 @@ public final class RelayConnection {
             guard await pause(probeWait) else { return }
             self?.abandon(socket, current, once, CallError(code: "timeout", msg: "no answer to a ping"))
         }
+    }
+
+    /// The socket answered its ping: calls held for it go on it.
+    private func answered() {
+        unanswered = nil
+        releaseWaiters(true)
     }
 
     /// Drops a socket that did not answer a ping, unless it answered first or was replaced, and
@@ -244,8 +260,10 @@ public final class RelayConnection {
 
     // MARK: - Calls
 
+    /// Returns once the socket carries calls: a call sent while a ping is unanswered would be lost
+    /// with the socket if it turns out dead.
     private func whenConnected() async throws(CallError) {
-        if ready, task != nil { return }
+        if live { return }
         guard !closed else { throw CallError(code: "disconnected", msg: "not connected to the relay") }
         let key = nextWaiter
         nextWaiter += 1
