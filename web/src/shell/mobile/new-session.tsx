@@ -35,7 +35,7 @@ export function PhoneNewSession() {
   const caps = project && machineOf(view.machines, project.mid)?.state.caps
   // Those of agents herdr knows on the project's machine; what was used last is a template's name,
   // which is the agent's for one that starts it by its name.
-  const templates = useTemplates(project?.mid, !!project).templates.filter(
+  const templates = useTemplates(project?.mid, !!project).filter(
     tm => !caps || caps.agentKinds.includes(tm.agent),
   )
   const can = (name: string) => templates.some(tm => tm.name === name && (!caps || usable(tm, caps)))

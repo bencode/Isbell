@@ -53,7 +53,7 @@ export function NewSessionMenu({
   const space = useSpace()
   const caps = machineOf(useSpaceView().machines, project.mid)?.state.caps
   const [open, setOpen] = useState(false)
-  const { templates } = useTemplates(project.mid, open)
+  const templates = useTemplates(project.mid, open)
   // Those of agents herdr knows there; one this machine's gateway cannot start shows why.
   const shown = templates.filter(tm => caps?.agentKinds.includes(tm.agent))
   const [starting, setStarting] = useState<string>()

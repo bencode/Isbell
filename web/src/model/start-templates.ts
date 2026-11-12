@@ -3,14 +3,14 @@
 // session or resume one. Without the file, a machine starts each agent by its own name.
 
 import { CHAT_AGENTS } from './agents'
-import { read, writeText } from './files/remote'
+import { read } from './files/remote'
 import type { Space } from './space'
 import type { Caps } from './state'
 import { CallError } from './streams'
 
 export type StartTemplate = { name: string; agent: string; command: string }
 
-/** A file that cannot be read is never written over, as with the projects. */
+/** A file that cannot be read starts each agent by its own name, as without one. */
 export type Templates = { state: 'listed' | 'missing'; templates: StartTemplate[] } | { state: 'broken' }
 
 export const templatesPath = '~/.isbell/templates.json'
@@ -67,9 +67,6 @@ export function parseTemplates(text: string): StartTemplate[] | undefined {
   }
 }
 
-export const serializeTemplates = (templates: StartTemplate[]) =>
-  `${JSON.stringify({ version: VERSION, templates }, null, 2)}\n`
-
 /** What machine `mid` starts agents with, read from its file now. */
 export async function readTemplates(open: Space['openStream'], mid: string): Promise<Templates> {
   try {
@@ -87,9 +84,6 @@ export async function readTemplates(open: Space['openStream'], mid: string): Pro
     return { state: 'broken' }
   }
 }
-
-export const writeTemplates = (open: Space['openStream'], mid: string, templates: StartTemplate[]) =>
-  writeText(open, mid, templatesPath, serializeTemplates(templates))
 
 export type StartCall =
   | { method: typeof START_METHOD; p: { cwd: string; kind: string; args: string[] } }

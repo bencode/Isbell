@@ -6,7 +6,6 @@ import {
   parseTemplates,
   problem,
   type StartTemplate,
-  serializeTemplates,
   startCall,
   usable,
 } from './start-templates'
@@ -17,7 +16,7 @@ const file = (templates: unknown, version = 1) => JSON.stringify({ version, temp
 
 test('a file is read whole, or not at all where any template in it could not be used', () => {
   const templates = [...DEFAULT_TEMPLATES, rec]
-  expect(parseTemplates(serializeTemplates(templates))).toEqual(templates)
+  expect(parseTemplates(file(templates))).toEqual(templates)
   expect(parseTemplates(file([rec], 2))).toBeUndefined()
   expect(parseTemplates(file([{ name: 'x', agent: 'gemini', command: 'gemini' }]))).toBeUndefined()
   expect(parseTemplates(file([{ name: 'x', agent: 'claude' }]))).toBeUndefined()
