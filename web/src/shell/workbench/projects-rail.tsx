@@ -7,6 +7,7 @@ import { Popover } from '@base-ui/react/popover'
 import { Info, MoreHorizontal, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router'
+import { Button } from '../../components/button'
 import { ICON, IconButton } from '../../components/icon-button'
 import { InfoFacts } from '../../components/info-panel'
 import { DropdownMenu } from '../../components/menu'
@@ -25,6 +26,7 @@ import { MachineFacts } from '../../features/machine/machine-facts'
 import { AddProjectDialog } from '../../features/projects/add-project-dialog'
 import { connectionFacts } from '../../features/session/facts'
 import { useLink } from '../../features/session/use-link'
+import { TemplatesDialog } from '../../features/templates/templates-dialog'
 import { flagged, UpgradeSection } from '../../features/upgrade/upgrade-section'
 import { type Upgrade, useUpgrade } from '../../features/upgrade/use-upgrade'
 import { type ProjectActions, type ProjectConfig, projectActions } from '../../model/project-config'
@@ -133,32 +135,54 @@ function MachineDetails({ entry, upgrading }: { entry: MachineEntry; upgrading: 
   const t = useI18n()
   const { upgrade, start, clear } = upgrading
   const lit = flagged(entry, upgrade)
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
   return (
-    <Popover.Root onOpenChange={open => !open && clear()}>
-      <Popover.Trigger
-        render={
-          <IconButton
-            label={t(upgrade.phase === 'idle' && lit ? 'upgrade.mark' : 'machine.info')}
-            side="right"
-            size="small"
-          >
-            <Info
-              {...SMALL}
-              className={lit ? (upgrade.phase === 'failed' ? 'text-danger' : 'text-accent') : ''}
-            />
-          </IconButton>
-        }
-      />
-      <Popover.Portal>
-        <Popover.Positioner side="right" align="start" sideOffset={8} className="z-50 outline-none">
-          <Popover.Popup className="flex max-h-[70vh] w-[340px] flex-col gap-5 overflow-auto rounded-[10px] border border-line-strong bg-raised p-4 text-[13px] shadow-[0_8px_28px_rgb(0_0_0/0.2)] outline-none">
-            {lit ? <UpgradeSection entry={entry} upgrade={upgrade} start={start} /> : null}
-            <MachineFacts entry={entry} />
-            {entry.online ? <MachineConnection mid={entry.state.machine.id} /> : null}
-          </Popover.Popup>
-        </Popover.Positioner>
-      </Popover.Portal>
-    </Popover.Root>
+    <>
+      <Popover.Root
+        open={open}
+        onOpenChange={next => {
+          setOpen(next)
+          if (!next) clear()
+        }}
+      >
+        <Popover.Trigger
+          render={
+            <IconButton
+              label={t(upgrade.phase === 'idle' && lit ? 'upgrade.mark' : 'machine.info')}
+              side="right"
+              size="small"
+            >
+              <Info
+                {...SMALL}
+                className={lit ? (upgrade.phase === 'failed' ? 'text-danger' : 'text-accent') : ''}
+              />
+            </IconButton>
+          }
+        />
+        <Popover.Portal>
+          <Popover.Positioner side="right" align="start" sideOffset={8} className="z-50 outline-none">
+            <Popover.Popup className="flex max-h-[70vh] w-[340px] flex-col gap-5 overflow-auto rounded-[10px] border border-line-strong bg-raised p-4 text-[13px] shadow-[0_8px_28px_rgb(0_0_0/0.2)] outline-none">
+              {lit ? <UpgradeSection entry={entry} upgrade={upgrade} start={start} /> : null}
+              <MachineFacts entry={entry} />
+              {entry.online ? <MachineConnection mid={entry.state.machine.id} /> : null}
+              <Button
+                size="small"
+                className="self-start"
+                disabled={!entry.online}
+                onClick={() => {
+                  setOpen(false)
+                  setEditing(true)
+                }}
+              >
+                {t('templates.open')}
+              </Button>
+            </Popover.Popup>
+          </Popover.Positioner>
+        </Popover.Portal>
+      </Popover.Root>
+      {editing ? <TemplatesDialog entry={entry} onClose={() => setEditing(false)} /> : null}
+    </>
   )
 }
 

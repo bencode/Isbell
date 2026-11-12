@@ -18,7 +18,7 @@
 # it starts, registrations untouched. A version that changes EVENTS or pi's extension must be
 # installed again.
 
-ISBELL_HOOK_VERSION=5
+ISBELL_HOOK_VERSION=6
 INSTALLED="$HOME/.isbell/hooks/agent-hook.sh"
 
 # The events registered, and what each reports.
@@ -156,6 +156,9 @@ def record(e):
     own = prompt and not prompt.startswith("<task-notification>")
     asked = collapse(prompt)[:PROMPT_MAX] if own else None
     now = int(time.time() * 1000)
+    # The command Isbell started the agent with, where it was its own (isbell.agent.launch), which
+    # resumes it the same way.
+    launch = os.environ.get("ISBELL_LAUNCH", "").strip()
     # The store is the owner's alone, and so is everything made inside it.
     os.makedirs(STORE, mode=0o700, exist_ok=True)
     root = root_of(cwd)
@@ -169,7 +172,9 @@ def record(e):
                    "started": now, "updated": now}
         if transcript:
             session["transcript"] = transcript
-        line = {k: session[k] for k in ("agent", "id", "cwd", "first", "started")}
+        if launch:
+            session["launch"] = launch
+        line = {k: session[k] for k in ("agent", "id", "cwd", "first", "started", "launch") if k in session}
         months = os.path.join(project, "months")
         os.makedirs(months, mode=0o700, exist_ok=True)
         month = os.path.join(months, time.strftime("%Y-%m") + ".jsonl")
@@ -183,6 +188,8 @@ def record(e):
             session["last"] = asked
         if transcript:
             session["transcript"] = transcript
+        if launch:
+            session["launch"] = launch
         session["updated"] = now
     put(path, session)
     # Agents in one project end their turns together: the shared lists change one at a time.

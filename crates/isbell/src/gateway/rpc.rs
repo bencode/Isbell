@@ -85,7 +85,7 @@ pub async fn start_agent(herdr: &Herdr, p: Value) -> Result<Value, RpcError> {
             first_free(&base, &agent_names(herdr).await?)
         }
     };
-    let pane_id = workspace::create(herdr, &cwd, &name).await?;
+    let pane_id = workspace::create(herdr, &cwd, &name, json!({})).await?;
     let args = agent_args(&req.kind, req.args);
     let start = json!({"name": name, "kind": req.kind, "pane_id": pane_id, "args": args, "timeout_ms": 30_000});
     if let Err(err) = start_retrying_busy(herdr, start).await {
@@ -111,7 +111,7 @@ async fn prompt_when_ready(herdr: &Herdr, pane_id: &str, text: String) -> Result
 }
 
 /// Codex hooks only run inside the pane without its background daemon.
-fn agent_args(kind: &str, args: Vec<String>) -> Vec<String> {
+pub(super) fn agent_args(kind: &str, args: Vec<String>) -> Vec<String> {
     let no_daemon = (kind == "codex").then(|| "--no-daemon".to_owned());
     no_daemon.into_iter().chain(args).collect()
 }
@@ -144,7 +144,7 @@ async fn wait_until_ready(herdr: &Herdr, pane_id: &str) -> Result<(), RpcError> 
 }
 
 /// `{kind}-{dir}` reduced to herdr's name alphabet (`[a-z][a-z0-9_-]*`).
-fn default_name(kind: &str, dir: &str) -> String {
+pub(super) fn default_name(kind: &str, dir: &str) -> String {
     let raw = format!("{kind}-{dir}").to_ascii_lowercase();
     let words: Vec<&str> = raw
         .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
@@ -159,14 +159,14 @@ fn default_name(kind: &str, dir: &str) -> String {
     }
 }
 
-async fn agent_names(herdr: &Herdr) -> Result<Vec<String>, RpcError> {
+pub(super) async fn agent_names(herdr: &Herdr) -> Result<Vec<String>, RpcError> {
     let list = herdr.request("agent.list", json!({}), Some(REQUEST_TIMEOUT)).await?;
     let agents = list["agents"].as_array().into_iter().flatten();
     Ok(agents.filter_map(|a| a["name"].as_str()).map(str::to_owned).collect())
 }
 
 /// `base`, else the first `base-N` not taken.
-fn first_free(base: &str, taken: &[String]) -> String {
+pub(super) fn first_free(base: &str, taken: &[String]) -> String {
     (1..)
         .map(|n| if n == 1 { base.to_owned() } else { format!("{base}-{n}") })
         .find(|candidate| !taken.contains(candidate))

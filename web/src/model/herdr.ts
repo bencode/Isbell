@@ -1,5 +1,5 @@
 // The gateway calls the web client makes: herdr's whitelisted methods, passed through, and
-// Isbell's own `isbell.agent.start`, `isbell.pane.processes` and `isbell.terminal`.
+// Isbell's own `isbell.agent.start` and `.launch`, `isbell.pane.processes` and `isbell.terminal`.
 
 import { type AgentInfo, type AgentNote, noteOf, titleOf } from './agent-note'
 
@@ -113,6 +113,16 @@ export const startAgent = async (
   mid: string,
   p: { cwd: string; kind: string; args?: string[]; prompt?: string },
 ): Promise<Started> => (await call(mid, 'isbell.agent.start', p, START_TIMEOUT_MS)) as Started
+
+/** Started by a command of its own; `recognized`: herdr saw the agent come up, else the pane is the
+ * shell the command ran in. */
+export type Launched = { name: string; paneId: string; recognized: boolean }
+
+export const launchAgent = async (
+  call: Caller,
+  mid: string,
+  p: { cwd: string; kind: string; command: string; args?: string[] },
+): Promise<Launched> => (await call(mid, 'isbell.agent.launch', p, START_TIMEOUT_MS)) as Launched
 
 /** Opens a shell in `cwd` and lets go of it at once: the shell stays in herdr. */
 export async function openShell(openThenEnd: Caller, mid: string, cwd: string): Promise<string> {

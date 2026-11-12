@@ -6,6 +6,7 @@ mod file;
 mod git;
 mod herdr;
 mod hook;
+mod launch;
 mod link;
 mod loops;
 mod monitor;
