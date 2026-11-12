@@ -21,6 +21,26 @@
         }
       }
     },
+    "%@ isn't on this machine.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这台机器上没有 %@。"
+          }
+        }
+      }
+    },
+    "%@ sessions can't be resumed.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 的 session 不能恢复。"
+          }
+        }
+      }
+    },
     "%lld machines online": {
       "localizations": {
         "en": {
@@ -265,6 +285,16 @@
         }
       }
     },
+    "Continues in a new pane in %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 %@ 的新 pane 里继续"
+          }
+        }
+      }
+    },
     "Copy": {
       "localizations": {
         "zh-Hans": {
@@ -409,6 +439,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "找项目"
+          }
+        }
+      }
+    },
+    "History": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "历史"
           }
         }
       }
@@ -892,6 +932,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "回复…"
+          }
+        }
+      }
+    },
+    "Resume": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复"
+          }
+        }
+      }
+    },
+    "Resuming…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在恢复…"
           }
         }
       }
@@ -1452,6 +1512,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "isbell / herdr"
+          }
+        }
+      }
+    },
+    "isbell on %@ is too old to resume it with %@. Update it there.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ 上的 isbell 太旧，不能用 %2$@ 恢复。请在那台机器上升级。"
           }
         }
       }

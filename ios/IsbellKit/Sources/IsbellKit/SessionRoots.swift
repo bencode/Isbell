@@ -6,7 +6,7 @@
 import Foundation
 import os
 
-private let store = "~/.isbell/sessions"
+let store = "~/.isbell/sessions"
 public let rootsPath = "\(store)/roots.json"
 
 /// Where a project's records are, and when one of them last changed.
@@ -59,7 +59,7 @@ public func transcriptOf(_ text: String) -> String? {
     }
 }
 
-private func time(_ value: JSON?) -> Int64? {
+func time(_ value: JSON?) -> Int64? {
     switch value {
     case .int(let n)?: n
     case .double(let n)? where n.isFinite: Int64(n)

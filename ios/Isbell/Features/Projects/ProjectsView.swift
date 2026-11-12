@@ -34,6 +34,13 @@ struct ProjectsView: View {
             .navigationTitle("Projects")
             .navigationDestination(for: String.self) { ProjectView(id: $0) { path.append($0) } }
             .navigationDestination(for: SessionRoute.self) { SessionView(route: $0) }
+            // Resumed, its live page takes the ended one's place.
+            .navigationDestination(for: EndedRoute.self) {
+                EndedView(route: $0) { live in
+                    path.removeLast()
+                    path.append(live)
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink {
