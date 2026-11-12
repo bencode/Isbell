@@ -1,10 +1,10 @@
-// One file read, shown by the view for its kind (an image as one, else text by its kind); or, when
-// it is neither or too large to show, what it is and a way to download it. The files a document
-// shows beside itself are read for it as it asks.
+// One file read, and read again as its tab shows again, shown in place by the view for its kind (an
+// image as one, else text by its kind); or, when it is neither or too large to show, what it is and
+// a way to download it. The files a document shows beside itself are read for it as it asks.
 
 import { type ComponentType, useMemo, useState } from 'react'
 import { errorText, useI18n } from '../../core/i18n'
-import { useFile } from '../../core/remote-files'
+import { useFreshFile } from '../../core/remote-files'
 import { useSpace } from '../../core/space'
 import { assetReader } from '../../model/files/assets'
 import { decodeText, type FileKind, formatSize, imageType, kindOf } from '../../model/files/content'
@@ -35,24 +35,22 @@ type Props = {
   apartOf?: (rel: string) => string
 }
 
-export function Preview(props: Props) {
-  const [round, setRound] = useState(0)
-  // A new round reads the file again.
-  return <Read key={round} {...props} again={() => setRound(r => r + 1)} />
-}
-
-function Read({ mid, root, rel, hrefOf, apartOf, again }: Props & { again: () => void }) {
+export function Preview({ mid, root, rel, hrefOf, apartOf }: Props) {
   const t = useI18n()
   const { openStream } = useSpace()
   const path = join(root.path, rel)
-  const { data, error } = useFile(mid, path)
+  const { data, error, again, reading } = useFreshFile(mid, path)
   const type = imageType(rel)
   const text = useMemo(() => (data?.bytes && !type ? decodeText(data.bytes) : null), [data, type])
-  // Afresh for each file and each reading of it: each tab has its own Preview, and Read is keyed by
-  // the round.
+  // Afresh for each version of the file, which answers for itself as it was read.
   const asset = useMemo(
-    () => assetReader(under => read(openStream, mid, join(root.path, under), PREVIEW_MAX)),
-    [openStream, mid, root.path],
+    () =>
+      assetReader(under =>
+        under === rel && data
+          ? Promise.resolve(data)
+          : read(openStream, mid, join(root.path, under), PREVIEW_MAX),
+      ),
+    [openStream, mid, root.path, rel, data],
   )
   const [saveError, setSaveError] = useState<string>()
 
@@ -70,8 +68,10 @@ function Read({ mid, root, rel, hrefOf, apartOf, again }: Props & { again: () =>
     where: `${root.display}/${rel}`,
     file: data,
     again,
+    reading,
     download,
-    saveError,
+    // A read again that failed leaves the file shown, and says why above it.
+    error: saveError ?? (data && error ? errorText(t, error) : undefined),
     share: { mid, root, rel },
   }
   if (type && data?.bytes) return <ImageFile shell={shell} bytes={data.bytes} type={type} />
