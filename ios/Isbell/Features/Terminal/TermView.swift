@@ -64,7 +64,8 @@ struct TermView: UIViewRepresentable {
     }
 }
 
-/// What the key bar does to the terminal: keys sent as typed, and the keyboard shown or put away.
+/// What the key bar does to the terminal: keys sent as typed, words said pasted, and the keyboard
+/// shown or put away.
 @MainActor
 final class TermHandle {
     fileprivate weak var view: TerminalView?
@@ -74,6 +75,11 @@ final class TermHandle {
         if let bytes = key.bytes { return view.send(data: ArraySlice(bytes)) }
         // Arrows follow the cursor-key mode the program asked for, which SwiftTerm knows.
         key == .up ? view.sendKeyUp() : view.sendKeyDown()
+    }
+
+    /// `text` at the cursor, as a paste: Enter sends it.
+    func paste(_ text: String) {
+        view?.pasteText(text)
     }
 
     func toggleKeyboard() {

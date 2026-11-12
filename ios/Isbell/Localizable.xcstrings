@@ -305,6 +305,16 @@
         }
       }
     },
+    "Discard recording": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "丢掉录音"
+          }
+        }
+      }
+    },
     "Disconnected": {
       "localizations": {
         "zh-Hans": {
@@ -612,6 +622,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "这里没有在跑的 session"
+          }
+        }
+      }
+    },
+    "Nothing was heard": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有听到内容"
           }
         }
       }
@@ -946,6 +966,16 @@
         }
       }
     },
+    "Stop recording": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结束录音"
+          }
+        }
+      }
+    },
     "System": {
       "localizations": {
         "zh-Hans": {
@@ -1042,6 +1072,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "这台机器离线"
+          }
+        }
+      }
+    },
+    "The microphone could not be used": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "麦克风用不了"
+          }
+        }
+      }
+    },
+    "The microphone is not allowed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有麦克风权限"
           }
         }
       }
@@ -1146,6 +1196,36 @@
         }
       }
     },
+    "Today's voice input is used up; it is back tomorrow": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天的语音额度用完了，明天再来"
+          }
+        }
+      }
+    },
+    "Too many recordings; wait a minute": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "录音太频繁了，稍等一分钟"
+          }
+        }
+      }
+    },
+    "Transcribing…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在识别……"
+          }
+        }
+      }
+    },
     "Up for": {
       "localizations": {
         "zh-Hans": {
@@ -1172,6 +1252,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "VPN"
+          }
+        }
+      }
+    },
+    "Voice input": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语音输入"
           }
         }
       }

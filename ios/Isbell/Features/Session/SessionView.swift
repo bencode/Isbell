@@ -21,6 +21,8 @@ struct SessionView: View {
     /// is away.
     @State private var draft = ""
     @State private var attachments: Attachments
+    /// What is being said to the agent, which lands in the draft.
+    @State private var voice = VoiceInput()
     /// Whether its terminal is open, full screen.
     @State private var terminal = false
 
@@ -59,6 +61,11 @@ struct SessionView: View {
         .navigationTitle(placed.map(placedTitle) ?? "")
         .navigationSubtitle(Text(verbatim: placed.map(placedWhere) ?? ""))
         .navigationBarTitleDisplayMode(.inline)
+        // A recording left behind is dropped; iOS would cut it off in the background anyway.
+        .onDisappear { voice.discard() }
+        .onChange(of: phase) { _, now in
+            if now == .background { voice.discard() }
+        }
     }
 
     private func content(_ placed: Placed) -> some View {
@@ -92,7 +99,7 @@ struct SessionView: View {
             if session.status == .blocked {
                 AskingDock(session: session) { terminal = true }
             } else {
-                ReplyBar(session: session, draft: $draft, attachments: attachments) { model.didSend($0) }
+                ReplyBar(session: session, draft: $draft, attachments: attachments, voice: voice) { model.didSend($0) }
             }
         }
         .task(id: FollowKey(status: session.status, since: session.statusSince, active: phase == .active)) {

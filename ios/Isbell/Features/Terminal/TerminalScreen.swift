@@ -1,5 +1,6 @@
 // A session's terminal, full screen and dark, with the key bar under it, above the keyboard when it is
-// up. It holds the pane while shown and lets it go when closed. As web/src/shell/mobile/terminal.tsx.
+// up. It holds the pane while shown and lets it go when closed. What is said is pasted at the cursor.
+// As web/src/shell/mobile/terminal.tsx.
 
 import IsbellKit
 import SwiftUI
@@ -13,6 +14,8 @@ struct TerminalScreen: View {
     @State private var model: TerminalModel
     @State private var handle = TermHandle()
     @State private var keyboard = false
+    /// What is said into the terminal, pasted at its cursor.
+    @State private var voice = VoiceInput()
 
     init(placed: Placed) {
         self.placed = placed
@@ -28,8 +31,17 @@ struct TerminalScreen: View {
             }
             .background(Color(hex: 0x0d121b))
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                KeyBar(live: model.phase == .open, keyboard: keyboard, press: handle.press,
-                       toggleKeyboard: handle.toggleKeyboard)
+                VStack(spacing: 0) {
+                    if let problem = voice.problem {
+                        VoiceProblemLine(problem: problem)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 12)
+                            .padding(.top, 6)
+                    }
+                    KeyBar(live: model.phase == .open, keyboard: keyboard, press: handle.press,
+                           toggleKeyboard: handle.toggleKeyboard, voice: voice, heard: handle.paste)
+                }
+                .background(Color(hex: 0x161c27))
             }
             .navigationTitle(placedTitle(placed))
             .navigationSubtitle(Text("Terminal · \(placedWhere(placed))"))
@@ -50,7 +62,13 @@ struct TerminalScreen: View {
         .onChange(of: Resume(ready: ready, phase: model.phase)) { _, now in
             if now.ready { model.resume(store.space) }
         }
-        .onDisappear { model.close() }
+        .onChange(of: phase) { _, now in
+            if now == .background { voice.discard() }
+        }
+        .onDisappear {
+            voice.discard()
+            model.close()
+        }
     }
 
     private var ready: Bool { phase == .active && store.space.status == .open }

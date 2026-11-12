@@ -1,6 +1,7 @@
 // A reply to the agent, typed as into its terminal, with the files added for it where its machine
 // takes them: their paths there follow the words. While it works and nothing is written, the button
-// stops it with the key it stops on. As web/src/features/session/composer.tsx.
+// stops it with the key it stops on. What is said goes under what is written, on a line of its own.
+// As web/src/features/session/composer.tsx.
 
 import IsbellKit
 import SwiftUI
@@ -12,6 +13,8 @@ struct ReplyBar: View {
     @Binding var draft: String
     /// The page's, as the draft is.
     let attachments: Attachments
+    /// The page's, as the draft is: what is said still lands while the agent asks.
+    let voice: VoiceInput
     let onSent: (String) -> Void
     @State private var sending = false
     @State private var stopping = false
@@ -25,25 +28,82 @@ struct ReplyBar: View {
             if let error {
                 Text(verbatim: error.msg).font(.footnote).foregroundStyle(.red).padding(.horizontal, 8)
             }
+            if let problem = voice.problem { VoiceProblemLine(problem: problem).padding(.horizontal, 8) }
             if !attachments.items.isEmpty { AttachmentChips(attachments: attachments) }
             HStack(alignment: .bottom, spacing: 8) {
-                if takesFiles { AttachMenu(attachments: attachments) }
-                TextField("Reply…", text: $draft, axis: .vertical)
-                    .lineLimit(1...6)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 13)
-                    .glassEffect(.regular, in: .rect(cornerRadius: 24))
-                if message.isEmpty && !attachments.uploading && session.status == .working {
-                    button("Stop", systemImage: "square.fill", disabled: stopping) { await stop() }
+                if voice.state == .recording {
+                    recording
                 } else {
-                    button("Send", systemImage: "arrow.up", disabled: message.isEmpty || sending || attachments.uploading) {
-                        await send(message)
+                    if takesFiles { AttachMenu(attachments: attachments).disabled(voice.state == .working) }
+                    if voice.state == .working { transcribing } else { field }
+                    if message.isEmpty && !attachments.uploading && session.status == .working && voice.state == .idle {
+                        button("Stop", systemImage: "square.fill", disabled: stopping) { await stop() }
+                    } else {
+                        button("Send", systemImage: "arrow.up",
+                               disabled: message.isEmpty || sending || attachments.uploading || voice.state != .idle) {
+                            await send(message)
+                        }
                     }
                 }
             }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+    }
+
+    private var field: some View {
+        HStack(alignment: .bottom, spacing: 0) {
+            TextField("Reply…", text: $draft, axis: .vertical)
+                .lineLimit(1...6)
+                .padding(.leading, 18)
+                .padding(.vertical, 13)
+            Button {
+                Task { await voice.start(onText: heard) }
+            } label: {
+                Image(systemName: "mic")
+                    .font(.system(size: 18))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 40, height: 40)
+            }
+            .accessibilityLabel(Text("Voice input"))
+            .padding(4)
+        }
+        .glassEffect(.regular, in: .rect(cornerRadius: 24))
+    }
+
+    /// The bar while recording: drop it, how it sounds, or send it to be recognised.
+    private var recording: some View {
+        Group {
+            Button("Discard recording", systemImage: "xmark") { voice.discard() }
+                .labelStyle(.iconOnly)
+                .font(.body.weight(.semibold))
+                .frame(width: 32, height: 32)
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
+            VoiceMeter(voice: voice, ink: .primary)
+                .padding(.horizontal, 16)
+                .frame(height: 48)
+                .glassEffect(.regular, in: .capsule)
+            button("Stop recording", systemImage: "checkmark", disabled: false) { voice.finish() }
+        }
+    }
+
+    private var transcribing: some View {
+        HStack(spacing: 10) {
+            ProgressView()
+            Text("Transcribing…")
+        }
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 18)
+        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
+        .glassEffect(.regular, in: .rect(cornerRadius: 24))
+    }
+
+    /// What is said goes under what is written, on a line of its own.
+    private func heard(_ said: String) {
+        draft = draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? said
+            : draft.replacing(/\s+$/, with: "") + "\n" + said
     }
 
     /// The gateway of the agent's machine takes files.
