@@ -21,16 +21,16 @@ fail() {
 [ "$(uname -s)" = Darwin ] && [ "$(uname -m)" = arm64 ] ||
   fail "only Macs with Apple silicon are supported for now; elsewhere, build from source (see https://github.com/$REPO#from-source)"
 
-if [ -n "${ISBELL_VERSION:-}" ]; then
-  url=https://github.com/$REPO/releases/download/$ISBELL_VERSION
-else
-  url=https://github.com/$REPO/releases/latest/download
-fi
+# The releases, mirrored here from GitHub's, which many networks reach too slowly to download from.
+url=https://isbell.fmap.dev/releases/${ISBELL_VERSION:-latest}
+# Fails rather than hangs where the network does not get through: no connection in 15 s, or under
+# 1 KB/s for 30 s.
+fetch() { curl -fsSL --connect-timeout 15 --speed-limit 1024 --speed-time 30 "$1" -o "$2"; }
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-curl -fsSL "$url/$ASSET" -o "$tmp/$ASSET" || fail "cannot download $url/$ASSET"
-curl -fsSL "$url/$ASSET.sha256" -o "$tmp/$ASSET.sha256" || fail "cannot download $url/$ASSET.sha256"
+fetch "$url/$ASSET" "$tmp/$ASSET" || fail "cannot download $url/$ASSET"
+fetch "$url/$ASSET.sha256" "$tmp/$ASSET.sha256" || fail "cannot download $url/$ASSET.sha256"
 (cd "$tmp" && shasum -a 256 -c "$ASSET.sha256" >/dev/null 2>&1) || fail "the download does not match its checksum"
 tar -xzf "$tmp/$ASSET" -C "$tmp"
 

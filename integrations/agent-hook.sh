@@ -13,6 +13,10 @@
 # pi: DIR/extensions/isbell-agent-hook.ts, DIR being PI_CODING_AGENT_DIR, else ~/.pi/agent.
 # The agent runs it as `sh <path> report claude|codex|pi`; pi's extension tells it pi's events as
 # Claude Code tells its hooks.
+#
+# Every agent runs the one installed copy, which a newer isbell's gateway replaces with its own when
+# it starts, registrations untouched. A version that changes EVENTS or pi's extension must be
+# installed again.
 
 ISBELL_HOOK_VERSION=5
 INSTALLED="$HOME/.isbell/hooks/agent-hook.sh"

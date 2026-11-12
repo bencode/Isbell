@@ -1,16 +1,20 @@
 // The projects by the machine they are on, at either width of the column: the same rows, cut to their
 // marks when thin. Pointing at a machine offers its facts and a new project; at a project, removing it.
+// A machine's details tell how this page reaches it; on an older isbell, its mark stays lit and its
+// panel offers the update.
 
 import { Popover } from '@base-ui/react/popover'
 import { Info, MoreHorizontal, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router'
 import { ICON, IconButton } from '../../components/icon-button'
+import { InfoFacts } from '../../components/info-panel'
 import { DropdownMenu } from '../../components/menu'
 import { Tip } from '../../components/tip'
 import { errorText, type Key, useI18n } from '../../core/i18n'
 import { useLocal } from '../../core/prefs'
 import {
+  RELAY_URL,
   useKeepListedPaths,
   useProjects,
   useSpace,
@@ -19,6 +23,10 @@ import {
 } from '../../core/space'
 import { MachineFacts } from '../../features/machine/machine-facts'
 import { AddProjectDialog } from '../../features/projects/add-project-dialog'
+import { connectionFacts } from '../../features/session/facts'
+import { useLink } from '../../features/session/use-link'
+import { flagged, UpgradeSection } from '../../features/upgrade/upgrade-section'
+import { type Upgrade, useUpgrade } from '../../features/upgrade/use-upgrade'
 import { type ProjectActions, type ProjectConfig, projectActions } from '../../model/project-config'
 import { asking, type Project } from '../../model/projects'
 import type { MachineEntry } from '../../model/space'
@@ -106,21 +114,47 @@ function ProjectRow({
   )
 }
 
-function MachineDetails({ entry }: { entry: MachineEntry }) {
+/** The path this page's calls take to the machine, as a session's panel shows it; read while shown. */
+function MachineConnection({ mid }: { mid: string }) {
   const t = useI18n()
+  const view = useSpaceView()
+  const { via, ...link } = useLink(mid, 'calls')
+  if (!via) return null
   return (
-    <Popover.Root>
+    <InfoFacts
+      groups={[connectionFacts(t, { via, relay: { url: RELAY_URL, status: view.status }, ...link })]}
+    />
+  )
+}
+
+type Upgrading = { upgrade: Upgrade; start: () => void; clear: () => void }
+
+function MachineDetails({ entry, upgrading }: { entry: MachineEntry; upgrading: Upgrading }) {
+  const t = useI18n()
+  const { upgrade, start, clear } = upgrading
+  const lit = flagged(entry, upgrade)
+  return (
+    <Popover.Root onOpenChange={open => !open && clear()}>
       <Popover.Trigger
         render={
-          <IconButton label={t('machine.info')} side="right" size="small">
-            <Info {...SMALL} />
+          <IconButton
+            label={t(upgrade.phase === 'idle' && lit ? 'upgrade.mark' : 'machine.info')}
+            side="right"
+            size="small"
+          >
+            <Info
+              {...SMALL}
+              className={lit ? (upgrade.phase === 'failed' ? 'text-danger' : 'text-accent') : ''}
+            />
           </IconButton>
         }
       />
       <Popover.Portal>
         <Popover.Positioner side="right" align="start" sideOffset={8} className="z-50 outline-none">
           <Popover.Popup className="flex max-h-[70vh] w-[340px] flex-col gap-5 overflow-auto rounded-[10px] border border-line-strong bg-raised p-4 text-[13px] shadow-[0_8px_28px_rgb(0_0_0/0.2)] outline-none">
+            {lit ? <UpgradeSection entry={entry} upgrade={upgrade} start={start} /> : null}
             <MachineFacts entry={entry} />
+            {entry.online ? <MachineConnection mid={entry.state.machine.id} /> : null}
           </Popover.Popup>
         </Popover.Positioner>
       </Popover.Portal>
@@ -158,6 +192,14 @@ function MachineGroup({
       })
   }
   const offline = entry.online ? '' : t('side.offline')
+  const upgrading = useUpgrade(entry)
+  const lit = flagged(entry, upgrading.upgrade)
+  const details = <MachineDetails entry={entry} upgrading={upgrading} />
+  const add = adds ? (
+    <IconButton label={t('workbench.addProject')} side="right" size="small" onClick={() => setAdding(true)}>
+      <Plus {...SMALL} />
+    </IconButton>
+  ) : null
   const troubleKey = config && TROUBLE[config.state]
   const trouble = troubleKey ? t(troubleKey) : ''
   return (
@@ -177,20 +219,21 @@ function MachineGroup({
             <>
               <span className="min-w-0 flex-1 truncate">{machine.name}</span>
               {offline ? <span className="pr-1.5 font-normal">{offline}</span> : null}
-              {/* Over the heading, so that it takes no room from the name at rest. */}
-              <span className="absolute right-0 flex bg-side opacity-0 group-hover:opacity-100 focus-within:opacity-100 has-data-popup-open:opacity-100">
-                <MachineDetails entry={entry} />
-                {adds ? (
-                  <IconButton
-                    label={t('workbench.addProject')}
-                    side="right"
-                    size="small"
-                    onClick={() => setAdding(true)}
-                  >
-                    <Plus {...SMALL} />
-                  </IconButton>
-                ) : null}
-              </span>
+              {lit ? (
+                // Lit, the mark stays, taking its room from the name.
+                <span className="flex flex-none">
+                  {details}
+                  {add ? (
+                    <span className="hidden group-focus-within:flex group-hover:flex">{add}</span>
+                  ) : null}
+                </span>
+              ) : (
+                // Over the heading, so that it takes no room from the name at rest.
+                <span className="absolute right-0 flex bg-side opacity-0 group-hover:opacity-100 focus-within:opacity-100 has-data-popup-open:opacity-100">
+                  {details}
+                  {add}
+                </span>
+              )}
             </>
           )}
         </h2>

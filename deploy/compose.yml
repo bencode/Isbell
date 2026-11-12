@@ -26,6 +26,9 @@ services:
         # Voice input, when deploy/.env names a speech service of the contract POST {url}/v1/transcribe
         # (multipart audio → { raw, polished }); without it there is none.
         VITE_VOICE_URL: ${VITE_VOICE_URL:-}
+    # isbell's releases, served at /releases (docs/development.md).
+    volumes:
+      - /root/isbell-releases:/srv/releases:ro
     ports:
       - "172.17.0.1:5801:80"
       - "172.17.0.1:5802:81"
