@@ -1,10 +1,10 @@
 // The way to everything that is not a project's: theme and language at hand, the rest in the settings
-// and leaving dialogs, which the frame shows over itself.
+// dialog the frame shows over itself, as the phone's home does.
 
 import { Popover } from '@base-ui/react/popover'
 import { Toggle } from '@base-ui/react/toggle'
 import { ToggleGroup } from '@base-ui/react/toggle-group'
-import { Bell, CircleHelp, LogOut, type LucideIcon, Server, Settings2 } from 'lucide-react'
+import { CircleHelp, type LucideIcon, Settings, Settings2 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { ICON, IconButton } from '../../components/icon-button'
 import { useI18n } from '../../core/i18n'
@@ -111,19 +111,13 @@ export function SettingsMenu({ onOverlay }: { onOverlay: (overlay: Overlay) => v
               ]}
             />
             <div className="mx-0.5 my-[5px] h-px bg-line" />
-            <Item Icon={Server} onClick={() => show('settings')}>
-              {t('settings.addMachine')}
-            </Item>
-            <Item Icon={Bell} onClick={() => show('settings')}>
-              {t('settings.notifications')}
+            <Item Icon={Settings} onClick={() => show('settings')}>
+              {t('settings.open')}
             </Item>
             <a href={HELP} target="_blank" rel="noreferrer" onClick={() => setOpen(false)} className={ITEM}>
               <CircleHelp {...MARK} />
               {t('workbench.help')}
             </a>
-            <Item Icon={LogOut} onClick={() => show('leave')}>
-              {t('settings.leave')}
-            </Item>
           </Popover.Popup>
         </Popover.Positioner>
       </Popover.Portal>

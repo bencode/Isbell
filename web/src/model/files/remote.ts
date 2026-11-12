@@ -50,7 +50,9 @@ export type Range = { offset?: number; tail?: number; want?: number }
 /**
  * Reads the file at `path`, or only its size and time when what is read would be larger than
  * `limit`. With `range`, from where it says, as far as it wants: `offset` then says where the bytes
- * begin. A gateway too old for ranges reads from the start and gives no `offset`.
+ * begin. A gateway too old for ranges reads from the start and gives no `offset`. With `previous`,
+ * a read of the same file with the same `limit` and `range`, a file found as it was then is not sent
+ * again: `previous` itself comes back.
  */
 export async function read(
   open: Space['openStream'],
@@ -58,6 +60,7 @@ export async function read(
   path: string,
   limit: number,
   range: Range = {},
+  previous?: FileRead,
 ): Promise<FileRead> {
   const chunks: Uint8Array[] = []
   let received = 0
@@ -92,6 +95,10 @@ export async function read(
     ...(r.mtime === undefined ? {} : { mtime: r.mtime }),
     ...(r.offset === undefined ? {} : { offset: r.offset }),
   }
+  if (previous && unchanged(previous, opened)) {
+    stream.close()
+    return previous
+  }
   const rest = r.size - (r.offset ?? 0)
   const need = Math.min(want ?? rest, rest)
   if (need > limit) {
@@ -115,6 +122,14 @@ export async function read(
   }, 0)
   return { ...opened, bytes }
 }
+
+/** The file is as `previous` read it: the same size and time, from the same place. One whose time
+ * is not kept is never taken for unchanged. */
+const unchanged = (previous: FileRead, opened: FileRead) =>
+  opened.mtime !== undefined &&
+  opened.mtime === previous.mtime &&
+  opened.size === previous.size &&
+  opened.offset === previous.offset
 
 /** Sends `bytes` to machine `mid` as a file named `name` for an agent, as fast as the machine grants
  * credit and the pace allows; resolves to the file's absolute path there. */

@@ -50,6 +50,12 @@ test("a month's sessions are read line by line, the latest first", () => {
   expect(parseMonth(`${lines.join('\n')}\n`).map(s => s.id)).toEqual(['s2', 's1'])
 })
 
+test('the command a session was started with is read, and a record with any other is passed over', () => {
+  const launched = { ...session, launch: 'cc_glm && claude' }
+  const lines = [launched, { ...session, id: 's2', launch: 3 }].map(s => JSON.stringify(s))
+  expect(parseMonth(lines.join('\n'))).toEqual([launched])
+})
+
 test('Claude Code, Codex and pi resume a session by its id; other agents are not resumed', () => {
   expect(resumeArgs('claude', 'id1')).toEqual(['--resume', 'id1'])
   expect(resumeArgs('codex', 'id1')).toEqual(['resume', 'id1'])

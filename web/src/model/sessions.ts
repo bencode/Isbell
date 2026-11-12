@@ -14,6 +14,8 @@ export type SessionRecord = {
   updated: number
   /** The file the agent keeps the conversation in, once the hook (v5) has told it. */
   transcript?: string
+  /** The command it was started with, where that was a template's own (hook v6), which resumes it. */
+  launch?: string
 }
 
 /** A session as recorded when it began, in its month's list. */
@@ -51,7 +53,14 @@ const isTime = (v: unknown): v is number => typeof v === 'number' && Number.isFi
 
 const isLine = (v: unknown): v is MonthLine => {
   const s = v as Partial<MonthLine> | null
-  return isText(s?.agent) && isText(s.id) && isText(s.cwd) && isText(s.first) && isTime(s.started)
+  return (
+    isText(s?.agent) &&
+    isText(s.id) &&
+    isText(s.cwd) &&
+    isText(s.first) &&
+    isTime(s.started) &&
+    (s.launch === undefined || isText(s.launch))
+  )
 }
 
 const isRecord = (v: unknown): v is SessionRecord => {

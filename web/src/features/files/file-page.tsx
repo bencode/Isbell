@@ -26,8 +26,11 @@ export type FileShell = {
   /** Undefined while it is first read. */
   file: FileRead | undefined
   again: () => void
+  /** A read asked for by `again` is on its way. */
+  reading: boolean
   download: () => void
-  saveError: string | undefined
+  /** What went wrong reading it again or downloading it, said above it. */
+  error: string | undefined
   /** The file, for sharing it by link. */
   share: ShareTarget
 }
@@ -64,16 +67,14 @@ export function FilePage({
         {tools}
         <span className="mx-[5px] h-3.5 w-px flex-none bg-line" />
         <IconButton label={t('files.reload')} size="small" onClick={shell.again}>
-          <RotateCw {...SMALL_ICON} />
+          <RotateCw {...SMALL_ICON} className={shell.reading ? 'animate-spin' : undefined} />
         </IconButton>
         <IconButton label={t('files.download')} size="small" onClick={shell.download}>
           <Download {...SMALL_ICON} />
         </IconButton>
         <ShareButton {...shell.share} />
       </header>
-      {shell.saveError ? (
-        <p className="m-0 px-3 py-1.5 text-[12.5px] text-danger">{shell.saveError}</p>
-      ) : null}
+      {shell.error ? <p className="m-0 px-3 py-1.5 text-[12.5px] text-danger">{shell.error}</p> : null}
       {children}
     </section>
   )

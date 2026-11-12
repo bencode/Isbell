@@ -53,6 +53,17 @@ test('a file over the limit is closed unread, or as soon as it grows past it', a
   expect(growing.seen.closed).toBe(true)
 })
 
+test('a file found as a previous read had it is not sent again, and one changed since is', async () => {
+  const previous = { size: 2, mtime: 9, offset: 0, bytes: Uint8Array.from([1, 2]) }
+  const same = serving({ size: 2, mtime: 9, offset: 0 }, [[1, 2]])
+  expect(await read(same.open, 'm', '/a.md', 100, {}, previous)).toBe(previous)
+  expect(same.seen).toEqual({ granted: 0, consumed: 0, closed: true })
+
+  const changed = serving({ size: 2, mtime: 10, offset: 0 }, [[3, 4]])
+  const got = await read(changed.open, 'm', '/a.md', 100, {}, previous)
+  expect(got).toEqual({ size: 2, mtime: 10, offset: 0, bytes: Uint8Array.from([3, 4]) })
+})
+
 test('a range starts where the gateway says, and stops at what is wanted', async () => {
   const from = serving({ size: 10, offset: 4 }, [
     [4, 5, 6],
