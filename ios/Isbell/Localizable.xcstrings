@@ -1,6 +1,16 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "%@ didn't come up. Its terminal shows what the command said.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 没有启动起来，终端里能看到命令的输出。"
+          }
+        }
+      }
+    },
     "%@ is asking you": {
       "localizations": {
         "zh-Hans": {
@@ -93,16 +103,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "添加机器"
-          }
-        }
-      }
-    },
-    "Agent": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Agent"
           }
         }
       }
@@ -291,6 +291,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "无法在这台 iPhone 上保存密钥。"
+          }
+        }
+      }
+    },
+    "Custom commands need isbell 0.8.0 or newer on %@.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 上的 isbell 要 0.8.0 或更新，才能用自定义命令。"
           }
         }
       }
@@ -936,6 +946,16 @@
         }
       }
     },
+    "Say something to start": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发一句话开始"
+          }
+        }
+      }
+    },
     "Send": {
       "localizations": {
         "zh-Hans": {
@@ -1036,6 +1056,16 @@
         }
       }
     },
+    "Start with": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "启动方式"
+          }
+        }
+      }
+    },
     "Starting…": {
       "localizations": {
         "zh-Hans": {
@@ -1112,6 +1142,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "密钥校验没通过，请检查是否有字符打错。"
+          }
+        }
+      }
+    },
+    "The conversation shows here as it goes.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对话会随着进行显示在这里。"
           }
         }
       }
