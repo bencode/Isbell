@@ -41,6 +41,16 @@
         }
       }
     },
+    "%lld found": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "找到 %lld 个"
+          }
+        }
+      }
+    },
     "%lld machines online": {
       "localizations": {
         "en": {
@@ -443,6 +453,16 @@
         }
       }
     },
+    "Find a session": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查找 session"
+          }
+        }
+      }
+    },
     "History": {
       "localizations": {
         "zh-Hans": {
@@ -676,6 +696,16 @@
         }
       }
     },
+    "No sessions match": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有匹配的 session"
+          }
+        }
+      }
+    },
     "No sessions running": {
       "localizations": {
         "zh-Hans": {
@@ -872,6 +902,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "正在读会话记录…"
+          }
+        }
+      }
+    },
+    "Reading older sessions…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在读更早的 session…"
           }
         }
       }

@@ -1,6 +1,7 @@
 // The sessions a project's agents had, as Isbell's agent hook (integrations/agent-hook.sh) records
-// them under the machine's ~/.isbell/sessions: each project's latest, from which one is resumed in a
-// new pane in the directory it ran in. As the recent part of web/src/model/sessions.ts.
+// them under the machine's ~/.isbell/sessions: each project's latest, and every one by the month it
+// began, from which one is resumed in a new pane in the directory it ran in. As
+// web/src/model/sessions.ts.
 
 import Foundation
 import os
@@ -19,9 +20,11 @@ public struct SessionRecord: Sendable, Hashable {
     public var transcript: String?
     /// The command it was started with, where that was a template's own (hook v6), which resumes it.
     public var launch: String?
+    /// Where it is kept: the key of its records, once read from them.
+    public var source: String?
 
     public init(agent: String, id: String, cwd: String, first: String, last: String, started: Int64,
-                updated: Int64, transcript: String? = nil, launch: String? = nil)
+                updated: Int64, transcript: String? = nil, launch: String? = nil, source: String? = nil)
     {
         self.agent = agent
         self.id = id
@@ -32,6 +35,7 @@ public struct SessionRecord: Sendable, Hashable {
         self.updated = updated
         self.transcript = transcript
         self.launch = launch
+        self.source = source
     }
 
     /// What names it among every agent's sessions.
@@ -40,6 +44,9 @@ public struct SessionRecord: Sendable, Hashable {
 
 /// The project's latest sessions, the last active first.
 public func recentPath(_ key: String) -> String { "\(store)/\(key)/recent.json" }
+public func monthsDir(_ key: String) -> String { "\(store)/\(key)/months" }
+/// `month` as the file is named: YYYY-MM.
+public func monthPath(_ key: String, _ month: String) -> String { "\(monthsDir(key))/\(month).jsonl" }
 
 public func sessionKey(agent: String, id: String) -> String { "\(agent)/\(id)" }
 
@@ -55,6 +62,26 @@ public func parseRecent(_ text: String) -> [SessionRecord] {
     }
     guard case .array(let entries) = found else { return [] }
     return entries.compactMap(recordOf)
+}
+
+/// The sessions begun in a month, the latest first: as each began, what it was first asked, and as
+/// last active, when it began. A line cut short, or of another shape, is passed over.
+public func parseMonth(_ text: String) -> [SessionRecord] {
+    text.split(whereSeparator: \.isNewline).compactMap { line -> SessionRecord? in
+        let e: JSON
+        do {
+            e = try JSONDecoder().decode(JSON.self, from: Data(line.utf8))
+        } catch {
+            logger.warning("ignoring an unreadable month's line: \(error)")
+            return nil
+        }
+        guard let agent = e["agent"]?.string, let id = e["id"]?.string, let cwd = e["cwd"]?.string,
+              let first = e["first"]?.string, let started = time(e["started"]), optionalText(e["launch"])
+        else { return nil }
+        return SessionRecord(agent: agent, id: id, cwd: cwd, first: withoutPasteMarks(first), last: "",
+                             started: started, updated: started, launch: e["launch"]?.string)
+    }
+    .sorted { $0.started > $1.started }
 }
 
 private func recordOf(_ e: JSON) -> SessionRecord? {
@@ -123,6 +150,26 @@ public func mergeRecent(_ lists: [[SessionRecord]]) -> [SessionRecord] {
     return latest.values.sorted { $0.updated > $1.updated }
 }
 
+/// Months' lines as one, each session once, leaving out those `seen`, the latest begun first.
+public func mergeMonths(_ lists: [[SessionRecord]], seen: Set<String>) -> [SessionRecord] {
+    var kept = Set(seen)
+    return lists.joined().filter { kept.insert($0.key).inserted }.sorted { $0.started > $1.started }
+}
+
+/// Whether what the session was asked, or where it ran, holds `needle` (lower case).
+public func matches(_ s: SessionRecord, _ needle: String) -> Bool {
+    [s.first, s.last, s.cwd].contains { $0.lowercased().contains(needle) }
+}
+
+private let beforeMatch = 10
+
+/// `text` from just before `needle` (lower case), so that a row as wide as it is shows the match.
+public func excerpt(_ text: String, _ needle: String) -> String {
+    guard let at = text.lowercased().range(of: needle)?.lowerBound else { return text }
+    let offset = text.lowercased().distance(from: text.lowercased().startIndex, to: at)
+    return offset <= beforeMatch ? text : "…" + text.dropFirst(offset - beforeMatch)
+}
+
 /// How the agent resumes session `id`, after its own command; nil for an agent Isbell cannot. pi,
 /// resumed into the chat, runs in its regular mode, which leaves the conversation for it to read.
 public func resumeArgs(agent: String, id: String) -> [String]? {
@@ -146,26 +193,86 @@ public func byDay<T>(_ items: [T], at: (T) -> Int64, calendar: Calendar = .curre
     }
 }
 
-private let recentMax = 4 << 20
+private let readMax = 4 << 20
+/// As many latest as the hook keeps for a project (RECENT_MAX in integrations/agent-hook.sh).
+private let recentMax = 50
+
+/// A project's latest sessions, and whether a place keeps as many as it does, when its months may
+/// hold more.
+public struct Recent: Sendable, Equatable {
+    public var records: [SessionRecord]
+    public var full: Bool
+}
 
 /// The latest sessions of a project, from each place they are kept for it; a place with none yet
 /// has no file.
 @MainActor
-public func readRecent(_ open: Opener, mid: String, sources: [RecordSource]) async throws(CallError) -> [SessionRecord] {
+public func readRecent(_ open: Opener, mid: String, sources: [RecordSource]) async throws(CallError) -> Recent {
     var lists: [[SessionRecord]] = []
+    var full = false
+    for source in sources {
+        guard let text = try await readRecords(open, mid: mid, path: recentPath(source.key)) else { continue }
+        let list = parseRecent(text)
+        full = full || list.count >= recentMax
+        lists.append(kept(list, by: source))
+    }
+    return Recent(records: mergeRecent(lists), full: full)
+}
+
+/// The months a project's sessions began in, the latest first.
+@MainActor
+public func listMonths(_ call: Caller, mid: String, sources: [RecordSource]) async throws(CallError) -> [String] {
+    var months = Set<String>()
     for source in sources {
         do {
-            let file = try await readFile(open, mid: mid, path: recentPath(source.key), limit: recentMax)
-            guard let bytes = file.bytes else {
-                logger.warning("the recent sessions of \(source.key) are too large to read")
-                continue
-            }
-            lists.append(parseRecent(String(decoding: bytes, as: UTF8.self)).filter { within(source, cwd: $0.cwd) })
+            let listing = try await call(mid, "isbell.file.list", .object(["path": .string(monthsDir(source.key))]), .seconds(20))
+            guard case .array(let entries)? = listing["entries"] else { continue }
+            months.formUnion(entries.compactMap { $0["name"]?.string.flatMap(monthOf) })
         } catch where error.code == "not_found" {
             continue
         }
     }
-    return mergeRecent(lists)
+    return months.sorted(by: >)
+}
+
+/// The sessions of a project begun in `month`, the latest first.
+@MainActor
+public func readMonth(_ open: Opener, mid: String, sources: [RecordSource], month: String) async throws(CallError) -> [SessionRecord] {
+    var lists: [[SessionRecord]] = []
+    for source in sources {
+        guard let text = try await readRecords(open, mid: mid, path: monthPath(source.key, month)) else { continue }
+        lists.append(kept(parseMonth(text), by: source))
+    }
+    return mergeMonths(lists, seen: [])
+}
+
+/// YYYY-MM, of a month's file name.
+private func monthOf(_ name: String) -> String? {
+    name.wholeMatch(of: #/(\d{4}-\d{2})\.jsonl/#).map { String($0.1) }
+}
+
+/// Those of the project, as kept by `source`.
+private func kept(_ list: [SessionRecord], by source: RecordSource) -> [SessionRecord] {
+    list.filter { within(source, cwd: $0.cwd) }.map { s in
+        var s = s
+        s.source = source.key
+        return s
+    }
+}
+
+/// A file of records; nil where there is none yet, or it is too large to read.
+@MainActor
+private func readRecords(_ open: Opener, mid: String, path: String) async throws(CallError) -> String? {
+    do {
+        let file = try await readFile(open, mid: mid, path: path, limit: readMax)
+        guard let bytes = file.bytes else {
+            logger.warning("\(path) is too large to read")
+            return nil
+        }
+        return String(decoding: bytes, as: UTF8.self)
+    } catch where error.code == "not_found" {
+        return nil
+    }
 }
 
 private let logger = Logger(subsystem: "dev.fmap.isbell", category: "sessions")

@@ -1,5 +1,6 @@
 // A project's page: its live sessions, as cards like the first tab's, those that ended under them by
-// the day, the latest of them as recorded, and a new one started in it. Its files come later.
+// the day, months further back read as the list is scrolled to its end, searched from the bottom, and
+// a new one started in it. Its files come later. As web/src/shell/mobile/sessions/sessions.tsx.
 
 import IsbellKit
 import SwiftUI
@@ -12,6 +13,7 @@ struct ProjectView: View {
     let open: (SessionRoute) -> Void
     @State private var creating = false
     @State private var history = SessionHistory()
+    @State private var query = ""
 
     /// The history is read again as the machine records a session of the project, and as panes come
     /// and go, which moves sessions in and out of it.
@@ -24,7 +26,9 @@ struct ProjectView: View {
     var body: some View {
         let project = store.projects.first { $0.id == id }
         let live = project.map { p in p.online ? p.sessions.map { Placed(session: $0, project: p) } : [] } ?? []
-        let past = project?.online == true ? (history.records ?? []).filter { history.running[$0.key] == nil } : []
+        let needle = query.trimmingCharacters(in: .whitespaces).lowercased()
+        let past = project?.online == true ? history.history.filter { history.running[$0.key] == nil } : []
+        let found = needle.isEmpty ? past : past.filter { matches($0, needle) }
         // The machine says where its records are, and they are not read yet.
         let reading = history.records == nil && project.map { store.space.recorded[$0.mid] != nil } == true
         ScrollView {
@@ -33,12 +37,22 @@ struct ProjectView: View {
                     LaneHeader(title: "Running", count: live.count)
                     ForEach(live) { SessionCard(placed: $0, place: $0.session.kind ?? $0.session.name) }
                 }
-                if !past.isEmpty, let project {
-                    LaneHeader(title: "History", count: past.count)
-                    ForEach(byDay(past, at: \.updated), id: \.[0].key) { day in
-                        DayHeader(at: day[0].updated)
-                        ForEach(day, id: \.key) { r in
-                            HistoryRow(record: r, route: EndedRoute(mid: project.mid, projectId: id, record: r))
+                if let project {
+                    if !needle.isEmpty {
+                        results(found, needle: needle, project: project)
+                    } else if !past.isEmpty {
+                        LaneHeader(title: "History", count: past.count)
+                        ForEach(byDay(past, at: \.updated), id: \.[0].key) { day in
+                            DayHeader(at: day[0].updated)
+                            ForEach(day, id: \.key) { r in
+                                HistoryRow(record: r, route: EndedRoute(mid: project.mid, projectId: id, record: r))
+                            }
+                        }
+                        if history.more {
+                            // Each month read while it is in view, until the list reaches past it.
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                                .task(id: history.read) { await history.readOlder(store.space, project: project, all: false) }
                         }
                     }
                 }
@@ -53,9 +67,14 @@ struct ProjectView: View {
         .overlay {
             if project?.online == false {
                 ContentUnavailableView("The machine is offline", systemImage: "desktopcomputer")
-            } else if live.isEmpty && past.isEmpty && !reading {
+            } else if live.isEmpty && past.isEmpty && !reading && needle.isEmpty {
                 ContentUnavailableView("Nothing running here", systemImage: "moon.zzz")
             }
+        }
+        .searchable(text: $query, prompt: Text("Find a session"))
+        // Searching looks through every month.
+        .task(id: needle.isEmpty) {
+            if !needle.isEmpty, let project { await history.readOlder(store.space, project: project, all: true) }
         }
         .navigationTitle(project?.name ?? "")
         .navigationSubtitle(Text(verbatim: project.map { "\($0.machine) · \($0.display)" } ?? ""))
@@ -68,6 +87,24 @@ struct ProjectView: View {
         .sheet(isPresented: $creating) { NewSessionSheet(preset: id, onStarted: open) }
         .task(id: project.map(historyKey)) {
             if let project, project.online { await history.load(store.space, project: project) }
+        }
+    }
+
+    /// What a search found, as one list, each row with its day.
+    @ViewBuilder private func results(_ found: [SessionRecord], needle: String, project: Project) -> some View {
+        if !found.isEmpty && !history.busy {
+            Text("\(found.count) found")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.top, 12)
+        }
+        ForEach(found, id: \.key) { r in
+            HistoryRow(record: r, route: EndedRoute(mid: project.mid, projectId: id, record: r), needle: needle)
+        }
+        if history.busy {
+            ProgressView("Reading older sessions…").frame(maxWidth: .infinity)
+        } else if found.isEmpty {
+            Text("No sessions match").font(.footnote).foregroundStyle(.secondary).frame(maxWidth: .infinity)
         }
     }
 
@@ -101,22 +138,33 @@ private struct DayHeader: View {
 }
 
 /// A session that ended: what it was first asked, and last where that is something else; opens it,
-/// read only.
+/// read only. Found by a search, what it was found by is in bold, and it shows its day.
 private struct HistoryRow: View {
     let record: SessionRecord
     let route: EndedRoute
+    var needle = ""
 
     var body: some View {
+        let at = Date(timeIntervalSince1970: Double(record.updated) / 1000)
+        // Found by something other than what it was first asked: what it was found by.
+        let by = needle.isEmpty || record.first.lowercased().contains(needle)
+            ? nil : [record.last, record.cwd].first { $0.lowercased().contains(needle) }
         NavigationLink(value: route) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(verbatim: record.first).font(.body).lineLimit(2)
-                if !record.last.isEmpty && record.last != record.first {
+                Text(marked(record.first, needle)).font(.body).lineLimit(2)
+                if let by {
+                    Text(marked(excerpt(by, needle), needle)).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                } else if needle.isEmpty && !record.last.isEmpty && record.last != record.first {
                     Text(verbatim: record.last).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                 }
                 HStack {
                     Text(verbatim: record.agent)
                     Spacer()
-                    Text(Date(timeIntervalSince1970: Double(record.updated) / 1000), format: .dateTime.hour().minute())
+                    if needle.isEmpty {
+                        Text(at, format: .dateTime.hour().minute())
+                    } else {
+                        Text(at, format: .dateTime.month().day().hour().minute())
+                    }
                 }
                 .font(.caption.monospaced())
                 .foregroundStyle(.tertiary)
@@ -128,4 +176,20 @@ private struct HistoryRow: View {
         }
         .buttonStyle(.plain)
     }
+}
+
+/// `text` with each place it holds `needle` (lower case) in bold.
+private func marked(_ text: String, _ needle: String) -> AttributedString {
+    var shown = AttributedString(text)
+    guard !needle.isEmpty else { return shown }
+    let lower = text.lowercased()
+    var from = lower.startIndex
+    while let found = lower.range(of: needle, range: from..<lower.endIndex) {
+        let start = lower.distance(from: lower.startIndex, to: found.lowerBound)
+        let length = lower.distance(from: found.lowerBound, to: found.upperBound)
+        let begin = shown.index(shown.startIndex, offsetByCharacters: start)
+        shown[begin..<shown.index(begin, offsetByCharacters: length)].inlinePresentationIntent = .stronglyEmphasized
+        from = found.upperBound
+    }
+    return shown
 }

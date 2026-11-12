@@ -44,7 +44,7 @@ struct EndedView: View {
             .navigationTitle(Text(verbatim: record.first))
             .navigationSubtitle(Text(verbatim: subtitle(project)))
             .navigationBarTitleDisplayMode(.inline)
-            .task { await model.readPast(store.space, kind: record.agent, transcript: record.transcript) }
+            .task { await model.readPast(store.space, record: record) }
             .fullScreenCover(isPresented: $terminal, onDismiss: { dismiss() }) {
                 if let shell, let project {
                     TerminalScreen(mid: route.mid, paneId: shell, title: record.agent,

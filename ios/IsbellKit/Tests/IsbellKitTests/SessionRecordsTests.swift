@@ -73,3 +73,35 @@ private func record(_ id: String, last: String = "x", updated: Int64) -> Session
     let times = [at(7, 18), at(7, 9), at(6, 23), at(5, 1)]
     #expect(byDay(times, at: { $0 }, calendar: calendar).map(\.count) == [2, 1, 1])
 }
+
+@Test func aMonthsSessionsAreReadLineByLineTheLatestFirst() {
+    let line = { (id: String, started: Int64, launch: JSON?) -> String in
+        var e: [String: JSON] = ["agent": .string("claude"), "id": .string(id), "cwd": .string("/srv/a"),
+                                 "first": .string("fix it"), "started": .int(started)]
+        e["launch"] = launch
+        return text(.object(e))
+    }
+    let read = parseMonth([line("s1", 1, nil), "{\"agent\": \"codex\", \"id\"", line("s2", 5, .string("reclaude")),
+                           line("s3", 9, .int(3))].joined(separator: "\n") + "\n")
+    #expect(read.map(\.id) == ["s2", "s1"])
+    #expect(read[0].launch == "reclaude")
+    #expect(read[0].updated == 5 && read[0].last.isEmpty)
+}
+
+@Test func monthsLinesAreOneListEachOnceLeavingOutThoseSeen() {
+    let begun = { (id: String, started: Int64) in
+        SessionRecord(agent: "claude", id: id, cwd: "/srv/a", first: "x", last: "", started: started, updated: started)
+    }
+    let merged = mergeMonths([[begun("s1", 1), begun("s3", 9)], [begun("s1", 1), begun("s2", 5)]], seen: ["claude/s3"])
+    #expect(merged.map(\.id) == ["s2", "s1"])
+}
+
+@Test func aSessionIsFoundByWhatItWasAskedOrWhereItRanAndShownFromJustBefore() {
+    let s = SessionRecord(agent: "claude", id: "s1", cwd: "/srv/storefront", first: "Fix the Checkout", last: "and test",
+                          started: 1, updated: 2)
+    #expect(matches(s, "checkout"))
+    #expect(matches(s, "storefront"))
+    #expect(!matches(s, "payments"))
+    #expect(excerpt("short one", "one") == "short one")
+    #expect(excerpt("a long line that ends with the checkout", "checkout") == "… with the checkout")
+}
