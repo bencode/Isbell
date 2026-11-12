@@ -29,6 +29,9 @@ struct ProjectView: View {
         let needle = query.trimmingCharacters(in: .whitespaces).lowercased()
         let past = project?.online == true ? history.history.filter { history.running[$0.key] == nil } : []
         let found = needle.isEmpty ? past : past.filter { matches($0, needle) }
+        // Searching reads every month: once the latest are read and no month is being read, and not
+        // again after a failure until a read goes well.
+        let searchWaits = needle.isEmpty || history.records == nil || history.busy || history.error != nil
         // The machine says where its records are, and they are not read yet.
         let reading = history.records == nil && project.map { store.space.recorded[$0.mid] != nil } == true
         ScrollView {
@@ -72,9 +75,8 @@ struct ProjectView: View {
             }
         }
         .searchable(text: $query, prompt: Text("Find a session"))
-        // Searching looks through every month.
-        .task(id: needle.isEmpty) {
-            if !needle.isEmpty, let project { await history.readOlder(store.space, project: project, all: true) }
+        .task(id: searchWaits) {
+            if !searchWaits, let project { await history.readOlder(store.space, project: project, all: true) }
         }
         .navigationTitle(project?.name ?? "")
         .navigationSubtitle(Text(verbatim: project.map { "\($0.machine) · \($0.display)" } ?? ""))
@@ -178,17 +180,13 @@ private struct HistoryRow: View {
     }
 }
 
-/// `text` with each place it holds `needle` (lower case) in bold.
+/// `text` with each place it holds `needle` in bold.
 private func marked(_ text: String, _ needle: String) -> AttributedString {
     var shown = AttributedString(text)
     guard !needle.isEmpty else { return shown }
-    let lower = text.lowercased()
-    var from = lower.startIndex
-    while let found = lower.range(of: needle, range: from..<lower.endIndex) {
-        let start = lower.distance(from: lower.startIndex, to: found.lowerBound)
-        let length = lower.distance(from: found.lowerBound, to: found.upperBound)
-        let begin = shown.index(shown.startIndex, offsetByCharacters: start)
-        shown[begin..<shown.index(begin, offsetByCharacters: length)].inlinePresentationIntent = .stronglyEmphasized
+    var from = shown.startIndex
+    while let found = shown[from...].range(of: needle, options: .caseInsensitive) {
+        shown[found].inlinePresentationIntent = .stronglyEmphasized
         from = found.upperBound
     }
     return shown

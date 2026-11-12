@@ -67,32 +67,36 @@ public func parseRecent(_ text: String) -> [SessionRecord] {
 /// The sessions begun in a month, the latest first: as each began, what it was first asked, and as
 /// last active, when it began. A line cut short, or of another shape, is passed over.
 public func parseMonth(_ text: String) -> [SessionRecord] {
-    text.split(whereSeparator: \.isNewline).compactMap { line -> SessionRecord? in
-        let e: JSON
+    let decoder = JSONDecoder()
+    return text.split(whereSeparator: \.isNewline).compactMap { line -> SessionRecord? in
         do {
-            e = try JSONDecoder().decode(JSON.self, from: Data(line.utf8))
+            return lineOf(try decoder.decode(JSON.self, from: Data(line.utf8)))
         } catch {
             logger.warning("ignoring an unreadable month's line: \(error)")
             return nil
         }
-        guard let agent = e["agent"]?.string, let id = e["id"]?.string, let cwd = e["cwd"]?.string,
-              let first = e["first"]?.string, let started = time(e["started"]), optionalText(e["launch"])
-        else { return nil }
-        return SessionRecord(agent: agent, id: id, cwd: cwd, first: withoutPasteMarks(first), last: "",
-                             started: started, updated: started, launch: e["launch"]?.string)
     }
     .sorted { $0.started > $1.started }
 }
 
-private func recordOf(_ e: JSON) -> SessionRecord? {
+/// A session as its month's line has it.
+private func lineOf(_ e: JSON) -> SessionRecord? {
     guard let agent = e["agent"]?.string, let id = e["id"]?.string, let cwd = e["cwd"]?.string,
-          let first = e["first"]?.string, let last = e["last"]?.string,
-          let started = time(e["started"]), let updated = time(e["updated"]),
-          optionalText(e["transcript"]), optionalText(e["launch"])
+          let first = e["first"]?.string, let started = time(e["started"]), optionalText(e["launch"])
     else { return nil }
-    return SessionRecord(agent: agent, id: id, cwd: cwd, first: withoutPasteMarks(first),
-                         last: withoutPasteMarks(last), started: started, updated: updated,
-                         transcript: e["transcript"]?.string, launch: e["launch"]?.string)
+    return SessionRecord(agent: agent, id: id, cwd: cwd, first: withoutPasteMarks(first), last: "",
+                         started: started, updated: started, launch: e["launch"]?.string)
+}
+
+/// A session as the latest have it: its line, and what it was last asked, when, and where it is kept.
+private func recordOf(_ e: JSON) -> SessionRecord? {
+    guard var s = lineOf(e), let last = e["last"]?.string, let updated = time(e["updated"]),
+          optionalText(e["transcript"])
+    else { return nil }
+    s.last = withoutPasteMarks(last)
+    s.updated = updated
+    s.transcript = e["transcript"]?.string
+    return s
 }
 
 /// Absent, or text.
@@ -165,8 +169,8 @@ private let beforeMatch = 10
 
 /// `text` from just before `needle` (lower case), so that a row as wide as it is shows the match.
 public func excerpt(_ text: String, _ needle: String) -> String {
-    guard let at = text.lowercased().range(of: needle)?.lowerBound else { return text }
-    let offset = text.lowercased().distance(from: text.lowercased().startIndex, to: at)
+    guard let at = text.range(of: needle, options: .caseInsensitive)?.lowerBound else { return text }
+    let offset = text.distance(from: text.startIndex, to: at)
     return offset <= beforeMatch ? text : "…" + text.dropFirst(offset - beforeMatch)
 }
 
@@ -194,6 +198,8 @@ public func byDay<T>(_ items: [T], at: (T) -> Int64, calendar: Calendar = .curre
 }
 
 private let readMax = 4 << 20
+/// As the gateway lists a directory for the files view.
+private let listTimeout: Duration = .seconds(20)
 /// As many latest as the hook keeps for a project (RECENT_MAX in integrations/agent-hook.sh).
 private let recentMax = 50
 
@@ -224,9 +230,11 @@ public func readRecent(_ open: Opener, mid: String, sources: [RecordSource]) asy
 public func listMonths(_ call: Caller, mid: String, sources: [RecordSource]) async throws(CallError) -> [String] {
     var months = Set<String>()
     for source in sources {
-        do {
-            let listing = try await call(mid, "isbell.file.list", .object(["path": .string(monthsDir(source.key))]), .seconds(20))
-            guard case .array(let entries)? = listing["entries"] else { continue }
+        do throws(CallError) {
+            let listing = try await call(mid, "isbell.file.list", .object(["path": .string(monthsDir(source.key))]), listTimeout)
+            guard case .array(let entries)? = listing["entries"] else {
+                throw CallError(code: "bad_response", msg: "a listing without its entries")
+            }
             months.formUnion(entries.compactMap { $0["name"]?.string.flatMap(monthOf) })
         } catch where error.code == "not_found" {
             continue
