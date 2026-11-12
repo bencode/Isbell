@@ -80,7 +80,8 @@ private final class FakeChannel: DirectChannel {
                             relay: { _, _, _, _ async throws(CallError) in .null }, signals: { true },
                             directable: { _ in true })
     #expect(await links.to("m")?.value == nil)
-    #expect(failed(links.status("m")))
+    // A first failure is tried again soon.
+    #expect(failed(links.status("m"), within: .seconds(30)))
     // As when the app goes behind: the machine that could not be reached is not tried again.
     links.closeAll()
     #expect(failed(links.status("m")))
@@ -107,6 +108,6 @@ private final class FakeChannel: DirectChannel {
     #expect(opened == 1)
 }
 
-private func failed(_ status: DirectStatus) -> Bool {
-    if case .failed = status { true } else { false }
+private func failed(_ status: DirectStatus, within limit: Duration = .seconds(5 * 60)) -> Bool {
+    if case .failed(let retryIn) = status { retryIn <= limit } else { false }
 }
