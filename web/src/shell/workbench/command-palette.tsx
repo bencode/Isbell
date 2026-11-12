@@ -10,7 +10,7 @@ import { useProjects } from '../../core/space'
 import { lanes, nextNeeding, type Placed, placedKey, placedTitle } from '../../model/projects'
 import { sessionTabId, tabOf } from '../../model/tabs'
 import { useCommandKey } from '../../utils/command-key'
-import { usePeek } from './peek'
+import { opensInTerminal, usePeek } from './peek'
 import { isTab } from './tab-kinds'
 
 type Group = { label: string; items: Placed[] }
@@ -52,7 +52,7 @@ function Choices({ onClose }: { onClose: () => void }) {
       ]
   const go = (placed: Placed) => {
     onClose()
-    open(placed, placed.session.status === 'blocked')
+    open(placed, opensInTerminal(placed.session))
   }
 
   return (

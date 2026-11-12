@@ -97,7 +97,7 @@ const KINDS: TabKind[] = [
 export const fileTabId = (key: string, rel: string) => `file/${key}/${rel}`
 
 /** A session's tab in its project. */
-export const sessionTabHref = (projectKey: string, mid: string, paneId: string, terminal = false): To => ({
+export const sessionTabHref = (projectKey: string, mid: string, paneId: string, terminal: boolean): To => ({
   pathname: projectHref(projectKey),
   search: withTab(withTerminal('', terminal), sessionTabId(mid, paneId)),
 })
