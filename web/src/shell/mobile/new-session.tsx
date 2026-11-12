@@ -1,5 +1,6 @@
-// New on a phone: which agent and in which project, what was used last chosen already, with the button
-// that starts it saying where. It opens the session in its place, so back leads home.
+// New on a phone: which of the machine's start templates and in which project, what was used last
+// chosen already, with the button that starts it saying where. It opens the session in its place, so
+// back leads home.
 
 import { Check, ChevronLeft } from 'lucide-react'
 import { useState } from 'react'
@@ -7,9 +8,10 @@ import { useNavigate } from 'react-router'
 import { errorText, useI18n } from '../../core/i18n'
 import { updateLocal, useLocal } from '../../core/prefs'
 import { useProjects, useSpace, useSpaceView } from '../../core/space'
+import { useTemplates } from '../../core/start-templates'
 import { startIn } from '../../features/session/new-session-menu'
-import { CHAT_AGENTS } from '../../model/agents'
 import { machineOf, projectsSettled } from '../../model/space'
+import { plain, usable } from '../../model/start-templates'
 import { sessionHref } from '../../utils/hrefs'
 import { PhoneBar, TAP, useBack } from './bar'
 
@@ -30,21 +32,31 @@ export function PhoneNewSession() {
 
   // None picked and none used before, it waits to be told rather than start somewhere by a tap.
   const project = startable.find(p => p.key === (picked ?? lastProject))
-  const installed = project && machineOf(view.machines, project.mid)?.state.caps.agentKinds
-  const has = (kind: string) => installed?.includes(kind) ?? true
-  const kind = [chosen, lastAgent, ...CHAT_AGENTS].find(k => k && CHAT_AGENTS.includes(k) && has(k))
+  const caps = project && machineOf(view.machines, project.mid)?.state.caps
+  // Those of agents herdr knows on the project's machine; what was used last is a template's name,
+  // which is the agent's for one that starts it by its name.
+  const templates = useTemplates(project?.mid, !!project).filter(
+    tm => !caps || caps.agentKinds.includes(tm.agent),
+  )
+  const can = (name: string) => templates.some(tm => tm.name === name && (!caps || usable(tm, caps)))
+  const name = [chosen, lastAgent, ...templates.map(tm => tm.name)].find(n => n && can(n))
+  const template = templates.find(tm => tm.name === name)
   const machines = view.machines
     .map(({ state: { machine } }) => ({ machine, projects: startable.filter(p => p.mid === machine.id) }))
     .filter(m => m.projects.length)
 
   const start = async () => {
-    if (!project || !kind || starting) return
+    if (!project || !template || starting) return
     setStarting(true)
     setError(undefined)
     try {
-      const paneId = await startIn(space, project, kind)
-      updateLocal(() => ({ lastProject: project.key, lastAgent: kind }))
-      navigate(`${sessionHref(project.mid, paneId)}?from=new`, { replace: true })
+      const { paneId, shell } = await startIn(space, project, { template })
+      updateLocal(() => ({ lastProject: project.key, lastAgent: template.name }))
+      // One whose agent herdr never saw come up is the shell its command ran in, shown as one.
+      const href = shell
+        ? sessionHref(project.mid, paneId, true)
+        : `${sessionHref(project.mid, paneId)}?from=new`
+      navigate(href, { replace: true })
     } catch (err) {
       setError(errorText(t, err))
       setStarting(false)
@@ -68,16 +80,16 @@ export function PhoneNewSession() {
       <main className="min-w-0 flex-1 pb-3">
         <h2 className={LABEL}>{t('mobile.agent')}</h2>
         <div className="grid grid-cols-3 gap-2 px-3">
-          {CHAT_AGENTS.map(k => (
+          {templates.map(tm => (
             <button
-              key={k}
+              key={tm.name}
               type="button"
-              disabled={!has(k) || starting}
-              onClick={() => setChosen(k)}
-              aria-pressed={k === kind}
-              className={`h-12 cursor-pointer rounded-[10px] border font-mono text-[14.5px] disabled:cursor-default disabled:opacity-40 ${k === kind ? 'border-accent bg-accent-soft font-semibold text-accent' : 'border-line bg-raised'}`}
+              disabled={!can(tm.name) || starting}
+              onClick={() => setChosen(tm.name)}
+              aria-pressed={tm === template}
+              className={`h-12 min-w-0 cursor-pointer truncate rounded-[10px] border px-2 text-[14.5px] disabled:cursor-default disabled:opacity-40 ${plain(tm) ? 'font-mono' : ''} ${tm === template ? 'border-accent bg-accent-soft font-semibold text-accent' : 'border-line bg-raised'}`}
             >
-              {k}
+              {tm.name}
             </button>
           ))}
         </div>
@@ -117,7 +129,7 @@ export function PhoneNewSession() {
         <button
           type="button"
           onClick={() => void start()}
-          disabled={!project || !kind || starting}
+          disabled={!project || !template || starting}
           className="h-12 w-full cursor-pointer truncate rounded-[10px] border-0 bg-accent px-3 text-[15px] font-semibold text-accent-ink active:opacity-85 disabled:cursor-default disabled:opacity-50"
         >
           {starting

@@ -1,5 +1,6 @@
 # A tag v<version> builds isbell for Apple silicon Macs and publishes it as a GitHub release, which
-# install.sh downloads. The asset names carry no version, so releases/latest/download finds them.
+# is then mirrored to isbell.fmap.dev/releases for install.sh to download (docs/development.md). The
+# asset names carry no version, so a version's directory, or latest, finds them.
 name: Release
 
 on:
