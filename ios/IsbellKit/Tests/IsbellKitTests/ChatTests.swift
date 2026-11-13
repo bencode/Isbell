@@ -38,7 +38,7 @@ private func at(_ s: Int64) -> Int64 { 1794045600000 + s * 1000 }
     #expect(turns.count == 2)
     let (first, second) = (turns[0], turns[1])
     #expect(first.id == "q1")
-    #expect(first.you == Asked(text: "tidy it", images: ["/tmp/a.png"]))
+    #expect(first.you == Asked(text: "tidy it", images: ["/tmp/a.png", "/tmp/isbell-uploads/0123abcd/b.png"]))
     #expect(first.model == "gpt-6.1 high")
     #expect(first.took == 9000)
     #expect(first.items == [
@@ -56,7 +56,7 @@ private func at(_ s: Int64) -> Int64 { 1794045600000 + s * 1000 }
     #expect(turns.count == 1)
     let turn = turns[0]
     #expect(turn.id == "p1")
-    #expect(turn.you?.text == "list it")
+    #expect(turn.you == Asked(text: "list it", images: ["/tmp/isbell-uploads/0123abcd/b.png"]))
     #expect(turn.model == "deepseek-v4.1-flash")
     #expect(turn.items == [
         .thinking("ls will do", ms: nil),
@@ -98,7 +98,7 @@ private let claudeLines = #"""
 private let codexLines = #"""
 {"type": "turn_context", "payload": {"model": "gpt-6.1", "effort": "high"}}
 {"type": "response_item", "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "# AGENTS.md instructions"}]}}
-{"type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "UserMessage", "id": "q1", "content": [{"type": "text", "text": "tidy it"}, {"type": "local_image", "path": "/tmp/a.png"}]}, "completed_at_ms": 1}}
+{"type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "UserMessage", "id": "q1", "content": [{"type": "text", "text": "tidy it\n/tmp/isbell-uploads/0123abcd/b.png"}, {"type": "local_image", "path": "/tmp/a.png"}]}, "completed_at_ms": 1}}
 {"type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "Reasoning", "id": "r"}, "completed_at_ms": 2}}
 {"type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "AgentMessage", "id": "m1", "content": [{"type": "Text", "text": "Reading it."}], "phase": "commentary"}, "completed_at_ms": 3}}
 {"type": "event_msg", "payload": {"type": "item_completed", "item": {"type": "CommandExecution", "id": "c1", "command": ["/bin/zsh", "-lc", "cat a.md"], "parsed_cmd": [{"type": "read", "cmd": "cat a.md", "path": "a.md"}], "aggregated_output": "# A", "exit_code": 0}, "completed_at_ms": 4}}
@@ -111,7 +111,7 @@ private let codexLines = #"""
 
 private let piLines = #"""
 {"type": "session", "id": "s"}
-{"type": "message", "id": "p1", "message": {"role": "user", "content": [{"type": "text", "text": "list it"}], "timestamp": 1}}
+{"type": "message", "id": "p1", "message": {"role": "user", "content": [{"type": "text", "text": "list it\n/tmp/isbell-uploads/0123abcd/b.png"}], "timestamp": 1}}
 {"type": "message", "id": "", "message": {"role": "assistant", "model": "deepseek-v4.1-flash", "stopReason": "toolUse", "timestamp": 2, "content": [{"type": "thinking", "thinking": "ls will do"}, {"type": "toolCall", "id": "k1", "name": "edit", "arguments": {"path": "/w/b", "edits": [{"oldText": "x", "newText": "y\nz"}]}}]}}
 {"type": "message", "id": "", "message": {"role": "toolResult", "toolCallId": "k1", "content": [{"type": "text", "text": "not found"}], "isError": true, "timestamp": 3}}
 {"type": "message", "id": "", "message": {"role": "assistant", "stopReason": "error", "errorMessage": "503", "timestamp": 4, "content": []}}
