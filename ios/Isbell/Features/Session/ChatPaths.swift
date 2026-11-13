@@ -38,9 +38,12 @@ struct ChatPaths {
                 return url.map { (at..<end, $0) }
             }
         }
+        // In the code face on a soft ground, as the web shows a path.
         for (range, url) in found {
             text[range].link = url
-            text[range].underlineStyle = .single
+            text[range].inlinePresentationIntent = (text[range].inlinePresentationIntent ?? []).union(.code)
+            text[range].foregroundColor = Palette.accent
+            text[range].backgroundColor = Palette.accentSoft
         }
     }
 

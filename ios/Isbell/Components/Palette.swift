@@ -15,6 +15,8 @@ enum Palette {
     static let line = adaptive(0xdcd5c4, 0x283143)
     /// Links, buttons, and an agent at work.
     static let accent = adaptive(0x1f4fd1, 0x8fb0ff)
+    /// Under a path in the chat.
+    static let accentSoft = adaptive(0xe2e8fa, 0x1c2747)
     /// Finished, online, lines added.
     static let ok = adaptive(0x2f7d4f, 0x6fd39a)
     /// Asking, reconnecting.

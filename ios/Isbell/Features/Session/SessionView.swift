@@ -25,9 +25,8 @@ struct SessionView: View {
     @State private var attachments: Attachments
     /// What is being said to the agent, which lands in the draft.
     @State private var voice = VoiceInput()
-    /// Whether its terminal is open, full screen.
+    /// Whether its terminal is open, full screen, from what is on the page; its menu opens it as a card's does.
     @State private var terminal = false
-    @State private var files = false
 
     /// The record is followed again when the status changes, and only while the app is in front.
     private struct FollowKey: Hashable {
@@ -51,16 +50,13 @@ struct SessionView: View {
                 content(placed)
                     .chatPaths(placed.project, cwd: placed.session.cwd)
                     .toolbar {
-                        Menu("More", systemImage: "ellipsis.circle") {
-                            Button("Terminal", systemImage: "apple.terminal") { terminal = true }
-                            Button("Files", systemImage: "folder") { files = true }
+                        ToolbarItem(placement: .principal) { heading(placed) }
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Menu("More", systemImage: "ellipsis.circle") { SessionMenu(placed: placed) }
                         }
                     }
+                    .sessionActions()
                     .fullScreenCover(isPresented: $terminal) { TerminalScreen(placed: placed) }
-                    // Pushed this way in either tab's stack.
-                    .navigationDestination(isPresented: $files) {
-                        FilesView(route: FilesRoute(projectId: placed.project.id, at: placed.session.cwd))
-                    }
             } else if route.starting {
                 ProgressView("Starting…")
             } else {
@@ -69,13 +65,31 @@ struct SessionView: View {
         }
         .background(Palette.bg)
         .navigationTitle(placed.map(placedTitle) ?? "")
-        .navigationSubtitle(linkLine(store.space.status) ?? Text(verbatim: placed.map(placedWhere) ?? ""))
         .navigationBarTitleDisplayMode(.inline)
         .toolbarVisibility(.hidden, for: .tabBar)
         // A recording left behind is dropped; iOS would cut it off in the background anyway.
         .onDisappear { voice.discard() }
         .onChange(of: phase) { _, now in
             if now == .background { voice.discard() }
+        }
+    }
+
+    /// Its title, and under it where it runs after its status, or the relay link while it is down; in
+    /// the bar's middle, as a subtitle would drop the colors.
+    private func heading(_ placed: Placed) -> some View {
+        VStack(spacing: 1) {
+            Text(placedTitle(placed)).font(.subheadline.weight(.semibold)).lineLimit(1)
+            HStack(spacing: 5) {
+                if let down = linkLine(store.space.status) {
+                    down
+                } else {
+                    StatusDot(status: placed.session.status)
+                    Text(verbatim: placedWhere(placed))
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
         }
     }
 
@@ -139,16 +153,17 @@ private struct AskingDock: View {
     @State private var asking: ToolUse?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label {
-                Text("\(session.name) is asking you")
-            } icon: {
-                Circle().fill(Palette.warn).frame(width: 7, height: 7)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                StatusDot(status: .blocked)
+                Text("\(session.name) is asking you").lineLimit(1)
+                Spacer(minLength: 8)
+                Elapsed(since: session.statusSince).font(.caption.monospaced()).foregroundStyle(.tertiary)
             }
             .font(.subheadline.weight(.semibold))
             if let asking {
                 ScrollView {
-                    Text(verbatim: toolLine(asking))
+                    (Text(verbatim: asking.tool).bold() + Text(verbatim: asking.target.map { "  \($0)" } ?? ""))
                         .font(.caption.monospaced())
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -156,15 +171,26 @@ private struct AskingDock: View {
                 .frame(maxHeight: 110)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 10)
-                .padding(.vertical, 7)
-                .background(Palette.raised, in: .rect(cornerRadius: 8))
+                .padding(.vertical, 8)
+                .background(Palette.raised, in: .rect(cornerRadius: 10))
             }
-            Button("Open terminal", systemImage: "apple.terminal", action: openTerminal)
-                .buttonStyle(.borderedProminent)
+            Button(action: openTerminal) {
+                Label("Answer in the terminal", systemImage: "apple.terminal")
+                    .font(.body.weight(.semibold))
+                    .frame(maxWidth: .infinity, minHeight: 34)
+            }
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.capsule)
+            Text("Answer with the agent's own menu; this turns back into the reply bar once you are back.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.bar)
+        .background(Palette.ask, in: .rect(cornerRadius: 20))
+        .overlay { RoundedRectangle(cornerRadius: 20).strokeBorder(Palette.askLine, lineWidth: 1) }
+        .padding(.horizontal, 10)
+        .padding(.bottom, 6)
         .task(id: session.statusSince) {
             do throws(CallError) {
                 asking = try await agentNote(store.call, mid: session.mid, paneId: session.paneId).asking
