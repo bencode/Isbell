@@ -32,7 +32,9 @@ struct ProjectsView: View {
                 if !store.space.loaded { ProgressView("Connecting…") }
             }
             .navigationTitle("Projects")
-            .navigationDestination(for: String.self) { ProjectView(id: $0, open: { path.append($0) }, resume: { path.append($0) }) }
+            .navigationDestination(for: String.self) {
+                ProjectView(id: $0, open: { path.append($0) }, resume: { path.append($0) })
+            }
             .navigationDestination(for: SessionRoute.self) { SessionView(route: $0) }
             // Resumed, its live page takes the ended one's place.
             .navigationDestination(for: EndedRoute.self) {

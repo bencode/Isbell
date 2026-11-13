@@ -13,12 +13,12 @@ struct EndedRoute: Hashable {
     let projectId: String
     let record: SessionRecord
     /// Opened to resume it at once, from a long press.
-    var resume = false
+    var resumeAtOnce = false
 
-    /// This one, to resume at once.
-    var resuming: EndedRoute {
+    /// This one, opened to resume it at once.
+    var toResume: EndedRoute {
         var route = self
-        route.resume = true
+        route.resumeAtOnce = true
         return route
     }
 }
@@ -35,11 +35,14 @@ struct EndedView: View {
     /// Resumed, and no agent came up: the pane the command ran in.
     @State private var shell: String?
     @State private var terminal = false
+    /// Still to resume as opened: once only, as the page shows again on coming back to its tab.
+    @State private var atOnce: Bool
 
     init(route: EndedRoute, resumed: @escaping (SessionRoute) -> Void) {
         self.route = route
         self.resumed = resumed
         _model = State(initialValue: ChatModel(mid: route.mid))
+        _atOnce = State(initialValue: route.resumeAtOnce)
     }
 
     private var record: SessionRecord { route.record }
@@ -55,7 +58,9 @@ struct EndedView: View {
             .navigationBarTitleDisplayMode(.inline)
             .task { await model.readPast(store.space, record: record) }
             .task {
-                if route.resume, let project, cannot(project) == nil { await resume(project) }
+                guard atOnce, let project else { return }
+                atOnce = false
+                if cannot(project) == nil { await resume(project) }
             }
             .fullScreenCover(isPresented: $terminal, onDismiss: { dismiss() }) {
                 if let shell, let project {

@@ -145,7 +145,8 @@ private struct DayHeader: View {
 }
 
 /// A session that ended: what it was first asked, and last where that is something else; opens it,
-/// read only, and resumes it from a long press. Found by a search, what it was found by is in bold, and it shows its day.
+/// read only, and resumes it from a long press. Found by a search, what it was found by is in bold,
+/// and it shows its day.
 private struct HistoryRow: View {
     let record: SessionRecord
     let route: EndedRoute
@@ -186,7 +187,7 @@ private struct HistoryRow: View {
         .contentShape(.contextMenuPreview, .rect(cornerRadius: 12))
         .contextMenu {
             if resumeArgs(agent: record.agent, id: record.id) != nil {
-                Button("Resume", systemImage: "arrow.clockwise") { resume(route.resuming) }
+                Button("Resume", systemImage: "arrow.clockwise") { resume(route.toResume) }
             }
         }
     }
