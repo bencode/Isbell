@@ -23,6 +23,7 @@ struct ActiveView: View {
                 .padding(.bottom, 16)
             }
             .background(Color(.systemGroupedBackground))
+            .sessionActions()
             .overlay { placeholder(lanes) }
             .navigationTitle("Active")
             .navigationSubtitle(statusLine)

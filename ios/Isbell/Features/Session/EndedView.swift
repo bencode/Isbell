@@ -12,6 +12,15 @@ struct EndedRoute: Hashable {
     /// A `Project.id`.
     let projectId: String
     let record: SessionRecord
+    /// Opened to resume it at once, from a long press.
+    var resume = false
+
+    /// This one, to resume at once.
+    var resuming: EndedRoute {
+        var route = self
+        route.resume = true
+        return route
+    }
 }
 
 struct EndedView: View {
@@ -45,6 +54,9 @@ struct EndedView: View {
             .navigationSubtitle(Text(verbatim: subtitle(project)))
             .navigationBarTitleDisplayMode(.inline)
             .task { await model.readPast(store.space, record: record) }
+            .task {
+                if route.resume, let project, cannot(project) == nil { await resume(project) }
+            }
             .fullScreenCover(isPresented: $terminal, onDismiss: { dismiss() }) {
                 if let shell, let project {
                     TerminalScreen(mid: route.mid, paneId: shell, title: record.agent,

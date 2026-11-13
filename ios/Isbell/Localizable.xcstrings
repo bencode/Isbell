@@ -335,6 +335,16 @@
         }
       }
     },
+    "Couldn't end the session": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结束 session 失败"
+          }
+        }
+      }
+    },
     "Custom commands need isbell 0.8.0 or newer on %@.": {
       "localizations": {
         "zh-Hans": {
@@ -401,6 +411,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "磁盘 · %@"
+          }
+        }
+      }
+    },
+    "End session": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结束 session"
+          }
+        }
+      }
+    },
+    "End this session?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结束这个 session？"
           }
         }
       }
@@ -572,6 +602,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "退出空间"
+          }
+        }
+      }
+    },
+    "Leave it running": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "让它继续跑"
           }
         }
       }
@@ -762,6 +802,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "没有听到内容"
+          }
+        }
+      }
+    },
+    "OK": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "好"
           }
         }
       }
@@ -1402,6 +1452,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "这个会话已经结束"
+          }
+        }
+      }
+    },
+    "This stops %@ and closes its pane on %@. What it changed in %@ stays.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这会停掉 %1$@，并关掉它在 %2$@ 上的 pane。它在 %3$@ 里做的改动会保留。"
           }
         }
       }
