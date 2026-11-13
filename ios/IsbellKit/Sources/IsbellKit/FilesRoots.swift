@@ -35,9 +35,11 @@ public func matchRoots(_ roots: [FilesRoot], _ query: String) -> [FilesRoot] {
     return roots.filter { "\($0.branch ?? "")\n\($0.display)".localizedCaseInsensitiveContains(needle) }
 }
 
-/// The root `abs` is under, the deepest where worktrees nest, and where it sits in it.
-public func rootHolding(_ roots: [FilesRoot], _ abs: String) -> (root: FilesRoot, rel: String)? {
-    roots.compactMap { root in relativePath(root.path, abs).map { (root: root, rel: $0) } }
+/// The root `abs` is under, the deepest where worktrees nest, and where it sits in it; `side` is the
+/// side of a root compared (its path, or its path as shown).
+public func rootHolding(_ roots: [FilesRoot], _ abs: String,
+                        at side: KeyPath<FilesRoot, String> = \.path) -> (root: FilesRoot, rel: String)? {
+    roots.compactMap { root in relativePath(root[keyPath: side], abs).map { (root: root, rel: $0) } }
         .min { $0.rel.count < $1.rel.count }
 }
 
@@ -63,3 +65,36 @@ public func nameOf(_ rel: String) -> String { rel.split(separator: "/").last.map
 
 /// The folder `rel` is in, "" at the top.
 public func dirOf(_ rel: String) -> String { ancestors(rel).last ?? "" }
+
+/// Where a link in a file goes.
+public enum FileLink: Equatable, Sendable {
+    /// A place in the same file.
+    case anchor(String)
+    /// Out to the web, or to mail.
+    case external
+    /// A file under the root, from it.
+    case file(String)
+    /// Nowhere it can be followed: another scheme, an absolute path, or above the root.
+    case inert
+}
+
+/// Where `href`, in the file at `fileRel`, goes: a file only where it stays under the root.
+public func resolveLink(_ fileRel: String, _ href: String) -> FileLink {
+    if href.hasPrefix("#") { return .anchor(decoded(String(href.dropFirst()))) }
+    if href.firstMatch(of: /^(https?|mailto):/.ignoresCase()) != nil { return .external }
+    if href.isEmpty || href.hasPrefix("/") || href.firstMatch(of: /^[a-zA-Z][a-zA-Z0-9+.\-]*:/) != nil { return .inert }
+    let target = decoded(String(href.prefix { $0 != "?" && $0 != "#" }))
+    var resolved: [Substring] = []
+    for part in fileRel.split(separator: "/").dropLast() + target.split(separator: "/") {
+        if part == ".." {
+            // Above the root.
+            guard resolved.popLast() != nil else { return .inert }
+        } else if part != "." {
+            resolved.append(part)
+        }
+    }
+    return resolved.isEmpty ? .inert : .file(resolved.joined(separator: "/"))
+}
+
+/// `s` percent-decoded; a stray '%' is meant as it is.
+private func decoded(_ s: String) -> String { s.removingPercentEncoding ?? s }

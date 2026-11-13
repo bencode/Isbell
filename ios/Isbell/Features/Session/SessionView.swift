@@ -49,6 +49,7 @@ struct SessionView: View {
         Group {
             if let placed {
                 content(placed)
+                    .chatPaths(placed.project, cwd: placed.session.cwd)
                     .toolbar {
                         Menu("More", systemImage: "ellipsis.circle") {
                             Button("Terminal", systemImage: "apple.terminal") { terminal = true }

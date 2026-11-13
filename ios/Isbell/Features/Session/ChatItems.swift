@@ -43,12 +43,15 @@ struct ChatItems: View {
 }
 
 private struct ChatText: View {
+    @Environment(\.chatPaths) private var paths
     let text: String
 
     var body: some View {
-        StructuredText(markdown: text)
-            .textual.textSelection(.enabled)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        Group {
+            if let paths { StructuredText(text, parser: PathsMarkdown(paths: paths)) } else { StructuredText(markdown: text) }
+        }
+        .textual.textSelection(.enabled)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -159,41 +162,59 @@ private struct ToolRun: View {
 }
 
 private struct ToolRow: View {
+    @Environment(\.chatPaths) private var paths
+    @Environment(\.openURL) private var openURL
     let tool: ToolItem
     let running: Bool
     @State private var open = false
 
+    /// A call on one file, such as an edit or a read, opens it.
+    private var opens: URL? {
+        guard let mention = paths?.whole(tool.target), !mention.dir else { return nil }
+        return pathURL(mention)
+    }
+
     var body: some View {
         let output = tool.output.flatMap { $0.isEmpty ? nil : $0 }
         VStack(alignment: .leading, spacing: 0) {
-            Button {
-                withAnimation(.snappy) { open.toggle() }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "chevron.right")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                        .rotationEffect(.degrees(open ? 90 : 0))
-                        .opacity(output == nil ? 0 : 1)
-                    Text(verbatim: tool.name)
-                        .foregroundStyle(tool.error ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
-                        .frame(minWidth: 44, alignment: .leading)
-                    Text(verbatim: tool.target).font(.caption.monospaced()).lineLimit(1).truncationMode(.middle)
-                    Spacer(minLength: 0)
-                    if let edit = tool.edit {
-                        (Text(verbatim: "+\(edit.add) ").foregroundStyle(.green) + Text(verbatim: "−\(edit.del)").foregroundStyle(.red))
-                            .font(.caption2.monospaced())
+            HStack(spacing: 0) {
+                Button {
+                    withAnimation(.snappy) { open.toggle() }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                            .rotationEffect(.degrees(open ? 90 : 0))
+                            .opacity(output == nil ? 0 : 1)
+                        Text(verbatim: tool.name)
+                            .foregroundStyle(tool.error ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                            .frame(minWidth: 44, alignment: .leading)
+                        Text(verbatim: tool.target).font(.caption.monospaced()).lineLimit(1).truncationMode(.middle)
+                        Spacer(minLength: 0)
+                        if let edit = tool.edit {
+                            (Text(verbatim: "+\(edit.add) ").foregroundStyle(.green) + Text(verbatim: "−\(edit.del)").foregroundStyle(.red))
+                                .font(.caption2.monospaced())
+                        }
+                        if tool.error { Text("failed").font(.caption2.monospaced()).foregroundStyle(.red) }
+                        if running { ProgressView().controlSize(.mini) }
                     }
-                    if tool.error { Text("failed").font(.caption2.monospaced()).foregroundStyle(.red) }
-                    if running { ProgressView().controlSize(.mini) }
+                    .font(.footnote)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .contentShape(.rect)
                 }
-                .font(.footnote)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
-                .contentShape(.rect)
+                .buttonStyle(.plain)
+                .disabled(output == nil)
+                if let opens {
+                    Button("Open the file", systemImage: "doc.text") { openURL(opens) }
+                        .labelStyle(.iconOnly)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 44, height: 32)
+                        .contentShape(.rect)
+                }
             }
-            .buttonStyle(.plain)
-            .disabled(output == nil)
             if open, let output {
                 ScrollView {
                     Text(verbatim: output)

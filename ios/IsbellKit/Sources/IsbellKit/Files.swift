@@ -16,6 +16,8 @@ public struct FileRead: Sendable, Equatable {
     public var size: Int
     public var bytes: Data?
     public var offset: Int?
+    /// When it was last changed, in ms, where the gateway says.
+    public var mtime: Int64?
 }
 
 /// Where a read starts, in bytes from the start or from the end, and how much of it is wanted.
@@ -153,10 +155,11 @@ private final class Reading {
 }
 
 /// Reads the file at `path`, or only its size when what is read would be larger than `limit`. With
-/// `range`, from where it says, as far as it wants.
+/// `range`, from where it says, as far as it wants. With `previous`, a read of the same file with the
+/// same `limit` and `range`, a file found as it was then is not sent again: `previous` comes back.
 @MainActor
-public func readFile(_ open: Opener, mid: String, path: String, limit: Int, range: FileRange = FileRange())
-    async throws(CallError) -> FileRead
+public func readFile(_ open: Opener, mid: String, path: String, limit: Int, range: FileRange = FileRange(),
+                     previous: FileRead? = nil) async throws(CallError) -> FileRead
 {
     let reading = Reading(limit: limit)
     let events = StreamEvents(data: { reading.take($0) }, end: { reading.finish($0) })
@@ -170,7 +173,13 @@ public func readFile(_ open: Opener, mid: String, path: String, limit: Int, rang
         throw CallError(code: "bad_response", msg: "a file read without its size")
     }
     let offset = result["offset"]?.uint.map(Int.init)
-    let opened = FileRead(size: size, bytes: nil, offset: offset)
+    let mtime = time(result["mtime"])
+    // Closed before any credit is granted, the file is not sent.
+    if let previous, mtime != nil, previous.mtime == mtime, previous.size == size, previous.offset == offset {
+        stream.close()
+        return previous
+    }
+    let opened = FileRead(size: size, bytes: nil, offset: offset, mtime: mtime)
     let rest = size - (offset ?? 0)
     let need = min(range.want ?? rest, rest)
     if need > limit {
@@ -179,7 +188,7 @@ public func readFile(_ open: Opener, mid: String, path: String, limit: Int, rang
     }
     if need <= 0 {
         stream.close()
-        return FileRead(size: size, bytes: Data(), offset: offset)
+        return FileRead(size: size, bytes: Data(), offset: offset, mtime: mtime)
     }
     if need < rest { reading.stopAt = need }
     // No data comes before credit is granted, by which time the stream is known. The gateway ends
@@ -189,8 +198,8 @@ public func readFile(_ open: Opener, mid: String, path: String, limit: Int, rang
     if let error = await reading.ended() { throw CallError(code: error.code, msg: error.msg) }
     // More than asked for can come as the credit runs ahead; only what was asked counts.
     let bytes = reading.bytes.prefix(reading.stopAt)
-    return bytes.count > limit ? FileRead(size: bytes.count, bytes: nil, offset: offset)
-        : FileRead(size: size, bytes: Data(bytes), offset: offset)
+    return bytes.count > limit ? FileRead(size: bytes.count, bytes: nil, offset: offset, mtime: mtime)
+        : FileRead(size: size, bytes: Data(bytes), offset: offset, mtime: mtime)
 }
 
 /// What a write knows of its stream: the credit the far side gave, and its end once it comes.
