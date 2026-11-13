@@ -70,9 +70,24 @@ final class ChatModel {
         } while await pause(part?.whole == true ? .seconds(10) : .seconds(2))
     }
 
-    /// The record of a session that has ended, as its recorded line names it, read from its end.
-    func readPast(_ space: Space, kind: String, transcript: String?) async {
-        guard readsRecord(kind), let transcript else {
+    /// The record of a session that has ended, read from its end: as its recorded line names it, else,
+    /// for a month's line, which does not, as the hook's file for the session does.
+    func readPast(_ space: Space, record line: SessionRecord) async {
+        let kind = line.agent
+        guard readsRecord(kind) else {
+            record = .unrecorded
+            return
+        }
+        var transcript = line.transcript
+        if transcript == nil, let source = line.source {
+            do throws(CallError) {
+                transcript = try await sessionTranscript(space, key: source, kind: kind, id: line.id)
+            } catch {
+                failed(error)
+                return
+            }
+        }
+        guard let transcript else {
             record = .unrecorded
             return
         }
