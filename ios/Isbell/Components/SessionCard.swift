@@ -46,17 +46,17 @@ struct SessionCard: View {
                 StatusDot(status: session.status)
                 Text(place).lineLimit(1)
                 Spacer(minLength: 8)
-                Elapsed(since: session.statusSince).font(.caption2.monospaced()).foregroundStyle(.tertiary)
+                Elapsed(since: session.statusSince).font(.caption.monospaced()).foregroundStyle(.tertiary)
             }
             .font(.caption)
             .foregroundStyle(.secondary)
             Text(placedTitle(placed))
-                .font(.body.weight(.semibold))
+                .font(.callout.weight(.semibold))
                 .lineLimit(2)
             noteLine
         }
-        .padding(.horizontal, 13)
-        .padding(.vertical, 11)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(asking ? Palette.ask : Palette.raised,
                     in: .rect(cornerRadius: 12))

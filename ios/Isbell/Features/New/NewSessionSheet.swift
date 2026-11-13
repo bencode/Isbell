@@ -125,9 +125,9 @@ struct NewSessionSheet: View {
             chosen = t.name
         } label: {
             Text(verbatim: t.name)
-                .font(.system(size: 15, weight: on ? .semibold : .regular, design: plain(t) ? .monospaced : .default))
+                .font(.system(size: 14, weight: on ? .semibold : .regular, design: plain(t) ? .monospaced : .default))
                 .lineLimit(1)
-                .frame(maxWidth: .infinity, minHeight: 36)
+                .frame(maxWidth: .infinity, minHeight: 32)
         }
         .buttonStyle(.bordered)
         .tint(on ? Palette.accent : .secondary)
@@ -140,7 +140,7 @@ struct NewSessionSheet: View {
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(verbatim: p.name).font(.body.weight(.medium)).foregroundStyle(.primary)
+                    Text(verbatim: p.name).font(.body.weight(.medium))
                     Text(verbatim: machine ? "\(p.display) · \(p.machine)" : p.display)
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
@@ -149,7 +149,9 @@ struct NewSessionSheet: View {
                 Spacer()
                 if picked { Image(systemName: "checkmark").foregroundStyle(.tint) }
             }
+            .contentShape(.rect)
         }
+        .buttonStyle(.plain)
     }
 
     private func footer(_ project: Project?, _ template: StartTemplate?) -> some View {

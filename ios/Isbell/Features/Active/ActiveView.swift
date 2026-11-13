@@ -85,7 +85,6 @@ struct LaneHeader: View {
             Text(verbatim: "\(count)").foregroundStyle(.tertiary)
         }
         .font(.subheadline.weight(.semibold))
-        .foregroundStyle(.secondary)
         .padding(.top, 12)
     }
 }

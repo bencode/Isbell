@@ -7,7 +7,7 @@ struct MainTabs: View {
 
     var body: some View {
         TabView {
-            Tab("Active", systemImage: "bolt.fill") { ActiveView() }
+            Tab("Active", systemImage: "smallcircle.filled.circle") { ActiveView() }
                 .badge(store.lanes.asking.count)
             Tab("Projects", systemImage: "folder") { ProjectsView() }
         }
