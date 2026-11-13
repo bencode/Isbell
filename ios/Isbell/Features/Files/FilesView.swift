@@ -19,6 +19,7 @@ struct FilesView: View {
     @State private var roots: [FilesRoot]?
     @State private var rootKey: String?
     @State private var tree = FileTree()
+    @State private var opened: FileRoute?
     /// As typed, and searched for once typing pauses.
     @State private var text = ""
     @State private var query = ""
@@ -51,7 +52,7 @@ struct FilesView: View {
             .sheet(isPresented: $finding) {
                 WorktreeSheet(roots: all, current: root?.key) { rootKey = $0.key }
             }
-            .navigationDestination(for: FileRoute.self) { FileView(route: $0) }
+            .navigationDestination(item: $opened) { FileView(route: $0) }
     }
 
     @ViewBuilder private func content(_ project: Project?, _ root: FilesRoot?) -> some View {
@@ -61,9 +62,9 @@ struct FilesView: View {
             List {
                 Group {
                     if query.isEmpty {
-                        FileLevel(tree: tree, mid: project.mid, root: root, rel: "")
+                        FileLevel(tree: tree, mid: project.mid, root: root, rel: "", openFile: { opened = $0 })
                     } else {
-                        FoundFiles(found: found, mid: project.mid, root: root, query: query)
+                        FoundFiles(found: found, mid: project.mid, root: root, query: query, openFile: { opened = $0 })
                     }
                 }
                 .listRowBackground(Palette.bg)

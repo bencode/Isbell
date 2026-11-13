@@ -10,6 +10,7 @@ struct FoundFiles: View {
     let mid: String
     let root: FilesRoot
     let query: String
+    let openFile: (FileRoute) -> Void
 
     var body: some View {
         switch found {
@@ -21,7 +22,9 @@ struct FoundFiles: View {
             Text("No files match").font(.footnote).foregroundStyle(.secondary)
         case .success(let found):
             ForEach(found.paths, id: \.self) { rel in
-                NavigationLink(value: FileRoute(mid: mid, path: joinPath(root.path, rel), rel: rel)) {
+                Button {
+                    openFile(FileRoute(mid: mid, path: joinPath(root.path, rel), rel: rel))
+                } label: {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(marked(nameOf(rel), query)).lineLimit(1)
                         if !dirOf(rel).isEmpty {
@@ -32,7 +35,10 @@ struct FoundFiles: View {
                                 .truncationMode(.head)
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(.rect)
                 }
+                .buttonStyle(.plain)
             }
             if found.truncated {
                 Text("Showing the first \(found.paths.count) matches").font(.footnote).foregroundStyle(.secondary)

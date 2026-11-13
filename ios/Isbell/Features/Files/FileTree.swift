@@ -39,6 +39,7 @@ struct FileLevel: View {
     let mid: String
     let root: FilesRoot
     let rel: String
+    let openFile: (FileRoute) -> Void
 
     var body: some View {
         switch tree.listing(root, rel) {
@@ -61,14 +62,19 @@ struct FileLevel: View {
         let child = rel.isEmpty ? entry.name : "\(rel)/\(entry.name)"
         if entry.kind == .dir {
             DisclosureGroup(isExpanded: open(child)) {
-                FileLevel(tree: tree, mid: mid, root: root, rel: child)
+                FileLevel(tree: tree, mid: mid, root: root, rel: child, openFile: openFile)
             } label: {
                 name(entry.name, icon: "folder")
             }
         } else {
-            NavigationLink(value: FileRoute(mid: mid, path: joinPath(root.path, child), rel: child)) {
+            Button {
+                openFile(FileRoute(mid: mid, path: joinPath(root.path, child), rel: child))
+            } label: {
                 name(entry.name, icon: "doc")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(.rect)
             }
+            .buttonStyle(.plain)
         }
     }
 
