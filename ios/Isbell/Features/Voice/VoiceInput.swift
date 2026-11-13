@@ -16,7 +16,14 @@ enum VoiceProblem: Equatable {
 @MainActor @Observable
 final class VoiceInput {
     enum State: Equatable { case idle, recording, working }
-    private(set) var state: State = .idle
+    private(set) var state: State = .idle {
+        // The screen stays on while one speaks without touching it, and sleeps again after (#139).
+        didSet {
+            if (oldValue == .recording) != (state == .recording) {
+                UIApplication.shared.isIdleTimerDisabled = state == .recording
+            }
+        }
+    }
     /// Why the last try came to nothing, until the next.
     private(set) var problem: VoiceProblem?
     /// The voice as it was heard, 0…1, the latest last.
