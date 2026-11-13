@@ -117,6 +117,16 @@
         }
       }
     },
+    "%lld × %lld": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld × %lld"
+          }
+        }
+      }
+    },
     "A space key starts with isbk1-.": {
       "localizations": {
         "zh-Hans": {
@@ -331,6 +341,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "拷贝空间密钥"
+          }
+        }
+      }
+    },
+    "Copy path": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制路径"
           }
         }
       }
@@ -1082,6 +1102,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "relay"
+          }
+        }
+      }
+    },
+    "Reload": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新读取"
           }
         }
       }

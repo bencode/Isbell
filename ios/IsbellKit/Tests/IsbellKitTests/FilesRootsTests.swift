@@ -57,3 +57,12 @@ private let project = Project(mid: "m1", machine: "mini", online: true, path: "/
     #expect(decodeText(Data([0x61, 0x00, 0x62])) == nil)
     #expect(decodeText(Data([0xff, 0xfe, 0x41])) == nil)
 }
+
+@Test func aFilesLanguageIsByItsExtensionOrWholeName() {
+    #expect(codeLanguage("main.swift") == "swift")
+    #expect(codeLanguage("App.TSX") == "typescript")
+    #expect(codeLanguage("Dockerfile") == "dockerfile")
+    #expect(codeLanguage("Cargo.lock") == nil)
+    #expect(codeLanguage(".gitignore") == nil)
+    #expect(codeLanguage("README") == nil)
+}
