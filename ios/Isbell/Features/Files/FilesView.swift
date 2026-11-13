@@ -41,6 +41,7 @@ struct FilesView: View {
             .navigationTitle(project?.name ?? "")
             .navigationSubtitle(Text(verbatim: root?.branch ?? ""))
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarVisibility(.hidden, for: .tabBar)
             .toolbarTitleMenu { worktreeMenu(all, current: root, project: project) }
             .searchable(text: $text, prompt: Text("Find a file"))
             .task(id: text) {
@@ -58,12 +59,16 @@ struct FilesView: View {
             ContentUnavailableView { why }
         } else if let project, let root {
             List {
-                if query.isEmpty {
-                    FileLevel(tree: tree, mid: project.mid, root: root, rel: "")
-                } else {
-                    FoundFiles(found: found, mid: project.mid, root: root, query: query)
+                Group {
+                    if query.isEmpty {
+                        FileLevel(tree: tree, mid: project.mid, root: root, rel: "")
+                    } else {
+                        FoundFiles(found: found, mid: project.mid, root: root, query: query)
+                    }
                 }
+                .listRowBackground(Palette.bg)
             }
+            .paletteList()
             .listStyle(.plain)
             .refreshable {
                 await readRoots(project)

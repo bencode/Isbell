@@ -13,24 +13,28 @@ struct PasteKeyView: View {
 
     var body: some View {
         Form {
-            Section {
-                TextField("isbk1-…", text: $text)
-                    .font(.body.monospaced())
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .focused($focused)
-                    .submitLabel(.join)
-                    .onSubmit(join)
-            } footer: {
-                VStack(alignment: .leading, spacing: 8) {
-                    check
-                    Text("The key stays in this iPhone's Keychain and on your machines. There is no account.")
+            Group {
+                Section {
+                    TextField("isbk1-…", text: $text)
+                        .font(.body.monospaced())
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .focused($focused)
+                        .submitLabel(.join)
+                        .onSubmit(join)
+                } footer: {
+                    VStack(alignment: .leading, spacing: 8) {
+                        check
+                        Text("The key stays in this iPhone's Keychain and on your machines. There is no account.")
+                    }
+                }
+                Section {
+                    Button("Join", action: join).disabled(identity == nil)
                 }
             }
-            Section {
-                Button("Join", action: join).disabled(identity == nil)
-            }
+            .listRowBackground(Palette.raised)
         }
+        .paletteList()
         .navigationTitle("Paste Key")
         .onAppear {
             fillFromPasteboard()
@@ -44,7 +48,7 @@ struct PasteKeyView: View {
         } else {
             switch parse(text) {
             case nil: EmptyView()
-            case .success: Label("The key is complete.", systemImage: "checkmark.circle").foregroundStyle(.green)
+            case .success: Label("The key is complete.", systemImage: "checkmark.circle").foregroundStyle(Palette.ok)
             case .failure(let error): Label(message(error), systemImage: "exclamationmark.circle").foregroundStyle(.red)
             }
         }

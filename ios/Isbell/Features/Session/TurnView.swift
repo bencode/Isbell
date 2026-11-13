@@ -104,7 +104,7 @@ private struct AgentHead: View {
                 .font(.caption2.monospaced().weight(.semibold))
                 .foregroundStyle(.secondary)
                 .frame(width: 18, height: 18)
-                .background(Color(.tertiarySystemFill), in: .rect(cornerRadius: 5))
+                .background(Palette.raised2, in: .rect(cornerRadius: 5))
             Text(verbatim: name).font(.footnote.weight(.semibold))
             if let model { Text(verbatim: modelName(model)).font(.caption).foregroundStyle(.tertiary) }
         }
@@ -127,7 +127,7 @@ struct You: View {
                 Text(paths?.linked(asked.text) ?? AttributedString(asked.text))
                     .padding(.horizontal, 13)
                     .padding(.vertical, 9)
-                    .background(Color.accentColor.opacity(0.14), in: bubble)
+                    .background(Palette.accent.opacity(0.14), in: bubble)
                     .contentShape(.contextMenuPreview, bubble)
                     .contextMenu {
                         if at > 0 {

@@ -53,6 +53,8 @@ struct FileView: View {
 
     var body: some View {
         content
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Palette.bg)
             .safeAreaInset(edge: .top) {
                 if let error, read != nil {
                     Text(verbatim: error.msg).font(.footnote).foregroundStyle(.red).padding(.horizontal, 16)
@@ -61,6 +63,7 @@ struct FileView: View {
             .navigationTitle(Text(verbatim: name))
             .navigationSubtitle(Text(verbatim: dirOf(route.rel)))
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarVisibility(.hidden, for: .tabBar)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { menu } }
             .navigationDestination(item: $link) { FileView(route: $0) }
             // Each time it shows: on coming back to its tab, as when it first does.

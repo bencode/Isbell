@@ -21,10 +21,14 @@ struct MachineInfoSheet: View {
         let entry = store.space.machines.first { $0.id == mid }
         NavigationStack {
             List {
-                if let system, entry?.online == true { usage(system) }
-                if let entry { about(entry) }
-                connection(entry)
+                Group {
+                    if let system, entry?.online == true { usage(system) }
+                    if let entry { about(entry) }
+                    connection(entry)
+                }
+                .listRowBackground(Palette.raised)
             }
+            .paletteList()
             .navigationTitle(Text(verbatim: entry?.state.machine.name ?? ""))
             .navigationBarTitleDisplayMode(.inline)
         }

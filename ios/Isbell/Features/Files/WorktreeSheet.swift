@@ -34,7 +34,9 @@ struct WorktreeSheet: View {
                     .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
+                .listRowBackground(Palette.raised)
             }
+            .paletteList()
             .overlay {
                 if matchRoots(roots, query).isEmpty { ContentUnavailableView.search(text: query) }
             }

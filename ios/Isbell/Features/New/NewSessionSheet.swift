@@ -53,30 +53,34 @@ struct NewSessionSheet: View {
             .filter { !$0.1.isEmpty }
         NavigationStack {
             List {
-                Section {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
-                        ForEach(templates, id: \.name) { t in
-                            templateButton(t, on: t == template).disabled(!can(t))
+                Group {
+                    Section {
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
+                            ForEach(templates, id: \.name) { t in
+                                templateButton(t, on: t == template).disabled(!can(t))
+                            }
+                        }
+                    } header: {
+                        Text("Start with")
+                    } footer: {
+                        if let project, templates.contains(where: { !can($0) }) {
+                            Text("Custom commands need isbell 0.8.0 or newer on \(project.machine).")
                         }
                     }
-                } header: {
-                    Text("Start with")
-                } footer: {
-                    if let project, templates.contains(where: { !can($0) }) {
-                        Text("Custom commands need isbell 0.8.0 or newer on \(project.machine).")
+                    if !recent.isEmpty {
+                        Section("Recent") { ForEach(recent) { row($0, picked: $0 == project, where: true) } }
+                    }
+                    ForEach(groups, id: \.0.id) { machine, projects in
+                        Section {
+                            ForEach(projects) { row($0, picked: $0 == project, where: false) }
+                        } header: {
+                            Text(verbatim: machine.state.machine.name)
+                        }
                     }
                 }
-                if !recent.isEmpty {
-                    Section("Recent") { ForEach(recent) { row($0, picked: $0 == project, where: true) } }
-                }
-                ForEach(groups, id: \.0.id) { machine, projects in
-                    Section {
-                        ForEach(projects) { row($0, picked: $0 == project, where: false) }
-                    } header: {
-                        Text(verbatim: machine.state.machine.name)
-                    }
-                }
+                .listRowBackground(Palette.raised)
             }
+            .paletteList()
             .overlay {
                 if store.space.loaded && startable.isEmpty {
                     ContentUnavailableView("No projects to start in", systemImage: "folder")
@@ -126,7 +130,7 @@ struct NewSessionSheet: View {
                 .frame(maxWidth: .infinity, minHeight: 36)
         }
         .buttonStyle(.bordered)
-        .tint(on ? .accentColor : .secondary)
+        .tint(on ? Palette.accent : .secondary)
     }
 
     /// A project to start in; in the recent ones, with the machine it is on.

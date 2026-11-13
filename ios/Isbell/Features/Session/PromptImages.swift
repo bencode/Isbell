@@ -47,7 +47,7 @@ private struct PathImage: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
-                RoundedRectangle(cornerRadius: 8).fill(Color(.tertiarySystemFill)).frame(width: 80, height: 80)
+                RoundedRectangle(cornerRadius: 8).fill(Palette.raised2).frame(width: 80, height: 80)
             }
         }
         .task(id: path) { await read() }
@@ -76,7 +76,7 @@ private struct Thumb: View {
                 .scaledToFill()
                 .frame(width: 80, height: 80)
                 .clipShape(.rect(cornerRadius: 8))
-                .overlay { RoundedRectangle(cornerRadius: 8).strokeBorder(Color(.separator), lineWidth: 0.5) }
+                .overlay { RoundedRectangle(cornerRadius: 8).strokeBorder(Palette.line, lineWidth: 0.5) }
         }
         .buttonStyle(.plain)
         .fullScreenCover(isPresented: $open) {

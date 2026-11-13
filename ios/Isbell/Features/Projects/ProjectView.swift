@@ -69,7 +69,7 @@ struct ProjectView: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 16)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Palette.bg)
         .sessionActions()
         .overlay {
             if project?.online == false {
@@ -83,6 +83,7 @@ struct ProjectView: View {
             if !searchWaits, let project { await history.readOlder(store.space, project: project, all: true) }
         }
         .navigationTitle(project?.name ?? "")
+        .toolbarVisibility(.hidden, for: .tabBar)
         .navigationSubtitle(Text(verbatim: project.map { "\($0.machine) · \($0.display)" } ?? ""))
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -185,7 +186,7 @@ private struct HistoryRow: View {
             .padding(.horizontal, 13)
             .padding(.vertical, 11)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 12))
+            .background(Palette.raised, in: .rect(cornerRadius: 12))
         }
         .buttonStyle(.plain)
         .contentShape(.contextMenuPreview, .rect(cornerRadius: 12))

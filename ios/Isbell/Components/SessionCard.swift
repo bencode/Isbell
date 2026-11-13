@@ -58,11 +58,11 @@ struct SessionCard: View {
         .padding(.horizontal, 13)
         .padding(.vertical, 11)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(asking ? Color.orange.opacity(0.12) : Color(.secondarySystemGroupedBackground),
+        .background(asking ? Palette.ask : Palette.raised,
                     in: .rect(cornerRadius: 12))
         .overlay {
             RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(asking ? Color.orange.opacity(0.5) : Color(.separator), lineWidth: 0.5)
+                .strokeBorder(asking ? Palette.askLine : Palette.line, lineWidth: 0.5)
         }
         .contentShape(.rect(cornerRadius: 12))
     }
@@ -136,9 +136,9 @@ struct StatusDot: View {
     var body: some View {
         Group {
             switch status {
-            case .blocked: Circle().fill(.orange)
-            case .done: Circle().fill(.green)
-            case .working: Circle().fill(Color.accentColor)
+            case .blocked: Circle().fill(Palette.warn)
+            case .done: Circle().fill(Palette.ok)
+            case .working: Circle().fill(Palette.accent)
             case .idle, .unknown: Circle().strokeBorder(.secondary, lineWidth: 1.5)
             }
         }

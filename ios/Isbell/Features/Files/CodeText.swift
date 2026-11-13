@@ -58,10 +58,11 @@ final class CodeView: UITextView {
         isSelectable = true
         alwaysBounceVertical = true
         dataDetectorTypes = []
+        backgroundColor = UIColor(Palette.bg)
         layoutManager.allowsNonContiguousLayout = true
         gutter.code = self
         gutter.isUserInteractionEnabled = false
-        gutter.backgroundColor = .systemBackground
+        gutter.backgroundColor = UIColor(Palette.bg)
         addSubview(gutter)
     }
 

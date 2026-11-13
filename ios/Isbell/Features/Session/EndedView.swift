@@ -52,11 +52,12 @@ struct EndedView: View {
         content
             .chatPaths(project, cwd: record.cwd)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(.systemGroupedBackground))
+            .background(Palette.bg)
             .safeAreaInset(edge: .bottom) { bar(project) }
             .navigationTitle(Text(verbatim: record.first))
             .navigationSubtitle(Text(verbatim: subtitle(project)))
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarVisibility(.hidden, for: .tabBar)
             .task { await model.readPast(store.space, record: record) }
             .task {
                 guard atOnce, let project else { return }

@@ -36,7 +36,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ 的 session 不能恢复。"
+            "value": "%@ 的会话不能恢复。"
           }
         }
       }
@@ -370,7 +370,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "结束 session 失败"
+            "value": "结束会话失败"
           }
         }
       }
@@ -470,7 +470,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "结束 session"
+            "value": "结束会话"
           }
         }
       }
@@ -480,7 +480,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "结束这个 session？"
+            "value": "结束这个会话？"
           }
         }
       }
@@ -548,7 +548,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "查找 session"
+            "value": "查找会话"
           }
         }
       }
@@ -841,7 +841,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "没有匹配的 session"
+            "value": "没有匹配的会话"
           }
         }
       }
@@ -851,7 +851,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "没有在跑的 session"
+            "value": "没有在跑的会话"
           }
         }
       }
@@ -891,7 +891,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "这里没有在跑的 session"
+            "value": "这里没有在跑的会话"
           }
         }
       }
@@ -1071,7 +1071,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "正在读更早的 session…"
+            "value": "正在读更早的会话…"
           }
         }
       }
@@ -1341,7 +1341,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "session 开头"
+            "value": "会话开头"
           }
         }
       }
@@ -1571,7 +1571,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "你的机器上 agent 跑着的 session 会出现在这里。"
+            "value": "你的机器上 agent 跑着的会话会出现在这里。"
           }
         }
       }
