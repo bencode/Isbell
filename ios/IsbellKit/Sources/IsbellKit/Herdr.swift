@@ -94,6 +94,11 @@ public func prompt(_ call: Caller, mid: String, paneId: String, text: String) as
     _ = try await herdr(call, mid, "agent.prompt", .object(["target": .string(paneId), "text": .string(text)]))
 }
 
+/// Ends pane `paneId` and what runs in it; what an agent changed on disk stays.
+public func closePane(_ call: Caller, mid: String, paneId: String) async throws(CallError) {
+    _ = try await herdr(call, mid, "pane.close", .object(["pane_id": .string(paneId)]))
+}
+
 /// An agent started: what herdr calls it, and the pane it runs in.
 public struct Started: Sendable, Equatable {
     public var name: String

@@ -32,6 +32,8 @@ struct SessionCard: View {
     var body: some View {
         NavigationLink(value: SessionRoute(mid: session.mid, paneId: session.paneId)) { card }
             .buttonStyle(.plain)
+            .contentShape(.contextMenuPreview, .rect(cornerRadius: 12))
+            .contextMenu { SessionMenu(placed: placed) }
             .task(id: NoteKey(id: session.id, status: session.status, since: session.statusSince)) {
                 await readNotes()
             }
@@ -110,6 +112,7 @@ struct StandingRow: View {
     var body: some View {
         NavigationLink(value: SessionRoute(mid: placed.session.mid, paneId: placed.session.paneId)) { row }
             .buttonStyle(.plain)
+            .contextMenu { SessionMenu(placed: placed) }
     }
 
     private var row: some View {

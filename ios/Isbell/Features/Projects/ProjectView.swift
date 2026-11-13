@@ -11,6 +11,8 @@ struct ProjectView: View {
     let id: String
     /// Opens a session started from here, over this page.
     let open: (SessionRoute) -> Void
+    /// Opens one that ended to resume it at once.
+    let resume: (EndedRoute) -> Void
     @State private var creating = false
     @State private var history = SessionHistory()
     @State private var query = ""
@@ -48,7 +50,8 @@ struct ProjectView: View {
                         ForEach(byDay(past, at: \.updated), id: \.[0].key) { day in
                             DayHeader(at: day[0].updated)
                             ForEach(day, id: \.key) { r in
-                                HistoryRow(record: r, route: EndedRoute(mid: project.mid, projectId: id, record: r))
+                                HistoryRow(record: r, route: EndedRoute(mid: project.mid, projectId: id, record: r),
+                                           resume: resume)
                             }
                         }
                         if history.more {
@@ -67,6 +70,7 @@ struct ProjectView: View {
             .padding(.bottom, 16)
         }
         .background(Color(.systemGroupedBackground))
+        .sessionActions()
         .overlay {
             if project?.online == false {
                 ContentUnavailableView("The machine is offline", systemImage: "desktopcomputer")
@@ -101,7 +105,8 @@ struct ProjectView: View {
                 .padding(.top, 12)
         }
         ForEach(found, id: \.key) { r in
-            HistoryRow(record: r, route: EndedRoute(mid: project.mid, projectId: id, record: r), needle: needle)
+            HistoryRow(record: r, route: EndedRoute(mid: project.mid, projectId: id, record: r), resume: resume,
+                       needle: needle)
         }
         if history.busy {
             ProgressView("Reading older sessions…").frame(maxWidth: .infinity)
@@ -140,10 +145,12 @@ private struct DayHeader: View {
 }
 
 /// A session that ended: what it was first asked, and last where that is something else; opens it,
-/// read only. Found by a search, what it was found by is in bold, and it shows its day.
+/// read only, and resumes it from a long press. Found by a search, what it was found by is in bold,
+/// and it shows its day.
 private struct HistoryRow: View {
     let record: SessionRecord
     let route: EndedRoute
+    let resume: (EndedRoute) -> Void
     var needle = ""
 
     var body: some View {
@@ -177,6 +184,12 @@ private struct HistoryRow: View {
             .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 12))
         }
         .buttonStyle(.plain)
+        .contentShape(.contextMenuPreview, .rect(cornerRadius: 12))
+        .contextMenu {
+            if resumeArgs(agent: record.agent, id: record.id) != nil {
+                Button("Resume", systemImage: "arrow.clockwise") { resume(route.toResume) }
+            }
+        }
     }
 }
 
