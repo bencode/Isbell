@@ -27,6 +27,7 @@ struct SessionView: View {
     @State private var voice = VoiceInput()
     /// Whether its terminal is open, full screen.
     @State private var terminal = false
+    @State private var files = false
 
     /// The record is followed again when the status changes, and only while the app is in front.
     private struct FollowKey: Hashable {
@@ -51,9 +52,14 @@ struct SessionView: View {
                     .toolbar {
                         Menu("More", systemImage: "ellipsis.circle") {
                             Button("Terminal", systemImage: "apple.terminal") { terminal = true }
+                            Button("Files", systemImage: "folder") { files = true }
                         }
                     }
                     .fullScreenCover(isPresented: $terminal) { TerminalScreen(placed: placed) }
+                    // Pushed this way in either tab's stack.
+                    .navigationDestination(isPresented: $files) {
+                        FilesView(route: FilesRoute(projectId: placed.project.id, at: placed.session.cwd))
+                    }
             } else if route.starting {
                 ProgressView("Starting…")
             } else {
