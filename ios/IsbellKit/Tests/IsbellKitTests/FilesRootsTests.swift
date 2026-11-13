@@ -66,3 +66,16 @@ private let project = Project(mid: "m1", machine: "mini", online: true, path: "/
     #expect(codeLanguage(".gitignore") == nil)
     #expect(codeLanguage("README") == nil)
 }
+
+@Test func aLinkOpensAFileUnderTheRootJumpsLeavesForTheWebOrGoesNowhere() {
+    let from = "docs/guide/intro.md"
+    #expect(resolveLink(from, "setup.md#run") == .file("docs/guide/setup.md"))
+    #expect(resolveLink(from, "../../README.md?plain") == .file("README.md"))
+    #expect(resolveLink(from, "./my%20notes.md") == .file("docs/guide/my notes.md"))
+    #expect(resolveLink(from, "#the-end") == .anchor("the-end"))
+    #expect(resolveLink(from, "https://example.com") == .external)
+    #expect(resolveLink(from, "mailto:a@example.com") == .external)
+    #expect(resolveLink(from, "../../../outside.md") == .inert)
+    #expect(resolveLink(from, "/etc/hosts") == .inert)
+    #expect(resolveLink(from, "javascript:alert(1)") == .inert)
+}
