@@ -38,6 +38,7 @@ struct ProjectView: View {
         let reading = history.records == nil && project.map { store.space.recorded[$0.mid] != nil } == true
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 10) {
+                if let project { place(project) }
                 if !live.isEmpty {
                     LaneHeader(title: "Running", count: live.count)
                     ForEach(live) { SessionCard(placed: $0, place: $0.session.kind ?? $0.session.name) }
@@ -49,10 +50,7 @@ struct ProjectView: View {
                         LaneHeader(title: "History", count: past.count)
                         ForEach(byDay(past, at: \.updated), id: \.[0].key) { day in
                             DayHeader(at: day[0].updated)
-                            ForEach(day, id: \.key) { r in
-                                HistoryRow(record: r, route: EndedRoute(mid: project.mid, projectId: id, record: r),
-                                           resume: resume)
-                            }
+                            rows(day, needle: "", project: project)
                         }
                         if history.more {
                             // Each month read while it is in view, until the list reaches past it.
@@ -83,9 +81,11 @@ struct ProjectView: View {
             if !searchWaits, let project { await history.readOlder(store.space, project: project, all: true) }
         }
         .navigationTitle(project?.name ?? "")
+        .navigationBarTitleDisplayMode(.large)
         .toolbarVisibility(.hidden, for: .tabBar)
-        .navigationSubtitle(Text(verbatim: project.map { "\($0.machine) · \($0.display)" } ?? ""))
         .toolbar {
+            // With the tab bar hidden, the search has no place but the bottom bar.
+            DefaultToolbarItem(kind: .search, placement: .bottomBar)
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink(value: FilesRoute(projectId: id)) { Label("Files", systemImage: "folder") }
                     .disabled(project?.online != true || project?.path.isEmpty != false)
@@ -109,15 +109,36 @@ struct ProjectView: View {
                 .foregroundStyle(.secondary)
                 .padding(.top, 12)
         }
-        ForEach(found, id: \.key) { r in
-            HistoryRow(record: r, route: EndedRoute(mid: project.mid, projectId: id, record: r), resume: resume,
-                       needle: needle)
-        }
+        if !found.isEmpty { rows(found, needle: needle, project: project) }
         if history.busy {
             ProgressView("Reading older sessions…").frame(maxWidth: .infinity)
         } else if found.isEmpty {
             Text("No sessions match").font(.footnote).foregroundStyle(.secondary).frame(maxWidth: .infinity)
         }
+    }
+
+    /// The machine, whether it is online, and the project's directory, under the title.
+    private func place(_ project: Project) -> some View {
+        HStack(spacing: 6) {
+            Circle().fill(project.online ? Palette.ok : Color.secondary.opacity(0.4)).frame(width: 8, height: 8)
+            Text(verbatim: project.machine)
+            Text(verbatim: "·")
+            Text(verbatim: project.display).monospaced().lineLimit(1).truncationMode(.middle)
+        }
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+    }
+
+    /// Sessions that ended, as one group of rows.
+    private func rows(_ records: [SessionRecord], needle: String, project: Project) -> some View {
+        VStack(spacing: 0) {
+            ForEach(Array(records.enumerated()), id: \.element.key) { i, r in
+                if i > 0 { Divider().overlay(Palette.line) }
+                HistoryRow(record: r, route: EndedRoute(mid: project.mid, projectId: id, record: r), resume: resume,
+                           needle: needle)
+            }
+        }
+        .background(Palette.raised, in: .rect(cornerRadius: 12))
     }
 
     private func historyKey(_ p: Project) -> HistoryKey {
@@ -149,9 +170,9 @@ private struct DayHeader: View {
     }
 }
 
-/// A session that ended: what it was first asked, and last where that is something else; opens it,
-/// read only, and resumes it from a long press. Found by a search, what it was found by is in bold,
-/// and it shows its day.
+/// A session that ended: what it was first asked, the agent and when; opens it, read only, and
+/// resumes it from a long press. Found by a search, what it was found by is in bold, and it shows
+/// its day.
 private struct HistoryRow: View {
     let record: SessionRecord
     let route: EndedRoute
@@ -164,29 +185,24 @@ private struct HistoryRow: View {
         let by = needle.isEmpty || record.first.lowercased().contains(needle)
             ? nil : [record.last, record.cwd].first { $0.lowercased().contains(needle) }
         NavigationLink(value: route) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(marked(record.first, needle)).font(.body).lineLimit(2)
-                if let by {
-                    Text(marked(excerpt(by, needle), needle)).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-                } else if needle.isEmpty && !record.last.isEmpty && record.last != record.first {
-                    Text(verbatim: record.last).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
-                }
-                HStack {
-                    Text(verbatim: record.agent)
-                    Spacer()
-                    if needle.isEmpty {
-                        Text(at, format: .dateTime.hour().minute())
-                    } else {
-                        Text(at, format: .dateTime.month().day().hour().minute())
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(marked(record.first, needle)).font(.callout.weight(.semibold)).lineLimit(2)
+                    if let by {
+                        Text(marked(excerpt(by, needle), needle)).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                     }
+                    // Its day too where the rows are not under their day.
+                    let when = at.formatted(needle.isEmpty ? .dateTime.hour().minute() : .dateTime.month().day().hour().minute())
+                    Text(verbatim: "\(record.agent) · \(when)")
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.tertiary)
                 }
-                .font(.caption.monospaced())
-                .foregroundStyle(.tertiary)
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
             }
             .padding(.horizontal, 13)
-            .padding(.vertical, 11)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Palette.raised, in: .rect(cornerRadius: 12))
+            .padding(.vertical, 10)
+            .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .contentShape(.contextMenuPreview, .rect(cornerRadius: 12))

@@ -38,18 +38,10 @@ struct MachineInfoSheet: View {
 
     private func usage(_ s: System) -> some View {
         Section("Usage") {
-            LabeledContent { Text(percent(s.cpu.usage)) } label: { Text("CPU · \(s.cpu.cores ?? s.cpu.threads) cores") }
-            LabeledContent {
-                Text(percent(used: s.memory.used, of: s.memory.total))
-            } label: {
-                Text("Memory · \(bytes(s.memory.total, .memory))")
-            }
+            UsageRow(label: Text("CPU · \(s.cpu.cores ?? s.cpu.threads) cores"), used: s.cpu.usage / 100)
+            UsageRow(label: Text("Memory · \(bytes(s.memory.total, .memory))"), used: share(s.memory.used, of: s.memory.total))
             if let disk = s.disk {
-                LabeledContent {
-                    Text(percent(used: disk.total - disk.free, of: disk.total))
-                } label: {
-                    Text("Disk · \(bytes(disk.total, .file))")
-                }
+                UsageRow(label: Text("Disk · \(bytes(disk.total, .file))"), used: share(disk.total - disk.free, of: disk.total))
             }
             if let load = s.load {
                 LabeledContent("Load 1/5/15") {
@@ -109,6 +101,24 @@ struct MachineInfoSheet: View {
             stats = via != nil ? await store.space.directStats(mid) : nil
         } while await pause(.seconds(2))
     }
+}
+
+/// A part of the machine, how much of it is used, and a bar of it.
+private struct UsageRow: View {
+    let label: Text
+    /// 0…1.
+    let used: Double
+
+    var body: some View {
+        VStack(spacing: 6) {
+            LabeledContent { Text(percent(used * 100)) } label: { label }
+            ProgressView(value: min(max(used, 0), 1)).tint(Palette.accent)
+        }
+    }
+}
+
+private func share(_ used: Int64, of total: Int64) -> Double {
+    total > 0 ? Double(used) / Double(total) : 0
 }
 
 private func pathName(_ path: LinkPath) -> Text {
