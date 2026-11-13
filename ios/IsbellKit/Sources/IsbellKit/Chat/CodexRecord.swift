@@ -72,9 +72,9 @@ private func completed(_ it: JSON, at: Int64) -> [Entry] {
     if it["type"]?.string == "UserMessage" {
         let content = objects(it["content"])
         let words = content.filter { $0["type"]?.string == "text" }.map { text($0["text"]) }.joined(separator: "\n")
-        let images = content.filter { $0["type"]?.string == "local_image" }.map { text($0["path"]) }
-        let said = !words.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !images.isEmpty
-        return said ? [.you(id: id, at: at, Asked(text: words, images: images))] : []
+        let (said, uploaded) = splitUploads(words)
+        let images = content.filter { $0["type"]?.string == "local_image" }.map { text($0["path"]) } + uploaded
+        return said.isEmpty && images.isEmpty ? [] : [.you(id: id, at: at, Asked(text: said, images: images))]
     }
     return items[text(it["type"])].map { read in read(it, id).map { .item(at: at, $0) } } ?? []
 }

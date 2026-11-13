@@ -30,9 +30,10 @@ func piEntries(_ lines: [JSON]) -> [Entry] {
             let words = blocks.filter { $0["type"]?.string == "text" }.map { text($0["text"]) }.joined(separator: "\n")
             let data = blocks.filter { $0["type"]?.string == "image" }
                 .map { "data:\(text($0["mimeType"]));base64,\(text($0["data"]))" }
-            guard !words.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !data.isEmpty else { return [] }
+            let (said, images) = splitUploads(words)
+            guard !said.isEmpty || !images.isEmpty || !data.isEmpty else { return [] }
             let id = line["id"]?.string.flatMap { $0.isEmpty ? nil : $0 } ?? String(at)
-            return [.you(id: id, at: at, Asked(text: words, data: data))]
+            return [.you(id: id, at: at, Asked(text: said, images: images, data: data))]
         case "toolResult":
             return [.result(id: text(m["toolCallId"]), output: blocks.map { text($0["text"]) }.joined(separator: "\n"),
                             error: m["isError"]?.bool == true)]
