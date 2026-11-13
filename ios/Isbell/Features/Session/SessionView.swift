@@ -67,11 +67,11 @@ struct SessionView: View {
                 ContentUnavailableView("This session has ended", systemImage: "checkmark.circle")
             }
         }
-        .background(Color(.systemGroupedBackground))
-        .safeAreaInset(edge: .top) { Reconnecting(status: store.space.status) }
+        .background(Palette.bg)
         .navigationTitle(placed.map(placedTitle) ?? "")
-        .navigationSubtitle(Text(verbatim: placed.map(placedWhere) ?? ""))
+        .navigationSubtitle(linkLine(store.space.status) ?? Text(verbatim: placed.map(placedWhere) ?? ""))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarVisibility(.hidden, for: .tabBar)
         // A recording left behind is dropped; iOS would cut it off in the background anyway.
         .onDisappear { voice.discard() }
         .onChange(of: phase) { _, now in
@@ -131,27 +131,6 @@ struct SessionView: View {
     }
 }
 
-/// While the relay connection is down: what is read stays, and nothing new comes until it is back.
-private struct Reconnecting: View {
-    let status: ConnStatus
-
-    var body: some View {
-        if status == .connecting || status == .reconnecting {
-            Label {
-                Text(status == .connecting ? "Connecting…" : "Reconnecting…")
-            } icon: {
-                ProgressView().controlSize(.mini)
-            }
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(.bar, in: .capsule)
-            .padding(.top, 4)
-        }
-    }
-}
-
 /// What the agent asks leave for, read once it asks; it is answered in its terminal.
 private struct AskingDock: View {
     @Environment(SpaceStore.self) private var store
@@ -164,7 +143,7 @@ private struct AskingDock: View {
             Label {
                 Text("\(session.name) is asking you")
             } icon: {
-                Circle().fill(.orange).frame(width: 7, height: 7)
+                Circle().fill(Palette.warn).frame(width: 7, height: 7)
             }
             .font(.subheadline.weight(.semibold))
             if let asking {
@@ -178,7 +157,7 @@ private struct AskingDock: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 7)
-                .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 8))
+                .background(Palette.raised, in: .rect(cornerRadius: 8))
             }
             Button("Open terminal", systemImage: "apple.terminal", action: openTerminal)
                 .buttonStyle(.borderedProminent)

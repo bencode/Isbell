@@ -53,30 +53,34 @@ struct NewSessionSheet: View {
             .filter { !$0.1.isEmpty }
         NavigationStack {
             List {
-                Section {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
-                        ForEach(templates, id: \.name) { t in
-                            templateButton(t, on: t == template).disabled(!can(t))
+                Group {
+                    Section {
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
+                            ForEach(templates, id: \.name) { t in
+                                templateButton(t, on: t == template).disabled(!can(t))
+                            }
+                        }
+                    } header: {
+                        Text("Start with")
+                    } footer: {
+                        if let project, templates.contains(where: { !can($0) }) {
+                            Text("Custom commands need isbell 0.8.0 or newer on \(project.machine).")
                         }
                     }
-                } header: {
-                    Text("Start with")
-                } footer: {
-                    if let project, templates.contains(where: { !can($0) }) {
-                        Text("Custom commands need isbell 0.8.0 or newer on \(project.machine).")
+                    if !recent.isEmpty {
+                        Section("Recent") { ForEach(recent) { row($0, picked: $0 == project, where: true) } }
+                    }
+                    ForEach(groups, id: \.0.id) { machine, projects in
+                        Section {
+                            ForEach(projects) { row($0, picked: $0 == project, where: false) }
+                        } header: {
+                            Text(verbatim: machine.state.machine.name)
+                        }
                     }
                 }
-                if !recent.isEmpty {
-                    Section("Recent") { ForEach(recent) { row($0, picked: $0 == project, where: true) } }
-                }
-                ForEach(groups, id: \.0.id) { machine, projects in
-                    Section {
-                        ForEach(projects) { row($0, picked: $0 == project, where: false) }
-                    } header: {
-                        Text(verbatim: machine.state.machine.name)
-                    }
-                }
+                .listRowBackground(Palette.raised)
             }
+            .paletteList()
             .overlay {
                 if store.space.loaded && startable.isEmpty {
                     ContentUnavailableView("No projects to start in", systemImage: "folder")
@@ -121,12 +125,12 @@ struct NewSessionSheet: View {
             chosen = t.name
         } label: {
             Text(verbatim: t.name)
-                .font(.system(size: 15, weight: on ? .semibold : .regular, design: plain(t) ? .monospaced : .default))
+                .font(.system(size: 14, weight: on ? .semibold : .regular, design: plain(t) ? .monospaced : .default))
                 .lineLimit(1)
-                .frame(maxWidth: .infinity, minHeight: 36)
+                .frame(maxWidth: .infinity, minHeight: 32)
         }
         .buttonStyle(.bordered)
-        .tint(on ? .accentColor : .secondary)
+        .tint(on ? Palette.accent : .secondary)
     }
 
     /// A project to start in; in the recent ones, with the machine it is on.
@@ -136,7 +140,7 @@ struct NewSessionSheet: View {
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(verbatim: p.name).font(.body.weight(.medium)).foregroundStyle(.primary)
+                    Text(verbatim: p.name).font(.body.weight(.medium))
                     Text(verbatim: machine ? "\(p.display) · \(p.machine)" : p.display)
                         .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
@@ -145,7 +149,9 @@ struct NewSessionSheet: View {
                 Spacer()
                 if picked { Image(systemName: "checkmark").foregroundStyle(.tint) }
             }
+            .contentShape(.rect)
         }
+        .buttonStyle(.plain)
     }
 
     private func footer(_ project: Project?, _ template: StartTemplate?) -> some View {

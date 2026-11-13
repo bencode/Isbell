@@ -18,16 +18,20 @@ struct ProjectsView: View {
         let projects = store.projects
         NavigationStack(path: $path) {
             List {
-                ForEach(store.space.machines) { entry in
-                    Section {
-                        ForEach(projects.filter { $0.mid == entry.id && $0.configured && !$0.path.isEmpty }) { project in
-                            NavigationLink(value: project.id) { ProjectRow(project: project) }
+                Group {
+                    ForEach(store.space.machines) { entry in
+                        Section {
+                            ForEach(projects.filter { $0.mid == entry.id && $0.configured && !$0.path.isEmpty }) { project in
+                                NavigationLink(value: project.id) { ProjectRow(project: project) }
+                            }
+                        } header: {
+                            MachineHeader(entry: entry) { shown = ShownMachine(id: entry.id) }
                         }
-                    } header: {
-                        MachineHeader(entry: entry) { shown = ShownMachine(id: entry.id) }
                     }
                 }
+                .listRowBackground(Palette.raised)
             }
+            .paletteList()
             .overlay {
                 if !store.space.loaded { ProgressView("Connecting…") }
             }
@@ -69,7 +73,7 @@ private struct MachineHeader: View {
         Button(action: open) {
             HStack(spacing: 8) {
                 Circle()
-                    .fill(entry.online ? Color.green : Color.secondary.opacity(0.4))
+                    .fill(entry.online ? Palette.ok : Color.secondary.opacity(0.4))
                     .frame(width: 8, height: 8)
                 Text(entry.state.machine.name).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
                 Spacer(minLength: 8)
@@ -133,9 +137,9 @@ private struct ProjectRow: View {
     /// The most pressing of its sessions colors the count: one that asks, then one finished unseen,
     /// then one working; none when it has no session.
     private func tint(_ sessions: [Session]) -> Color? {
-        if sessions.contains(where: { $0.status == .blocked }) { return .orange }
-        if sessions.contains(where: { $0.status == .done && $0.unread }) { return .green }
-        if sessions.contains(where: { $0.status == .working }) { return .accentColor }
+        if sessions.contains(where: { $0.status == .blocked }) { return Palette.warn }
+        if sessions.contains(where: { $0.status == .done && $0.unread }) { return Palette.ok }
+        if sessions.contains(where: { $0.status == .working }) { return Palette.accent }
         return sessions.isEmpty ? nil : .secondary
     }
 }

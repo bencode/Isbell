@@ -12,41 +12,46 @@ struct SettingsView: View {
     var body: some View {
         @Bindable var prefs = store.prefs
         Form {
-            Section("Appearance") {
-                Picker("Theme", selection: $prefs.theme) {
-                    Text("Match System").tag(Theme.system)
-                    Text("Light").tag(Theme.light)
-                    Text("Dark").tag(Theme.dark)
+            Group {
+                Section("Appearance") {
+                    Picker("Theme", selection: $prefs.theme) {
+                        Text("Match System").tag(Theme.system)
+                        Text("Light").tag(Theme.light)
+                        Text("Dark").tag(Theme.dark)
+                    }
+                    Button {
+                        if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                    } label: {
+                        LabeledContent("Language") { Text("Set per app in iOS Settings") }
+                    }
+                    .tint(.primary)
                 }
-                Button {
-                    if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
-                } label: {
-                    LabeledContent("Language") { Text("Set per app in iOS Settings") }
+                Section {
+                    CommandRow(command: "curl -fsSL https://isbell.fmap.dev/install.sh | sh")
+                    CommandRow(command: "isbell gateway")
+                } header: {
+                    Text("Add a machine")
+                } footer: {
+                    Text("Run these two on a machine with herdr installed.")
                 }
-                .tint(.primary)
+                Section {
+                    Button("Copy Space Key", systemImage: "key") { UIPasteboard.general.string = store.identity.key }
+                } header: {
+                    Text("Space")
+                } footer: {
+                    Text("The key is kept only on this iPhone.")
+                }
+                Section {
+                    Button("Leave Space", role: .destructive) { confirmingLeave = true }
+                } footer: {
+                    Text(verbatim: footer).frame(maxWidth: .infinity).padding(.top, 16)
+                }
             }
-            Section {
-                CommandRow(command: "curl -fsSL https://isbell.fmap.dev/install.sh | sh")
-                CommandRow(command: "isbell gateway")
-            } header: {
-                Text("Add a machine")
-            } footer: {
-                Text("Run these two on a machine with herdr installed.")
-            }
-            Section {
-                Button("Copy Space Key", systemImage: "key") { UIPasteboard.general.string = store.identity.key }
-            } header: {
-                Text("Space")
-            } footer: {
-                Text("The key is kept only on this iPhone.")
-            }
-            Section {
-                Button("Leave Space", role: .destructive) { confirmingLeave = true }
-            } footer: {
-                Text(verbatim: footer).frame(maxWidth: .infinity).padding(.top, 16)
-            }
+            .listRowBackground(Palette.raised)
         }
+        .paletteList()
         .navigationTitle("Settings")
+        .toolbarVisibility(.hidden, for: .tabBar)
         .confirmationDialog("Leave this space?", isPresented: $confirmingLeave, titleVisibility: .visible) {
             Button("Leave Space", role: .destructive) { app.leave() }
         } message: {

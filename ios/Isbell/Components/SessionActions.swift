@@ -1,6 +1,6 @@
-// What a live session's long press does: opens its terminal, or ends it once confirmed. The list
-// holds them rather than the card, which is made anew as its session moves between lanes, and would
-// take a terminal shown from it away. As web/src/features/session/end-pane-dialog.tsx.
+// What a live session's long press does: opens its terminal or its files, or ends it once confirmed.
+// The list holds them rather than the card, which is made anew as its session moves between lanes, and
+// would take a terminal shown from it away. As web/src/features/session/end-pane-dialog.tsx.
 
 import IsbellKit
 import SwiftUI
@@ -10,6 +10,7 @@ import os
 @Observable
 final class SessionActions {
     var terminal: Placed?
+    var files: FilesRoute?
     var ending: Placed?
     var failed: CallError?
 }
@@ -26,6 +27,9 @@ struct SessionMenu: View {
 
     var body: some View {
         Button("Open terminal", systemImage: "apple.terminal") { actions.terminal = placed }
+        Button("Files", systemImage: "folder") {
+            actions.files = FilesRoute(projectId: placed.project.id, at: placed.session.cwd)
+        }
         Button("End session", systemImage: "xmark.circle", role: .destructive) { actions.ending = placed }
     }
 }
@@ -39,6 +43,7 @@ private struct SessionActionsHost: ViewModifier {
         content
             .environment(actions)
             .fullScreenCover(item: $actions.terminal) { TerminalScreen(placed: $0) }
+            .navigationDestination(item: $actions.files) { FilesView(route: $0) }
             .confirmationDialog("End this session?", isPresented: isSet($actions.ending), titleVisibility: .visible,
                                 presenting: actions.ending) { placed in
                 Button("End session", role: .destructive) { Task { await end(placed) } }

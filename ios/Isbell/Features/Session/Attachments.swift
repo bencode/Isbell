@@ -124,11 +124,11 @@ private struct Chip: View {
             }
         }
         .frame(width: 58, height: 58)
-        .background(Color(.secondarySystemGroupedBackground))
+        .background(Palette.raised)
         .clipShape(.rect(cornerRadius: 12))
         .overlay {
             RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(item.error == nil ? Color(.separator) : .red, lineWidth: item.error == nil ? 0.5 : 1.5)
+                .strokeBorder(item.error == nil ? Palette.line : Palette.danger, lineWidth: item.error == nil ? 0.5 : 1.5)
         }
         .overlay(alignment: .topTrailing) {
             Button(action: remove) {

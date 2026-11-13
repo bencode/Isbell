@@ -14,6 +14,8 @@ struct ActiveView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 10) {
+                    // In the page, not the subtitle, which drops its colors.
+                    statusLine.font(.footnote).foregroundStyle(.secondary)
                     lane("Asking you", lanes.asking)
                     lane("Just finished", lanes.finished)
                     lane("Working", lanes.running)
@@ -22,11 +24,10 @@ struct ActiveView: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 16)
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Palette.bg)
             .sessionActions()
             .overlay { placeholder(lanes) }
             .navigationTitle("Active")
-            .navigationSubtitle(statusLine)
             .navigationDestination(for: SessionRoute.self) { SessionView(route: $0) }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -59,11 +60,18 @@ struct ActiveView: View {
     }
 
     private var statusLine: Text {
-        switch store.space.status {
-        case .connecting: Text("Connecting…")
-        case .reconnecting: Text("Reconnecting…")
-        case .open, .rejected: Text("\(store.space.machines.filter(\.online).count) machines online")
-        }
+        linkLine(store.space.status)
+            ?? Text(verbatim: "● ").foregroundStyle(Palette.ok)
+            + Text("\(store.space.machines.filter(\.online).count) machines online")
+    }
+}
+
+/// What a page says of the relay link while it is down; nil while it is up.
+func linkLine(_ status: ConnStatus) -> Text? {
+    switch status {
+    case .connecting: Text("Connecting…").foregroundStyle(Palette.warn)
+    case .reconnecting: Text("Reconnecting…").foregroundStyle(Palette.warn)
+    case .open, .rejected: nil
     }
 }
 
@@ -77,7 +85,6 @@ struct LaneHeader: View {
             Text(verbatim: "\(count)").foregroundStyle(.tertiary)
         }
         .font(.subheadline.weight(.semibold))
-        .foregroundStyle(.secondary)
         .padding(.top, 12)
     }
 }

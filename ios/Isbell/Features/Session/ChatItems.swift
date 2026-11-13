@@ -113,7 +113,7 @@ private struct NoteLine: View {
             }
         }
         .font(.footnote)
-        .foregroundStyle(note == .failed ? AnyShapeStyle(.red) : AnyShapeStyle(.tertiary))
+        .foregroundStyle(note == .failed ? AnyShapeStyle(Palette.danger) : AnyShapeStyle(.tertiary))
     }
 }
 
@@ -147,8 +147,8 @@ private struct ToolRun: View {
                         ToolRow(tool: tool, running: tool.id == running)
                     }
                 }
-                .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 10))
-                .overlay { RoundedRectangle(cornerRadius: 10).strokeBorder(Color(.separator), lineWidth: 0.5) }
+                .background(Palette.raised, in: .rect(cornerRadius: 10))
+                .overlay { RoundedRectangle(cornerRadius: 10).strokeBorder(Palette.line, lineWidth: 0.5) }
             }
         }
     }
@@ -188,15 +188,15 @@ private struct ToolRow: View {
                             .rotationEffect(.degrees(open ? 90 : 0))
                             .opacity(output == nil ? 0 : 1)
                         Text(verbatim: tool.name)
-                            .foregroundStyle(tool.error ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+                            .foregroundStyle(tool.error ? AnyShapeStyle(Palette.danger) : AnyShapeStyle(.secondary))
                             .frame(minWidth: 44, alignment: .leading)
                         Text(verbatim: tool.target).font(.caption.monospaced()).lineLimit(1).truncationMode(.middle)
                         Spacer(minLength: 0)
                         if let edit = tool.edit {
-                            (Text(verbatim: "+\(edit.add) ").foregroundStyle(.green) + Text(verbatim: "−\(edit.del)").foregroundStyle(.red))
+                            (Text(verbatim: "+\(edit.add) ").foregroundStyle(Palette.ok) + Text(verbatim: "−\(edit.del)").foregroundStyle(Palette.danger))
                                 .font(.caption2.monospaced())
                         }
-                        if tool.error { Text("failed").font(.caption2.monospaced()).foregroundStyle(.red) }
+                        if tool.error { Text("failed").font(.caption2.monospaced()).foregroundStyle(Palette.danger) }
                         if running { ProgressView().controlSize(.mini) }
                     }
                     .font(.footnote)
@@ -225,7 +225,7 @@ private struct ToolRow: View {
                         .padding(10)
                 }
                 .frame(maxHeight: 240)
-                .background(Color(.tertiarySystemGroupedBackground))
+                .background(Palette.raised2)
             }
         }
     }
