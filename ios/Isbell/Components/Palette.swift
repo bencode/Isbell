@@ -26,11 +26,12 @@ enum Palette {
     static let askLine = adaptive(0xdcb56d, 0x6a5426)
 }
 
-private func adaptive(_ light: UInt32, _ dark: UInt32) -> Color {
+/// Nonisolated, as SwiftUI resolves a color off the main thread too while it animates (#138).
+private nonisolated func adaptive(_ light: UInt32, _ dark: UInt32) -> Color {
     Color(UIColor { $0.userInterfaceStyle == .dark ? rgb(dark) : rgb(light) })
 }
 
-private func rgb(_ hex: UInt32) -> UIColor {
+private nonisolated func rgb(_ hex: UInt32) -> UIColor {
     UIColor(red: CGFloat(hex >> 16 & 0xff) / 255, green: CGFloat(hex >> 8 & 0xff) / 255, blue: CGFloat(hex & 0xff) / 255, alpha: 1)
 }
 
