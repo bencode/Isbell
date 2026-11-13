@@ -23,6 +23,7 @@ struct ProjectsView: View {
                         Section {
                             ForEach(projects.filter { $0.mid == entry.id && $0.configured && !$0.path.isEmpty }) { project in
                                 NavigationLink(value: project.id) { ProjectRow(project: project) }
+                                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                             }
                         } header: {
                             MachineHeader(entry: entry) { shown = ShownMachine(id: entry.id) }
@@ -75,14 +76,25 @@ private struct MachineHeader: View {
                 Circle()
                     .fill(entry.online ? Palette.ok : Color.secondary.opacity(0.4))
                     .frame(width: 8, height: 8)
-                Text(entry.state.machine.name).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                Text(entry.state.machine.name)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .layoutPriority(1)
                 Spacer(minLength: 8)
                 if !entry.online {
                     Text("Offline")
                 } else if let system {
-                    Text("CPU \(percent(system.cpu.usage)) · Memory \(percent(used: system.memory.used, of: system.memory.total))")
+                    let cpu = percent(system.cpu.usage)
+                    let memory = percent(used: system.memory.used, of: system.memory.total)
+                    // In larger text, the numbers alone.
+                    ViewThatFits(in: .horizontal) {
+                        Text("CPU \(cpu) · Memory \(memory)")
+                        Text(verbatim: "\(cpu) · \(memory)")
+                    }
+                    .lineLimit(1)
                 }
-                Image(systemName: "info.circle")
+                Image(systemName: "chevron.right")
             }
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -114,33 +126,31 @@ private struct ProjectRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(project.name)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(project.name).font(.subheadline.weight(.semibold))
                 Text(verbatim: project.display)
-                    .font(.footnote)
+                    .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
             Spacer(minLength: 8)
-            if project.online, let tint = tint(project.sessions) {
-                Text(verbatim: "\(project.sessions.count)")
-                    .font(.caption.weight(.semibold).monospacedDigit())
-                    .foregroundStyle(tint)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(tint.opacity(0.15), in: .capsule)
+            if project.online && !project.sessions.isEmpty {
+                HStack(spacing: 4) {
+                    ForEach(shown, id: \.self) { StatusDot(status: $0) }
+                    Text(verbatim: "\(project.sessions.count)").font(.caption.weight(.semibold).monospacedDigit())
+                }
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 2)
+                .background(Palette.raised2, in: .capsule)
             }
         }
     }
 
-    /// The most pressing of its sessions colors the count: one that asks, then one finished unseen,
-    /// then one working; none when it has no session.
-    private func tint(_ sessions: [Session]) -> Color? {
-        if sessions.contains(where: { $0.status == .blocked }) { return Palette.warn }
-        if sessions.contains(where: { $0.status == .done && $0.unread }) { return Palette.ok }
-        if sessions.contains(where: { $0.status == .working }) { return Palette.accent }
-        return sessions.isEmpty ? nil : .secondary
+    /// Each status its sessions are in, the most pressing first: asking, working, finished.
+    private var shown: [AgentStatus] {
+        [.blocked, .working, .done].filter { status in project.sessions.contains { $0.status == status } }
     }
 }
 
