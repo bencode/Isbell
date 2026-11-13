@@ -114,6 +114,7 @@ private struct AgentHead: View {
 /// What was asked, on the right: its images, then its words, which a long press tells when they
 /// were asked and copies.
 struct You: View {
+    @Environment(\.chatPaths) private var paths
     let asked: Asked
     let mid: String
     /// Milliseconds since the epoch; 0 where the record does not tell.
@@ -123,7 +124,7 @@ struct You: View {
         VStack(alignment: .trailing, spacing: 6) {
             if !asked.images.isEmpty || !asked.data.isEmpty { PromptImages(mid: mid, paths: asked.images, data: asked.data) }
             if !asked.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Text(verbatim: asked.text)
+                Text(paths?.linked(asked.text) ?? AttributedString(asked.text))
                     .padding(.horizontal, 13)
                     .padding(.vertical, 9)
                     .background(Color.accentColor.opacity(0.14), in: bubble)

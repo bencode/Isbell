@@ -35,9 +35,11 @@ public func matchRoots(_ roots: [FilesRoot], _ query: String) -> [FilesRoot] {
     return roots.filter { "\($0.branch ?? "")\n\($0.display)".localizedCaseInsensitiveContains(needle) }
 }
 
-/// The root `abs` is under, the deepest where worktrees nest, and where it sits in it.
-public func rootHolding(_ roots: [FilesRoot], _ abs: String) -> (root: FilesRoot, rel: String)? {
-    roots.compactMap { root in relativePath(root.path, abs).map { (root: root, rel: $0) } }
+/// The root `abs` is under, the deepest where worktrees nest, and where it sits in it; `side` is the
+/// side of a root compared (its path, or its path as shown).
+public func rootHolding(_ roots: [FilesRoot], _ abs: String,
+                        at side: KeyPath<FilesRoot, String> = \.path) -> (root: FilesRoot, rel: String)? {
+    roots.compactMap { root in relativePath(root[keyPath: side], abs).map { (root: root, rel: $0) } }
         .min { $0.rel.count < $1.rel.count }
 }
 

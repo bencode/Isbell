@@ -50,6 +50,7 @@ struct EndedView: View {
     var body: some View {
         let project = store.projects.first { $0.id == route.projectId }
         content
+            .chatPaths(project, cwd: record.cwd)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color(.systemGroupedBackground))
             .safeAreaInset(edge: .bottom) { bar(project) }

@@ -956,6 +956,16 @@
         }
       }
     },
+    "Open the file": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开文件"
+          }
+        }
+      }
+    },
     "Opening the terminal…": {
       "localizations": {
         "zh-Hans": {
