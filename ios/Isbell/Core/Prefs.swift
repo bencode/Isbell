@@ -1,5 +1,6 @@
 // What this iPhone remembers between launches: when sessions were looked at, the projects each
-// machine last listed, what was last started where, and how the screens were left. In UserDefaults;
+// machine last listed, what was last started where, the folders left open in each tree of files, and
+// how the screens were left. In UserDefaults;
 // what cannot be read back starts over.
 
 import Foundation
@@ -33,6 +34,8 @@ final class Prefs {
     private(set) var recentProjects: [String]
     /// The kind of agent last started.
     private(set) var lastAgent: String?
+    /// The folders left open in each tree of files, by `FilesRoot.key`, from the root.
+    private(set) var openDirs: [String: [String]]
 
     @ObservationIgnored private let defaults: UserDefaults
 
@@ -43,6 +46,7 @@ final class Prefs {
         static let theme = "theme"
         static let recentProjects = "recentProjects"
         static let lastAgent = "lastAgent"
+        static let openDirs = "openDirs"
     }
 
     init(defaults: UserDefaults = .standard) {
@@ -53,6 +57,7 @@ final class Prefs {
         theme = defaults.string(forKey: Key.theme).flatMap(Theme.init) ?? .system
         recentProjects = defaults.stringArray(forKey: Key.recentProjects) ?? []
         lastAgent = defaults.string(forKey: Key.lastAgent)
+        openDirs = Self.decoded(defaults, Key.openDirs) ?? [:]
     }
 
     /// Session `id` is looked at under the status it has had since `since`.
@@ -76,11 +81,29 @@ final class Prefs {
         defaults.set(agent, forKey: Key.lastAgent)
     }
 
+    func setOpen(_ root: String, _ dir: String, _ open: Bool) {
+        let others = (openDirs[root] ?? []).filter { $0 != dir }
+        keepOpen(root, open ? others + [dir] : others)
+    }
+
+    /// Opens folder `dir` of `root`'s tree, and those it is in.
+    func openDown(_ root: String, to dir: String) {
+        let open = openDirs[root] ?? []
+        keepOpen(root, open + (ancestors(dir) + [dir]).filter { !open.contains($0) })
+    }
+
+    private func keepOpen(_ root: String, _ dirs: [String]) {
+        openDirs[root] = dirs.isEmpty ? nil : dirs
+        save(openDirs, Key.openDirs)
+    }
+
     /// Forgets what belonged to the space left; how the screens look, and the agent liked, stay.
     func clearSpace() {
         seen = [:]
         keptPaths = [:]
         recentProjects = []
+        openDirs = [:]
+        defaults.removeObject(forKey: Key.openDirs)
         defaults.removeObject(forKey: Key.seen)
         defaults.removeObject(forKey: Key.keptPaths)
         defaults.removeObject(forKey: Key.recentProjects)

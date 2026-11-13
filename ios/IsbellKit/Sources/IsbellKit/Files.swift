@@ -1,6 +1,6 @@
-// A machine's files through its gateway: a file read as a stream, one sent for an agent, and the
-// git repository a directory is in. As web/src/model/files/{remote,repo}.ts, for what this client
-// does so far.
+// A machine's files through its gateway: a directory one level at a time, files found by path, a
+// repository's worktrees, a file read as a stream, one sent for an agent, and the git repository a
+// directory is in. Paths sent are absolute. As web/src/model/files/{remote,repo,content}.ts.
 
 import Foundation
 import os
@@ -31,6 +31,43 @@ public struct FileRange: Sendable, Equatable {
     }
 }
 
+public struct DirEntry: Sendable, Equatable {
+    public enum Kind: String, Sendable { case dir, file, other }
+    public var name: String
+    public var kind: Kind
+    public var size: Int64?
+    public var mtime: Int64?
+}
+
+/// `total` counts the directory's entries; more than `entries` when the listing was cut.
+public struct Listing: Sendable, Equatable {
+    public var entries: [DirEntry]
+    public var total: Int
+    public var truncated: Bool
+}
+
+/// Paths relative to the root searched, shallow first.
+public struct Found: Sendable, Equatable {
+    public var paths: [String]
+    public var truncated: Bool
+}
+
+/// A worktree as the gateway reports it; `here`: the directory asked about.
+public struct Worktree: Sendable, Equatable {
+    public var path: String
+    public var branch: String?
+    public var here: Bool
+
+    public init(path: String, branch: String?, here: Bool) {
+        self.path = path
+        self.branch = branch
+        self.here = here
+    }
+}
+
+/// Above this a file is not read for its preview.
+public let previewMax = 5 << 20
+
 /// The gateway stops a search after 2 s; the rest is the trip.
 private let fileTimeout: Duration = .seconds(20)
 /// Over this a file is not sent.
@@ -38,6 +75,45 @@ public let uploadMax = 20 << 20
 /// Over the relay a client may send 50 messages a second, and the app sends others meanwhile; one
 /// chunk every 40 ms leaves them room.
 private let chunkEvery: Duration = .milliseconds(40)
+
+/// The entries of directory `path`, folders first.
+@MainActor
+public func listDir(_ call: Caller, mid: String, path: String) async throws(CallError) -> Listing {
+    let r = try await call(mid, "isbell.file.list", .object(["path": .string(path)]), fileTimeout)
+    guard case .array(let items)? = r["entries"], let total = r["total"]?.uint, let truncated = r["truncated"]?.bool
+    else { throw badResponse("a listing") }
+    let entries = items.compactMap { e -> DirEntry? in
+        guard let name = e["name"]?.string, let kind = e["kind"]?.string.flatMap(DirEntry.Kind.init) else { return nil }
+        return DirEntry(name: name, kind: kind, size: time(e["size"]), mtime: time(e["mtime"]))
+    }
+    return Listing(entries: entries, total: Int(total), truncated: truncated)
+}
+
+/// The files under `root` whose path holds `query`, ignoring case.
+@MainActor
+public func searchFiles(_ call: Caller, mid: String, root: String, query: String) async throws(CallError) -> Found {
+    let r = try await call(mid, "isbell.file.search", .object(["root": .string(root), "query": .string(query)]), fileTimeout)
+    guard case .array(let paths)? = r["paths"], let truncated = r["truncated"]?.bool else { throw badResponse("a search") }
+    return Found(paths: paths.compactMap(\.string), truncated: truncated)
+}
+
+/// The worktrees of the repository `path` is in, its main checkout first; none outside one.
+@MainActor
+public func worktrees(_ call: Caller, mid: String, path: String) async throws(CallError) -> [Worktree] {
+    let r = try await call(mid, "isbell.git.worktrees", .object(["path": .string(path)]), fileTimeout)
+    guard case .array(let trees)? = r["worktrees"] else { throw badResponse("the worktrees") }
+    return trees.compactMap { t in
+        t["path"]?.string.map { Worktree(path: $0, branch: t["branch"]?.string, here: t["here"]?.bool ?? false) }
+    }
+}
+
+private func badResponse(_ what: String) -> CallError { CallError(code: "bad_response", msg: "\(what) of another shape") }
+
+/// The text a file holds; nil for one with a NUL byte, or not UTF-8, as a binary file is.
+public func decodeText(_ bytes: Data) -> String? {
+    guard !bytes.contains(0) else { return nil }
+    return String(data: bytes, encoding: .utf8)
+}
 
 /// What a read has taken in so far, and its end once it comes.
 @MainActor
@@ -244,10 +320,8 @@ private func gitAt(_ call: Caller, _ mid: String, _ dir: String) async throws(Ca
 /// worktree as a root of its own.
 @MainActor
 private func mainCheckout(_ call: Caller, _ mid: String, _ root: String) async -> String {
-    do {
-        let r = try await call(mid, "isbell.git.worktrees", .object(["path": .string(root)]), fileTimeout)
-        guard case .array(let trees)? = r["worktrees"] else { return root }
-        return trees.first?["path"]?.string ?? root
+    do throws(CallError) {
+        return try await worktrees(call, mid: mid, path: root).first?.path ?? root
     } catch {
         logger.warning("could not find the main checkout of \(root): \(error.msg)")
         return root

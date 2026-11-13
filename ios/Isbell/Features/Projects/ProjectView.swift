@@ -86,6 +86,10 @@ struct ProjectView: View {
         .navigationSubtitle(Text(verbatim: project.map { "\($0.machine) · \($0.display)" } ?? ""))
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(value: FilesRoute(projectId: id)) { Label("Files", systemImage: "folder") }
+                    .disabled(project?.online != true || project?.path.isEmpty != false)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 Button("New session", systemImage: "plus") { creating = true }
                     .disabled(project?.online != true || project?.path.isEmpty != false)
             }
@@ -191,16 +195,4 @@ private struct HistoryRow: View {
             }
         }
     }
-}
-
-/// `text` with each place it holds `needle` in bold.
-private func marked(_ text: String, _ needle: String) -> AttributedString {
-    var shown = AttributedString(text)
-    guard !needle.isEmpty else { return shown }
-    var from = shown.startIndex
-    while let found = shown[from...].range(of: needle, options: .caseInsensitive) {
-        shown[found].inlinePresentationIntent = .stronglyEmphasized
-        from = found.upperBound
-    }
-    return shown
 }

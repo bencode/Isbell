@@ -79,6 +79,16 @@
         }
       }
     },
+    "%lld more not listed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还有 %lld 个未列出"
+          }
+        }
+      }
+    },
     "%lld tools": {
       "localizations": {
         "en": {
@@ -415,6 +425,26 @@
         }
       }
     },
+    "Done": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成"
+          }
+        }
+      }
+    },
+    "Empty folder": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空文件夹"
+          }
+        }
+      }
+    },
     "End session": {
       "localizations": {
         "zh-Hans": {
@@ -473,6 +503,16 @@
         }
       }
     },
+    "Find a file": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按路径搜文件"
+          }
+        }
+      }
+    },
     "Find a project": {
       "localizations": {
         "zh-Hans": {
@@ -489,6 +529,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "查找 session"
+          }
+        }
+      }
+    },
+    "Find a worktree": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜分支或目录"
+          }
+        }
+      }
+    },
+    "Find a worktree…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜分支或目录…"
           }
         }
       }
@@ -716,12 +776,32 @@
         }
       }
     },
+    "No files match": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有匹配的文件"
+          }
+        }
+      }
+    },
     "No machines in this space yet": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "这个空间里还没有机器"
+          }
+        }
+      }
+    },
+    "No preview": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法预览"
           }
         }
       }
@@ -1106,6 +1186,16 @@
         }
       }
     },
+    "Searching…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索中…"
+          }
+        }
+      }
+    },
     "Send": {
       "localizations": {
         "zh-Hans": {
@@ -1152,6 +1242,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "查看更早的轮次"
+          }
+        }
+      }
+    },
+    "Showing the first %lld matches": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只显示前 %lld 个，还有更多"
           }
         }
       }
@@ -1246,6 +1346,16 @@
         }
       }
     },
+    "Switch worktree": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切换 worktree"
+          }
+        }
+      }
+    },
     "System": {
       "localizations": {
         "zh-Hans": {
@@ -1302,6 +1412,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "对话会随着进行显示在这里。"
+          }
+        }
+      }
+    },
+    "The file can't be read": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "读不了这个文件"
           }
         }
       }
@@ -1446,6 +1566,26 @@
         }
       }
     },
+    "This project has no directory": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个项目没有可看的目录"
+          }
+        }
+      }
+    },
+    "This project is gone": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个项目已经不在了"
+          }
+        }
+      }
+    },
     "This session has ended": {
       "localizations": {
         "zh-Hans": {
@@ -1462,6 +1602,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "这会停掉 %1$@，并关掉它在 %2$@ 上的 pane。它在 %3$@ 里做的改动会保留。"
+          }
+        }
+      }
+    },
+    "This worktree is gone": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个 worktree 已经不在了"
           }
         }
       }
@@ -1596,6 +1746,16 @@
         }
       }
     },
+    "detached": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "游离 HEAD"
+          }
+        }
+      }
+    },
     "failed": {
       "localizations": {
         "zh-Hans": {
@@ -1606,12 +1766,32 @@
         }
       }
     },
+    "here": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "项目目录"
+          }
+        }
+      }
+    },
     "isbell / herdr": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "isbell / herdr"
+          }
+        }
+      }
+    },
+    "isbell on %@ is too old to browse files. Update it there.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 上的 isbell 太旧，看不了文件。请在那台机器上更新。"
           }
         }
       }
