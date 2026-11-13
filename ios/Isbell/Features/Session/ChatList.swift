@@ -92,7 +92,7 @@ struct ChatList: View {
     @ViewBuilder private func top(_ turns: [ChatTurn]) -> some View {
         Group {
             if model.atStart {
-                Text("Start of the session")
+                Divided { Text("Start of the session") }
             } else {
                 Button {
                     // A turn cut at its start is read whole with the part before, under another id.

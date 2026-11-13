@@ -157,12 +157,42 @@
         }
       }
     },
+    "Agent": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent"
+          }
+        }
+      }
+    },
     "Agents": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "Agent"
+          }
+        }
+      }
+    },
+    "Answer in the terminal": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "去终端回答"
+          }
+        }
+      }
+    },
+    "Answer with the agent's own menu; this turns back into the reply bar once you are back.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用 agent 自己的菜单回答，回来后这里自动恢复成回复栏。"
           }
         }
       }
@@ -415,6 +445,16 @@
         }
       }
     },
+    "Directory": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目录"
+          }
+        }
+      }
+    },
     "Discard recording": {
       "localizations": {
         "zh-Hans": {
@@ -626,6 +666,16 @@
         }
       }
     },
+    "It takes the terminal over and this disconnects. Without --control --takeover it only watches.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会把终端接过去，这里会断开。去掉 --control --takeover 只看不接。"
+          }
+        }
+      }
+    },
     "Join": {
       "localizations": {
         "zh-Hans": {
@@ -762,6 +812,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "更多"
+          }
+        }
+      }
+    },
+    "Name": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名称"
           }
         }
       }
@@ -992,6 +1052,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "超过 20 MB"
+          }
+        }
+      }
+    },
+    "Pane": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pane"
           }
         }
       }
@@ -1256,6 +1326,26 @@
         }
       }
     },
+    "Session": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会话"
+          }
+        }
+      }
+    },
+    "Session info": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会话信息"
+          }
+        }
+      }
+    },
     "Set per app in iOS Settings": {
       "localizations": {
         "zh-Hans": {
@@ -1366,6 +1456,16 @@
         }
       }
     },
+    "Status": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "状态"
+          }
+        }
+      }
+    },
     "Stop": {
       "localizations": {
         "zh-Hans": {
@@ -1402,6 +1502,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "系统"
+          }
+        }
+      }
+    },
+    "Take it over in your own terminal": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在自己的终端里接手"
           }
         }
       }
@@ -1742,6 +1852,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "语音输入"
+          }
+        }
+      }
+    },
+    "Waiting for you": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "等你允许"
           }
         }
       }

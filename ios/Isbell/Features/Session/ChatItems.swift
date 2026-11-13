@@ -23,16 +23,18 @@ private func runsOf(_ items: [ChatItem]) -> [Run] {
     }
 }
 
-/// `working`: the agent is still at it, so a call without its result yet is the one running.
+/// `working`: the agent is still at it, so a call without its result yet is the one running;
+/// `asking`: the agent waits for leave, so that call is the one it asks about.
 struct ChatItems: View {
     let items: [ChatItem]
     let working: Bool
+    let asking: Bool
 
     var body: some View {
         // Items are only added at the end, so a run keeps its place.
         ForEach(Array(runsOf(items).enumerated()), id: \.offset) { _, run in
             switch run {
-            case .tools(let tools): ToolRun(tools: tools, working: working)
+            case .tools(let tools): ToolRun(tools: tools, working: working, asking: asking)
             case .item(.text(let text)): ChatText(text: text)
             case .item(.thinking(let text, let ms)): Thinking(text: text, ms: ms)
             case .item(.note(let note, let text)): NoteLine(note: note, text: text)
@@ -117,10 +119,11 @@ private struct NoteLine: View {
     }
 }
 
-/// A run of calls: one line saying how many of each when it folds, the calls when open.
+/// A run of calls in a card: a line saying how many of each, which opens to the calls.
 private struct ToolRun: View {
     let tools: [ToolItem]
     let working: Bool
+    let asking: Bool
     // Calls that changed a file or went wrong are worth seeing, the rest fold away, as the run goes
     // on; once folded or opened by hand, it stays so.
     @State private var toggled: Bool?
@@ -130,27 +133,30 @@ private struct ToolRun: View {
     }
 
     var body: some View {
-        let running = working ? tools.last.flatMap { $0.done ? nil : $0.id } : nil
-        VStack(alignment: .leading, spacing: 6) {
+        let pending = tools.last.flatMap { $0.done ? nil : $0.id }
+        VStack(spacing: 0) {
             if tools.count > 1 {
                 Fold(open: Binding(get: { open }, set: { toggled = $0 })) {
                     Text("\(tools.count) tools")
                     Text(verbatim: counts.map { "\($0.name) \($0.n)" }.joined(separator: " · "))
                         .font(.caption.monospaced())
+                        .foregroundStyle(.tertiary)
                         .lineLimit(1)
                 }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             if open {
-                VStack(spacing: 0) {
-                    ForEach(Array(tools.enumerated()), id: \.offset) { i, tool in
-                        if i > 0 { Divider() }
-                        ToolRow(tool: tool, running: tool.id == running)
-                    }
+                ForEach(Array(tools.enumerated()), id: \.offset) { i, tool in
+                    if i > 0 || tools.count > 1 { Divider().overlay(Palette.line) }
+                    ToolRow(tool: tool, running: working && tool.id == pending, asked: asking && tool.id == pending)
                 }
-                .background(Palette.raised, in: .rect(cornerRadius: 10))
-                .overlay { RoundedRectangle(cornerRadius: 10).strokeBorder(Palette.line, lineWidth: 0.5) }
             }
         }
+        .background(Palette.raised)
+        .clipShape(.rect(cornerRadius: 12))
+        .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(Palette.line, lineWidth: 0.5) }
     }
 
     /// How many calls of each tool, in the order first called.
@@ -166,6 +172,8 @@ private struct ToolRow: View {
     @Environment(\.openURL) private var openURL
     let tool: ToolItem
     let running: Bool
+    /// The call the agent asks leave for.
+    let asked: Bool
     @State private var open = false
 
     /// A call on one file, such as an edit or a read, opens it.
@@ -198,10 +206,11 @@ private struct ToolRow: View {
                         }
                         if tool.error { Text("failed").font(.caption2.monospaced()).foregroundStyle(Palette.danger) }
                         if running { ProgressView().controlSize(.mini) }
+                        if asked { Text("Waiting for you").font(.caption2.weight(.semibold)).foregroundStyle(Palette.warn) }
                     }
                     .font(.footnote)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
                     .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
@@ -228,6 +237,7 @@ private struct ToolRow: View {
                 .background(Palette.raised2)
             }
         }
+        .background(asked ? Palette.ask : .clear)
     }
 }
 
