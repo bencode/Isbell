@@ -1296,6 +1296,16 @@
         }
       }
     },
+    "Run two commands on a machine with herdr installed.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在装了 herdr 的机器上运行两行命令"
+          }
+        }
+      }
+    },
     "Running": {
       "localizations": {
         "zh-Hans": {
@@ -1422,6 +1432,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "空间"
+          }
+        }
+      }
+    },
+    "Space key": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空间密钥"
           }
         }
       }
