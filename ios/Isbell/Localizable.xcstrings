@@ -227,6 +227,16 @@
         }
       }
     },
+    "collapsed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已折叠"
+          }
+        }
+      }
+    },
     "CPU %@ · Memory %@": {
       "localizations": {
         "zh-Hans": {
@@ -521,6 +531,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "结束这个会话？"
+          }
+        }
+      }
+    },
+    "expanded": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已展开"
           }
         }
       }
@@ -1492,6 +1512,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "切换 worktree"
+          }
+        }
+      }
+    },
+    "Switch worktree · %lld": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切换 worktree · %lld"
           }
         }
       }

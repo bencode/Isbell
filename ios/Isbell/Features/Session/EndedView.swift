@@ -105,16 +105,17 @@ struct EndedView: View {
                     .font(.footnote).foregroundStyle(.secondary)
                 wide("Open terminal") { terminal = true }
             } else if let project {
-                Text("Continues in a new pane in \(shown(record.cwd, in: project))")
-                    .font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+                Text("Continues in a new pane in \(Text(verbatim: shown(record.cwd, in: project)).monospaced())")
+                    .font(.footnote).foregroundStyle(.secondary).lineLimit(2).truncationMode(.middle)
                 wide(resuming ? "Resuming…" : "Resume") { Task { await resume(project) } }
                     .disabled(resuming)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.bar)
+        .glassEffect(.regular, in: .rect(cornerRadius: 24))
+        .padding(.horizontal, 10)
+        .padding(.bottom, 6)
     }
 
     private func wide(_ title: LocalizedStringKey, action: @escaping () -> Void) -> some View {
@@ -122,6 +123,7 @@ struct EndedView: View {
             Text(title).font(.body.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 34)
         }
         .buttonStyle(.borderedProminent)
+        .buttonBorderShape(.capsule)
     }
 
     /// Why it cannot be resumed here, if it cannot.

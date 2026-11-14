@@ -18,13 +18,16 @@ struct MarkdownFile: View {
             StructuredText(markdown: text)
                 .textual.textSelection(.enabled)
                 .textual.imageAttachmentLoader(FileImages(from: route.rel, assets: assets))
+                // Code wraps, as it does where a source file is read.
+                .textual.overflowMode(.wrap)
+                .textual.tableStyle(LinedTable())
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(16)
         }
         .environment(\.openURL, OpenURLAction { url in
             switch resolveLink(route.rel, url.absoluteString) {
             case .file(let rel):
-                open(FileRoute(mid: route.mid, path: joinPath(route.root, rel), rel: rel))
+                open(FileRoute(mid: route.mid, path: joinPath(route.root, rel), rel: rel, branch: route.branch))
                 return .handled
             case .external:
                 return .systemAction
@@ -32,6 +35,21 @@ struct MarkdownFile: View {
                 return .discarded
             }
         })
+    }
+}
+
+/// Textual's table, its lines in the palette's: its own are near white in light and bright in dark.
+private struct LinedTable: StructuredText.TableStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .textual.tableCellSpacing(horizontal: 1, vertical: 1)
+            .textual.blockSpacing(.fontScaled(top: 1.6, bottom: 1.6))
+            .textual.tableOverlay { layout in
+                Canvas { context, _ in
+                    for divider in layout.dividers() { context.fill(Path(divider), with: .color(Palette.line)) }
+                }
+            }
+            .padding(1)
     }
 }
 

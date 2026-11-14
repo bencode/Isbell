@@ -23,7 +23,7 @@ struct FoundFiles: View {
         case .success(let found):
             ForEach(found.paths, id: \.self) { rel in
                 Button {
-                    openFile(FileRoute(mid: mid, path: joinPath(root.path, rel), rel: rel))
+                    openFile(FileRoute(mid: mid, path: joinPath(root.path, rel), rel: rel, branch: root.branch))
                 } label: {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(marked(nameOf(rel), query)).lineLimit(1)
