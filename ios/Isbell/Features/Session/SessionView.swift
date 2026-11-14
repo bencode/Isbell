@@ -63,6 +63,7 @@ struct SessionView: View {
                 ContentUnavailableView("This session has ended", systemImage: "checkmark.circle")
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Palette.bg)
         .navigationTitle(placed.map(placedTitle) ?? "")
         .navigationBarTitleDisplayMode(.inline)

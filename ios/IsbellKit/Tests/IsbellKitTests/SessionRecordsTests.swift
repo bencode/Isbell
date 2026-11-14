@@ -44,6 +44,17 @@ private func record(_ id: String, last: String = "x", updated: Int64) -> Session
     #expect(resumeArgs(agent: "gemini", id: "id1") == nil)
 }
 
+@Test func aSessionKeptOutsideItsAgentsOwnPlaceMayNotResumeUnlessItsCommandIsKnown() {
+    var r = record("s1", updated: 1)
+    #expect(!keptElsewhere(r))
+    r.transcript = "/Users/u/.claude/projects/-srv-a/s1.jsonl"
+    #expect(!keptElsewhere(r))
+    r.transcript = "/Users/u/.rec/claude/accounts/1/config/projects/-srv-a/s1.jsonl"
+    #expect(keptElsewhere(r))
+    r.launch = "reclaude"
+    #expect(!keptElsewhere(r))
+}
+
 @Test func aProjectsRecordsAreItsOwnBelowItAndItsRepositorysThatRanInIt() {
     let roots: Roots = [
         "/w/app": RootInfo(key: "app", updated: 1), "/w/app/tools": RootInfo(key: "tools", updated: 1),

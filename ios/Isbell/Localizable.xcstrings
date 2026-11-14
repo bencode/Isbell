@@ -1486,6 +1486,16 @@
         }
       }
     },
+    "Started with other %@ settings; may not resume": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用另一套 %@ 配置启动，可能恢复不了"
+          }
+        }
+      }
+    },
     "Starting…": {
       "localizations": {
         "zh-Hans": {
@@ -1792,6 +1802,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "这个会话已经结束"
+          }
+        }
+      }
+    },
+    "This session was started outside Isbell with other %@ settings, so it may not resume. If it doesn't, resume it on its machine with the command it was started with.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个会话是在 Isbell 外用另一套 %@ 配置启动的，可能恢复不了；恢复不了时，到那台机器上用当初的命令恢复。"
           }
         }
       }

@@ -185,6 +185,16 @@ public func resumeArgs(agent: String, id: String) -> [String]? {
     }
 }
 
+/// Where each agent keeps its sessions unless told otherwise.
+private let ownSessions = ["claude": "/.claude/projects/", "codex": "/.codex/sessions/", "pi": "/.pi/agent/sessions/"]
+
+/// Started outside Isbell with the agent keeping its sessions elsewhere (another config dir, as a
+/// wrapper like `rec` sets): resumed by the agent's plain command, it may not find the session.
+public func keptElsewhere(_ record: SessionRecord) -> Bool {
+    guard record.launch == nil, let transcript = record.transcript, let own = ownSessions[record.agent] else { return false }
+    return !transcript.contains(own)
+}
+
 /// The items in the order given, in runs of one local day.
 public func byDay<T>(_ items: [T], at: (T) -> Int64, calendar: Calendar = .current) -> [[T]] {
     func date(_ item: T) -> Date { Date(timeIntervalSince1970: Double(at(item)) / 1000) }

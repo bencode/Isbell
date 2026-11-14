@@ -131,11 +131,12 @@ struct ProjectView: View {
 
     /// Sessions that ended, as one group of rows.
     private func rows(_ records: [SessionRecord], needle: String, project: Project) -> some View {
-        VStack(spacing: 0) {
+        let caps = store.space.machines.first { $0.id == project.mid }?.state.caps
+        return VStack(spacing: 0) {
             ForEach(Array(records.enumerated()), id: \.element.key) { i, r in
                 if i > 0 { Divider().overlay(Palette.line) }
                 HistoryRow(record: r, route: EndedRoute(mid: project.mid, projectId: id, record: r), resume: resume,
-                           needle: needle)
+                           blocked: resumeBlock(r, project: project, caps: caps), needle: needle)
             }
         }
         .background(Palette.raised, in: .rect(cornerRadius: 12))
@@ -177,6 +178,8 @@ private struct HistoryRow: View {
     let record: SessionRecord
     let route: EndedRoute
     let resume: (EndedRoute) -> Void
+    /// Why it cannot be resumed here, if it cannot.
+    let blocked: Text?
     var needle = ""
 
     var body: some View {
@@ -208,7 +211,17 @@ private struct HistoryRow: View {
         .contentShape(.contextMenuPreview, .rect(cornerRadius: 12))
         .contextMenu {
             if resumeArgs(agent: record.agent, id: record.id) != nil {
-                Button("Resume", systemImage: "arrow.clockwise") { resume(route.toResume) }
+                // Why not, or why it may not, under it.
+                Button { resume(route.toResume) } label: {
+                    Text("Resume")
+                    if let blocked {
+                        blocked
+                    } else if keptElsewhere(record) {
+                        Text("Started with other \(record.agent) settings; may not resume")
+                    }
+                    Image(systemName: "arrow.clockwise")
+                }
+                .disabled(blocked != nil)
             }
         }
     }
