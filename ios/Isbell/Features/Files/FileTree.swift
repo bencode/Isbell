@@ -41,6 +41,8 @@ struct FileLevel: View {
     let root: FilesRoot
     let rel: String
     var depth = 0
+    /// The path of the file opened last, marked.
+    var seen: String? = nil
     let openFile: (FileRoute) -> Void
 
     var body: some View {
@@ -78,13 +80,16 @@ struct FileLevel: View {
             .buttonStyle(.plain)
             .accessibilityValue(Text(open ? "expanded" : "collapsed"))
             if open {
-                FileLevel(tree: tree, mid: mid, root: root, rel: child, depth: depth + 1, openFile: openFile)
+                FileLevel(tree: tree, mid: mid, root: root, rel: child, depth: depth + 1, seen: seen,
+                          openFile: openFile)
             }
         } else {
+            let path = joinPath(root.path, child)
             Button {
-                openFile(FileRoute(mid: mid, path: joinPath(root.path, child), rel: child, branch: root.branch))
+                openFile(FileRoute(mid: mid, path: path, rel: child, branch: root.branch))
             } label: {
                 name(entry.name, icon: fileIcon(entry.name), open: nil)
+                    .background(path == seen ? Palette.accentSoft : .clear)
             }
             .buttonStyle(.plain)
         }
@@ -125,7 +130,7 @@ struct FileLevel: View {
 }
 
 /// What a file is, as its icon: an image, text, code, or else a plain document.
-private func fileIcon(_ name: String) -> String {
+func fileIcon(_ name: String) -> String {
     if imageType(name) != nil { return "photo" }
     if ["md", "markdown", "txt"].contains((name as NSString).pathExtension.lowercased()) { return "doc.text" }
     if codeLanguage(name) != nil { return "chevron.left.forwardslash.chevron.right" }

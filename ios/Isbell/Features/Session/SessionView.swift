@@ -27,6 +27,8 @@ struct SessionView: View {
     @State private var voice = VoiceInput()
     /// Whether its terminal is open, full screen, from what is on the page; its menu opens it as a card's does.
     @State private var terminal = false
+    /// The session as last placed: once it was, the page no longer waits for it.
+    @State private var last: Placed?
 
     /// The record is followed again when the status changes, and only while the app is in front.
     private struct FollowKey: Hashable {
@@ -57,14 +59,25 @@ struct SessionView: View {
                     }
                     .sessionActions()
                     .fullScreenCover(isPresented: $terminal) { TerminalScreen(placed: placed) }
-            } else if route.starting {
+            } else if route.starting && last == nil {
                 ProgressView("Starting…")
+            } else if route.starting, let last {
+                // Started here and gone since: the agent quit, and its pane says why.
+                ContentUnavailableView {
+                    Label("This session has ended", systemImage: "checkmark.circle")
+                } description: {
+                    Text("Its terminal shows what the agent said last.")
+                } actions: {
+                    Button("Open terminal") { terminal = true }
+                }
+                .fullScreenCover(isPresented: $terminal) { TerminalScreen(placed: last) }
             } else {
                 ContentUnavailableView("This session has ended", systemImage: "checkmark.circle")
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Palette.bg)
+        .onChange(of: placed, initial: true) { _, now in if let now { last = now } }
         .navigationTitle(placed.map(placedTitle) ?? "")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarVisibility(.hidden, for: .tabBar)
