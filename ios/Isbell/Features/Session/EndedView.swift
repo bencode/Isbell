@@ -62,7 +62,8 @@ struct EndedView: View {
             .task {
                 guard atOnce, let project else { return }
                 atOnce = false
-                if cannot(project) == nil { await resume(project) }
+                // One that may not resume waits here, its note showing, to be resumed or not.
+                if cannot(project) == nil && !keptElsewhere(record) { await resume(project) }
             }
             .fullScreenCover(isPresented: $terminal, onDismiss: { dismiss() }) {
                 if let shell, let project {
@@ -105,6 +106,15 @@ struct EndedView: View {
                     .font(.footnote).foregroundStyle(.secondary)
                 wide("Open terminal") { terminal = true }
             } else if let project {
+                if keptElsewhere(record) {
+                    Label {
+                        Text("This session was started outside Isbell with other \(record.agent) settings, so it may not resume. If it doesn't, resume it on its machine with the command it was started with.")
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle")
+                    }
+                    .font(.footnote)
+                    .foregroundStyle(Palette.warn)
+                }
                 Text("Continues in a new pane in \(Text(verbatim: shown(record.cwd, in: project)).monospaced())")
                     .font(.footnote).foregroundStyle(.secondary).lineLimit(2).truncationMode(.middle)
                 wide(resuming ? "Resuming…" : "Resume") { Task { await resume(project) } }
@@ -126,18 +136,8 @@ struct EndedView: View {
         .buttonBorderShape(.capsule)
     }
 
-    /// Why it cannot be resumed here, if it cannot.
     private func cannot(_ project: Project?) -> Text? {
-        guard resumeArgs(agent: record.agent, id: record.id) != nil else {
-            return Text("\(record.agent) sessions can't be resumed.")
-        }
-        guard let project, project.online, let caps = store.space.machines.first(where: { $0.id == route.mid })?.state.caps
-        else { return Text("The machine is offline") }
-        if !caps.agentKinds.contains(record.agent) { return Text("\(record.agent) isn't on this machine.") }
-        if let launch = record.launch, !caps.methods.contains(launchMethod) {
-            return Text("isbell on \(project.machine) is too old to resume it with \(launch). Update it there.")
-        }
-        return nil
+        resumeBlock(record, project: project, caps: store.space.machines.first { $0.id == route.mid }?.state.caps)
     }
 
     private func resume(_ project: Project) async {
@@ -156,16 +156,31 @@ struct EndedView: View {
                 shell = started.paneId
                 return
             }
-            // It opens once its agent can take a message, or after waiting long enough, when its
-            // terminal says why not.
-            if !(await waitReady(store.call, mid: route.mid, paneId: started.paneId)) {
-                logger.warning("\(started.paneId) did not get ready; opening it anyway")
+            // It opens once its agent can take a message; not up in time, it is no session to open,
+            // and its terminal says why.
+            guard await waitReady(store.call, mid: route.mid, paneId: started.paneId) else {
+                logger.warning("\(started.paneId) did not get ready")
+                shell = started.paneId
+                return
             }
             resumed(SessionRoute(mid: route.mid, paneId: started.paneId, starting: true))
         } catch {
             self.error = error
         }
     }
+}
+
+/// Why `record` cannot be resumed in `project` on a machine of `caps`, if it cannot.
+func resumeBlock(_ record: SessionRecord, project: Project?, caps: Caps?) -> Text? {
+    guard resumeArgs(agent: record.agent, id: record.id) != nil else {
+        return Text("\(record.agent) sessions can't be resumed.")
+    }
+    guard let project, project.online, let caps else { return Text("The machine is offline") }
+    if !caps.agentKinds.contains(record.agent) { return Text("\(record.agent) isn't on this machine.") }
+    if let launch = record.launch, !caps.methods.contains(launchMethod) {
+        return Text("isbell on \(project.machine) is too old to resume it with \(launch). Update it there.")
+    }
+    return nil
 }
 
 /// `cwd` as the project's own path shows it, where it is in the project.
