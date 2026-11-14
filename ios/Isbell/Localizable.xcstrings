@@ -41,6 +41,34 @@
         }
       }
     },
+    "%lld files": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld file"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld files"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个文件"
+          }
+        }
+      }
+    },
     "%lld found": {
       "localizations": {
         "zh-Hans": {
@@ -692,6 +720,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "会把终端接过去，这里会断开。去掉 --control --takeover 只看不接。"
+          }
+        }
+      }
+    },
+    "Its terminal shows what the agent said last.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "终端里能看到 agent 最后说了什么。"
           }
         }
       }

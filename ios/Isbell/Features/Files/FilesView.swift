@@ -20,6 +20,8 @@ struct FilesView: View {
     @State private var rootKey: String?
     @State private var tree = FileTree()
     @State private var opened: FileRoute?
+    /// The path of the file opened last, marked where it is listed.
+    @State private var seen: String?
     /// As typed, and searched for once typing pauses.
     @State private var text = ""
     @State private var query = ""
@@ -64,9 +66,9 @@ struct FilesView: View {
             List {
                 Group {
                     if query.isEmpty {
-                        FileLevel(tree: tree, mid: project.mid, root: root, rel: "", openFile: { opened = $0 })
+                        FileLevel(tree: tree, mid: project.mid, root: root, rel: "", seen: seen, openFile: show)
                     } else {
-                        FoundFiles(found: found, mid: project.mid, root: root, query: query, openFile: { opened = $0 })
+                        FoundFiles(found: found, mid: project.mid, root: root, query: query, seen: seen, openFile: show)
                     }
                 }
                 .listRowBackground(Palette.bg)
@@ -82,6 +84,11 @@ struct FilesView: View {
         } else {
             ProgressView()
         }
+    }
+
+    private func show(_ file: FileRoute) {
+        seen = file.path
+        opened = file
     }
 
     /// Why the files cannot be read, if they cannot; as web/src/features/files/notes.ts.

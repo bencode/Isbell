@@ -209,10 +209,13 @@ struct NewSessionSheet: View {
                 unrecognized = Unrecognized(paneId: started.paneId, template: template, project: project)
                 return
             }
-            // The session opens once its agent can take a message, or after waiting long enough, when
-            // its terminal says why not.
-            if !(await waitReady(store.call, mid: project.mid, paneId: started.paneId)) {
-                logger.warning("\(started.paneId) did not get ready; opening it anyway")
+            // The session opens once its agent can take a message; not up in time, it is no session to
+            // open, and its terminal says why.
+            guard await waitReady(store.call, mid: project.mid, paneId: started.paneId) else {
+                logger.warning("\(started.paneId) did not get ready")
+                starting = false
+                unrecognized = Unrecognized(paneId: started.paneId, template: template, project: project)
+                return
             }
             dismiss()
             onStarted(SessionRoute(mid: project.mid, paneId: started.paneId, starting: true))

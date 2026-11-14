@@ -20,6 +20,7 @@ struct MarkdownFile: View {
                 .textual.imageAttachmentLoader(FileImages(from: route.rel, assets: assets))
                 // Code wraps, as it does where a source file is read.
                 .textual.overflowMode(.wrap)
+                .textual.codeBlockStyle(PaddedCodeBlock())
                 .textual.tableStyle(LinedTable())
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(16)
@@ -35,6 +36,26 @@ struct MarkdownFile: View {
                 return .discarded
             }
         })
+    }
+}
+
+/// Textual's code block, with room on its right too: wrapped, its lines would run to the edge. In the
+/// palette's colors, as Textual keeps its own to itself.
+private struct PaddedCodeBlock: StructuredText.CodeBlockStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Overflow {
+            configuration.label
+                .textual.lineSpacing(.fontScaled(0.39))
+                .textual.fontScale(0.882)
+                .fixedSize(horizontal: false, vertical: true)
+                .monospaced()
+                .padding(.vertical, 8)
+                .padding(.horizontal, 14)
+        }
+        .background(Palette.raised)
+        .clipShape(.rect(cornerRadius: 4, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(Palette.line, lineWidth: 1))
+        .textual.blockSpacing(.fontScaled(top: 0.88, bottom: 0))
     }
 }
 
