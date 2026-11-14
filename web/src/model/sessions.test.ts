@@ -3,6 +3,7 @@ import {
   byDay,
   byPeriod,
   codexRecordFor,
+  keptElsewhere,
   mergeMonths,
   mergeRecent,
   parseMonth,
@@ -62,6 +63,17 @@ test('Claude Code, Codex and pi resume a session by its id; other agents are not
   expect(resumeArgs('pi', 'id1')).toEqual(['--tui-mode', 'regular', '--session', 'id1'])
   expect(resumeArgs('gemini', 'id1')).toBeUndefined()
   expect(resumeArgs('toString', 'id1')).toBeUndefined()
+})
+
+test("a session kept outside its agent's own place may not resume, unless its command is known", () => {
+  expect(keptElsewhere(session)).toBe(false)
+  expect(keptElsewhere({ ...session, transcript: '/Users/u/.claude/projects/-srv-a/s1.jsonl' })).toBe(false)
+  const elsewhere = {
+    ...session,
+    transcript: '/Users/u/.rec/claude/accounts/1/config/projects/-srv-a/s1.jsonl',
+  }
+  expect(keptElsewhere(elsewhere)).toBe(true)
+  expect(keptElsewhere({ ...elsewhere, launch: 'reclaude' })).toBe(false)
 })
 
 test("a project's records are its own, below it, its worktrees', and its repository's that ran in it", () => {

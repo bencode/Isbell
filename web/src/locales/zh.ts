@@ -453,6 +453,8 @@ export const zh: Record<Key, string> = {
   'closed.offline': '它所在的机器离线了。',
   'closed.failed': '没能恢复。{msg}',
   'closed.gone': '记录里没有这个 session。',
+  'closed.elsewhere':
+    '这个会话是在 Isbell 外用另一套 {agent} 配置启动的，可能恢复不了；恢复不了时，到那台机器上用当初的命令恢复。',
   'sessions.noMatch': '没有匹配的 session。已搜索名称、提问和目录。',
   'sessions.asking': '在问你',
   'sessions.found': '{n} 个结果',

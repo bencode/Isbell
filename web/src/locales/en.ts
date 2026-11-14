@@ -459,6 +459,8 @@ export const en = {
   'closed.offline': 'Its machine is offline.',
   'closed.failed': 'Could not resume it. {msg}',
   'closed.gone': 'This session is not among those recorded.',
+  'closed.elsewhere':
+    "This session was started outside Isbell with other {agent} settings, so it may not resume. If it doesn't, resume it on its machine with the command it was started with.",
   'sessions.noMatch': 'No session matches. Searched names, what was asked and directories.',
   'sessions.asking': 'Asking you',
   'sessions.found': '{n} found',

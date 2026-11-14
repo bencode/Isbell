@@ -8,12 +8,12 @@ import { useRecordLookup, useSessionRecords } from '../../core/session-records'
 import { useSpace, useSpaceView } from '../../core/space'
 import { launchAgent, startAgent } from '../../model/herdr'
 import type { Project } from '../../model/projects'
-import { resumeArgs, sessionKey, under } from '../../model/sessions'
+import { keptElsewhere, resumeArgs, sessionKey, under } from '../../model/sessions'
 import { machineOf } from '../../model/space'
 import { LAUNCH_METHOD } from '../../model/start-templates'
 
 /** `onResumed`: the pane it now runs in. The session may be running again, in `pane`. `note`: what to
- * say while there is no `line`. */
+ * say while there is no `line`. `doubt`: it may not resume, though it can be tried. */
 export function useClosedSession(
   project: Project | undefined,
   mid: string,
@@ -61,6 +61,7 @@ export function useClosedSession(
       : launch && !launches
         ? t('closed.oldLaunch', { launch })
         : undefined
+  const doubt = !cannot && !!line && keptElsewhere(line)
   const resume = async () => {
     if (!args || !line || busy || cannot) return
     setBusy(true)
@@ -88,6 +89,7 @@ export function useClosedSession(
     pane: records.running.get(sessionKey({ agent, id: sid })),
     where,
     cannot,
+    doubt,
     busy,
     error,
     resume,
