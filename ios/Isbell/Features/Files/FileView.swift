@@ -86,8 +86,7 @@ struct FileView: View {
         case .image(let image):
             VStack(spacing: 8) {
                 ZoomImage(image: image).id(version)
-                (Text("\(Int(image.size.width)) × \(Int(image.size.height))") + Text(verbatim: " · ")
-                    + Text(Int64(read?.size ?? 0), format: .byteCount(style: .file)))
+                Text("\(Int(image.size.width)) × \(Int(image.size.height)) · \(Int64(read?.size ?? 0), format: .byteCount(style: .file))")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .padding(.bottom, 8)

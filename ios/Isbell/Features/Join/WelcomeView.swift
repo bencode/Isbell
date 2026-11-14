@@ -32,5 +32,7 @@ struct WelcomeView: View {
                 .font(.footnote)
         }
         .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Palette.bg)
     }
 }

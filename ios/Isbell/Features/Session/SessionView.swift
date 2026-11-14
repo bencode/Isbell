@@ -177,7 +177,7 @@ private struct AskingDock: View {
             .font(.subheadline.weight(.semibold))
             if let asking {
                 ScrollView {
-                    (Text(verbatim: asking.tool).bold() + Text(verbatim: asking.target.map { "  \($0)" } ?? ""))
+                    Text("\(Text(verbatim: asking.tool).bold())\(asking.target.map { "  \($0)" } ?? "")")
                         .font(.caption.monospaced())
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)

@@ -110,7 +110,7 @@ private struct NoteLine: View {
         Group {
             switch note {
             case .interrupted: Text("Interrupted")
-            case .failed: Text("Something went wrong") + Text(verbatim: text.map { " · \($0)" } ?? "")
+            case .failed: text.map { Text("Something went wrong · \($0)") } ?? Text("Something went wrong")
             case .compacted: Text("Context compacted")
             }
         }
@@ -201,7 +201,7 @@ private struct ToolRow: View {
                         Text(verbatim: tool.target).font(.caption.monospaced()).lineLimit(1).truncationMode(.middle)
                         Spacer(minLength: 0)
                         if let edit = tool.edit {
-                            (Text(verbatim: "+\(edit.add) ").foregroundStyle(Palette.ok) + Text(verbatim: "−\(edit.del)").foregroundStyle(Palette.danger))
+                            Text("\(Text(verbatim: "+\(edit.add) ").foregroundStyle(Palette.ok))\(Text(verbatim: "−\(edit.del)").foregroundStyle(Palette.danger))")
                                 .font(.caption2.monospaced())
                         }
                         if tool.error { Text("failed").font(.caption2.monospaced()).foregroundStyle(Palette.danger) }

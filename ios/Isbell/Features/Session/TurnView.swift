@@ -110,7 +110,7 @@ private struct DayLine: View {
 
     var body: some View {
         let date = Date(milliseconds: at)
-        Divided { day(date) + Text(verbatim: " ") + Text(date, format: .dateTime.hour().minute()) }
+        Divided { Text("\(day(date)) \(date, format: .dateTime.hour().minute())") }
     }
 
     private func day(_ date: Date) -> Text {
