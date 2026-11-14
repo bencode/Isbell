@@ -9,6 +9,8 @@ struct ProjectsView: View {
     @Environment(SpaceStore.self) private var store
     @State private var shown: ShownMachine?
     @State private var path = NavigationPath()
+    @State private var settings = false
+    @Environment(\.colorScheme) private var scheme
 
     private struct ShownMachine: Identifiable {
         let id: String
@@ -51,14 +53,16 @@ struct ProjectsView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        SettingsView()
-                    } label: {
+                    Button { settings = true } label: {
                         Image(systemName: "gearshape").accessibilityLabel(Text("Settings"))
                     }
                 }
             }
             .sheet(item: $shown) { MachineInfoSheet(mid: $0.id) }
+            .sheet(isPresented: $settings) {
+                // As this page is: a sheet open does not follow the theme set back to the system's.
+                NavigationStack { SettingsView() }.preferredColorScheme(scheme)
+            }
         }
     }
 }
