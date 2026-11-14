@@ -1,6 +1,7 @@
 // pi's session file: its messages (what was asked, the replies with their thinking and tool calls,
 // and the tools' results), each with the model it came from.
 
+import { splitUploads } from '../files/uploads'
 import { standing } from './lines'
 import { editOf, isObject, targetOf } from './tools'
 import type { Entry } from './types'
@@ -42,8 +43,9 @@ export function piEntries(lines: unknown[]): Entry[] {
       const data = blocks
         .filter(b => b.type === 'image')
         .map(b => `data:${text(b.mimeType)};base64,${text(b.data)}`)
-      return words.trim() || data.length
-        ? [{ kind: 'you', id: text(line.id) || String(at), at, you: { text: words, images: [], data } }]
+      const { text: said, images } = splitUploads(words)
+      return said || images.length || data.length
+        ? [{ kind: 'you', id: text(line.id) || String(at), at, you: { text: said, images, data } }]
         : []
     }
     if (m.role === 'toolResult')

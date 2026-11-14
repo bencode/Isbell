@@ -1,7 +1,53 @@
 {
   "sourceLanguage": "en",
   "strings": {
-    "%lld agents": {
+    "%@ %@": {
+      "shouldTranslate": false
+    },
+    "%@ didn't come up. Its terminal shows what the command said.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 没有启动起来，终端里能看到命令的输出。"
+          }
+        }
+      }
+    },
+    "%@ is asking you": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 在问你"
+          }
+        }
+      }
+    },
+    "%@ isn't on this machine.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这台机器上没有 %@。"
+          }
+        }
+      }
+    },
+    "%@ sessions can't be resumed.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 的会话不能恢复。"
+          }
+        }
+      }
+    },
+    "%@%@": {
+      "shouldTranslate": false
+    },
+    "%lld files": {
       "localizations": {
         "en": {
           "variations": {
@@ -9,13 +55,13 @@
               "one": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "%lld agent"
+                  "value": "%lld file"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "%lld agents"
+                  "value": "%lld files"
                 }
               }
             }
@@ -24,7 +70,93 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld 个 agent"
+            "value": "%lld 个文件"
+          }
+        }
+      }
+    },
+    "%lld found": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "找到 %lld 个"
+          }
+        }
+      }
+    },
+    "%lld machines online": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld machine online"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld machines online"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 台机器在线"
+          }
+        }
+      }
+    },
+    "%lld more not listed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还有 %lld 个未列出"
+          }
+        }
+      }
+    },
+    "%lld tools": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld tool"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld tools"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个工具"
+          }
+        }
+      }
+    },
+    "%lld × %lld · %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld × %lld · %@"
           }
         }
       }
@@ -39,22 +171,200 @@
         }
       }
     },
+    "Active": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "进行中"
+          }
+        }
+      }
+    },
+    "Add a machine": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加机器"
+          }
+        }
+      }
+    },
+    "Agent": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent"
+          }
+        }
+      }
+    },
+    "Agents": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent"
+          }
+        }
+      }
+    },
+    "Answer in the terminal": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "去终端回答"
+          }
+        }
+      }
+    },
+    "Answer with the agent's own menu; this turns back into the reply bar once you are back.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用 agent 自己的菜单回答，回来后这里自动恢复成回复栏。"
+          }
+        }
+      }
+    },
+    "Appearance": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "外观"
+          }
+        }
+      }
+    },
+    "Asking you": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在问你"
+          }
+        }
+      }
+    },
+    "Attach": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加文件"
+          }
+        }
+      }
+    },
+    "Something went wrong · %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出错了 · %@"
+          }
+        }
+      }
+    },
+    "collapsed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已折叠"
+          }
+        }
+      }
+    },
+    "CPU %@ · Memory %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CPU %1$@ · 内存 %2$@"
+          }
+        }
+      }
+    },
+    "CPU · %lld cores": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "CPU · %lld core"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "CPU · %lld cores"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CPU · %lld 核"
+          }
+        }
+      }
+    },
+    "Camera": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拍照"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消"
+          }
+        }
+      }
+    },
+    "Chip": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "芯片"
+          }
+        }
+      }
+    },
+    "Close": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭"
+          }
+        }
+      }
+    },
     "Connect your machines": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "连上你的机器"
-          }
-        }
-      }
-    },
-    "Connected": {
-      "localizations": {
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "已连接"
           }
         }
       }
@@ -69,6 +379,66 @@
         }
       }
     },
+    "Connection": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接"
+          }
+        }
+      }
+    },
+    "Context compacted": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "上下文已压缩"
+          }
+        }
+      }
+    },
+    "Continues in a new pane in %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 %@ 的新 pane 里继续"
+          }
+        }
+      }
+    },
+    "Copy": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拷贝"
+          }
+        }
+      }
+    },
+    "Copy Space Key": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拷贝空间密钥"
+          }
+        }
+      }
+    },
+    "Copy path": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制路径"
+          }
+        }
+      }
+    },
     "Could not save the key on this iPhone.": {
       "localizations": {
         "zh-Hans": {
@@ -79,8 +449,306 @@
         }
       }
     },
+    "Couldn't end the session": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结束会话失败"
+          }
+        }
+      }
+    },
+    "Custom commands need isbell 0.8.0 or newer on %@.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 上的 isbell 要 0.8.0 或更新，才能用自定义命令。"
+          }
+        }
+      }
+    },
+    "Dark": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "深色"
+          }
+        }
+      }
+    },
+    "Direct link": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "直连"
+          }
+        }
+      }
+    },
+    "Direct · %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "直连 · %@"
+          }
+        }
+      }
+    },
+    "Directory": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目录"
+          }
+        }
+      }
+    },
+    "Discard recording": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "丢掉录音"
+          }
+        }
+      }
+    },
+    "Disconnected": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已断开"
+          }
+        }
+      }
+    },
+    "Disk · %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "磁盘 · %@"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成"
+          }
+        }
+      }
+    },
+    "Empty folder": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空文件夹"
+          }
+        }
+      }
+    },
+    "End session": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结束会话"
+          }
+        }
+      }
+    },
+    "End this session?": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结束这个会话？"
+          }
+        }
+      }
+    },
+    "expanded": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已展开"
+          }
+        }
+      }
+    },
+    "Failed, retrying in %lld min": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Failed, retrying in %lld min"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Failed, retrying in %lld min"
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "失败，%lld 分钟后重试"
+          }
+        }
+      }
+    },
+    "Files": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文件"
+          }
+        }
+      }
+    },
+    "Find a file": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按路径搜文件"
+          }
+        }
+      }
+    },
+    "Find a project": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "找项目"
+          }
+        }
+      }
+    },
+    "Find a session": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查找会话"
+          }
+        }
+      }
+    },
+    "Find a worktree": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜分支或目录"
+          }
+        }
+      }
+    },
+    "Find a worktree…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜分支或目录…"
+          }
+        }
+      }
+    },
+    "History": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "历史"
+          }
+        }
+      }
+    },
+    "Hostname": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主机名"
+          }
+        }
+      }
+    },
+    "Internet": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公网"
+          }
+        }
+      }
+    },
+    "Interrupted": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已中断"
+          }
+        }
+      }
+    },
     "Isbell": {
       "shouldTranslate": false
+    },
+    "It is gone, or too large.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "文件不在了，或者太大。"
+          }
+        }
+      }
+    },
+    "It takes the terminal over and this disconnects. Without --control --takeover it only watches.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会把终端接过去，这里会断开。去掉 --control --takeover 只看不接。"
+          }
+        }
+      }
+    },
+    "Its terminal shows what the agent said last.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "终端里能看到 agent 最后说了什么。"
+          }
+        }
+      }
     },
     "Join": {
       "localizations": {
@@ -88,6 +756,46 @@
           "stringUnit": {
             "state": "translated",
             "value": "加入"
+          }
+        }
+      }
+    },
+    "Just finished": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刚完成"
+          }
+        }
+      }
+    },
+    "Keyboard": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "键盘"
+          }
+        }
+      }
+    },
+    "LAN": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "局域网"
+          }
+        }
+      }
+    },
+    "Language": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语言"
           }
         }
       }
@@ -102,12 +810,132 @@
         }
       }
     },
+    "Leave it running": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "让它继续跑"
+          }
+        }
+      }
+    },
     "Leave this space?": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "退出这个空间？"
+          }
+        }
+      }
+    },
+    "Light": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "浅色"
+          }
+        }
+      }
+    },
+    "Load 1/5/15": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "负载 1/5/15"
+          }
+        }
+      }
+    },
+    "Machine": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "机器"
+          }
+        }
+      }
+    },
+    "Match System": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "跟随系统"
+          }
+        }
+      }
+    },
+    "Memory · %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内存 · %@"
+          }
+        }
+      }
+    },
+    "More": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更多"
+          }
+        }
+      }
+    },
+    "Name": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名称"
+          }
+        }
+      }
+    },
+    "New below": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下面有新内容"
+          }
+        }
+      }
+    },
+    "New session": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新建会话"
+          }
+        }
+      }
+    },
+    "No conversation recorded": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有对话记录"
+          }
+        }
+      }
+    },
+    "No files match": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有匹配的文件"
           }
         }
       }
@@ -122,12 +950,102 @@
         }
       }
     },
+    "No preview": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法预览"
+          }
+        }
+      }
+    },
+    "No projects to start in": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有可以启动的项目"
+          }
+        }
+      }
+    },
+    "No sessions match": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有匹配的会话"
+          }
+        }
+      }
+    },
+    "No sessions running": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有在跑的会话"
+          }
+        }
+      }
+    },
     "No space yet? How to install": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "还没有空间？看安装说明"
+          }
+        }
+      }
+    },
+    "Not available": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不支持"
+          }
+        }
+      }
+    },
+    "Not tried": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未尝试"
+          }
+        }
+      }
+    },
+    "Nothing running here": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这里没有在跑的会话"
+          }
+        }
+      }
+    },
+    "Nothing was heard": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有听到内容"
+          }
+        }
+      }
+    },
+    "OK": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "好"
           }
         }
       }
@@ -152,6 +1070,76 @@
         }
       }
     },
+    "Open": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已连上"
+          }
+        }
+      }
+    },
+    "Open terminal": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开终端"
+          }
+        }
+      }
+    },
+    "Open the file": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开文件"
+          }
+        }
+      }
+    },
+    "Opening the terminal…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在打开终端…"
+          }
+        }
+      }
+    },
+    "Opening…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在建立…"
+          }
+        }
+      }
+    },
+    "Over 20 MB": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "超过 20 MB"
+          }
+        }
+      }
+    },
+    "Pane": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pane"
+          }
+        }
+      }
+    },
     "Paste Key": {
       "localizations": {
         "zh-Hans": {
@@ -172,6 +1160,86 @@
         }
       }
     },
+    "Photos": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "照片"
+          }
+        }
+      }
+    },
+    "Pick a project": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选一个项目"
+          }
+        }
+      }
+    },
+    "Projects": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "项目"
+          }
+        }
+      }
+    },
+    "Reading earlier turns…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在读取更早的轮次…"
+          }
+        }
+      }
+    },
+    "Reading its record…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在读会话记录…"
+          }
+        }
+      }
+    },
+    "Reading older sessions…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在读更早的会话…"
+          }
+        }
+      }
+    },
+    "Recent": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最近"
+          }
+        }
+      }
+    },
+    "Reconnect": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新连接"
+          }
+        }
+      }
+    },
     "Reconnecting…": {
       "localizations": {
         "zh-Hans": {
@@ -182,12 +1250,402 @@
         }
       }
     },
+    "Relay": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "relay"
+          }
+        }
+      }
+    },
+    "Reload": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新读取"
+          }
+        }
+      }
+    },
+    "Remove": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除"
+          }
+        }
+      }
+    },
+    "Reply…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "回复…"
+          }
+        }
+      }
+    },
+    "Resume": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复"
+          }
+        }
+      }
+    },
+    "Resuming…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在恢复…"
+          }
+        }
+      }
+    },
+    "Round trip": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "往返"
+          }
+        }
+      }
+    },
+    "Route": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "线路"
+          }
+        }
+      }
+    },
     "Run `isbell gateway` on a machine to bring it here.": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "在机器上运行 `isbell gateway`，它就会出现在这里。"
+          }
+        }
+      }
+    },
+    "Run these two on a machine with herdr installed.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在装了 herdr 的机器上运行这两行命令。"
+          }
+        }
+      }
+    },
+    "Run two commands on a machine with herdr installed.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在装了 herdr 的机器上运行两行命令"
+          }
+        }
+      }
+    },
+    "Running": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "运行中"
+          }
+        }
+      }
+    },
+    "Say something to start": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发一句话开始"
+          }
+        }
+      }
+    },
+    "Searching…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索中…"
+          }
+        }
+      }
+    },
+    "Send": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发送"
+          }
+        }
+      }
+    },
+    "Sent · waiting for the record": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已发送 · 等记录写入"
+          }
+        }
+      }
+    },
+    "Session": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会话"
+          }
+        }
+      }
+    },
+    "Session info": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会话信息"
+          }
+        }
+      }
+    },
+    "Set per app in iOS Settings": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 iOS 设置里按 App 设置"
+          }
+        }
+      }
+    },
+    "Settings": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置"
+          }
+        }
+      }
+    },
+    "Show earlier turns": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看更早的轮次"
+          }
+        }
+      }
+    },
+    "Showing the first %lld matches": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只显示前 %lld 个，还有更多"
+          }
+        }
+      }
+    },
+    "Something went wrong": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出错了"
+          }
+        }
+      }
+    },
+    "Space": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空间"
+          }
+        }
+      }
+    },
+    "Space key": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "空间密钥"
+          }
+        }
+      }
+    },
+    "Standing by": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "待命"
+          }
+        }
+      }
+    },
+    "Start %@ in %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 %2$@ 启动 %1$@"
+          }
+        }
+      }
+    },
+    "Start of the session": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会话开头"
+          }
+        }
+      }
+    },
+    "Start with": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "启动方式"
+          }
+        }
+      }
+    },
+    "Started with other %@ settings; may not resume": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用另一套 %@ 配置启动，可能恢复不了"
+          }
+        }
+      }
+    },
+    "Starting…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在启动…"
+          }
+        }
+      }
+    },
+    "Status": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "状态"
+          }
+        }
+      }
+    },
+    "Stop": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止"
+          }
+        }
+      }
+    },
+    "Stop recording": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结束录音"
+          }
+        }
+      }
+    },
+    "Switch worktree": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切换 worktree"
+          }
+        }
+      }
+    },
+    "Switch worktree · %lld": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "切换 worktree · %lld"
+          }
+        }
+      }
+    },
+    "System": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "系统"
+          }
+        }
+      }
+    },
+    "Take it over in your own terminal": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在自己的终端里接手"
+          }
+        }
+      }
+    },
+    "Terminal": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "终端"
+          }
+        }
+      }
+    },
+    "Terminal · %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "终端 · %@"
           }
         }
       }
@@ -212,12 +1670,42 @@
         }
       }
     },
+    "The conversation shows here as it goes.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对话会随着进行显示在这里。"
+          }
+        }
+      }
+    },
+    "The file can't be read": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "读不了这个文件"
+          }
+        }
+      }
+    },
     "The key is complete.": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
             "value": "密钥完整。"
+          }
+        }
+      }
+    },
+    "The key is kept only on this iPhone.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "密钥只存在这台 iPhone。"
           }
         }
       }
@@ -242,6 +1730,56 @@
         }
       }
     },
+    "The machine is offline": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这台机器离线"
+          }
+        }
+      }
+    },
+    "The microphone could not be used": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "麦克风用不了"
+          }
+        }
+      }
+    },
+    "The microphone is not allowed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有麦克风权限"
+          }
+        }
+      }
+    },
+    "The photo can't be read": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "照片读不出来"
+          }
+        }
+      }
+    },
+    "The record can't be read": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "读不了会话记录"
+          }
+        }
+      }
+    },
     "The relay did not accept this key.": {
       "localizations": {
         "zh-Hans": {
@@ -252,8 +1790,318 @@
         }
       }
     },
+    "The sessions your agents run on your machines show up here.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的机器上 agent 跑着的会话会出现在这里。"
+          }
+        }
+      }
+    },
+    "Theme": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "主题"
+          }
+        }
+      }
+    },
+    "Thinking": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "思考过程"
+          }
+        }
+      }
+    },
+    "This machine": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本机"
+          }
+        }
+      }
+    },
+    "This project has no directory": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个项目没有可看的目录"
+          }
+        }
+      }
+    },
+    "This project is gone": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个项目已经不在了"
+          }
+        }
+      }
+    },
+    "This session has ended": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个会话已经结束"
+          }
+        }
+      }
+    },
+    "This session was started outside Isbell with other %@ settings, so it may not resume. If it doesn't, resume it on its machine with the command it was started with.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个会话是在 Isbell 外用另一套 %@ 配置启动的，可能恢复不了；恢复不了时，到那台机器上用当初的命令恢复。"
+          }
+        }
+      }
+    },
+    "This stops %@ and closes its pane on %@. What it changed in %@ stays.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这会停掉 %1$@，并关掉它在 %2$@ 上的 pane。它在 %3$@ 里做的改动会保留。"
+          }
+        }
+      }
+    },
+    "This worktree is gone": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个 worktree 已经不在了"
+          }
+        }
+      }
+    },
+    "Thought for %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "思考了 %@"
+          }
+        }
+      }
+    },
+    "Today": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天"
+          }
+        }
+      }
+    },
+    "Today's voice input is used up; it is back tomorrow": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天的语音额度用完了，明天再来"
+          }
+        }
+      }
+    },
+    "Too many recordings; wait a minute": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "录音太频繁了，稍等一分钟"
+          }
+        }
+      }
+    },
+    "Transcribing…": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在识别……"
+          }
+        }
+      }
+    },
+    "Up for": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已运行"
+          }
+        }
+      }
+    },
+    "Usage": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用量"
+          }
+        }
+      }
+    },
+    "VPN": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VPN"
+          }
+        }
+      }
+    },
+    "Voice input": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "语音输入"
+          }
+        }
+      }
+    },
+    "Waiting for you": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "等你允许"
+          }
+        }
+      }
+    },
+    "Waiting for your answer": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "等你回答"
+          }
+        }
+      }
+    },
+    "What is said shows here once the agent records it. If its terminal has a conversation that never shows here, its record can't be found (start Codex with --no-daemon).": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "说过的话会在 agent 写进会话记录后出现在这里。如果终端里已有对话，这里却一直没有，说明读不到它的会话记录（Codex 要用 --no-daemon 启动）。"
+          }
+        }
+      }
+    },
+    "Working": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "运行中"
+          }
+        }
+      }
+    },
+    "Yesterday": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "昨天"
+          }
+        }
+      }
+    },
+    "detached": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "游离 HEAD"
+          }
+        }
+      }
+    },
+    "failed": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "失败"
+          }
+        }
+      }
+    },
+    "here": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "项目目录"
+          }
+        }
+      }
+    },
+    "isbell / herdr": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "isbell / herdr"
+          }
+        }
+      }
+    },
+    "isbell on %@ is too old to browse files. Update it there.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 上的 isbell 太旧，看不了文件。请在那台机器上更新。"
+          }
+        }
+      }
+    },
+    "isbell on %@ is too old to resume it with %@. Update it there.": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ 上的 isbell 太旧，不能用 %2$@ 恢复。请在那台机器上升级。"
+          }
+        }
+      }
+    },
     "isbk1-…": {
       "shouldTranslate": false
+    },
+    "took %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用时 %@"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -46,7 +46,7 @@ export function ClosedTabPane({
   const projectKey = parseRootKey(useParams().key ?? '').project
   const project = useProjects().find(p => p.key === projectKey)
   const { replace } = useTabActions()
-  const { line, log, note, pane, where, cannot, busy, error, resume } = useClosedSession(
+  const { line, log, note, pane, where, cannot, doubt, busy, error, resume } = useClosedSession(
     project,
     mid,
     agent,
@@ -64,12 +64,17 @@ export function ClosedTabPane({
       ? dateTime(t, line.started)
       : `${dateTime(t, line.started)} – ${dateTime(t, line.updated)}`
   const actions = (
-    <div className="flex flex-wrap items-center gap-3">
-      <Button variant="primary" disabled={busy || cannot !== undefined} onClick={() => void resume()}>
-        {busy ? t('closed.resuming') : t('closed.resume')}
-      </Button>
-      {cannot ? <span className="text-[13px] text-muted">{cannot}</span> : null}
-      {error ? <span className="text-[13px] text-danger">{t('closed.failed', { msg: error })}</span> : null}
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-3">
+        <Button variant="primary" disabled={busy || cannot !== undefined} onClick={() => void resume()}>
+          {busy ? t('closed.resuming') : t('closed.resume')}
+        </Button>
+        {cannot ? <span className="text-[13px] text-muted">{cannot}</span> : null}
+        {error ? <span className="text-[13px] text-danger">{t('closed.failed', { msg: error })}</span> : null}
+      </div>
+      {doubt ? (
+        <p className="m-0 max-w-[620px] text-[13px] text-warn">{t('closed.elsewhere', { agent })}</p>
+      ) : null}
     </div>
   )
   return (

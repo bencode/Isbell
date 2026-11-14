@@ -6,6 +6,10 @@ target/
 # Local, untracked design notes
 priv/
 
+# Local secrets
+.env
+.env.*
+
 .DS_Store
 *.log
 
@@ -13,3 +17,5 @@ priv/
 ios/**/xcuserdata/
 ios/IsbellKit/.build/
 ios/IsbellKit/.swiftpm/
+ios/IsbellRTC/.build/
+ios/IsbellRTC/.swiftpm/

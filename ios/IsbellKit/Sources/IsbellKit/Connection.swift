@@ -1,5 +1,5 @@
-// One authenticated WebSocket to the relay, as a client. Calls are matched by id; the connection
-// comes back on its own after a drop, except when the relay rejects the key.
+// One authenticated WebSocket to the relay, as a client, with its calls and streams in a Router; the
+// connection comes back on its own after a drop, except when the relay rejects the key.
 
 import Foundation
 import os
@@ -7,9 +7,11 @@ import os
 /// Close code the relay uses when the key does not verify.
 private let closeAuthFailed = 4003
 private let backoff: [Duration] = [.seconds(1), .seconds(2), .seconds(4), .seconds(8), .seconds(16), .seconds(30)]
-/// How long a call made while the connection is down waits for it, as when the app comes back
-/// from the background and dials again.
+/// How long a call made while the connection is down, or while a ping checks it, waits for it, as
+/// when the app comes back from the background and dials again.
 private let readyWait: Duration = .seconds(5)
+/// How long a ping may go unanswered before the socket is taken for dead.
+private let probeWait: Duration = .seconds(2)
 /// herdr answers with up to 4 MiB; URLSession takes 1 MiB by default.
 private let maxMessage = 16 << 20
 
@@ -36,12 +38,6 @@ public enum ConnectionEvent: Sendable {
 
 @MainActor
 public final class RelayConnection {
-    private struct Pending {
-        let mid: String
-        let continuation: CheckedContinuation<JSON, any Error>
-        let timer: Task<Void, Never>
-    }
-
     private let url: URL
     private let origin: String?
     private let identity: Identity
@@ -56,11 +52,12 @@ public final class RelayConnection {
     private var retry: Task<Void, Never>?
     /// Closed here, or refused by the relay: it does not dial again, and a call fails at once.
     private var closed = false
-    private var pending: [UInt64: Pending] = [:]
-    private var nextId: UInt64 = 1
+    private lazy var router = Router(routed: true) { [weak self] in self?.send($0) }
     /// Calls waiting for the connection: told true once the snapshot arrives.
     private var waiters: [Int: CheckedContinuation<Bool, Never>] = [:]
     private var nextWaiter = 0
+    /// The socket whose ping is not answered yet, by its generation: until it is, it may be dead.
+    private var unanswered: Int?
 
     /// Dials at once.
     public init(url: URL, identity: Identity, onEvent: @escaping @MainActor (ConnectionEvent) -> Void) {
@@ -71,25 +68,27 @@ public final class RelayConnection {
         dial()
     }
 
+    /// Whether the relay carries calls now: the socket is open and authenticated, and no ping sent on
+    /// it is waiting for an answer.
+    public var live: Bool { ready && task != nil && unanswered != generation }
+
     /// Resolves with the result, or throws a CallError.
     public func call(_ mid: String, _ m: String, _ p: JSON, timeout: Duration) async throws(CallError) -> JSON {
         try await whenConnected()
-        let id = nextId
-        nextId += 1
-        do {
-            return try await withCheckedThrowingContinuation { continuation in
-                let timer = Task { [weak self] in
-                    guard await pause(timeout) else { return }
-                    self?.settle(id, .failure(CallError(code: "timeout", msg: "the machine did not answer in time")))
-                }
-                pending[id] = Pending(mid: mid, continuation: continuation, timer: timer)
-                send(Frame(header: .call(id: id, m: m, p: p, route: Route(mid: mid))))
-            }
-        } catch let error as CallError {
-            throw error
-        } catch {
-            throw CallError(code: "error", msg: "\(error)")
-        }
+        return try await router.call(mid, m, p, timeout: timeout)
+    }
+
+    /// Opens a stream: a call whose result starts it.
+    public func open(_ mid: String, _ m: String, _ p: JSON, timeout: Duration, events: StreamEvents)
+        async throws(CallError) -> (result: JSON, stream: RpcStream)
+    {
+        try await whenConnected()
+        return try await router.open(mid, m, p, timeout: timeout, events: events)
+    }
+
+    /// Fails calls in flight to a machine that restarted, and ends its streams.
+    public func failMachine(_ mid: String) {
+        fail(code: "machine_offline", msg: "the machine restarted") { $0 == mid }
     }
 
     /// Skips the remaining backoff when the network or the app comes back.
@@ -97,6 +96,46 @@ public final class RelayConnection {
         guard let retry else { return }
         retry.cancel()
         dial()
+    }
+
+    /// After the app was behind, or the network changed: iOS may have cut the socket without a word.
+    /// A ping not answered within `probeWait` drops it and dials at once; with no socket open, as
+    /// reconnectNow.
+    public func probe() {
+        guard let socket = task, ready else { return reconnectNow() }
+        let current = generation
+        unanswered = current
+        let once = Once()
+        socket.sendPing { [weak self] error in
+            Task { @MainActor in
+                guard let error else {
+                    if once.settle() { self?.answered() }
+                    return
+                }
+                self?.abandon(socket, current, once, error)
+            }
+        }
+        Task { [weak self] in
+            guard await pause(probeWait) else { return }
+            self?.abandon(socket, current, once, CallError(code: "timeout", msg: "no answer to a ping"))
+        }
+    }
+
+    /// The socket answered its ping: calls held for it go on it.
+    private func answered() {
+        unanswered = nil
+        releaseWaiters(true)
+    }
+
+    /// Drops a socket that did not answer a ping, unless it answered first or was replaced, and
+    /// dials at once.
+    private func abandon(_ socket: URLSessionWebSocketTask, _ current: Int, _ once: Once, _ error: any Error) {
+        guard once.settle(), current == generation else { return }
+        logger.info("the relay did not answer a ping in time; dialing again")
+        generation += 1
+        socket.cancel(with: .goingAway, reason: nil)
+        dropped(socket, error)
+        reconnectNow()
     }
 
     public func close() {
@@ -190,10 +229,10 @@ public final class RelayConnection {
         case .presence(let mid, let online):
             if !online { fail(code: "machine_offline", msg: "the machine went offline") { $0 == mid } }
             onEvent(.presence(mid: mid, online: online))
-        case .res(let id, let ok, let r, let e, _):
-            settle(id, ok ? .success(r ?? .null) : .failure(CallError(code: e?.code ?? "error", msg: e?.msg ?? "the call failed")))
+        case .res, .data, .end, .credit:
+            router.handle(frame)
         default:
-            // auth_ok needs nothing; streams are not opened yet.
+            // auth_ok needs nothing.
             break
         }
     }
@@ -221,8 +260,10 @@ public final class RelayConnection {
 
     // MARK: - Calls
 
+    /// Returns once the socket carries calls: a call sent while a ping is unanswered would be lost
+    /// with the socket if it turns out dead.
     private func whenConnected() async throws(CallError) {
-        if ready, task != nil { return }
+        if live { return }
         guard !closed else { throw CallError(code: "disconnected", msg: "not connected to the relay") }
         let key = nextWaiter
         nextWaiter += 1
@@ -248,20 +289,24 @@ public final class RelayConnection {
         all.values.forEach { $0.resume(returning: ok) }
     }
 
-    private func settle(_ id: UInt64, _ result: Result<JSON, CallError>) {
-        guard let p = pending.removeValue(forKey: id) else { return }
-        p.timer.cancel()
-        p.continuation.resume(with: result.mapError { $0 as any Error })
-    }
-
     private func fail(code: String, msg: String, where match: (String) -> Bool) {
-        let ids = pending.filter { match($0.value.mid) }.map(\.key)
-        ids.forEach { settle($0, .failure(CallError(code: code, msg: msg))) }
+        router.fail(code: code, msg: msg, where: match)
+    }
+}
+
+/// True the first time only: of a ping's answer and its time running out, the first counts.
+@MainActor
+private final class Once {
+    private var settled = false
+
+    func settle() -> Bool {
+        defer { settled = true }
+        return !settled
     }
 }
 
 /// Sleeps; false when the task was cancelled instead, the only way Task.sleep fails.
-private func pause(_ duration: Duration) async -> Bool {
+public func pause(_ duration: Duration) async -> Bool {
     do {
         try await Task.sleep(for: duration)
         return true

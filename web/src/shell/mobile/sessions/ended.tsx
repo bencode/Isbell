@@ -21,7 +21,7 @@ export function PhoneEnded() {
   const { key = '', agent = '', id: sid = '' } = useParams()
   const project = useProjects().find(p => p.key === key)
   const mid = project?.mid ?? ''
-  const { line, log, note, pane, where, cannot, busy, error, resume } = useClosedSession(
+  const { line, log, note, pane, where, cannot, doubt, busy, error, resume } = useClosedSession(
     project,
     mid,
     agent,
@@ -86,7 +86,12 @@ export function PhoneEnded() {
         {error ? (
           <p className={`${small} text-danger`}>{t('closed.failed', { msg: error })}</p>
         ) : (
-          <p className={`${small} truncate text-faint`}>{cannot ?? t('mobile.resumeIn', { path: where })}</p>
+          <>
+            {doubt ? <p className={`${small} text-warn`}>{t('closed.elsewhere', { agent })}</p> : null}
+            <p className={`${small} truncate text-faint`}>
+              {cannot ?? t('mobile.resumeIn', { path: where })}
+            </p>
+          </>
         )}
         <button
           type="button"

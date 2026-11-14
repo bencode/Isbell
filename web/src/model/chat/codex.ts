@@ -1,6 +1,7 @@
 // Codex's rollout: the items each turn completed (what was asked, what it said, the commands it
 // ran, the files it changed), how each turn ended, and the model it ran on.
 
+import { splitUploads } from '../files/uploads'
 import { diffOf, isObject } from './tools'
 import type { ChatItem, Entry } from './types'
 
@@ -109,10 +110,9 @@ function completed(it: Record<string, unknown>, at: number): Entry[] {
       .filter(c => c.type === 'text')
       .map(c => text(c.text))
       .join('\n')
-    const images = content.filter(c => c.type === 'local_image').map(c => text(c.path))
-    return words.trim() || images.length
-      ? [{ kind: 'you', id, at, you: { text: words, images, data: [] } }]
-      : []
+    const { text: said, images: uploaded } = splitUploads(words)
+    const images = [...content.filter(c => c.type === 'local_image').map(c => text(c.path)), ...uploaded]
+    return said || images.length ? [{ kind: 'you', id, at, you: { text: said, images, data: [] } }] : []
   }
   const read = ITEMS[text(it.type)]
   return read ? read(it, id).map(item => ({ kind: 'item', at, item })) : []

@@ -1,9 +1,11 @@
 # Isbell for iOS
 
 A native iPhone client for an Isbell space. It talks to the same relay as the web client and
-reads the same protocol, checked against `crates/isbell-proto/tests/vectors.json`.
+reads the same protocol, checked against `crates/isbell-proto/tests/vectors.json`. Like the web
+client, it opens a WebRTC direct link to each machine when it can, and uses the relay otherwise.
 
-Work in progress: it joins a space and lists its machines.
+Work in progress: it joins a space, lists its sessions, projects and machines, and reads a
+session's conversation as its agent records it.
 
 ## Layout
 
@@ -14,11 +16,15 @@ ios/
 │   ├── Core/           the space key, the connection, what views observe
 │   ├── Shell/          the root and the screens around the features
 │   └── Features/       one folder per feature
-└── IsbellKit/          the protocol: frames, identity, machine state, the relay connection
+├── IsbellKit/          the protocol: frames, identity, machine state, the relay connection,
+│                       direct links once open and when to use them, agents' records as chat
+└── IsbellRTC/          setting up a direct link over WebRTC
 ```
 
 IsbellKit is a Swift package with no UI and no third-party dependencies, so it builds and tests
-on the Mac alone.
+on the Mac alone. WebRTC ([stasel/WebRTC](https://github.com/stasel/WebRTC), pinned by
+`Package.resolved`) is used only by IsbellRTC, which the app hands to IsbellKit. The app renders
+Markdown with [Textual](https://github.com/gonzalezreal/textual), pinned to an exact version.
 
 ## Requirements
 
@@ -38,8 +44,11 @@ command line:
 
 ```sh
 xcodebuild -project ios/Isbell.xcodeproj -scheme Isbell \
-  -destination 'platform=iOS Simulator,name=iPhone 17' build
+  -destination 'platform=iOS Simulator,name=iPhone 17' -skipPackagePluginValidation build
 ```
+
+SwiftTerm comes with a build plugin that writes its version and terminfo tables: Xcode asks to trust
+it on the first build, and the command line needs `-skipPackagePluginValidation`.
 
 On first launch, paste the key that `isbell space show` prints on any of your machines, or a link
 carrying it as `#k=…`. The key is kept in the iPhone's Keychain, on this device only.

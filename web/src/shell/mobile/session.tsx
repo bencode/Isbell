@@ -2,7 +2,7 @@
 // with the page, and its terminal, which is laid over it and attached only while shown.
 
 import { Ellipsis } from 'lucide-react'
-import { Activity, lazy, Suspense, useCallback, useLayoutEffect, useState } from 'react'
+import { Activity, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { Modal } from '../../components/dialog'
 import { DropdownMenu } from '../../components/menu'
@@ -36,7 +36,14 @@ export function PhoneSession() {
   // Just started it is listed as a shell until its agent is made out, and it is the agent that was
   // asked for, not that shell's terminal.
   const starting = !!found && !('session' in found.pane) && new URLSearchParams(search).get('from') === 'new'
-  if (found && !starting) return <Opened mid={mid} paneId={paneId} found={found} />
+  // Not made out in time, it is a shell after all: its terminal says why.
+  const [late, setLate] = useState<string>()
+  useEffect(() => {
+    if (!starting) return
+    const timer = setTimeout(() => setLate(paneId), 30_000)
+    return () => clearTimeout(timer)
+  }, [starting, paneId])
+  if (found && (!starting || late === paneId)) return <Opened mid={mid} paneId={paneId} found={found} />
   return (
     <>
       <PhoneBar>

@@ -120,6 +120,23 @@ const RESUME = new Map<string, (id: string) => string[]>([
 /** How the agent resumes the session, after its own command; none for an agent Isbell cannot. */
 export const resumeArgs = (agent: string, id: string): string[] | undefined => RESUME.get(agent)?.(id)
 
+/** Where each agent keeps its sessions unless told otherwise. */
+const OWN_SESSIONS = new Map([
+  ['claude', '/.claude/projects/'],
+  ['codex', '/.codex/sessions/'],
+  ['pi', '/.pi/agent/sessions/'],
+])
+
+/** Started outside Isbell with the agent keeping its sessions elsewhere (another config dir, as a
+ * wrapper like `rec` sets): resumed by the agent's plain command, it may not find the session. As
+ * `keptElsewhere` in ios/IsbellKit/Sources/IsbellKit/SessionRecords.swift. */
+export const keptElsewhere = (s: { agent: string; transcript?: string; launch?: string }): boolean => {
+  const own = OWN_SESSIONS.get(s.agent)
+  return (
+    s.launch === undefined && s.transcript !== undefined && own !== undefined && !s.transcript.includes(own)
+  )
+}
+
 const two = (n: number) => String(n).padStart(2, '0')
 
 /** The local day of `ms`, as YYYY-MM-DD, by which sessions are grouped. */

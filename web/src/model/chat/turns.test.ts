@@ -138,7 +138,7 @@ test("Codex's completed items, without the instructions it is given, and how its
         type: 'UserMessage',
         id: 'q1',
         content: [
-          { type: 'text', text: 'tidy it' },
+          { type: 'text', text: 'tidy it\n/tmp/isbell-uploads/0123abcd/b.png' },
           { type: 'local_image', path: '/tmp/a.png' },
         ],
       },
@@ -195,7 +195,7 @@ test("Codex's completed items, without the instructions it is given, and how its
   const [first, second] = read('codex', lines)
   expect(first).toMatchObject({
     id: 'q1',
-    you: { text: 'tidy it', images: ['/tmp/a.png'] },
+    you: { text: 'tidy it', images: ['/tmp/a.png', '/tmp/isbell-uploads/0123abcd/b.png'] },
     model: 'gpt-6.1 high',
     took: 9000,
   })
@@ -220,7 +220,14 @@ test("pi's messages: tools by Claude Code's names, their results, and replies th
   const msg = (message: object, id = '') => ({ type: 'message', id, message })
   const lines = [
     { type: 'session', id: 's' },
-    msg({ role: 'user', content: [{ type: 'text', text: 'list it' }], timestamp: 1 }, 'p1'),
+    msg(
+      {
+        role: 'user',
+        content: [{ type: 'text', text: 'list it\n/tmp/isbell-uploads/0123abcd/b.png' }],
+        timestamp: 1,
+      },
+      'p1',
+    ),
     msg({
       role: 'assistant',
       model: 'deepseek-v4.1-flash',
@@ -246,7 +253,11 @@ test("pi's messages: tools by Claude Code's names, their results, and replies th
     msg({ role: 'assistant', stopReason: 'error', errorMessage: '503', timestamp: 4, content: [] }),
   ]
   const [turn] = read('pi', lines)
-  expect(turn).toMatchObject({ id: 'p1', you: { text: 'list it' }, model: 'deepseek-v4.1-flash' })
+  expect(turn).toMatchObject({
+    id: 'p1',
+    you: { text: 'list it', images: ['/tmp/isbell-uploads/0123abcd/b.png'] },
+    model: 'deepseek-v4.1-flash',
+  })
   expect(turn?.items).toEqual([
     { kind: 'thinking', text: 'ls will do' },
     {
