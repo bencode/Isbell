@@ -13,6 +13,8 @@ struct FileRoute: Hashable {
     let path: String
     /// From the root it was opened in.
     let rel: String
+    /// The branch of the worktree it was opened in, where that is known.
+    var branch: String? = nil
 
     /// The folder it was opened in.
     var root: String {
@@ -61,7 +63,7 @@ struct FileView: View {
                 }
             }
             .navigationTitle(Text(verbatim: name))
-            .navigationSubtitle(Text(verbatim: dirOf(route.rel)))
+            .navigationSubtitle(Text(verbatim: [dirOf(route.rel), route.branch ?? ""].filter { !$0.isEmpty }.joined(separator: " · ")))
             .navigationBarTitleDisplayMode(.inline)
             .toolbarVisibility(.hidden, for: .tabBar)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { menu } }

@@ -44,6 +44,8 @@ struct FilesView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarVisibility(.hidden, for: .tabBar)
             .toolbarTitleMenu { worktreeMenu(all, current: root, project: project) }
+            // With the tab bar hidden, the search has no place but the bottom bar.
+            .toolbar { DefaultToolbarItem(kind: .search, placement: .bottomBar) }
             .searchable(text: $text, prompt: Text("Find a file"))
             .task(id: text) {
                 if await pause(.milliseconds(300)) { query = text.trimmingCharacters(in: .whitespaces) }
@@ -71,6 +73,7 @@ struct FilesView: View {
             }
             .paletteList()
             .listStyle(.plain)
+            .environment(\.defaultMinListRowHeight, 44)
             .refreshable {
                 await readRoots(project)
                 await tree.refresh(store.call, mid: project.mid, root: root)
@@ -101,15 +104,14 @@ struct FilesView: View {
             if all.count > 8 {
                 Button("Find a worktree…", systemImage: "magnifyingglass") { finding = true }
             } else {
-                ForEach(all) { r in
-                    Button {
-                        rootKey = r.key
-                    } label: {
-                        Label {
+                Section("Switch worktree · \(all.count)") {
+                    ForEach(all) { r in
+                        Button {
+                            rootKey = r.key
+                        } label: {
                             Text(verbatim: r.branch ?? String(localized: "detached"))
-                            Text(verbatim: r.display)
-                        } icon: {
-                            Image(systemName: r.key == current?.key ? "checkmark" : "arrow.triangle.branch")
+                            Text(verbatim: r.own ? "\(r.display) · \(String(localized: "here"))" : r.display)
+                            if r.key == current?.key { Image(systemName: "checkmark") }
                         }
                     }
                 }
