@@ -61,8 +61,7 @@ struct ActiveView: View {
 
     private var statusLine: Text {
         linkLine(store.space.status)
-            ?? Text(verbatim: "● ").foregroundStyle(Palette.ok)
-            + Text("\(store.space.machines.filter(\.online).count) machines online")
+            ?? Text("\(Text(verbatim: "● ").foregroundStyle(Palette.ok))\(Text("\(store.space.machines.filter(\.online).count) machines online"))")
     }
 }
 

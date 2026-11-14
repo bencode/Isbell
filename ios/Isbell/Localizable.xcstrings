@@ -1,6 +1,9 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "%@ %@": {
+      "shouldTranslate": false
+    },
     "%@ didn't come up. Its terminal shows what the command said.": {
       "localizations": {
         "zh-Hans": {
@@ -40,6 +43,9 @@
           }
         }
       }
+    },
+    "%@%@": {
+      "shouldTranslate": false
     },
     "%lld files": {
       "localizations": {
@@ -145,12 +151,12 @@
         }
       }
     },
-    "%lld × %lld": {
+    "%lld × %lld · %@": {
       "localizations": {
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld × %lld"
+            "value": "%lld × %lld · %@"
           }
         }
       }
@@ -251,6 +257,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "添加文件"
+          }
+        }
+      }
+    },
+    "Something went wrong · %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出错了 · %@"
           }
         }
       }
