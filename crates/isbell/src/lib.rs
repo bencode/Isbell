@@ -1,6 +1,7 @@
 //! Isbell: a gateway that exposes this machine's herdr server through a relay, and the CLI that
 //! reaches gateways from anywhere.
 
+mod book;
 pub mod cli;
 pub mod client;
 mod config;
