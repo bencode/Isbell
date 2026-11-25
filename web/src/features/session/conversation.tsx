@@ -14,6 +14,7 @@ import { Items } from './chat-items'
 import { PathRoot } from './context'
 import { MentionText } from './mention-text'
 import { PromptImages } from './prompt-images'
+import { AGENT_NAMES } from './session-row'
 
 /** A line across the chat with words or a button on it, such as where the turns shown begin. */
 export function Marker({ children }: { children: ReactNode }) {
@@ -41,8 +42,6 @@ export function EarlierButton({ onClick, paging }: { onClick: () => void; paging
 
 /** What was sent and is not in the record yet, and when. */
 export type Pending = { text: string; at: number }
-
-const NAMES: Readonly<Record<string, string>> = { claude: 'Claude', codex: 'Codex', pi: 'pi' }
 
 export function Conversation({
   turns,
@@ -84,7 +83,7 @@ export function Conversation({
             ) : null}
             <Turn
               turn={turn}
-              name={NAMES[kind ?? ''] ?? kind ?? ''}
+              name={AGENT_NAMES[kind ?? ''] ?? kind ?? ''}
               working={last && status === 'working'}
               statusSince={statusSince}
               asking={last ? asking : null}

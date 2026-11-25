@@ -41,8 +41,9 @@ test('a session has the role it took, with its lead by name', () => {
 })
 
 describe('teams', () => {
-  const m = (key: string, lane: Member['lane'], name?: string, lead?: string): Member => ({
+  const m = (key: string, lane: Member['lane'], name?: string, lead?: string, machine = 'mac'): Member => ({
     key,
+    machine,
     lane,
     ...(name ? { role: lead ? { name, lead } : { name } } : {}),
   })
@@ -61,24 +62,34 @@ describe('teams', () => {
     expect(placed.alone).toEqual({ key: 'alone', lane: 'running', team: 'alone', depth: 0 })
   })
 
-  test('one level is set in: one led by a member comes in the team, saying its own lead', () => {
+  test('one level is set in: one led by a member comes in the team, after its own lead', () => {
     const placed = byKey([
       m('a', 'running', 'Ada'),
       m('b', 'running', 'Bob', 'ada'),
       m('c', 'asking', 'Cy', 'Bob'),
     ])
-    expect(placed.c).toEqual({ key: 'c', lane: 'asking', team: 'a', depth: 1, under: 'b', via: 'Bob' })
-    expect(placed.b?.via).toBeUndefined()
+    expect(placed.c).toEqual({ key: 'c', lane: 'asking', team: 'a', depth: 1, under: 'b' })
+    expect(placed.b).toEqual({ key: 'b', lane: 'asking', team: 'a', depth: 1, under: 'a' })
   })
 
-  test('one whose lead runs no agent comes alone, saying who its lead is', () => {
+  test('one whose lead runs no agent comes alone', () => {
     expect(byKey([m('b', 'running', 'Bob', 'Ada')]).b).toEqual({
       key: 'b',
       lane: 'running',
       team: 'b',
       depth: 0,
-      via: 'Ada',
     })
+  })
+
+  test("a role is one machine's: the same names on another make a team of their own", () => {
+    const placed = byKey([
+      m('a1', 'running', 'Ada', undefined, 'mini'),
+      m('b1', 'running', 'Bob', 'Ada', 'mini'),
+      m('b2', 'asking', 'Bob', 'Ada', 'pro'),
+    ])
+    expect(placed.b1).toEqual({ key: 'b1', lane: 'running', team: 'a1', depth: 1, under: 'a1' })
+    expect(placed.b2).toEqual({ key: 'b2', lane: 'asking', team: 'b2', depth: 0 })
+    expect(placed.a1?.lane).toBe('running')
   })
 
   test('the lead comes first wherever its team was, each one after the one it reports to', () => {
