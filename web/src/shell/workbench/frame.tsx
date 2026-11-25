@@ -4,20 +4,14 @@
 // not in a column.
 
 import { Tooltip } from '@base-ui/react/tooltip'
-import {
-  ChevronsLeft,
-  ChevronsRight,
-  PanelLeftClose,
-  PanelLeftOpen,
-  PanelRightClose,
-  PanelRightOpen,
-} from 'lucide-react'
+import { ChevronsLeft, ChevronsRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { Group, Panel, type PanelSize, useDefaultLayout, usePanelRef } from 'react-resizable-panels'
 import { ICON, IconButton } from '../../components/icon-button'
 import { ResizeHandle } from '../../components/resize-handle'
+import { useBooksPull } from '../../core/books'
 import { useI18n } from '../../core/i18n'
-import { toggleRail, useLocal } from '../../core/prefs'
+import { type RightView, setRightViews, toggledViews, toggleRail, useLocal } from '../../core/prefs'
 import { type Overlay, Overlays } from '../../features/settings/settings-dialog'
 import { ReconnectBanner } from '../reconnect-banner'
 import { ActiveSessions } from './active-sessions'
@@ -26,6 +20,7 @@ import { CommandPalette } from './command-palette'
 import { ListColumn } from './list-column'
 import { Peek } from './peek'
 import { ProjectsRail } from './projects-rail'
+import { RightBar } from './right-bar'
 import { SettingsMenu } from './settings-menu'
 import { TabStrip } from './tab-strip'
 import { TabPanes } from './workspace'
@@ -135,58 +130,75 @@ export function Frame({ inProject }: { inProject: boolean }) {
   const right = useFold(320)
   const split = useDefaultLayout({ id: 'isbell.workbench', panelIds: PANELS, storage: localStorage })
   const moving = list.moving || right.moving
+  const views = useLocal().layout.rightViews
+  useBooksPull()
+  // The column shows while a view is open: it folds with the last one closed, and opens with the
+  // first one opened, whichever way it stood.
+  const toggleView = (view: RightView) => {
+    const next = toggledViews(views, view)
+    if (next.length > 0 === (right.panel.current?.isCollapsed() ?? false)) right.toggle()
+    setRightViews(next)
+  }
+  // The column and its views are kept apart, so they agree once the page is up: a column folded
+  // before the bar was there closes its views, and one with none open folds.
+  const agreed = useRef(false)
+  useEffect(() => {
+    const panel = right.panel.current
+    if (agreed.current || !panel) return
+    agreed.current = true
+    if (panel.isCollapsed() && views.length) setRightViews([])
+    else if (!panel.isCollapsed() && !views.length) panel.collapse()
+  })
   return (
     <Tooltip.Provider delay={400} timeout={500}>
       <div className="flex h-full">
         <Projects onOverlay={setOverlay} />
         <div className="flex min-w-0 flex-1 flex-col">
           <ReconnectBanner />
-          <div className="relative min-h-0 flex-1">
-            <IconButton
-              label={t(list.folded ? 'workbench.unfoldList' : 'workbench.foldList')}
-              onClick={list.toggle}
-              className={`${FOLD_BUTTON} left-2`}
-            >
-              {list.folded ? <PanelLeftOpen {...ICON} /> : <PanelLeftClose {...ICON} />}
-            </IconButton>
-            <IconButton
-              label={t(right.folded ? 'workbench.unfoldRight' : 'workbench.foldRight')}
-              onClick={right.toggle}
-              className={`${FOLD_BUTTON} right-2`}
-            >
-              {right.folded ? <PanelRightOpen {...ICON} /> : <PanelRightClose {...ICON} />}
-            </IconButton>
-            <Group
-              orientation="horizontal"
-              className={`h-full ${moving ? MOVING : ''}`}
-              defaultLayout={split.defaultLayout}
-              onLayoutChanged={(layout, meta) => {
-                split.onLayoutChanged(layout, meta)
-                list.settle()
-                right.settle()
-              }}
-            >
-              <FoldingColumn id="list" fold={list}>
-                <ListColumn />
-              </FoldingColumn>
-              <ResizeHandle label={t('workbench.resizeList')} disabled={list.folded} />
-              <Panel id="main" className="flex" minSize={MAIN_MIN}>
-                <main ref={setWorkspace} className="relative flex min-w-0 flex-1 flex-col">
-                  <div
-                    className={`${BAR} bg-side transition-[padding] duration-200 ease-fold motion-reduce:transition-none ${list.folded ? 'pl-11' : ''} ${right.folded ? 'pr-11' : ''}`}
-                  >
-                    {inProject ? <TabStrip edged={list.folded} /> : null}
-                  </div>
-                  {inProject ? <TabPanes /> : null}
-                  <Peek container={workspace} />
-                </main>
-              </Panel>
-              <ResizeHandle label={t('workbench.resizeRight')} disabled={right.folded} />
-              <FoldingColumn id="right" fold={right}>
-                <div className={`${BAR} pr-11 pl-3.5 text-[13px] font-semibold`}>{t('workbench.active')}</div>
-                {right.folded ? null : <ActiveSessions />}
-              </FoldingColumn>
-            </Group>
+          <div className="flex min-h-0 flex-1">
+            <div className="relative min-w-0 flex-1">
+              <IconButton
+                label={t(list.folded ? 'workbench.unfoldList' : 'workbench.foldList')}
+                onClick={list.toggle}
+                className={`${FOLD_BUTTON} left-2`}
+              >
+                {list.folded ? <PanelLeftOpen {...ICON} /> : <PanelLeftClose {...ICON} />}
+              </IconButton>
+              <Group
+                orientation="horizontal"
+                className={`h-full ${moving ? MOVING : ''}`}
+                defaultLayout={split.defaultLayout}
+                onLayoutChanged={(layout, meta) => {
+                  split.onLayoutChanged(layout, meta)
+                  list.settle()
+                  right.settle()
+                  // Dragged shut, the column closes its views.
+                  if (right.panel.current?.isCollapsed() && views.length) setRightViews([])
+                }}
+              >
+                <FoldingColumn id="list" fold={list}>
+                  <ListColumn />
+                </FoldingColumn>
+                <ResizeHandle label={t('workbench.resizeList')} disabled={list.folded} />
+                <Panel id="main" className="flex" minSize={MAIN_MIN}>
+                  <main ref={setWorkspace} className="relative flex min-w-0 flex-1 flex-col">
+                    <div
+                      className={`${BAR} bg-side transition-[padding] duration-200 ease-fold motion-reduce:transition-none ${list.folded ? 'pl-11' : ''}`}
+                    >
+                      {inProject ? <TabStrip edged={list.folded} /> : null}
+                    </div>
+                    {inProject ? <TabPanes /> : null}
+                    <Peek container={workspace} />
+                  </main>
+                </Panel>
+                <ResizeHandle label={t('workbench.resizeRight')} disabled={right.folded} />
+                <FoldingColumn id="right" fold={right}>
+                  <div className={`${BAR} px-3.5 text-[13px] font-semibold`}>{t('workbench.agents')}</div>
+                  {right.folded || !views.includes('agents') ? null : <ActiveSessions />}
+                </FoldingColumn>
+              </Group>
+            </div>
+            <RightBar onToggle={toggleView} />
           </div>
         </div>
       </div>
