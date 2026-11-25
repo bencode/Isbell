@@ -11,8 +11,12 @@ import { useCardNote } from '../../features/session/use-agent-note'
 import { toolLine } from '../../model/agent-note'
 import type { Placed, Session } from '../../model/projects'
 
+/** The role it took, and the lead it reports to when that is not the one it is set in under. */
+export type ShownRole = { name: string; via?: string }
+
 type Props = {
   placed: Placed
+  role?: ShownRole | undefined
   now: number
   /** It is the one looked at. */
   peeking: boolean
@@ -39,7 +43,7 @@ function where(placed: Placed, sharedName: boolean) {
   return { name: projectName(placed), machine, title: `${projectName(placed)} · ${placed.project.machine}` }
 }
 
-export function ActiveCard({ placed, now, peeking, sharedName, onOpen }: Props) {
+export function ActiveCard({ placed, role, now, peeking, sharedName, onOpen }: Props) {
   const t = useI18n()
   const { session } = placed
   const { tool, asked, topic } = useCardNote(session)
@@ -60,6 +64,7 @@ export function ActiveCard({ placed, now, peeking, sharedName, onOpen }: Props) 
         <span className="min-w-0 truncate" title={at.title}>
           {at.name}
           {at.machine ? <span className="text-faint"> · {at.machine}</span> : null}
+          {role?.via ? <span className="text-faint"> · ↳ {role.via}</span> : null}
         </span>
         <span className="ml-auto flex">
           <SessionTime status={session.status} at={session.statusSince} now={now} />
@@ -70,6 +75,7 @@ export function ActiveCard({ placed, now, peeking, sharedName, onOpen }: Props) 
         onClick={() => onOpen()}
         className="line-clamp-2 w-full cursor-pointer border-0 bg-transparent p-0 text-left leading-[1.35] font-semibold text-text outline-none after:absolute after:inset-0 after:rounded-[8px] focus-visible:after:outline-2 focus-visible:after:outline-accent"
       >
+        {role ? <span className="mr-1.5 font-bold">{role.name}</span> : null}
         {title}
       </button>
       {tool ? (
@@ -96,7 +102,7 @@ export function ActiveCard({ placed, now, peeking, sharedName, onOpen }: Props) 
   )
 }
 
-export function StandingRow({ placed, now, peeking, sharedName, onOpen }: Props) {
+export function StandingRow({ placed, role, now, peeking, sharedName, onOpen }: Props) {
   const { session } = placed
   const { topic } = useCardNote(session)
   const at = where(placed, sharedName)
@@ -107,8 +113,10 @@ export function StandingRow({ placed, now, peeking, sharedName, onOpen }: Props)
       className={`flex h-7 w-full flex-none cursor-pointer items-center gap-2 rounded-md border-0 px-2 text-left text-[12.5px] text-muted transition-colors duration-75 hover:bg-hover hover:text-text focus-visible:outline-2 focus-visible:outline-accent ${peeking ? 'bg-selected' : 'bg-transparent'}`}
     >
       <AgentMark mark={markOf(session)} />
+      {role ? <span className="flex-none font-semibold text-text">{role.name}</span> : null}
+      {role?.via ? <span className="flex-none text-faint">↳ {role.via}</span> : null}
       <span className="min-w-0 flex-1 truncate">{session.title ?? topic ?? session.name}</span>
-      <span className="max-w-28 flex-none truncate text-[11.5px] text-faint" title={at.title}>
+      <span className="max-w-28 min-w-0 truncate text-[11.5px] text-faint" title={at.title}>
         {at.machine ? `${at.name} · ${at.machine}` : at.name}
       </span>
       <SessionTime status={session.status} at={session.statusSince} now={now} />

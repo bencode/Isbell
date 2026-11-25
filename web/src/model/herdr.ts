@@ -5,6 +5,9 @@ import { type AgentInfo, type AgentNote, noteOf, titleOf } from './agent-note'
 
 export type Caller = (mid: string, m: string, p: unknown, timeoutMs: number) => Promise<unknown>
 
+/** An agent's session, as the hook reports it to its pane. */
+export type Run = { agent: string; id: string }
+
 /** A pane without an agent: a plain shell. `ran`: the session an agent last reported running in it,
  * which outlives the agent there. */
 export type Shell = {
@@ -12,13 +15,15 @@ export type Shell = {
   paneId: string
   cwd: string
   title?: string
-  ran?: { agent: string; id: string }
+  ran?: Run
 }
 
 export type Panes = {
   shells: Shell[]
   /** The task of each agent's pane, by pane id, where its terminal's title names one. */
   titles: Record<string, string>
+  /** The session of each agent's pane, by pane id, where the hook reported one. */
+  runs: Record<string, Run>
 }
 
 const HERDR_TIMEOUT_MS = 35_000
@@ -38,21 +43,23 @@ type PaneInfo = {
   tokens?: Record<string, string | null> | null
 }
 
+const runOf = (p: PaneInfo): Run | undefined => {
+  const agent = p.tokens?.isbell_agent
+  const id = p.tokens?.isbell_session
+  return agent && id ? { agent, id } : undefined
+}
+
 const shellOf = (mid: string, p: PaneInfo): Shell[] => {
   const cwd = p.foreground_cwd ?? p.cwd
   if (p.agent || !cwd) return []
   const title = p.terminal_title_stripped
-  const agent = p.tokens?.isbell_agent
-  const id = p.tokens?.isbell_session
-  return [
-    {
-      mid,
-      paneId: p.pane_id,
-      cwd,
-      ...(title ? { title } : {}),
-      ...(agent && id ? { ran: { agent, id } } : {}),
-    },
-  ]
+  const ran = runOf(p)
+  return [{ mid, paneId: p.pane_id, cwd, ...(title ? { title } : {}), ...(ran ? { ran } : {}) }]
+}
+
+const runIn = (p: PaneInfo): [string, Run][] => {
+  const run = p.agent ? runOf(p) : undefined
+  return run ? [[p.pane_id, run]] : []
 }
 
 const titleIn = (p: PaneInfo): [string, string][] => {
@@ -69,7 +76,11 @@ const titleIn = (p: PaneInfo): [string, string][] => {
 export async function panes(call: Caller, mid: string): Promise<Panes> {
   const r = (await herdr(call, mid, 'session.snapshot', {})) as { snapshot?: { panes?: PaneInfo[] } }
   const all = r.snapshot?.panes ?? []
-  return { shells: all.flatMap(p => shellOf(mid, p)), titles: Object.fromEntries(all.flatMap(titleIn)) }
+  return {
+    shells: all.flatMap(p => shellOf(mid, p)),
+    titles: Object.fromEntries(all.flatMap(titleIn)),
+    runs: Object.fromEntries(all.flatMap(runIn)),
+  }
 }
 
 /** What herdr knows of the agent besides its screen. */

@@ -18,9 +18,14 @@ export type Prefs = {
   lang: 'system' | 'en' | 'zh'
 }
 
+/** A view the right column can show, opened from the bar at its edge. */
+export type RightView = 'agents'
+
 export type Layout = {
   /** The projects column shrunk to a rail of tiles. */
   rail: boolean
+  /** The views open in the right column, in their order; none, and the column is folded away. */
+  rightViews: RightView[]
   /** The folders open in each files tree (relative to its root), by root key: a project's own key
    * for its directory, or another worktree's. */
   files: Record<string, string[]>
@@ -78,6 +83,7 @@ const DEFAULTS: Local = {
   terminalViews: {},
   layout: {
     rail: false,
+    rightViews: ['agents'],
     files: {},
     filesAt: {},
     wrap: false,
@@ -164,6 +170,15 @@ export const toggleFinished = () =>
   updateLocal(l => ({ layout: { ...l.layout, finishedOpen: !l.layout.finishedOpen } }))
 
 export const toggleRail = () => updateLocal(l => ({ layout: { ...l.layout, rail: !l.layout.rail } }))
+
+const RIGHT_VIEWS: RightView[] = ['agents']
+
+/** `open` with `view` opened or closed; open ones keep their order. */
+export const toggledViews = (open: RightView[], view: RightView) =>
+  RIGHT_VIEWS.filter(v => (v === view ? !open.includes(v) : open.includes(v)))
+
+export const setRightViews = (rightViews: RightView[]) =>
+  updateLocal(l => ({ layout: { ...l.layout, rightViews } }))
 
 const withOpenDirs = (project: string, change: (dirs: string[]) => string[]) =>
   updateLocal(l => ({

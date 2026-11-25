@@ -7,7 +7,7 @@ import { type ConnStatus, connect } from './connection'
 import { type DirectLink, openDirect, type Path } from './direct'
 import { read, writeText } from './files/remote'
 import { repoRootOf } from './files/repo'
-import { type Caller, panes as fetchPanes, type Shell } from './herdr'
+import { type Caller, panes as fetchPanes, type Run, type Shell } from './herdr'
 import type { Identity } from './identity'
 import { type ProjectConfig, projectsPath, readProjects, serializeProjects } from './project-config'
 import { dirKey, type Repos } from './projects'
@@ -62,6 +62,8 @@ export type SpaceView = {
   shells: Shell[]
   /** The task of each agent's pane, by machine id and pane id, where its terminal's title names one. */
   titles: Readonly<Record<string, Record<string, string>>>
+  /** The session of each agent's pane, by machine id, then pane id. */
+  runs: Readonly<Record<string, Record<string, Run>>>
   repos: Repos
   /** Directories, by `dirKey(mid, cwd)`, whose repository is still being looked up; until it is
    * found, each stands as a project of its own. */
@@ -121,6 +123,7 @@ export function createSpace(url: string, id: Identity): Space {
   const machines = new Map<string, MachineEntry>()
   const shells = new Map<string, Shell[]>()
   const titles = new Map<string, Record<string, string>>()
+  const runs = new Map<string, Record<string, Run>>()
   // A newer pull for a machine wins over a slower, older one.
   const pulls = new Map<string, number>()
   // The pull whose shells each machine shows: an older one that comes back later does not replace
@@ -163,6 +166,7 @@ export function createSpace(url: string, id: Identity): Space {
       ),
       shells: [...shells.values()].flat(),
       titles: Object.fromEntries(titles),
+      runs: Object.fromEntries(runs),
       repos: Object.fromEntries(repos),
       looking: new Set(looking),
       recorded: Object.fromEntries(recorded),
@@ -286,6 +290,7 @@ export function createSpace(url: string, id: Identity): Space {
       taken.set(mid, seq)
       shells.set(mid, found.shells)
       titles.set(mid, found.titles)
+      runs.set(mid, found.runs)
       shellsKnown.add(mid)
       // Its shells' directories are being looked up before it stops counting as pulling.
       findRepos(mid)
@@ -372,6 +377,7 @@ export function createSpace(url: string, id: Identity): Space {
         if (machines.get(mid)?.online) continue
         shells.delete(mid)
         titles.delete(mid)
+        runs.delete(mid)
       }
       loaded = true
       // What is still to be found out is known before anyone sees the space loaded.
@@ -410,6 +416,7 @@ export function createSpace(url: string, id: Identity): Space {
       if (!online) {
         shells.delete(mid)
         titles.delete(mid)
+        runs.delete(mid)
         shellsKnown.delete(mid)
         direct.get(mid)?.close()
       } else configs = Object.fromEntries(Object.entries(configs).filter(([id]) => id !== mid))

@@ -1,9 +1,12 @@
-// The right column: every session on the machines online, whichever project it is in, by what it
-// asks of you: asking, then working, then the latest finished, those finished earlier and those
-// standing by folded. Opening one looks at it over the workspace, unless it is the tab on screen.
+// The right column's Agents: every agent on the machines online, whichever project it is in, by what
+// it asks of you: asking, then working, then the latest finished, those finished earlier and those
+// standing by folded. An agent with a role shows it, and comes with the running agent it reports to,
+// as a team under the most urgent of them. Opening one looks at it over the workspace, unless it is
+// the tab on screen.
 
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { useBooks } from '../../core/books'
 import { type Key, useI18n } from '../../core/i18n'
 import {
   type Layout,
@@ -13,8 +16,9 @@ import {
   toggleIdle,
   useLocal,
 } from '../../core/prefs'
-import { useProjects } from '../../core/space'
+import { useProjects, useSpaceView } from '../../core/space'
 import { lanes, type Placed, type Project, paneKey } from '../../model/projects'
+import { clustered, LANES, type Lane, type Member, type Placing, roleOf, teams } from '../../model/roles'
 import { keysIn, usePinned } from '../../utils/held-order'
 import { useNow } from '../../utils/time'
 import { ActiveCard, StandingRow } from './active-card'
@@ -35,9 +39,8 @@ const LATEST_FINISHED = 3
 
 const keyOf = ({ session }: Placed) => paneKey(session.mid, session.paneId)
 
-/** The parts of the column, in order. */
-const LANES = ['asking', 'running', 'latest', 'earlier', 'standing'] as const
-type Lane = (typeof LANES)[number]
+/** The parts of the column shown as cards; the others are lines. */
+const CARDS: ReadonlySet<Lane> = new Set(['asking', 'running', 'latest'])
 
 /** The names of projects open on more than one machine. */
 function sharedNames(projects: Project[]) {
@@ -83,6 +86,8 @@ export function ActiveSessions() {
   const live = lanes(projects)
   const { peek, open } = usePeek()
   const shared = sharedNames(projects)
+  const books = useBooks()
+  const { runs } = useSpaceView()
 
   const finishedNow = [...live.finished].reverse()
   const lanesNow: Record<Lane, Placed[]> = {
@@ -92,13 +97,28 @@ export function ActiveSessions() {
     earlier: finishedNow.slice(LATEST_FINISHED),
     standing: live.standing,
   }
+  const roleFor = ({ session }: Placed) => {
+    const run = runs[session.mid]?.[session.paneId]
+    const book = books[session.mid]?.roles
+    return run && book ? roleOf(book, run) : undefined
+  }
+  const members: Member[] = LANES.flatMap(lane =>
+    lanesNow[lane].map(p => {
+      const role = roleFor(p)
+      return { key: keyOf(p), lane, ...(role ? { role } : {}) }
+    }),
+  )
+  const placings = new Map<string, Placing>(teams(members).map(p => [p.key, p]))
+  const roles = new Map(members.flatMap(m => (m.role ? [[m.key, m.role.name] as const] : [])))
+  const ownLane = new Map(members.map(m => [m.key, m.lane]))
   // The one looked at stays in the part and place it was opened from, as looking marks it seen.
   const slots = usePinned(
-    LANES.flatMap(lane => lanesNow[lane].map(p => ({ key: keyOf(p), group: lane }))),
+    members.map(m => ({ key: m.key, group: placings.get(m.key)?.lane ?? m.lane })),
     peek ? paneKey(peek.mid, peek.paneId) : undefined,
   )
   const placedBy = new Map(LANES.flatMap(lane => lanesNow[lane].map(p => [keyOf(p), p] as const)))
-  const laneOf = (lane: Lane) => keysIn(slots, lane).flatMap(key => placedBy.get(key) ?? [])
+  const laneOf = (lane: Lane) =>
+    clustered(keysIn(slots, lane), placings).flatMap(key => placedBy.get(key) ?? [])
   const asking = laneOf('asking')
   const running = laneOf('running')
   const latest = laneOf('latest')
@@ -125,8 +145,32 @@ export function ActiveSessions() {
       onOpen: (terminal?: boolean) => open(placed, terminal),
     }
   }
-  const cards = (list: Placed[]) => list.map(p => <ActiveCard key={keyOf(p)} {...propsOf(p)} />)
-  const lines = (list: Placed[]) => list.map(p => <StandingRow key={keyOf(p)} {...propsOf(p)} />)
+  // Each shows as its own part does, a card or a line, wherever its team puts it; set in under its
+  // lead when it is not one.
+  const shown = (list: Placed[]) =>
+    list.map(p => {
+      const key = keyOf(p)
+      const placing = placings.get(key)
+      const name = roles.get(key)
+      const role = name ? { name, ...(placing?.via ? { via: placing.via } : {}) } : undefined
+      const own = ownLane.get(key)
+      const item =
+        own && CARDS.has(own) ? (
+          <ActiveCard key={key} role={role} {...propsOf(p)} />
+        ) : (
+          <StandingRow key={key} role={role} {...propsOf(p)} />
+        )
+      return placing?.depth ? (
+        <div
+          key={key}
+          className="relative ml-4 flex flex-none flex-col before:absolute before:top-[-6px] before:-left-[9px] before:h-[20px] before:w-[7px] before:rounded-bl-[5px] before:border-b before:border-l before:border-line-strong"
+        >
+          {item}
+        </div>
+      ) : (
+        item
+      )
+    })
   const seeAll = () => {
     markAllSeen(finished.map(p => ({ key: keyOf(p), since: p.session.statusSince })))
   }
@@ -134,17 +178,17 @@ export function ActiveSessions() {
   const sections = [
     shows('blocked') && asking.length ? (
       <Section key="asking" title={t('active.waiting')} count={asking.length}>
-        {cards(asking)}
+        {shown(asking)}
       </Section>
     ) : null,
     shows('working') && running.length ? (
       <Section key="running" title={t('active.running')} count={running.length}>
-        {cards(running)}
+        {shown(running)}
       </Section>
     ) : null,
     shows('finished') && finished.length ? (
       <Section key="finished" title={t('active.finished')} count={finished.length}>
-        {cards(latest)}
+        {shown(latest)}
         <div className="flex min-w-0 items-center gap-1">
           {earlier.length && all ? (
             <Fold
@@ -161,7 +205,7 @@ export function ActiveSessions() {
             {t('active.markAllSeen')}
           </button>
         </div>
-        {finishedOpen || !all ? lines(earlier) : null}
+        {finishedOpen || !all ? shown(earlier) : null}
       </Section>
     ) : null,
     shows('idle') && standing.length ? (
@@ -173,7 +217,7 @@ export function ActiveSessions() {
             onToggle={toggleIdle}
           />
         ) : null}
-        {idleOpen || !all ? lines(standing) : null}
+        {idleOpen || !all ? shown(standing) : null}
       </Section>
     ) : null,
   ].filter(Boolean)

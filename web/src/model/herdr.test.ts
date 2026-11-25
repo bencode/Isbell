@@ -9,17 +9,20 @@ test("a pane's codex is its native binary, or the script node runs", () => {
   expect(codexStarted([shell, { ...node, argv: ['node', '/srv/vite.js'] }])).toBeUndefined()
 })
 
-test('a shell keeps the session an agent last reported running in it', async () => {
+test('a shell keeps the session an agent last reported running in it; an agent gives its own', async () => {
   const listed = [
     { pane_id: 'p1', cwd: '/w', tokens: { isbell_agent: 'pi', isbell_session: 's1' } },
     { pane_id: 'p2', cwd: '/w', agent: 'pi', tokens: { isbell_agent: 'pi', isbell_session: 's2' } },
     { pane_id: 'p3', cwd: '/w', tokens: { isbell_agent: 'pi' } },
+    { pane_id: 'p4', cwd: '/w', agent: 'claude' },
   ]
   const call: Caller = async () => ({ snapshot: { panes: listed } })
-  expect((await panes(call, 'm')).shells).toEqual([
+  const found = await panes(call, 'm')
+  expect(found.shells).toEqual([
     { mid: 'm', paneId: 'p1', cwd: '/w', ran: { agent: 'pi', id: 's1' } },
     { mid: 'm', paneId: 'p3', cwd: '/w' },
   ])
+  expect(found.runs).toEqual({ p2: { agent: 'pi', id: 's2' } })
 })
 
 test("an agent's pane gives its task, when its terminal's title names one", async () => {
