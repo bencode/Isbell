@@ -63,24 +63,29 @@ export function roleOf(book: Roles, run: Run): RoleOf | undefined {
 }
 
 /** Where an agent stands in the right column, the most urgent first. */
-export const LANES = ['asking', 'running', 'latest', 'earlier', 'standing'] as const
+export const LANES = ['asking', 'running', 'finished', 'standing'] as const
 export type Lane = (typeof LANES)[number]
 
-export type Member = { key: string; lane: Lane; role?: RoleOf }
+/** An agent, by its key, on the machine whose book its role is in. */
+export type Member = { key: string; machine: string; lane: Lane; role?: RoleOf }
 
 /** Where an agent goes: the lane of its team, its team (by its lead's key), set in under the lead or
- * not, the agent it reports to in the team, and the name of its lead when that is not the team's. */
-export type Placing = { key: string; lane: Lane; team: string; depth: 0 | 1; under?: string; via?: string }
+ * not, and the agent it reports to in the team. */
+export type Placing = { key: string; lane: Lane; team: string; depth: 0 | 1; under?: string }
 
-const nameKey = (name: string) => name.toLowerCase()
+/** A role is a name in one machine's book, whatever its case. */
+const nameKey = (machine: string, name: string) => `${machine}\n${name.toLowerCase()}`
 
 /** As Jun has them: an agent comes with the running agent it reports to, directly or through others,
  * as a team under the most urgent lane of any in it. The one at the top leads; the others are set in
- * one level. One whose lead runs no agent comes alone, saying who that lead is. */
+ * one level. One whose lead runs no agent comes alone. Each machine keeps its own roles, so a team
+ * is all on one machine. */
 export function teams(members: Member[]): Placing[] {
   // A role runs in one agent at most, so its name finds that agent.
-  const running = new Map(members.flatMap(m => (m.role ? [[nameKey(m.role.name), m] as const] : [])))
-  const leadOf = (m: Member) => (m.role?.lead ? running.get(nameKey(m.role.lead)) : undefined)
+  const running = new Map(
+    members.flatMap(m => (m.role ? [[nameKey(m.machine, m.role.name), m] as const] : [])),
+  )
+  const leadOf = (m: Member) => (m.role?.lead ? running.get(nameKey(m.machine, m.role.lead)) : undefined)
   const topOf = (m: Member) => {
     const seen = new Set([m.key])
     let top = m
@@ -101,15 +106,8 @@ export function teams(members: Member[]): Placing[] {
   return members.map(m => {
     const team = tops.get(m.key)?.key ?? m.key
     const lane = laneOf.get(team) ?? m.lane
-    const lead = leadOf(m)
-    if (team === m.key) {
-      // At the top: its lead, if it has one, runs no agent.
-      const via = m.role?.lead && !lead ? m.role.lead : undefined
-      return { key: m.key, lane, team, depth: 0, ...(via ? { via } : {}) }
-    }
-    const under = lead?.key ?? team
-    const via = under !== team ? lead?.role?.name : undefined
-    return { key: m.key, lane, team, depth: 1, under, ...(via ? { via } : {}) }
+    if (team === m.key) return { key: m.key, lane, team, depth: 0 }
+    return { key: m.key, lane, team, depth: 1, under: leadOf(m)?.key ?? team }
   })
 }
 

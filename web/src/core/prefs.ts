@@ -40,10 +40,11 @@ export type Layout = {
   sessionsProject: string | null
   /** Which sessions the right column shows. */
   activeFilter: 'all' | 'blocked' | 'working' | 'finished' | 'idle'
-  /** Whether those standing by are unfolded there. */
+  /** Whether those standing by are unfolded on the phone's home. */
   idleOpen: boolean
-  /** Whether those that finished before the latest are unfolded there. */
-  finishedOpen: boolean
+  /** What the right column's Agents has folded: machines by id (`machine:<mid>`), teams by their
+   * machine and their lead's role (`team:<mid>:<role in lower case>`), which outlives its sessions. */
+  agentFolds: string[]
   /** Whether a project's list shows all its open sessions standing by, not only the latest. */
   earlierOpen: boolean
   /** Whether a project's list shows the sessions hidden from it. */
@@ -91,7 +92,7 @@ const DEFAULTS: Local = {
     sessionsProject: null,
     activeFilter: 'all',
     idleOpen: false,
-    finishedOpen: false,
+    agentFolds: [],
     earlierOpen: false,
     hiddenShown: false,
   },
@@ -166,8 +167,16 @@ export const toggleEarlier = () =>
 export const toggleHiddenShown = () =>
   updateLocal(l => ({ layout: { ...l.layout, hiddenShown: !l.layout.hiddenShown } }))
 
-export const toggleFinished = () =>
-  updateLocal(l => ({ layout: { ...l.layout, finishedOpen: !l.layout.finishedOpen } }))
+export const toggleAgentFold = (key: string) =>
+  updateLocal(l => {
+    const folds = l.layout.agentFolds
+    return {
+      layout: {
+        ...l.layout,
+        agentFolds: folds.includes(key) ? folds.filter(k => k !== key) : [...folds, key],
+      },
+    }
+  })
 
 export const toggleRail = () => updateLocal(l => ({ layout: { ...l.layout, rail: !l.layout.rail } }))
 

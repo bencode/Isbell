@@ -35,9 +35,11 @@ type Props = {
 }
 
 const LETTERS: Readonly<Record<string, string>> = { claude: 'C', codex: 'X', pi: 'π' }
+/** Each agent's name, as it calls itself. */
+export const AGENT_NAMES: Readonly<Record<string, string>> = { claude: 'Claude', codex: 'Codex', pi: 'pi' }
 /** The dot before the letter, for statuses worth one: one standing by needs nothing said. A working
  * agent's ring starts a little out from its dot, to read at its size. */
-const DOTS: Partial<Readonly<Record<AgentStatus, string>>> = {
+export const STATUS_DOTS: Partial<Readonly<Record<AgentStatus, string>>> = {
   blocked: 'bg-warn',
   done: 'bg-ok',
   working:
@@ -50,7 +52,7 @@ const UNDER_MARK = 'pl-[30px]'
 /** The status dot in a slot of its own, kept for every row so dots and letters line up, then the
  * agent's letter, or a shell's square. */
 export function AgentMark({ mark }: { mark: Mark }) {
-  const dot = mark === 'shell' || !mark.status ? undefined : DOTS[mark.status]
+  const dot = mark === 'shell' || !mark.status ? undefined : STATUS_DOTS[mark.status]
   return (
     <span className="flex flex-none items-center gap-1">
       <span aria-hidden className={`relative size-1.5 flex-none rounded-full ${dot ?? ''}`} />
