@@ -102,6 +102,18 @@ isbell file get <machine>:<absolute path>
 isbell file share <path> --for 1d                     # a link to read it, live, from a browser
 ```
 
+Agents keep three books on their own Mac with it, in `~/.isbell`: their names (roles, whose past
+sessions are their memory), messages to you, and your goals and tasks. These commands work on that
+Mac only; [integrations/isbell-tools](integrations/isbell-tools/SKILL.md) is the skill that teaches
+agents to use them.
+
+```bash
+isbell role name Euler                                # a name is a role; `role mine` takes it back
+isbell message send --title 'Asks to open a PR' --kind ask 'I suggest yes.'
+isbell message update 12 --kind done 'You agreed; it goes on.'
+isbell task update 8 --owner Euler --state doing
+```
+
 ## Privacy and how it works
 
 ```text

@@ -3,10 +3,14 @@
 mod agent;
 mod file;
 mod gateway;
+mod goal;
 mod machine;
+mod message;
 mod output;
+mod role;
 mod space;
 mod target;
+mod task;
 mod terminal;
 pub(crate) mod upgrade;
 mod watch;
@@ -15,6 +19,7 @@ use clap::{Parser, Subcommand};
 use isbell_proto::identity::Identity;
 use isbell_proto::state::MachineState;
 
+use crate::book::BookError;
 use crate::client::Session;
 use crate::config::{Config, Paths, resolve_relay};
 use output::{CliError, Output};
@@ -59,6 +64,18 @@ enum Command {
     /// Remote terminals: attach to a pane, or open a new shell.
     #[command(subcommand)]
     Terminal(terminal::TerminalCmd),
+    /// Tell the user something, in this machine's messages; agents follow it up.
+    #[command(subcommand)]
+    Message(message::MessageCmd),
+    /// Agents' names on this machine: a name is a role, its sessions its memory.
+    #[command(subcommand)]
+    Role(role::RoleCmd),
+    /// The user's goals on this machine.
+    #[command(subcommand)]
+    Goal(goal::GoalCmd),
+    /// The tasks of the user's goals on this machine, each followed by one role.
+    #[command(subcommand)]
+    Task(task::TaskCmd),
     /// Stream presence and agent status changes as NDJSON.
     Watch,
     /// Upgrade isbell to the latest release and restart its gateway service.
@@ -145,7 +162,63 @@ pub async fn run(cli: Cli) -> Result<(), CliError> {
         Command::Agent(cmd) => agent::run(&ctx, cmd).await,
         Command::File(cmd) => file::run(&ctx, cmd).await,
         Command::Terminal(cmd) => terminal::run(&ctx, cmd).await,
+        Command::Message(cmd) => message::run(&ctx, cmd),
+        Command::Role(cmd) => role::run(&ctx, cmd).await,
+        Command::Goal(cmd) => goal::run(&ctx, cmd),
+        Command::Task(cmd) => task::run(&ctx, cmd),
         Command::Watch => watch::run(&ctx).await,
         Command::Upgrade => upgrade::run(),
     }
+}
+
+impl From<BookError> for CliError {
+    fn from(err: BookError) -> Self {
+        CliError::new(err.code, err.message)
+    }
+}
+
+/// A text option: `-` reads it from standard input, without the line breaks at its end.
+fn text_arg(text: Option<String>) -> Result<Option<String>, CliError> {
+    match text.as_deref() {
+        Some("-") => {
+            let mut input = String::new();
+            std::io::Read::read_to_string(&mut std::io::stdin(), &mut input)
+                .map_err(|err| CliError::new("io", format!("cannot read standard input: {err}")))?;
+            Ok(Some(input.trim_end_matches(['\r', '\n']).to_owned()))
+        }
+        _ => Ok(text),
+    }
+}
+
+/// A `file:` or `project:` link as books keep it: absolute, a project as its root. `''` stays,
+/// for an update to clear the link.
+fn book_link(link: &str) -> Result<String, CliError> {
+    match link.split_once(':') {
+        _ if link.is_empty() => Ok(String::new()),
+        Some(("file", path)) => {
+            let file = std::fs::canonicalize(path)
+                .ok()
+                .filter(|p| p.is_file())
+                .ok_or_else(|| CliError::new("not_found", format!("no file {path}")))?;
+            Ok(format!("file:{}", file.display()))
+        }
+        Some(("project", path)) => Ok(format!("project:{}", project_root(path)?)),
+        _ => Err(CliError::new(
+            "invalid",
+            format!("link {link:?} is neither file:<path> nor project:<path>"),
+        )),
+    }
+}
+
+/// The root of the project the directory is in, as books keep projects. `''` stays, for an update
+/// to clear the project.
+fn project_root(dir: &str) -> Result<String, CliError> {
+    if dir.is_empty() {
+        return Ok(String::new());
+    }
+    let real = std::fs::canonicalize(dir)
+        .ok()
+        .filter(|p| p.is_dir())
+        .ok_or_else(|| CliError::new("not_found", format!("no directory {dir}")))?;
+    Ok(crate::book::project::root_of(&real).to_string_lossy().into_owned())
 }

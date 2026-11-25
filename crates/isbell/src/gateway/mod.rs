@@ -4,7 +4,7 @@ mod calls;
 mod direct;
 mod file;
 mod git;
-mod herdr;
+pub(crate) mod herdr;
 mod hook;
 mod launch;
 mod link;
