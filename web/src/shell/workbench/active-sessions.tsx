@@ -5,16 +5,16 @@
 // folds away, and stays so. Opening one looks at it over the workspace, unless it is the tab on
 // screen.
 
-import { ChevronDown, ChevronRight } from 'lucide-react'
-import { useBooks } from '../../core/books'
+import { useRoleOf } from '../../core/books'
 import { type Key, useI18n } from '../../core/i18n'
 import { type Layout, markAllSeen, setActiveFilter, toggleAgentFold, useLocal } from '../../core/prefs'
 import { useProjects, useSpaceView } from '../../core/space'
 import { lanes, type Placed, paneKey } from '../../model/projects'
-import { clustered, LANES, type Lane, type Member, type Placing, roleOf, teams } from '../../model/roles'
+import { clustered, LANES, type Lane, type Member, type Placing, teams } from '../../model/roles'
 import { keysIn, usePinned } from '../../utils/held-order'
 import { useNow } from '../../utils/time'
 import { AgentRow, type Team } from './agent-row'
+import { MachineHeading } from './machine-heading'
 import { usePeek } from './peek'
 
 type Filter = Layout['activeFilter']
@@ -54,53 +54,20 @@ function blocks(list: Placed[], placings: ReadonlyMap<string, Placing>) {
   return cut
 }
 
-type Heading = { name: string; count: number; asking: number; open: boolean; onToggle?: () => void }
-
-/** A machine's name over its agents: one that folds them away, saying how many ask while they are. */
-function MachineHeading({ name, count, asking, open, onToggle }: Heading) {
-  const t = useI18n()
-  const inner = (
-    <>
-      {onToggle ? open ? <ChevronDown size={13} /> : <ChevronRight size={13} /> : null}
-      <span className="min-w-0 truncate">{name}</span>
-      <span className="font-mono font-medium">{count}</span>
-      {!open && asking ? <span className="text-warn">{t('active.asking', { n: asking })}</span> : null}
-    </>
-  )
-  const look = 'flex h-6 min-w-0 flex-none items-center gap-1 px-1 text-[11.5px] font-semibold text-faint'
-  return onToggle ? (
-    <button
-      type="button"
-      aria-expanded={open}
-      onClick={onToggle}
-      className={`${look} cursor-pointer rounded-md border-0 bg-transparent text-left hover:bg-hover hover:text-text focus-visible:outline-2 focus-visible:outline-accent`}
-    >
-      {inner}
-    </button>
-  ) : (
-    <h3 className={`${look} m-0`}>{inner}</h3>
-  )
-}
-
 export function ActiveSessions() {
   const t = useI18n()
   const now = useNow()
   const { activeFilter: filter, agentFolds } = useLocal().layout
   const live = lanes(useProjects())
   const { peek, open } = usePeek()
-  const books = useBooks()
-  const { runs, machines } = useSpaceView()
+  const roleFor = useRoleOf()
+  const { machines } = useSpaceView()
 
   const lanesNow: Record<Lane, Placed[]> = {
     asking: live.asking,
     running: live.running,
     finished: [...live.finished].reverse(),
     standing: live.standing,
-  }
-  const roleFor = ({ session }: Placed) => {
-    const run = runs[session.mid]?.[session.paneId]
-    const book = books[session.mid]?.roles
-    return run && book ? roleOf(book, run) : undefined
   }
   const members: Member[] = LANES.flatMap(lane =>
     lanesNow[lane].map(p => {

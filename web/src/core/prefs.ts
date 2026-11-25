@@ -19,7 +19,7 @@ export type Prefs = {
 }
 
 /** A view the right column can show, opened from the bar at its edge. */
-export type RightView = 'agents'
+export type RightView = 'agents' | 'tasks'
 
 export type Layout = {
   /** The projects column shrunk to a rail of tiles. */
@@ -45,6 +45,9 @@ export type Layout = {
   /** What the right column's Agents has folded: machines by id (`machine:<mid>`), teams by their
    * machine and their lead's role (`team:<mid>:<role in lower case>`), which outlives its sessions. */
   agentFolds: string[]
+  /** What the right column's Tasks has turned from how it stands at first: machines (`machine:<mid>`)
+   * and goals (`goal:<mid>:<id>`) folded, a machine's ended goals (`ended:<mid>`) shown. */
+  taskToggles: string[]
   /** Whether a project's list shows all its open sessions standing by, not only the latest. */
   earlierOpen: boolean
   /** Whether a project's list shows the sessions hidden from it. */
@@ -93,6 +96,7 @@ const DEFAULTS: Local = {
     activeFilter: 'all',
     idleOpen: false,
     agentFolds: [],
+    taskToggles: [],
     earlierOpen: false,
     hiddenShown: false,
   },
@@ -178,9 +182,20 @@ export const toggleAgentFold = (key: string) =>
     }
   })
 
+export const toggleTaskKey = (key: string) =>
+  updateLocal(l => {
+    const keys = l.layout.taskToggles
+    return {
+      layout: {
+        ...l.layout,
+        taskToggles: keys.includes(key) ? keys.filter(k => k !== key) : [...keys, key],
+      },
+    }
+  })
+
 export const toggleRail = () => updateLocal(l => ({ layout: { ...l.layout, rail: !l.layout.rail } }))
 
-const RIGHT_VIEWS: RightView[] = ['agents']
+export const RIGHT_VIEWS: RightView[] = ['agents', 'tasks']
 
 /** `open` with `view` opened or closed; open ones keep their order. */
 export const toggledViews = (open: RightView[], view: RightView) =>

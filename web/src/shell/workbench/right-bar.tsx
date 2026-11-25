@@ -2,7 +2,7 @@
 // With none open, the column folds away and the bar is what is left of it, still counting what asks
 // for you.
 
-import { Bot, type LucideIcon } from 'lucide-react'
+import { Bot, ListChecks, type LucideIcon } from 'lucide-react'
 import { ICON, IconButton } from '../../components/icon-button'
 import { type Key, useI18n } from '../../core/i18n'
 import { type RightView, useLocal } from '../../core/prefs'
@@ -11,6 +11,7 @@ import { lanes } from '../../model/projects'
 
 const VIEWS: { view: RightView; Icon: LucideIcon; label: Key }[] = [
   { view: 'agents', Icon: Bot, label: 'workbench.agents' },
+  { view: 'tasks', Icon: ListChecks, label: 'workbench.tasks' },
 ]
 
 /** `onToggle` opens or closes a view. */
@@ -18,7 +19,7 @@ export function RightBar({ onToggle }: { onToggle: (view: RightView) => void }) 
   const t = useI18n()
   const open = useLocal().layout.rightViews
   const asking = lanes(useProjects()).asking.length
-  const counts: Record<RightView, number> = { agents: asking }
+  const counts: Record<RightView, number> = { agents: asking, tasks: 0 }
   return (
     <nav
       aria-label={t('workbench.rightBar')}
