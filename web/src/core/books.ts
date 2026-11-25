@@ -1,24 +1,29 @@
-// The books agents keep on each machine (`isbell role`, and later `message`, `goal` and `task`),
+// The books agents keep on each machine (`isbell role`, `goal` and `task`, and later `message`),
 // read by one pull for every view: each machine's file every 15 seconds while the page shows, sent
 // only when it changed. Read only: agents write them.
 
 import { useEffect, useSyncExternalStore } from 'react'
 import { type FileRead, read } from '../model/files/remote'
-import { parseRoles, type Roles, rolesPath } from '../model/roles'
+import { type Goals, goalsPath, parseGoals } from '../model/goals'
+import type { Placed } from '../model/projects'
+import { parseRoles, type RoleOf, type Roles, roleOf, rolesPath } from '../model/roles'
 import type { Space } from '../model/space'
 import { CallError } from '../model/streams'
-import { useSpace } from './space'
+import { useSpace, useSpaceView } from './space'
 
 const EVERY_MS = 15_000
 /** Far above what 500 messages with their replies take. */
 const BOOK_MAX = 4 << 20
 const READ_METHOD = 'isbell.file.read'
 
-const KINDS = { roles: { path: rolesPath, parse: parseRoles } }
+const KINDS = {
+  roles: { path: rolesPath, parse: parseRoles },
+  goals: { path: goalsPath, parse: parseGoals },
+}
 type Kind = keyof typeof KINDS
 
 /** A machine's books; one it has none of is left out, as on a machine whose isbell predates it. */
-export type Books = { roles?: Roles }
+export type Books = { roles?: Roles; goals?: Goals }
 
 let books: Readonly<Record<string, Books>> = {}
 // The last read of each file, by machine id and kind, to read against.
@@ -112,3 +117,14 @@ export function useBooksPull() {
 
 /** Every machine's books, by machine id. */
 export const useBooks = (): Readonly<Record<string, Books>> => useSyncExternalStore(subscribe, () => books)
+
+/** The role an agent took, by its machine's book and the session it runs. */
+export function useRoleOf(): (placed: Placed) => RoleOf | undefined {
+  const books = useBooks()
+  const { runs } = useSpaceView()
+  return ({ session }) => {
+    const run = runs[session.mid]?.[session.paneId]
+    const book = books[session.mid]?.roles
+    return run && book ? roleOf(book, run) : undefined
+  }
+}

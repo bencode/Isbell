@@ -74,7 +74,7 @@ export type Member = { key: string; machine: string; lane: Lane; role?: RoleOf }
 export type Placing = { key: string; lane: Lane; team: string; depth: 0 | 1; under?: string }
 
 /** A role is a name in one machine's book, whatever its case. */
-const nameKey = (machine: string, name: string) => `${machine}\n${name.toLowerCase()}`
+export const roleKey = (machine: string, name: string) => `${machine}\n${name.toLowerCase()}`
 
 /** As Jun has them: an agent comes with the running agent it reports to, directly or through others,
  * as a team under the most urgent lane of any in it. The one at the top leads; the others are set in
@@ -83,9 +83,9 @@ const nameKey = (machine: string, name: string) => `${machine}\n${name.toLowerCa
 export function teams(members: Member[]): Placing[] {
   // A role runs in one agent at most, so its name finds that agent.
   const running = new Map(
-    members.flatMap(m => (m.role ? [[nameKey(m.machine, m.role.name), m] as const] : [])),
+    members.flatMap(m => (m.role ? [[roleKey(m.machine, m.role.name), m] as const] : [])),
   )
-  const leadOf = (m: Member) => (m.role?.lead ? running.get(nameKey(m.machine, m.role.lead)) : undefined)
+  const leadOf = (m: Member) => (m.role?.lead ? running.get(roleKey(m.machine, m.role.lead)) : undefined)
   const topOf = (m: Member) => {
     const seen = new Set([m.key])
     let top = m
