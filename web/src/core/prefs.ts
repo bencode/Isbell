@@ -19,7 +19,7 @@ export type Prefs = {
 }
 
 /** A view the right column can show, opened from the bar at its edge. */
-export type RightView = 'agents' | 'tasks'
+export type RightView = 'agents' | 'tasks' | 'messages'
 
 export type Layout = {
   /** The projects column shrunk to a rail of tiles. */
@@ -195,7 +195,7 @@ export const toggleTaskKey = (key: string) =>
 
 export const toggleRail = () => updateLocal(l => ({ layout: { ...l.layout, rail: !l.layout.rail } }))
 
-export const RIGHT_VIEWS: RightView[] = ['agents', 'tasks']
+export const RIGHT_VIEWS: RightView[] = ['agents', 'tasks', 'messages']
 
 /** `open` with `view` opened or closed; open ones keep their order. */
 export const toggledViews = (open: RightView[], view: RightView) =>
