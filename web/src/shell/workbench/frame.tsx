@@ -231,7 +231,15 @@ export function Frame({ inProject }: { inProject: boolean }) {
                   <ListColumn />
                 </FoldingColumn>
                 <ResizeHandle label={t('workbench.resizeList')} disabled={list.folded} />
-                <Panel id="main" className="flex" minSize={MAIN_MIN} panelRef={main}>
+                <Panel
+                  id="main"
+                  className="flex"
+                  minSize={MAIN_MIN}
+                  panelRef={main}
+                  // The library lets a panel scroll; this one's content scrolls inside it. Clipped, the
+                  // peek's drawer taking focus as it slides in from past the edge cannot scroll it aside.
+                  style={{ overflow: 'clip' }}
+                >
                   <main ref={setWorkspace} className="relative flex min-w-0 flex-1 flex-col">
                     <div
                       className={`${BAR} bg-side transition-[padding] duration-200 ease-fold motion-reduce:transition-none ${list.folded ? 'pl-11' : ''}`}
