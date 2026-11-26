@@ -2,8 +2,9 @@
 // With none open, the column folds away and the bar is what is left of it, still counting what asks
 // for you.
 
-import { Bot, ListChecks, type LucideIcon } from 'lucide-react'
+import { Bot, ListChecks, type LucideIcon, MessageCircle } from 'lucide-react'
 import { ICON, IconButton } from '../../components/icon-button'
+import { useMessageFeed } from '../../core/books'
 import { type Key, useI18n } from '../../core/i18n'
 import { type RightView, useLocal } from '../../core/prefs'
 import { useProjects } from '../../core/space'
@@ -12,6 +13,7 @@ import { lanes } from '../../model/projects'
 const VIEWS: { view: RightView; Icon: LucideIcon; label: Key }[] = [
   { view: 'agents', Icon: Bot, label: 'workbench.agents' },
   { view: 'tasks', Icon: ListChecks, label: 'workbench.tasks' },
+  { view: 'messages', Icon: MessageCircle, label: 'workbench.messages' },
 ]
 
 /** `onToggle` opens or closes a view. */
@@ -19,7 +21,8 @@ export function RightBar({ onToggle }: { onToggle: (view: RightView) => void }) 
   const t = useI18n()
   const open = useLocal().layout.rightViews
   const asking = lanes(useProjects()).asking.length
-  const counts: Record<RightView, number> = { agents: asking, tasks: 0 }
+  const asks = useMessageFeed().filter(({ message }) => message.kind === 'ask').length
+  const counts: Record<RightView, number> = { agents: asking, tasks: 0, messages: asks }
   return (
     <nav
       aria-label={t('workbench.rightBar')}

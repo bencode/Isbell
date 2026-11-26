@@ -32,6 +32,7 @@ import { ActiveSessions } from './active-sessions'
 import { BAR } from './bar'
 import { CommandPalette } from './command-palette'
 import { ListColumn } from './list-column'
+import { MessagesView } from './messages-view'
 import { Peek } from './peek'
 import { ProjectsRail } from './projects-rail'
 import { RightBar } from './right-bar'
@@ -43,6 +44,7 @@ import { TabPanes } from './workspace'
 const VIEW_PARTS: Record<RightView, { title: Key; Body: () => ReactNode }> = {
   agents: { title: 'workbench.agents', Body: ActiveSessions },
   tasks: { title: 'workbench.tasks', Body: TasksView },
+  messages: { title: 'workbench.messages', Body: MessagesView },
 }
 const PANELS = ['list', 'main', ...RIGHT_VIEWS]
 const FOLD_MS = 200
@@ -173,6 +175,7 @@ export function Frame({ inProject }: { inProject: boolean }) {
   const columns: Record<RightView, Fold> = {
     agents: useFold(320, sizeTo('agents')),
     tasks: useFold(340, sizeTo('tasks')),
+    messages: useFold(320, sizeTo('messages')),
   }
   const split = useDefaultLayout({ id: 'isbell.workbench', panelIds: PANELS, storage: localStorage })
   const moving = list.moving || RIGHT_VIEWS.some(v => columns[v].moving)

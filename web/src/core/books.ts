@@ -1,10 +1,11 @@
-// The books agents keep on each machine (`isbell role`, `goal` and `task`, and later `message`),
+// The books agents keep on each machine (`isbell role`, `goal`, `task` and `message`),
 // read by one pull for every view: each machine's file every 15 seconds while the page shows, sent
 // only when it changed. Read only: agents write them.
 
 import { useEffect, useSyncExternalStore } from 'react'
 import { type FileRead, read } from '../model/files/remote'
 import { type Goals, goalsPath, parseGoals } from '../model/goals'
+import { feed, type Message, type Messages, messagesPath, parseMessages } from '../model/messages'
 import { lanes, type Placed } from '../model/projects'
 import { parseRoles, type RoleOf, type Roles, roleKey, roleOf, rolesPath } from '../model/roles'
 import type { Space } from '../model/space'
@@ -19,11 +20,12 @@ const READ_METHOD = 'isbell.file.read'
 const KINDS = {
   roles: { path: rolesPath, parse: parseRoles },
   goals: { path: goalsPath, parse: parseGoals },
+  messages: { path: messagesPath, parse: parseMessages },
 }
 type Kind = keyof typeof KINDS
 
 /** A machine's books; one it has none of is left out, as on a machine whose isbell predates it. */
-export type Books = { roles?: Roles; goals?: Goals }
+export type Books = { roles?: Roles; goals?: Goals; messages?: Messages }
 
 let books: Readonly<Record<string, Books>> = {}
 // The last read of each file, by machine id and kind, to read against.
@@ -86,7 +88,13 @@ export function useBooksPull() {
       const mids = readable(space)
       known = new Set(mids)
       const kinds = Object.keys(KINDS) as Kind[]
-      await Promise.all(mids.flatMap(mid => kinds.map(kind => pull(space.openStream, mid, kind))))
+      // A machine's books one after another: each read is a stream, and a gateway takes only a few
+      // at once from the page, which the views coming up need too.
+      await Promise.all(
+        mids.map(async mid => {
+          for (const kind of kinds) await pull(space.openStream, mid, kind)
+        }),
+      )
       pulling = false
       if (live) timer = setTimeout(next, EVERY_MS)
     }
@@ -153,4 +161,34 @@ export function useRunningRoles(): ReadonlyMap<string, Placed> {
       return role ? [[roleKey(p.session.mid, role.name), p] as const] : []
     }),
   )
+}
+
+/** A message, with the machine it is on. */
+export type Posted = { mid: string; name: string; message: Message }
+
+/** The messages of the machines online, as one list: the latest active first. */
+export function useMessageFeed(): Posted[] {
+  const books = useBooks()
+  return feed(
+    useSpaceView()
+      .machines.filter(m => m.online)
+      .flatMap(({ state: { machine } }) =>
+        (books[machine.id]?.messages?.messages ?? []).map(message => ({
+          mid: machine.id,
+          name: machine.name,
+          message,
+        })),
+      ),
+  )
+}
+
+/** Finds the agent running a session, by its machine, agent and id. */
+export function useRunningSession(): (mid: string, agent: string, id: string) => Placed | undefined {
+  const live = lanes(useProjects())
+  const { runs } = useSpaceView()
+  return (mid, agent, id) =>
+    [...live.asking, ...live.running, ...live.finished, ...live.standing].find(({ session }) => {
+      const run = session.mid === mid ? runs[mid]?.[session.paneId] : undefined
+      return run?.agent === agent && run.id === id
+    })
 }
