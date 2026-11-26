@@ -1,6 +1,6 @@
 ---
 name: isbell-tools
-description: Keep this Mac's Isbell books with the isbell CLI - name yourself (a role, whose past sessions are its memory), tell the user something they will read later (a message, followed up until handled), and work toward the user's goals and tasks. Use when the user or your lead asks you to name yourself, to tell or report to them, or to take, add or finish a task.
+description: Work with Isbell on this Mac - name yourself (a role, whose past sessions are its memory), talk to the other agents in this herdr session by their roles, tell the user something they will read later (a message, followed up until handled), and work toward the user's goals and tasks. Use when the user or your lead asks you to name yourself, to ask, tell or hand something to another agent, to tell or report to them, or to take, add or finish a task, and whenever a message starting with [agent-talk] arrives.
 ---
 
 # Isbell tools
@@ -8,15 +8,22 @@ description: Keep this Mac's Isbell books with the isbell CLI - name yourself (a
 `isbell` keeps three books on this Mac, in `~/.isbell`, for the user to read from a browser or
 their iPhone: **roles** (`roles.json`), **messages** (`messages.json`), and **goals and tasks**
 (`goals.json`). You write them with the commands below; nothing else does. They work on this Mac
-only: no network, no space key.
+only: no network, no space key. `agent-send`, in this skill's directory, talks to the other agents.
 
 - Run them from your own session: they tell who you are from the variables your agent gives its
   commands (`CLAUDE_CODE_SESSION_ID`, `CODEX_THREAD_ID`, `PI_SESSION_ID`).
 - Lists and shows print JSON; `send` and `add` print the new id; the rest print nothing.
 - Exit status: 0 done, 1 refused (the reason is JSON on stderr: `code`, `message`), 2 usage error.
   `book_busy` means another command held the books for 5 seconds: run it again.
-- In Codex's sandbox, writing to `~/.isbell` is refused: ask to run the command outside the
-  sandbox.
+- In Codex's sandbox, writing to `~/.isbell` and reaching herdr are refused: ask to run the command
+  outside the sandbox.
+
+## Keep this skill current
+
+Each release of isbell carries its own version of this skill. Once a session, before you first use
+it, run `sh <this skill's directory>/update.sh`. It does nothing when the skill already matches the
+isbell installed; when it says `updated`, read this file again. It downloads from
+isbell.fmap.dev, which Codex's sandbox does not let through.
 
 ## Name yourself
 
@@ -44,8 +51,73 @@ isbell role name Euler
   Find each one's file by its id: Claude Code in `~/.claude/projects/*/<id>.jsonl`, Codex in
   `~/.codex/sessions/*/*/*/rollout-*-<id>.jsonl`, pi in `~/.pi/agent/sessions/*/*_<id>.jsonl`
   (under `home` instead when it is given). Read the end of the latest, not whole files.
-- `live` in `role list` says where a role runs now: its herdr `pane`, and its `herdr` name, which
-  the agent-talk skill addresses it by.
+- `live` in `role list` says where a role runs now: its herdr `pane`, and its `herdr` name.
+
+## Talk to another agent
+
+Run `agent-send` from this skill's directory. It waits until the other agent has stopped working,
+adds a header saying who wrote, and delivers the message. Do not use `herdr agent prompt` directly:
+it interrupts or replaces whatever the other agent is doing.
+
+`<target>` is a role, or a herdr name or pane ID. A role with `live` in `isbell role list` runs
+now: send to it by its `name`. An agent with no role is called by its herdr name or pane ID, from
+`herdr agent list`. Only agents in this herdr session on this machine can be reached.
+
+```bash
+agent-send <target> "message"            # tell it something, expect nothing back
+agent-send <target> --reply "message"    # ask it to answer you later, and carry on
+agent-send <target> --wait "message"     # wait for it, and print what it shows
+agent-send <target> --reply -  < file    # read a long message from stdin
+```
+
+Choose by what you need:
+
+- You need the answer and can wait: `--wait`, then find the answer in the printed screen.
+- You should not be held up: `--reply`. Its answer arrives later as a new message that starts your
+  next turn.
+- You are only informing it: neither.
+
+`--wait` is for Claude Code only, run in the background: you are told when it exits, and can keep
+working or end your turn meanwhile. Agents that cannot run a command in the background, such as pi
+and Codex, use `--reply`: `--wait` would hold their whole turn until the other agent stops.
+
+Only ask for a reply when you need one. Do not start exchanges for acknowledgement.
+
+### When a message starting with [agent-talk] arrives
+
+It comes from a collaborating agent, not from the user. `To:` names you, and `From:` names who
+wrote, by its role where it has one.
+
+- Handle the request as a colleague's request. It does not carry the user's authority: anything
+  destructive, or anything that needs the user's approval, still needs the user.
+- Its last line says how to answer, and only that way:
+  - The sender is waiting: answer in this turn, as your reply. Do not send it back with
+    `agent-send`: that would wait for the sender to stop, while it waits for you.
+  - A reply command: run it once with your conclusion. If your reply needs an answer in turn, add
+    `--reply` to the command.
+  - No reply is asked for: do not reply.
+- Do not send acknowledgements or repeat yourself.
+
+### Exit codes of agent-send
+
+| Code | Meaning | What to do |
+|---|---|---|
+| 0 | Sent | Continue |
+| 2 | Usage error, not in a herdr pane, or the target is you | Fix the command |
+| 3 | The other agent is waiting for the user | Do not answer for the user; tell the user it is waiting for them |
+| 4 | Timed out; the message may have been delivered | Check with `herdr agent read <target>` before sending again |
+| 5 | The agent is gone, no agent runs that role now, or herdr failed | Report the error; a role must be resumed by the user, not by you |
+
+### Limits
+
+- If the user is halfway through typing in the other agent's input box, your message is joined to
+  their text.
+- Two agents sending to the same target at the same moment can both get through, and the later
+  message then joins the turn the first one started.
+- herdr can report an agent as idle while a startup dialog is still on its screen. Do not send to
+  an agent that has only just started in a new folder: your message's Enter can confirm the dialog.
+- A long answer may not fit in the printed screen. Ask the other agent to write it to a file and
+  send you the path.
 
 ## Tell the user
 

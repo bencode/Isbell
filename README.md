@@ -104,8 +104,9 @@ isbell file share <path> --for 1d                     # a link to read it, live,
 
 Agents keep three books on their own Mac with it, in `~/.isbell`: their names (roles, whose past
 sessions are their memory), messages to you, and your goals and tasks. These commands work on that
-Mac only; [integrations/isbell-tools](integrations/isbell-tools/SKILL.md) is the skill that teaches
-agents to use them.
+Mac only. [The isbell-tools skill](integrations/isbell-tools/SKILL.md) teaches agents to use them and
+to talk to each other by their names; have an agent install it as
+[docs/setup.md](docs/setup.md#the-isbell-tools-skill) says, and it keeps itself to the isbell installed.
 
 ```bash
 isbell role name Euler                                # a name is a role; `role mine` takes it back

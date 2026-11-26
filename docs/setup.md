@@ -46,6 +46,8 @@ For the agent doing the setup. Isbell lets its user reach the agents on their Ma
     `$PI_CODING_AGENT_DIR/extensions/`, else `~/.pi/agent/extensions/`, which pi loads when it
     starts: sessions already running take it once restarted. For pi's status on the board, herdr
     needs its own integration too: `herdr integration install pi`.
+- [ ] Optional, with the user's yes: [the isbell-tools skill](#the-isbell-tools-skill), for their
+      agents to name themselves, talk to each other and keep the user's goals, tasks and messages.
 - [ ] Check:
   - `isbell gateway status` says `running`;
   - `isbell machine list` shows this Mac `online`.
@@ -57,9 +59,33 @@ For the agent doing the setup. Isbell lets its user reach the agents on their Ma
   3. Start agents inside herdr (run `herdr`); Isbell sees what runs there.
   4. For another Mac, give its agent this same file.
 
+## The isbell-tools skill
+
+It teaches the agents on this Mac to use `isbell` and to talk to each other. Each release of isbell
+carries its own version: install the one of the isbell installed, which needs isbell 0.9.2 or later.
+
+```sh
+v=$(isbell --version | awk '{print $2}'); d=$(mktemp -d)
+curl -fsSL "https://isbell.fmap.dev/releases/v$v/isbell-tools.tar.gz" -o "$d/isbell-tools.tar.gz"
+curl -fsSL "https://isbell.fmap.dev/releases/v$v/isbell-tools.tar.gz.sha256" -o "$d/isbell-tools.tar.gz.sha256"
+(cd "$d" && shasum -a 256 -c isbell-tools.tar.gz.sha256)
+mkdir -p ~/.isbell/skills && tar -xzf "$d/isbell-tools.tar.gz" -C ~/.isbell/skills
+```
+
+Then link it into the skills of each agent the user runs, all to this one copy:
+
+- pi and Codex: `mkdir -p ~/.agents/skills && ln -sfn ~/.isbell/skills/isbell-tools ~/.agents/skills/isbell-tools`.
+- Claude Code: the same link in `$CLAUDE_CONFIG_DIR/skills`, else `~/.claude/skills`; for another
+  config directory (a wrapper such as reclaude keeps its own), in its `skills`.
+
+Sessions already running take it once restarted. From then on the agents keep it current: when
+isbell is upgraded, the skill's `update.sh` replaces it with the new version's. A skill linked from
+a checkout of this repository is left as it is.
+
 ## Uninstall
 
 `isbell gateway uninstall`, `isbell space leave`, then delete `~/.local/bin/isbell`. With the agent
 hook installed, first `sh ~/.isbell/hooks/agent-hook.sh uninstall claude` (with the same
 `--config-dir`), `… uninstall codex` and `… uninstall pi` for each agent it was installed for, then delete
-`~/.isbell/hooks`, and `~/.isbell/sessions` unless the user keeps the sessions' records.
+`~/.isbell/hooks`, and `~/.isbell/sessions` unless the user keeps the sessions' records. With the
+skill installed, delete its links, `isbell-tools` in each agent's skills, then `~/.isbell/skills`.

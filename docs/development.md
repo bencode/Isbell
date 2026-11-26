@@ -89,7 +89,10 @@ pnpm typecheck && pnpm test && pnpm lint && pnpm build
 - Bump `version` in the root `Cargo.toml` (the patch for fixes, the minor for features), commit,
   then push the tag `v<version>`.
 - `.github/workflows/release.yml` builds isbell for Apple silicon and publishes it as a GitHub
-  release; it fails when the tag and the version differ.
+  release, with `integrations/isbell-tools` packaged as `isbell-tools.tar.gz`; it fails when the tag
+  and the version differ. A change to the skill reaches users with the next release: their agents'
+  `update.sh` fetches the skill of the isbell installed. A skill linked from a checkout, as on a
+  development Mac, has no `VERSION` and follows the checkout instead.
 - Mirror the release to the server, which serves `/root/isbell-releases` at
   `isbell.fmap.dev/releases`: `install.sh`, and so `isbell upgrade` and the web app's update, download
   from there, as many networks reach GitHub's downloads too slowly. Then point `latest` at it:
