@@ -12,6 +12,7 @@ import {
 } from 'react'
 import type { Components } from 'react-markdown'
 import { ErrorBoundary } from '../../error-boundary'
+import type { DiagramLabels } from '../mermaid/diagram'
 import { DocImage, type MarkdownImage } from './doc-image'
 import styles from './markdown.module.scss'
 
@@ -27,8 +28,7 @@ export type MarkdownLabels = {
   outline: string
   closeOutline: string
   image: (alt: string) => string
-  drawing: string
-  diagramFailed: string
+  diagram: DiagramLabels
 }
 
 const MermaidDiagram = lazy(() => import('../mermaid/diagram').then(m => ({ default: m.MermaidDiagram })))
@@ -91,7 +91,7 @@ function Diagram({
     <ErrorBoundary
       fallback={
         <figure data-wide className="m-0">
-          {note(labels.diagramFailed)}
+          {note(labels.diagram.failed)}
           {block}
         </figure>
       }
@@ -99,12 +99,12 @@ function Diagram({
       <Suspense
         fallback={
           <figure data-wide className="m-0">
-            {note(labels.drawing)}
+            {note(labels.diagram.drawing)}
             {block}
           </figure>
         }
       >
-        <MermaidDiagram source={source} labels={{ drawing: labels.drawing, failed: labels.diagramFailed }}>
+        <MermaidDiagram source={source} labels={labels.diagram}>
           {block}
         </MermaidDiagram>
       </Suspense>

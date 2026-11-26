@@ -22,7 +22,7 @@ import { useFile } from '../../../core/remote-files'
 import { useSpace } from '../../../core/space'
 import { SourceView } from '../../../features/files/code-file'
 import { Reading, ScrollScope, useTabScroll } from '../../../features/files/file-page'
-import { useMarkdownParts } from '../../../features/files/markdown-parts'
+import { useDiagramLabels, useMarkdownParts } from '../../../features/files/markdown-parts'
 import { assetReader } from '../../../model/files/assets'
 import { decodeText, type FileKind, formatSize, imageType, kindOf } from '../../../model/files/content'
 import { dirOf, join, nameOf } from '../../../model/files/paths'
@@ -172,14 +172,11 @@ function Source({ name, text, wrap }: ViewProps) {
 }
 
 function Diagram({ text }: ViewProps) {
-  const t = useI18n()
+  const labels = useDiagramLabels()
   return (
     <div className={`${BELOW_BAR} flex flex-col`}>
       <Suspense fallback={<Reading />}>
-        <MermaidRenderer
-          source={text}
-          labels={{ drawing: t('files.drawing'), failed: t('files.diagramFailed') }}
-        />
+        <MermaidRenderer source={text} labels={labels} />
       </Suspense>
     </div>
   )

@@ -22,6 +22,7 @@
     "@lezer/highlight": "1.2.5",
     "@noble/ed25519": "3.2.0",
     "@noble/hashes": "2.4.0",
+    "@panzoom/panzoom": "4.6.2",
     "@scure/base": "2.4.0",
     "@xterm/addon-fit": "0.11.0",
     "@xterm/xterm": "6.0.0",
