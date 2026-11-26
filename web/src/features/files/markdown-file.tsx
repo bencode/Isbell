@@ -1,7 +1,7 @@
 // A Markdown file: a document to read, in the reader's appearance and with its outline, or its
 // source. A link to another file under the root opens it here.
 
-import { ListTree } from 'lucide-react'
+import { FoldHorizontal, ListTree, UnfoldHorizontal } from 'lucide-react'
 import { lazy, Suspense, useCallback, useMemo, useRef, useState } from 'react'
 import { IconButton, SMALL_ICON } from '../../components/icon-button'
 import type { CodeRendererHandle } from '../../components/renderers/code'
@@ -29,6 +29,7 @@ type Mode = 'rendered' | 'source'
 export function MarkdownFile({ shell, text, rel, hrefOf, asset }: FileViewProps) {
   const t = useI18n()
   const reader = useLocal().reader
+  const wide = reader.width === 'full'
   const scroll = useTabScroll()
   const [mode, setMode] = useState<Mode>('rendered')
   const source = useRef<CodeRendererHandle>(null)
@@ -88,6 +89,18 @@ export function MarkdownFile({ shell, text, rel, hrefOf, asset }: FileViewProps)
           onClick={() => setOutlineOpen(!outlineOpen)}
         >
           <ListTree {...SMALL_ICON} />
+        </IconButton>
+      ) : null}
+      {mode === 'rendered' ? (
+        // Named for what a click makes it; the same width as the Aa panel's, so it is kept.
+        <IconButton
+          label={wide ? t('files.focused') : t('files.wide')}
+          size="small"
+          aria-pressed={wide}
+          className={TOOL_ON}
+          onClick={() => setReader({ width: wide ? 'focused' : 'full' })}
+        >
+          {wide ? <FoldHorizontal {...SMALL_ICON} /> : <UnfoldHorizontal {...SMALL_ICON} />}
         </IconButton>
       ) : null}
       {mode === 'rendered' ? (

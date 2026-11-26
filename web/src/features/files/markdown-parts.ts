@@ -4,10 +4,30 @@
 import { useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router'
 import type { MarkdownImage, MarkdownLabels, MarkdownLink } from '../../components/renderers/markdown'
+import type { DiagramLabels } from '../../components/renderers/mermaid/diagram'
 import { useI18n } from '../../core/i18n'
 import { resolveLink } from '../../model/files/paths'
 
 const WEB_IMAGE = /^https?:\/\//i
+
+/** A diagram's words, in a document or a file of its own. */
+export function useDiagramLabels() {
+  const t = useI18n()
+  return useMemo<DiagramLabels>(
+    () => ({
+      drawing: t('files.drawing'),
+      failed: t('files.diagramFailed'),
+      open: t('files.diagramOpen'),
+      zoomIn: t('files.zoomIn'),
+      zoomOut: t('files.zoomOut'),
+      fit: t('files.fit'),
+      actual: t('files.actualSize'),
+      close: t('files.diagramClose'),
+      hint: t('files.zoomHint'),
+    }),
+    [t],
+  )
+}
 
 /** `rel`: the document, relative to its root. A link to another file under the root opens it here. */
 export function useMarkdownParts(
@@ -17,6 +37,7 @@ export function useMarkdownParts(
 ) {
   const t = useI18n()
   const navigate = useNavigate()
+  const diagram = useDiagramLabels()
   // Stable, so the document is not parsed again for them.
   const link = useCallback(
     (href: string): MarkdownLink => {
@@ -41,10 +62,9 @@ export function useMarkdownParts(
       outline: t('files.outline'),
       closeOutline: t('files.closeOutline'),
       image: alt => t('files.image', { alt }),
-      drawing: t('files.drawing'),
-      diagramFailed: t('files.diagramFailed'),
+      diagram,
     }),
-    [t],
+    [t, diagram],
   )
   return { link, image, labels }
 }

@@ -6,6 +6,7 @@ import { Segmented } from '../../components/segmented'
 import { useI18n } from '../../core/i18n'
 import { SourceTools, SourceView } from './code-file'
 import { FilePage, type FileViewProps, Reading } from './file-page'
+import { useDiagramLabels } from './markdown-parts'
 
 // Mermaid is large; it loads with the first diagram.
 const MermaidRenderer = lazy(() =>
@@ -16,6 +17,7 @@ type Mode = 'diagram' | 'source'
 
 export function MermaidFile({ shell, text }: FileViewProps) {
   const t = useI18n()
+  const labels = useDiagramLabels()
   const [mode, setMode] = useState<Mode>('diagram')
   const source = useRef<CodeRendererHandle>(null)
   const tools = (
@@ -39,10 +41,7 @@ export function MermaidFile({ shell, text }: FileViewProps) {
         <SourceView ref={source} text={text} name={shell.name} />
       ) : (
         <Suspense fallback={<Reading />}>
-          <MermaidRenderer
-            source={text}
-            labels={{ drawing: t('files.drawing'), failed: t('files.diagramFailed') }}
-          />
+          <MermaidRenderer source={text} labels={labels} />
         </Suspense>
       )}
     </FilePage>
