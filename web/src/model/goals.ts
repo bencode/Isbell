@@ -22,6 +22,8 @@ export type Goal = {
   /** A month (2026-11), an ISO week (2026-W48) or a day (2026-11-23). */
   period?: string
   state: GoalState
+  createdAt: number
+  endedAt?: number
 }
 
 /** An agent session that added or changed a task; `at` in milliseconds. */
@@ -36,9 +38,12 @@ export type Task = {
   link?: string
   /** The role that follows it. */
   owner?: string
+  /** The root of its project, as an absolute path. */
+  project?: string
   state: TaskState
   /** P2, as the rest, is none. */
   priority?: 'P0' | 'P1'
+  createdAt: number
   startedAt?: number
   endedAt?: number
   sessions: TaskSession[]
@@ -59,7 +64,9 @@ const isGoal = (v: unknown) =>
   typeof v.title === 'string' &&
   typeof v.outcome === 'string' &&
   ['text', 'link', 'due', 'period'].every(k => optional(v[k], 'string')) &&
-  ['open', 'done', 'dropped'].includes(v.state as string)
+  ['open', 'done', 'dropped'].includes(v.state as string) &&
+  typeof v.createdAt === 'number' &&
+  optional(v.endedAt, 'number')
 
 const isSession = (v: unknown) =>
   isObject(v) &&
@@ -74,9 +81,10 @@ const isTask = (v: unknown) =>
   typeof v.id === 'number' &&
   typeof v.goal === 'number' &&
   typeof v.title === 'string' &&
-  ['outcome', 'text', 'link', 'owner'].every(k => optional(v[k], 'string')) &&
+  ['outcome', 'text', 'link', 'owner', 'project'].every(k => optional(v[k], 'string')) &&
   ['todo', 'doing', 'done', 'dropped'].includes(v.state as string) &&
   (v.priority === undefined || v.priority === 'P0' || v.priority === 'P1') &&
+  typeof v.createdAt === 'number' &&
   optional(v.startedAt, 'number') &&
   optional(v.endedAt, 'number') &&
   (v.sessions === undefined || (Array.isArray(v.sessions) && v.sessions.every(isSession)))
@@ -138,18 +146,14 @@ function groupBy<T, K>(items: T[], key: (item: T) => K) {
 
 export type GoalNode = { goal: Goal; tasks: Task[]; children: GoalNode[] }
 
-/** The goals not ended, as a tree in their order, each with its tasks not ended. One whose parent
- * has ended, or is gone, stands at the top. */
-export function openTree({ goals, tasks }: Goals): GoalNode[] {
-  const open = goals.filter(g => !ended(g.state))
-  const openIds = new Set(open.map(g => g.id))
-  const tasksOf = groupBy(
-    tasks.filter(t => !ended(t.state)),
-    t => t.goal,
-  )
-  const top = (g: Goal) => g.parent === undefined || !openIds.has(g.parent)
+/** `goals` as a tree in their order, each with its own of `tasks`; one whose parent is not among
+ * them stands at the top. */
+function treeOf(goals: Goal[], tasks: Task[]): GoalNode[] {
+  const ids = new Set(goals.map(g => g.id))
+  const top = (g: Goal) => g.parent === undefined || !ids.has(g.parent)
+  const tasksOf = groupBy(tasks, t => t.goal)
   const childrenOf = groupBy(
-    open.filter(g => !top(g)),
+    goals.filter(g => !top(g)),
     g => g.parent,
   )
   const nodeOf = (goal: Goal): GoalNode => ({
@@ -157,7 +161,81 @@ export function openTree({ goals, tasks }: Goals): GoalNode[] {
     tasks: tasksOf.get(goal.id) ?? [],
     children: (childrenOf.get(goal.id) ?? []).map(nodeOf),
   })
-  return open.filter(top).map(nodeOf)
+  return goals.filter(top).map(nodeOf)
+}
+
+/** The goals not ended, as a tree in their order, each with its tasks not ended. One whose parent
+ * has ended, or is gone, stands at the top. */
+export const openTree = ({ goals, tasks }: Goals): GoalNode[] =>
+  treeOf(
+    goals.filter(g => !ended(g.state)),
+    tasks.filter(t => !ended(t.state)),
+  )
+
+/** Which goals and tasks a list shows: not ended, all, done or dropped. */
+export type Show = 'open' | 'all' | 'done' | 'dropped'
+
+/** What the full list is narrowed to: by state, by the role that follows a task, by words. */
+export type TaskFilter = { show: Show; owner?: string | undefined; needle?: string | undefined }
+
+const shows = (show: Show, state: TaskState | GoalState) =>
+  show === 'all' || (show === 'open' ? !ended(state) : state === show)
+
+const holds = (needle: string | undefined, ...texts: (string | undefined)[]) =>
+  !needle || texts.some(text => text?.toLowerCase().includes(needle.toLowerCase()))
+
+export const picksTask = ({ show, owner, needle }: TaskFilter, t: Task) =>
+  shows(show, t.state) && (!owner || t.owner === owner) && holds(needle, t.title, t.text)
+
+/** A goal is picked for itself only while no owner is asked for: goals have none. */
+export const picksGoal = ({ show, owner, needle }: TaskFilter, g: Goal) =>
+  shows(show, g.state) && !owner && holds(needle, g.title)
+
+/** Every goal as a tree with the tasks `filter` picks, keeping a goal picked itself, holding a task
+ * picked or above one kept. */
+export function pickedTree(book: Goals, filter: TaskFilter): GoalNode[] {
+  const pruned = (nodes: GoalNode[]): GoalNode[] =>
+    nodes.flatMap(node => {
+      const children = pruned(node.children)
+      const kept = picksGoal(filter, node.goal) || node.tasks.length > 0 || children.length > 0
+      return kept ? [{ ...node, children }] : []
+    })
+  return pruned(
+    treeOf(
+      book.goals,
+      book.tasks.filter(t => picksTask(filter, t)),
+    ),
+  )
+}
+
+export type Progress = { done: number; total: number }
+
+/** How far each goal is, its own tasks and those of the goals under it, whatever a list shows. */
+export function progressOf(book: Goals): ReadonlyMap<number, Progress> {
+  const progress = new Map<number, Progress>()
+  const walk = (node: GoalNode): Progress => {
+    const sum = node.children
+      .map(walk)
+      .reduce((a, b) => ({ done: a.done + b.done, total: a.total + b.total }), {
+        done: node.tasks.filter(t => t.state === 'done').length,
+        total: node.tasks.length,
+      })
+    progress.set(node.goal.id, sum)
+    return sum
+  }
+  treeOf(book.goals, book.tasks).forEach(walk)
+  return progress
+}
+
+/** A goal's period or due date, short: Nov, W48, 11/23. */
+export function periodLabel(locale: string, value: string) {
+  const month = /^(\d{4})-(\d{2})$/.exec(value)
+  if (month)
+    return new Date(Number(month[1]), Number(month[2]) - 1).toLocaleDateString(locale, { month: 'short' })
+  const week = /^\d{4}-(W\d{2})$/.exec(value)
+  if (week) return week[1]
+  const day = /^\d{4}-(\d{2})-(\d{2})$/.exec(value)
+  return day ? `${Number(day[1])}/${Number(day[2])}` : value
 }
 
 /** The tasks not ended under a goal, its own and those of the goals under it. */

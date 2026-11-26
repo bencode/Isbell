@@ -1,9 +1,9 @@
 // The kinds of tab, each with the pattern its ids match (a file's is `file/<root key>/<rel>`, a
 // session's or a shell's `session/<machine>/<pane>`, a session that ran
-// `closed/<machine>/<agent>/<id>`): what one shows, and what it says in the bar.
+// `closed/<machine>/<agent>/<id>`, the goals `goals`): what one shows, and what it says in the bar.
 // Another kind of tab is another line in KINDS.
 
-import { FileText, History, type LucideIcon, SquareTerminal } from 'lucide-react'
+import { FileText, History, type LucideIcon, SquareTerminal, Target } from 'lucide-react'
 import { type ComponentType, lazy } from 'react'
 import { matchPath, type Params, type To } from 'react-router'
 import type { Lookup } from '../../core/session-records'
@@ -41,8 +41,18 @@ const SessionPane = lazy(() =>
 const ClosedPane = lazy(() =>
   import('../../features/session/closed-tab').then(m => ({ default: m.ClosedTabPane })),
 )
+const GoalsPane = lazy(() => import('./goals/goals-tab').then(m => ({ default: m.GoalsTab })))
+
+/** The tab of every machine's goals and tasks. */
+export const GOALS_TAB = 'goals'
 
 const KINDS: TabKind[] = [
+  {
+    pattern: `/${GOALS_TAB}`,
+    Icon: Target,
+    Pane: GoalsPane,
+    label: () => ({ name: 'Goals', where: '', full: 'Goals' }),
+  },
   {
     pattern: '/file/:key/*',
     Icon: FileText,

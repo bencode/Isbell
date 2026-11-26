@@ -7,14 +7,14 @@ import { AGENT_NAMES } from '../../features/session/session-row'
 import { ended, type Task, type TaskState } from '../../model/goals'
 import { shortDay } from '../../utils/time'
 
-const STATES: Readonly<Record<TaskState, { glyph: string; tone: string }>> = {
+export const STATES: Readonly<Record<TaskState, { glyph: string; tone: string }>> = {
   todo: { glyph: '○', tone: 'text-faint' },
   doing: { glyph: '◐', tone: 'text-accent' },
   done: { glyph: '✓', tone: 'text-ok' },
   dropped: { glyph: '✕', tone: 'text-faint' },
 }
 
-const PRIORITIES = { P0: 'text-danger', P1: 'text-warn' }
+export const PRIORITIES = { P0: 'text-danger', P1: 'text-warn' }
 
 type Props = {
   task: Task

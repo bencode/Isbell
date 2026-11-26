@@ -5,11 +5,11 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { type FileRead, read } from '../model/files/remote'
 import { type Goals, goalsPath, parseGoals } from '../model/goals'
-import type { Placed } from '../model/projects'
-import { parseRoles, type RoleOf, type Roles, roleOf, rolesPath } from '../model/roles'
+import { lanes, type Placed } from '../model/projects'
+import { parseRoles, type RoleOf, type Roles, roleKey, roleOf, rolesPath } from '../model/roles'
 import type { Space } from '../model/space'
 import { CallError } from '../model/streams'
-import { useSpace, useSpaceView } from './space'
+import { useProjects, useSpace, useSpaceView } from './space'
 
 const EVERY_MS = 15_000
 /** Far above what 500 messages with their replies take. */
@@ -127,4 +127,30 @@ export function useRoleOf(): (placed: Placed) => RoleOf | undefined {
     const book = books[session.mid]?.roles
     return run && book ? roleOf(book, run) : undefined
   }
+}
+
+/** A machine online with goals, by its id and name. */
+export type Shelf = { mid: string; name: string; book: Goals }
+
+/** The machines online with goals, in their order. */
+export function useGoalShelves(): Shelf[] {
+  const books = useBooks()
+  return useSpaceView()
+    .machines.filter(m => m.online)
+    .flatMap(({ state: { machine } }) => {
+      const book = books[machine.id]?.goals
+      return book ? [{ mid: machine.id, name: machine.name, book }] : []
+    })
+}
+
+/** The agents running a role, by `roleKey` of their machine and the role's name. */
+export function useRunningRoles(): ReadonlyMap<string, Placed> {
+  const live = lanes(useProjects())
+  const roleFor = useRoleOf()
+  return new Map(
+    [...live.asking, ...live.running, ...live.finished, ...live.standing].flatMap(p => {
+      const role = roleFor(p)
+      return role ? [[roleKey(p.session.mid, role.name), p] as const] : []
+    }),
+  )
 }
