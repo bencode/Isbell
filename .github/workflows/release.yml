@@ -1,6 +1,7 @@
-# A tag v<version> builds isbell for Apple silicon Macs and publishes it as a GitHub release, which
-# is then mirrored to isbell.fmap.dev/releases for install.sh to download (docs/development.md). The
-# asset names carry no version, so a version's directory, or latest, finds them.
+# A tag v<version> builds isbell for Apple silicon Macs and publishes it as a GitHub release, with
+# the isbell-tools skill of that version, which is then mirrored to isbell.fmap.dev/releases for
+# install.sh and the skill's update.sh to download (docs/development.md). The asset names carry no
+# version, so a version's directory, or latest, finds them.
 name: Release
 
 on:
@@ -28,9 +29,18 @@ jobs:
           tar -C target/release -czf isbell-aarch64-apple-darwin.tar.gz isbell
           shasum -a 256 isbell-aarch64-apple-darwin.tar.gz > isbell-aarch64-apple-darwin.tar.gz.sha256
 
+      # VERSION, only in the package, tells the skill which isbell it goes with: a checkout has none.
+      - name: Package the skill
+        run: |
+          mkdir skill && cp -R integrations/isbell-tools skill/
+          printf '%s\n' "${GITHUB_REF_NAME#v}" > skill/isbell-tools/VERSION
+          tar -C skill -czf isbell-tools.tar.gz isbell-tools
+          shasum -a 256 isbell-tools.tar.gz > isbell-tools.tar.gz.sha256
+
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" --generate-notes \
-            isbell-aarch64-apple-darwin.tar.gz isbell-aarch64-apple-darwin.tar.gz.sha256
+            isbell-aarch64-apple-darwin.tar.gz isbell-aarch64-apple-darwin.tar.gz.sha256 \
+            isbell-tools.tar.gz isbell-tools.tar.gz.sha256
