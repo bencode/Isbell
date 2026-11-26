@@ -4,7 +4,7 @@
 // wait folded at the end; each stays as it was left.
 
 import { ArrowUpRight, ChevronDown } from 'lucide-react'
-import { type ReactNode, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router'
 import { type Shelf, useGoalShelves, useRunningRoles } from '../../core/books'
 import { useI18n } from '../../core/i18n'
@@ -66,8 +66,6 @@ export function TasksView() {
   const toggles = useLocal().layout.taskToggles
   const { pathname } = useLocation()
   const { open: peekAt } = usePeek()
-  // The task opened, where it was: in Now or in the tree.
-  const [opened, setOpened] = useState<string | null>(null)
 
   if (!shelves.length) return <p className="m-0 px-4 py-3 text-[13px] text-muted">{t('tasks.none')}</p>
 
@@ -88,8 +86,6 @@ export function TasksView() {
         task={task}
         under={under}
         onPeek={agent ? () => peekAt(agent) : undefined}
-        open={opened === key}
-        onToggle={() => setOpened(o => (o === key ? null : key))}
         now={now}
       />
     )
