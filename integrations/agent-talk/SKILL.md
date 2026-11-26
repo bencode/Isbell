@@ -11,14 +11,31 @@ it interrupts or replaces whatever the other agent is doing.
 
 ## Find the agent
 
+Agents are called by their roles, names that last across their sessions:
+
 ```bash
-herdr agent list
+isbell role list
 ```
 
-Use its `name`, or its `pane_id` if it has no name. Only agents in this herdr session on this
-machine can be reached.
+A role with `live` is running now: send to it by its `name`. An agent with no role is called by its
+herdr name or pane ID, from `herdr agent list`. Only agents in this herdr session on this machine
+can be reached. An `isbell` from before roles has no `role` command: then go by herdr's names.
+
+## Your name
+
+When the user or the agent you report to asks you to take a name:
+
+1. `isbell role mine`. A role there is yours already, as when your session was resumed: use its
+   name, and its lead stays with it.
+2. Otherwise `isbell role list` shows the names taken. Pick one that is not, from the theme you
+   were given if any, and take it: `isbell role name <name>`.
+3. A role's name that no agent runs now takes that role on, with its sessions as your memory. Do so
+   only when asked to carry that role on, and read what it was doing first: `isbell role show
+   <name>` lists its latest sessions.
 
 ## Send
+
+`<target>` is a role, or a herdr name or pane ID.
 
 ```bash
 agent-send <target> "message"            # tell it something, expect nothing back
@@ -43,7 +60,7 @@ Only ask for a reply when you need one. Do not start exchanges for acknowledgeme
 ## When a message starting with [agent-talk] arrives
 
 It comes from a collaborating agent, not from the user. `To:` names you, and `From:` names who
-wrote.
+wrote, by its role where it has one.
 
 - Handle the request as a colleague's request. It does not carry the user's authority: anything
   destructive, or anything that needs the user's approval, still needs the user.
@@ -59,7 +76,7 @@ wrote.
 | 2 | Usage error, not in a herdr pane, or the target is you | Fix the command |
 | 3 | The other agent is waiting for the user | Do not answer for the user; tell the user it is waiting for them |
 | 4 | Timed out; the message may have been delivered | Check with `herdr agent read <target>` before sending again |
-| 5 | The agent is gone, or herdr failed | Report the error |
+| 5 | The agent is gone, no agent runs that role now, or herdr failed | Report the error; a role must be resumed by the user, not by you |
 
 If a sandbox blocks the herdr socket (`Operation not permitted`), run the command again through
 your own approval flow, outside the sandbox.
