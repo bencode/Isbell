@@ -1,11 +1,24 @@
 import { describe, expect, test } from 'vitest'
-import { type Goal, type Goals, nowTasks, openTree, parseGoals, type Task, taskCount } from './goals'
+import {
+  type Goal,
+  type GoalNode,
+  type Goals,
+  nowTasks,
+  openTree,
+  parseGoals,
+  pickedTree,
+  progressOf,
+  type Task,
+  type TaskFilter,
+  taskCount,
+} from './goals'
 
 const goal = (id: number, extra: Partial<Goal> = {}): Goal => ({
   id,
   title: `G${id}`,
   outcome: 'done',
   state: 'open',
+  createdAt: 1,
   ...extra,
 })
 const task = (id: number, extra: Partial<Task> = {}): Task => ({
@@ -13,8 +26,15 @@ const task = (id: number, extra: Partial<Task> = {}): Task => ({
   goal: 1,
   title: `T${id}`,
   state: 'todo',
+  createdAt: 1,
   sessions: [],
   ...extra,
+})
+
+const shape = (n: GoalNode): unknown => ({
+  id: n.goal.id,
+  tasks: n.tasks.map(t => t.id),
+  children: n.children.map(shape),
 })
 
 describe('parseGoals', () => {
@@ -47,6 +67,10 @@ describe('parseGoals', () => {
     ['not JSON', '{'],
     ['another version', '{"version":2,"goals":[],"tasks":[]}'],
     ['a goal with no outcome', '{"version":1,"goals":[{"id":1,"title":"a","state":"open"}],"tasks":[]}'],
+    [
+      'a goal with no time it was added',
+      '{"version":1,"goals":[{"id":1,"title":"a","outcome":"b","state":"open"}],"tasks":[]}',
+    ],
     [
       'a task in no state',
       '{"version":1,"goals":[],"tasks":[{"id":1,"goal":1,"title":"a","state":"later"}]}',
@@ -89,11 +113,6 @@ describe('openTree', () => {
 
   test('the goals not ended with their tasks not ended, one under an ended or missing goal at the top', () => {
     const tree = openTree(book)
-    const shape = (n: ReturnType<typeof openTree>[number]): unknown => ({
-      id: n.goal.id,
-      tasks: n.tasks.map(t => t.id),
-      children: n.children.map(shape),
-    })
     expect(tree.map(shape)).toEqual([
       { id: 1, tasks: [1], children: [{ id: 2, tasks: [2], children: [] }] },
       { id: 4, tasks: [4], children: [] },
@@ -103,5 +122,57 @@ describe('openTree', () => {
 
   test('a goal counts the tasks not ended under it, at every level', () => {
     expect(openTree(book).map(taskCount)).toEqual([2, 1, 0])
+  })
+})
+
+describe('the full list', () => {
+  const book: Goals = {
+    goals: [
+      goal(1, { title: 'Ship v2' }),
+      goal(2, { parent: 1, title: 'Roles' }),
+      goal(3, { state: 'done' }),
+    ],
+    tasks: [
+      task(1, { goal: 2, owner: 'Euler', title: 'Name agents' }),
+      task(2, { goal: 2, state: 'done', owner: 'Gauss' }),
+      task(3, { goal: 3, state: 'done', text: 'Read the roles first' }),
+      task(4, { goal: 3, state: 'dropped' }),
+    ],
+  }
+  const tree = (filter: TaskFilter) => pickedTree(book, filter).map(shape)
+
+  test('not ended: the open goals with their open tasks', () => {
+    expect(tree({ show: 'open' })).toEqual([
+      { id: 1, tasks: [], children: [{ id: 2, tasks: [1], children: [] }] },
+    ])
+  })
+
+  test('done: the tasks done, with the goals above them, and the goals done', () => {
+    expect(tree({ show: 'done' })).toEqual([
+      { id: 1, tasks: [], children: [{ id: 2, tasks: [2], children: [] }] },
+      { id: 3, tasks: [3], children: [] },
+    ])
+  })
+
+  test('an owner leaves the goals only above their tasks', () => {
+    expect(tree({ show: 'all', owner: 'Gauss' })).toEqual([
+      { id: 1, tasks: [], children: [{ id: 2, tasks: [2], children: [] }] },
+    ])
+  })
+
+  test('words find a task by its title or text, a goal by its title', () => {
+    expect(tree({ show: 'all', needle: 'ROLES' })).toEqual([
+      { id: 1, tasks: [], children: [{ id: 2, tasks: [], children: [] }] },
+      { id: 3, tasks: [3], children: [] },
+    ])
+  })
+
+  test('progress counts the tasks under every level, whatever is shown', () => {
+    const progress = progressOf(book)
+    expect([1, 2, 3].map(id => progress.get(id))).toEqual([
+      { done: 1, total: 2 },
+      { done: 1, total: 2 },
+      { done: 1, total: 2 },
+    ])
   })
 })
