@@ -180,15 +180,25 @@ def await_ready(target, role, deadline):
                 raise
 
 
-def format_message(sender, recipient, body, reply_command):
+def format_message(sender, recipient, body, mode):
+    """`mode`: how the sender wants an answer, `wait`, `reply` or none; the last line says what to do."""
+    if mode == "wait":
+        closing = (
+            f"{sender} is waiting and reads your answer on your screen: answer in this turn. "
+            f"Do not send it back with agent-send: it would wait for {sender}, who waits for you."
+        )
+    elif mode == "reply":
+        closing = f"To reply, run: {reply_command(sender)}"
+    else:
+        closing = "No reply is asked for."
     lines = [
         f"[agent-talk] From: {sender} · To: {recipient} (that is you)",
         "Sent through herdr by another agent on this machine.",
         "",
         body,
+        "",
+        closing,
     ]
-    if reply_command:
-        lines += ["", f"To reply, run: {reply_command}"]
     return "\n".join(lines)
 
 
@@ -239,7 +249,8 @@ def send(args, pane_id):
     recipient = role or address(agent)
     # By its role, a reply finds the sender even once its session is resumed in another pane.
     sender = my_role(me["pane_id"]) or address(me)
-    text = format_message(sender, recipient, body, reply_command(sender) if args.reply else None)
+    mode = "wait" if args.wait else "reply" if args.reply else None
+    text = format_message(sender, recipient, body, mode)
     if args.wait:
         send_and_wait(pane, recipient, text, deadline)
         return
