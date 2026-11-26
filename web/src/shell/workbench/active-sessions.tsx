@@ -27,6 +27,14 @@ const FILTERS: { value: Filter; label: Key }[] = [
   { value: 'idle', label: 'active.idle' },
 ]
 
+/** Each state's dot, as its agents' rows have it, without the ring a working one's has there. */
+const FILTER_DOTS: Readonly<Record<Exclude<Filter, 'all'>, string>> = {
+  blocked: 'bg-warn',
+  working: 'bg-accent',
+  finished: 'bg-ok',
+  idle: 'bg-line-strong',
+}
+
 /** The filter that shows a team, by the lane the team is in. */
 const FILTER_OF: Readonly<Record<Lane, Filter>> = {
   asking: 'blocked',
@@ -163,34 +171,33 @@ export function ActiveSessions() {
       </section>,
     ]
   })
-  const seeAll = () => {
-    markAllSeen(live.finished.map(p => ({ key: keyOf(p), since: p.session.statusSince })))
-  }
-
   return (
     <>
-      <div className="flex flex-none flex-wrap items-center gap-0.5 px-2 pt-2 pb-1.5">
-        {FILTERS.map(({ value, label }) => (
-          <button
-            key={value}
-            type="button"
-            aria-pressed={filter === value}
-            onClick={() => setActiveFilter(value)}
-            className={`h-6 cursor-pointer rounded-md border-0 px-2 text-xs whitespace-nowrap transition-colors duration-75 hover:text-text focus-visible:outline-2 focus-visible:outline-accent ${filter === value ? 'bg-selected font-medium text-text' : 'bg-transparent text-muted hover:bg-hover'}`}
-          >
-            {t(label)}
-            <span className="ml-1 font-normal text-faint">{countOf(value)}</span>
-          </button>
-        ))}
-        {live.finished.length ? (
-          <button
-            type="button"
-            onClick={seeAll}
-            className="ml-auto h-6 flex-none cursor-pointer rounded-md border-0 bg-transparent px-1.5 text-xs text-faint hover:bg-hover hover:text-text focus-visible:outline-2 focus-visible:outline-accent"
-          >
-            {t('active.markAllSeen')}
-          </button>
-        ) : null}
+      {/* One line: narrower than the names need, each state keeps its dot and count, named on pointing. */}
+      <div className="@container flex-none px-2 pt-1.5 pb-1">
+        <div className="flex items-center gap-0.5 overflow-hidden">
+          {FILTERS.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={filter === value}
+              aria-label={`${t(label)} ${countOf(value)}`}
+              title={t(label)}
+              onClick={() => setActiveFilter(value)}
+              className={`inline-flex h-6 flex-none cursor-pointer items-center gap-1.5 rounded-md border-0 px-2 text-xs whitespace-nowrap transition-colors duration-75 hover:text-text focus-visible:outline-2 focus-visible:outline-accent ${filter === value ? 'bg-selected font-medium text-text' : 'bg-transparent text-muted hover:bg-hover'}`}
+            >
+              {value === 'all' ? (
+                t(label)
+              ) : (
+                <>
+                  <span aria-hidden className={`size-1.5 flex-none rounded-full ${FILTER_DOTS[value]}`} />
+                  <span className="hidden @[440px]:inline">{t(label)}</span>
+                </>
+              )}
+              <span className="font-normal text-faint">{countOf(value)}</span>
+            </button>
+          ))}
+        </div>
       </div>
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto px-2 pt-0.5 pb-3.5">
         {groups.length ? (
@@ -200,5 +207,22 @@ export function ActiveSessions() {
         )}
       </div>
     </>
+  )
+}
+
+/** Marks every agent that finished as seen, in the column's bar; nothing while none has. */
+export function MarkAllSeen() {
+  const t = useI18n()
+  const { finished } = lanes(useProjects())
+  if (!finished.length) return null
+  const seeAll = () => markAllSeen(finished.map(p => ({ key: keyOf(p), since: p.session.statusSince })))
+  return (
+    <button
+      type="button"
+      onClick={seeAll}
+      className="h-6 cursor-pointer rounded-md border-0 bg-transparent px-1.5 text-xs text-faint hover:bg-hover hover:text-text focus-visible:outline-2 focus-visible:outline-accent"
+    >
+      {t('active.markAllSeen')}
+    </button>
   )
 }

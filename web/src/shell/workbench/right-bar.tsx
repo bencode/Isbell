@@ -26,7 +26,7 @@ export function RightBar({ onToggle }: { onToggle: (view: RightView) => void }) 
   return (
     <nav
       aria-label={t('workbench.rightBar')}
-      className="flex w-11 flex-none flex-col items-center gap-1 border-l border-line bg-side pt-[7px]"
+      className="flex w-11 flex-none flex-col items-center gap-1 border-l border-line bg-side pt-[3px]"
     >
       {VIEWS.map(({ view, Icon, label }) => {
         const on = open.includes(view)

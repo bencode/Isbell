@@ -34,10 +34,9 @@ type Props = {
   onKeep: () => void
 }
 
-const LETTERS: Readonly<Record<string, string>> = { claude: 'C', codex: 'X', pi: 'π' }
 /** Each agent's name, as it calls itself. */
 export const AGENT_NAMES: Readonly<Record<string, string>> = { claude: 'Claude', codex: 'Codex', pi: 'pi' }
-/** The dot before the letter, for statuses worth one: one standing by needs nothing said. A working
+/** The dot before the agent's tag, for statuses worth one: one standing by needs nothing said. A working
  * agent's ring starts a little out from its dot, to read at its size. */
 export const STATUS_DOTS: Partial<Readonly<Record<AgentStatus, string>>> = {
   blocked: 'bg-warn',
@@ -47,20 +46,22 @@ export const STATUS_DOTS: Partial<Readonly<Record<AgentStatus, string>>> = {
 }
 
 /** How far a row's second line sits in, under its title: the mark, then the gap after it. */
-const UNDER_MARK = 'pl-[30px]'
+const UNDER_MARK = 'pl-[56px]'
 
-/** The status dot in a slot of its own, kept for every row so dots and letters line up, then the
- * agent's letter, or a shell's square. */
+/** The status dot in a slot of its own, kept for every row so dots and names line up, then the
+ * agent's name in a tag of one width, or a shell's square. */
 export function AgentMark({ mark }: { mark: Mark }) {
   const dot = mark === 'shell' || !mark.status ? undefined : STATUS_DOTS[mark.status]
   return (
     <span className="flex flex-none items-center gap-1">
       <span aria-hidden className={`relative size-1.5 flex-none rounded-full ${dot ?? ''}`} />
       {mark === 'shell' ? (
-        <span className="mx-0.5 size-2 flex-none rounded-[2px] bg-line-strong" />
+        <span className="flex w-[38px] flex-none">
+          <span className="mx-0.5 size-2 rounded-[2px] bg-line-strong" />
+        </span>
       ) : (
-        <span title={mark.agent} className="w-3 text-center font-mono text-[11px] font-medium text-faint">
-          {LETTERS[mark.agent] ?? mark.agent.charAt(0).toUpperCase()}
+        <span className="w-[38px] flex-none truncate rounded text-center text-[10px] leading-4 text-muted shadow-[inset_0_0_0_1px_var(--line-strong)]">
+          {AGENT_NAMES[mark.agent] ?? mark.agent}
         </span>
       )}
     </span>

@@ -28,7 +28,7 @@ import {
 } from '../../core/prefs'
 import { type Overlay, Overlays } from '../../features/settings/settings-dialog'
 import { ReconnectBanner } from '../reconnect-banner'
-import { ActiveSessions } from './active-sessions'
+import { ActiveSessions, MarkAllSeen } from './active-sessions'
 import { BAR } from './bar'
 import { CommandPalette } from './command-palette'
 import { ListColumn } from './list-column'
@@ -41,8 +41,9 @@ import { TabStrip } from './tab-strip'
 import { TasksView } from './tasks-view'
 import { TabPanes } from './workspace'
 
-const VIEW_PARTS: Record<RightView, { title: Key; Body: () => ReactNode }> = {
-  agents: { title: 'workbench.agents', Body: ActiveSessions },
+/** Each right column: its title, what it shows, and what its bar offers beside the title. */
+const VIEW_PARTS: Record<RightView, { title: Key; Body: () => ReactNode; Tools?: () => ReactNode }> = {
+  agents: { title: 'workbench.agents', Body: ActiveSessions, Tools: MarkAllSeen },
   tasks: { title: 'workbench.tasks', Body: TasksView },
   messages: { title: 'workbench.messages', Body: MessagesView },
 }
@@ -51,7 +52,7 @@ const FOLD_MS = 200
 // Narrow as anyone may want; dragged to half of this, a column folds.
 const COLUMN_MIN = '100px'
 const MAIN_MIN = '200px'
-const FOLD_BUTTON = 'absolute top-[7px] z-10'
+const FOLD_BUTTON = 'absolute top-[3px] z-10'
 const MOVING =
   'motion-safe:[&>[data-panel]]:transition-[flex-grow] motion-safe:[&>[data-panel]]:duration-200 motion-safe:[&>[data-panel]]:ease-fold'
 
@@ -242,13 +243,20 @@ export function Frame({ inProject }: { inProject: boolean }) {
                   </main>
                 </Panel>
                 {RIGHT_VIEWS.map(view => {
-                  const { title, Body } = VIEW_PARTS[view]
+                  const { title, Body, Tools } = VIEW_PARTS[view]
                   const fold = columns[view]
                   return (
                     <Fragment key={view}>
                       <ResizeHandle label={t('workbench.resizeRight')} disabled={fold.folded} />
                       <FoldingColumn id={view} fold={fold} shut={!views.includes(view)}>
-                        <div className={`${BAR} px-3.5 text-[13px] font-semibold`}>{t(title)}</div>
+                        <div className={`${BAR} pr-2 pl-3.5 text-[13px] font-semibold`}>
+                          {t(title)}
+                          {Tools && !fold.folded && views.includes(view) ? (
+                            <span className="ml-auto font-normal">
+                              <Tools />
+                            </span>
+                          ) : null}
+                        </div>
                         {fold.folded || !views.includes(view) ? null : <Body />}
                       </FoldingColumn>
                     </Fragment>
