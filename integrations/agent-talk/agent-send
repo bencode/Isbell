@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Send a message to another coding agent in this herdr session, once it has stopped working.
 
-A prompt sent to a busy agent interrupts or replaces its turn, so this waits for the agent to
-stop first. herdr delivers text as if typed: the header added here is the only thing telling the
-recipient who wrote and how to answer.
+An agent is called by its role (`isbell role`), else by its herdr name or pane ID. A prompt sent to
+a busy agent interrupts or replaces its turn, so this waits for the agent to stop first. herdr
+delivers text as if typed: the header added here is the only thing telling the recipient who wrote,
+by its role where it has one, and how to answer.
 
 Exit codes: 0 sent; 2 usage, not in a herdr pane, or sending to yourself; 3 the recipient is
 waiting for the user; 4 timed out, the message may have been delivered, so do not resend blindly;
-5 the recipient is gone or herdr failed.
+5 the recipient is gone, no agent runs that role now, or herdr failed.
 """
 
 import argparse
@@ -27,6 +28,9 @@ EXIT_USAGE = 2
 EXIT_BLOCKED = 3
 EXIT_TIMEOUT = 4
 EXIT_FAILED = 5
+
+# What isbell exits with for a command it does not have: one from before roles.
+ISBELL_USAGE = 2
 
 SANDBOX_HINT = (
     " If a sandbox blocked access to the herdr socket, run this command again through your"
@@ -84,6 +88,64 @@ def herdr_text(args):
     return done.stdout
 
 
+def isbell_error(done):
+    """The error isbell gives as JSON on the last line of stderr, after any warnings."""
+    lines = done.stderr.strip().splitlines()
+    try:
+        return json.loads(lines[-1])
+    except (IndexError, json.JSONDecodeError):
+        return {"code": "failed", "message": done.stderr.strip() or f"exit {done.returncode}"}
+
+
+def isbell(args, expected):
+    """What isbell prints as JSON, or None where it cannot tell: not installed, too old to have the
+    command, or an error in `expected`. Any other failure is said on stderr, and the message goes
+    by herdr's names."""
+    try:
+        done = subprocess.run(
+            ["isbell", *args], capture_output=True, text=True, timeout=CALL_TIMEOUT_S
+        )
+    except FileNotFoundError:
+        return None
+    except subprocess.TimeoutExpired:
+        print("agent-send: isbell did not answer in time; going by herdr names", file=sys.stderr)
+        return None
+    if done.returncode == 0:
+        return json.loads(done.stdout)
+    if done.returncode == ISBELL_USAGE:
+        return None
+    error = isbell_error(done)
+    if error.get("code") not in expected:
+        code, message = error.get("code"), error.get("message")
+        print(f"agent-send: isbell: {code}: {message}; going by herdr names", file=sys.stderr)
+    return None
+
+
+def role_named(name):
+    """The role of that name, with `live` while an agent runs it; None for no such role."""
+    return isbell(["role", "show", name, "--limit", "1"], expected=("not_found",))
+
+
+def my_role(pane_id):
+    """The name of the role this session took, while it runs in this pane: only then does a reply
+    to it find this agent."""
+    mine = isbell(["role", "mine", "--limit", "1"], expected=("not_an_agent",))
+    live = mine[0].get("live") if mine else None
+    return mine[0]["name"] if live and live["pane"] == pane_id else None
+
+
+def resolve(target):
+    """Where a message to `target` goes, and the name of its role: a role is sent to the pane of
+    the agent running it; a name that is no role is herdr's name or a pane ID, as before."""
+    role = role_named(target)
+    if role is None:
+        return target, None
+    if not role.get("live"):
+        name = role["name"]
+        raise Stop(EXIT_FAILED, f"no agent runs the role {name} now; it has to be resumed first")
+    return role["live"]["pane"], role["name"]
+
+
 def get_agent(target):
     return herdr(["agent", "get", target])["agent"]
 
@@ -100,16 +162,17 @@ def remaining_ms(deadline):
     return int(max(deadline - time.monotonic(), 0) * 1000)
 
 
-def await_ready(target, deadline):
+def await_ready(target, role, deadline):
     while True:
         agent = get_agent(target)
         if is_ready(agent):
             return agent
+        who = role or address(agent)
         if agent["agent_status"] == "blocked":
-            raise Stop(EXIT_BLOCKED, f"{address(agent)} is waiting for the user; nothing was sent")
+            raise Stop(EXIT_BLOCKED, f"{who} is waiting for the user; nothing was sent")
         left = remaining_ms(deadline)
         if left == 0:
-            raise Stop(EXIT_TIMEOUT, f"{address(agent)} did not stop in time; nothing was sent")
+            raise Stop(EXIT_TIMEOUT, f"{who} did not stop in time; nothing was sent")
         try:
             herdr(["agent", "wait", target, "--timeout", str(left)], left / 1000 + CALL_TIMEOUT_S)
         except HerdrError as error:
@@ -134,25 +197,25 @@ def reply_command(sender):
     return f'{script} {shlex.quote(sender)} "<your reply>"'
 
 
-def send_and_wait(target, text, deadline):
+def send_and_wait(pane, recipient, text, deadline):
     left = remaining_ms(deadline)
     result = herdr(
-        ["agent", "prompt", target, text, "--wait", "--timeout", str(left)],
+        ["agent", "prompt", pane, text, "--wait", "--timeout", str(left)],
         left / 1000 + CALL_TIMEOUT_S,
     )
     screen = herdr_text(
-        ["agent", "read", target, "--source", "recent-unwrapped", "--lines", SCREEN_LINES]
+        ["agent", "read", pane, "--source", "recent-unwrapped", "--lines", SCREEN_LINES]
     )
     print(screen, end="")
     if result["agent"]["agent_status"] == "blocked":
-        raise Stop(EXIT_BLOCKED, f"{target} is waiting for the user")
+        raise Stop(EXIT_BLOCKED, f"{recipient} is waiting for the user")
 
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(
         prog="agent-send", description="Send a message to another agent in this herdr session."
     )
-    parser.add_argument("target", help="the agent's name or pane ID")
+    parser.add_argument("target", help="the agent's role, or its herdr name or pane ID")
     parser.add_argument("message", help="the message, or - to read it from stdin")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--reply", action="store_true", help="ask the agent to reply to you")
@@ -166,17 +229,21 @@ def send(args, pane_id):
     body = sys.stdin.read() if args.message == "-" else args.message
     if not body.strip():
         raise Stop(EXIT_USAGE, "the message is empty")
+    # herdr first: where it cannot be reached, isbell sees no agent running and could not say why.
     me = get_agent(pane_id)
-    if get_agent(args.target)["pane_id"] == me["pane_id"]:
+    target, role = resolve(args.target)
+    if get_agent(target)["pane_id"] == me["pane_id"]:
         raise Stop(EXIT_USAGE, "that is you; pick another agent")
-    agent = await_ready(args.target, deadline)
-    recipient = address(agent)
-    sender = address(me)
+    agent = await_ready(target, role, deadline)
+    pane = agent["pane_id"]
+    recipient = role or address(agent)
+    # By its role, a reply finds the sender even once its session is resumed in another pane.
+    sender = my_role(me["pane_id"]) or address(me)
     text = format_message(sender, recipient, body, reply_command(sender) if args.reply else None)
     if args.wait:
-        send_and_wait(recipient, text, deadline)
+        send_and_wait(pane, recipient, text, deadline)
         return
-    herdr(["agent", "prompt", recipient, text])
+    herdr(["agent", "prompt", pane, text])
     print(f"sent to {recipient}")
 
 
