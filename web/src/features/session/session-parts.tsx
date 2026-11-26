@@ -84,7 +84,8 @@ export function SessionBody({
   ) : (
     note(
       <>
-        {t('chat.noRecord')} <TerminalLink>{t('session.terminal')}</TerminalLink>
+        {t('chat.noRecord')} {session.kind === 'codex' ? `${t('chat.noRecordCodex')} ` : ''}
+        <TerminalLink>{t('session.terminal')}</TerminalLink>
       </>,
     )
   )

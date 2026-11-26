@@ -442,8 +442,9 @@ export const zh: Record<Key, string> = {
   'chat.toEnd': '回到底部',
   'chat.stop': '停止',
   'chat.answerAbove': '它在等你回答。',
-  'chat.noRecord':
-    '说过的话会在 agent 写进会话记录后出现在这里。如果终端里已有对话，这里却一直没有，说明读不到它的会话记录（Codex 要用 --no-daemon 启动）。',
+  'chat.noRecord': '说过的话会在 agent 写进会话记录后出现在这里。',
+  'chat.noRecordCodex':
+    '如果终端里已有对话，这里却一直没有，说明读不到它的会话记录：Codex 要用 --no-daemon 启动。',
   'chat.unreadRecord': '读不了它的会话记录：文件不在了，或者太大。',
   'chat.sent': '已发送 · 等记录写入',
   'chat.interrupted': '已中断',

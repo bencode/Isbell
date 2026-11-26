@@ -32,10 +32,12 @@ import { asking, type Project } from '../../model/projects'
 import type { MachineEntry } from '../../model/space'
 import { projectHref } from '../../utils/hrefs'
 import { projectOf } from './address'
-import { ProjectTile, shortName } from './tile'
+import { ProjectTile } from './tile'
 
 const SMALL = { ...ICON, size: 14 }
 const ALERT = 'm-0 mx-2 px-1.5 text-xs text-danger'
+/** Thin, a machine is its dot between two rules, named on pointing. */
+const RULE = <span className="h-px w-2.5 bg-line-strong" />
 const TROUBLE: Partial<Record<ProjectConfig['state'], Key>> = {
   broken: 'workbench.brokenProjects',
   unwritable: 'workbench.unwritableProjects',
@@ -206,15 +208,16 @@ function MachineGroup({
     <section>
       <Tip label={[machine.name, offline, trouble].filter(Boolean).join(' · ')} side="right" disabled={!thin}>
         <h2
-          className={`group relative m-0 mt-3 mb-0.5 ml-2 flex h-[22px] items-center overflow-hidden pl-1.5 text-[11px] font-semibold whitespace-nowrap text-faint ${thin ? 'gap-[3px]' : 'mr-2 gap-1.5'}`}
+          className={`group relative m-0 mx-2 mt-3 mb-0.5 flex h-[22px] items-center overflow-hidden text-[11px] font-semibold whitespace-nowrap text-faint ${thin ? 'justify-center gap-[3px]' : 'gap-1.5 pl-1.5'}`}
         >
+          {thin ? RULE : null}
           <span
             className={`size-1.5 flex-none rounded-full ${
               trouble ? 'bg-danger' : entry.online ? 'bg-ok' : 'shadow-[inset_0_0_0_1.5px_var(--faint)]'
             }`}
           />
           {thin ? (
-            shortName(machine.name)
+            RULE
           ) : (
             <>
               <span className="min-w-0 flex-1 truncate">{machine.name}</span>

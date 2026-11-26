@@ -4,7 +4,7 @@
 
 import { Dialog } from '@base-ui/react/dialog'
 import { FolderPlus, Maximize2, SkipForward, X } from 'lucide-react'
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { IconButton } from '../../components/icon-button'
 import { errorText, useI18n } from '../../core/i18n'
@@ -22,9 +22,39 @@ import {
 } from '../../model/projects'
 import { projectsSettled } from '../../model/space'
 import { type Peek as Peeked, peekOf, sessionTabId, tabOf, withPeek } from '../../model/tabs'
+import { MAC } from '../../utils/command-key'
 import { isTab, sessionTabHref } from './tab-kinds'
 
 const SMALL = { size: 14, strokeWidth: 1.5, absoluteStrokeWidth: true }
+const OPEN_KEY = MAC ? '⌥↩' : 'Alt+Enter'
+
+/** ⌥↩ (Alt+Enter) opens what is looked at in its tab, from anywhere in the drawer, the terminal too:
+ * caught on the way down. The ⌥ let go after it is no tap of the voice key. */
+function useOpenKey(open: () => void) {
+  const latest = useRef(open)
+  latest.current = open
+  useEffect(() => {
+    let held = false
+    const down = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' || !e.altKey || e.metaKey || e.ctrlKey || e.shiftKey || e.isComposing) return
+      e.preventDefault()
+      e.stopPropagation()
+      held = true
+      latest.current()
+    }
+    const up = (e: KeyboardEvent) => {
+      if (e.key !== 'Alt' || !held) return
+      held = false
+      e.stopPropagation()
+    }
+    window.addEventListener('keydown', down, true)
+    window.addEventListener('keyup', up, true)
+    return () => {
+      window.removeEventListener('keydown', down, true)
+      window.removeEventListener('keyup', up, true)
+    }
+  }, [])
+}
 
 /** One that asks opens where it is answered; the rest as they were last viewed. */
 export const opensInTerminal = ({ mid, paneId, status }: Session) =>
@@ -83,6 +113,8 @@ function Looking({ peek, found, go }: { peek: Peeked; found: Found; go: (to: Pee
   const { mid, paneId } = peek
   const next = nextNeeding(lanes(useProjects()), peek)?.session
   const other = next && !(next.mid === mid && next.paneId === paneId) ? next : undefined
+  const openTab = () => navigate(sessionTabHref(found.project.key, mid, paneId, peek.terminal))
+  useOpenKey(openTab)
   return (
     <SessionView
       mid={mid}
@@ -106,11 +138,7 @@ function Looking({ peek, found, go }: { peek: Peeked; found: Found; go: (to: Pee
           >
             <SkipForward {...SMALL} />
           </IconButton>
-          <IconButton
-            label={t('peek.open')}
-            size="small"
-            onClick={() => navigate(sessionTabHref(found.project.key, mid, paneId, peek.terminal))}
-          >
+          <IconButton label={`${t('peek.open')} (${OPEN_KEY})`} size="small" onClick={openTab}>
             <Maximize2 {...SMALL} />
           </IconButton>
           <Dialog.Close

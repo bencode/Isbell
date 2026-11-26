@@ -448,8 +448,9 @@ export const en = {
   'chat.toEnd': 'Back to the end',
   'chat.stop': 'Stop',
   'chat.answerAbove': 'It waits for your answer.',
-  'chat.noRecord':
-    "What is said shows here once the agent records it. If the terminal has a conversation that never shows here, its record can't be found (start Codex with --no-daemon).",
+  'chat.noRecord': 'What is said shows here once the agent records it.',
+  'chat.noRecordCodex':
+    "If the terminal has a conversation that never shows here, its record can't be found: start Codex with --no-daemon.",
   'chat.unreadRecord': "Its record can't be read: it is gone, or too large.",
   'chat.sent': 'Sent · waiting for the record',
   'chat.interrupted': 'Interrupted',

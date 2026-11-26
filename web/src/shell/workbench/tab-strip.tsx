@@ -15,7 +15,8 @@ import type { TabEntry } from '../../model/tabs'
 import { kindOf, type LabelFrom } from './tab-kinds'
 
 const SMALL = { size: 13, strokeWidth: 1.5, absoluteStrokeWidth: true }
-const TAB = 'group flex h-full min-w-24 flex-[0_1_196px] items-center gap-1.5 pr-1.5 pl-[11px] text-[13px]'
+const TAB =
+  'group flex h-full min-w-24 max-w-[280px] flex-[0_1_auto] items-center gap-1.5 pr-1.5 pl-[11px] text-[13px]'
 const SHOWN = 'bg-bg font-medium text-text shadow-[inset_-1px_0_var(--line)]'
 const HIDDEN =
   'text-muted shadow-[inset_-1px_0_var(--line),inset_0_-1px_var(--line)] transition-colors duration-75 hover:bg-hover hover:text-text'
