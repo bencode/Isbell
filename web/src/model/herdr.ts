@@ -1,7 +1,7 @@
 // The gateway calls the web client makes: herdr's whitelisted methods, passed through, and
 // Isbell's own `isbell.agent.start` and `.launch`, `isbell.pane.processes` and `isbell.terminal`.
 
-import { type AgentInfo, type AgentNote, noteOf, titleOf } from './agent-note'
+import { type AgentInfo, type AgentNote, noteOf, sessionOf, titleOf } from './agent-note'
 
 export type Caller = (mid: string, m: string, p: unknown, timeoutMs: number) => Promise<unknown>
 
@@ -34,14 +34,7 @@ const OPEN_TIMEOUT_MS = 50_000
 const herdr = (call: Caller, mid: string, method: string, params: unknown) =>
   call(mid, 'herdr', { method, params }, HERDR_TIMEOUT_MS)
 
-type PaneInfo = {
-  pane_id: string
-  agent?: string | null
-  cwd?: string | null
-  foreground_cwd?: string | null
-  terminal_title_stripped?: string | null
-  tokens?: Record<string, string | null> | null
-}
+type PaneInfo = AgentInfo & { pane_id: string; foreground_cwd?: string | null }
 
 const runOf = (p: PaneInfo): Run | undefined => {
   const agent = p.tokens?.isbell_agent
@@ -57,9 +50,10 @@ const shellOf = (mid: string, p: PaneInfo): Shell[] => {
   return [{ mid, paneId: p.pane_id, cwd, ...(title ? { title } : {}), ...(ran ? { ran } : {}) }]
 }
 
+/** An agent's session: as its hook reported it, else as herdr made it out, as for the cards. */
 const runIn = (p: PaneInfo): [string, Run][] => {
-  const run = p.agent ? runOf(p) : undefined
-  return run ? [[p.pane_id, run]] : []
+  const id = p.agent ? sessionOf(p) : undefined
+  return p.agent && id ? [[p.pane_id, { agent: p.agent, id }]] : []
 }
 
 const titleIn = (p: PaneInfo): [string, string][] => {

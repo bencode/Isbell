@@ -82,17 +82,23 @@ export function titleOf(info: AgentInfo): string | undefined {
 const toolUse = (tool: string | undefined, target: string | undefined): ToolUse | undefined =>
   tool ? (target ? { tool, target } : { tool }) : undefined
 
+// What an agent's hook left in a pane outlives it there, so it is read only for the agent that
+// reported it; the hook's first version, for Claude Code alone, did not say which.
+const hookOf = (info: AgentInfo) => (name: string) =>
+  (info.tokens?.isbell_agent ?? 'claude') === info.agent ? info.tokens?.[name] || undefined : undefined
+
+/** The agent's own id for the session running in the pane: as its hook reported it, else as herdr
+ * made it out. */
+export const sessionOf = (info: AgentInfo) => hookOf(info)('isbell_session') ?? herdrSession(info)
+
 export function noteOf(info: AgentInfo): AgentNote {
-  // What an agent's hook left in a pane outlives it there, so it is read only for the agent that
-  // reported it; the hook's first version, for Claude Code alone, did not say which.
-  const ours = (info.tokens?.isbell_agent ?? 'claude') === info.agent
-  const token = (name: string) => (ours ? info.tokens?.[name] || undefined : undefined)
+  const token = hookOf(info)
   const title = titleOf(info)
   const asked = token('isbell_ask')
   const doing = toolUse(token('isbell_tool'), token('isbell_target'))
   const asking = toolUse(token('isbell_wait_tool'), token('isbell_wait_target'))
   const mode = token('isbell_mode')
-  const session = token('isbell_session') ?? herdrSession(info)
+  const session = sessionOf(info)
   const file = session ? herdrFile(info) : undefined
   return {
     ...(title ? { title } : {}),

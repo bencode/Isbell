@@ -15,6 +15,13 @@ test('a shell keeps the session an agent last reported running in it; an agent g
     { pane_id: 'p2', cwd: '/w', agent: 'pi', tokens: { isbell_agent: 'pi', isbell_session: 's2' } },
     { pane_id: 'p3', cwd: '/w', tokens: { isbell_agent: 'pi' } },
     { pane_id: 'p4', cwd: '/w', agent: 'claude' },
+    // No hook in it: herdr's own report.
+    {
+      pane_id: 'p5',
+      cwd: '/w',
+      agent: 'claude',
+      agent_session: { agent: 'claude', kind: 'id', value: 's5' },
+    },
   ]
   const call: Caller = async () => ({ snapshot: { panes: listed } })
   const found = await panes(call, 'm')
@@ -22,7 +29,7 @@ test('a shell keeps the session an agent last reported running in it; an agent g
     { mid: 'm', paneId: 'p1', cwd: '/w', ran: { agent: 'pi', id: 's1' } },
     { mid: 'm', paneId: 'p3', cwd: '/w' },
   ])
-  expect(found.runs).toEqual({ p2: { agent: 'pi', id: 's2' } })
+  expect(found.runs).toEqual({ p2: { agent: 'pi', id: 's2' }, p5: { agent: 'claude', id: 's5' } })
 })
 
 test("an agent's pane gives its task, when its terminal's title names one", async () => {
