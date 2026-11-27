@@ -1,8 +1,18 @@
 // A session's page on a phone: the bar that names it and switches between its chat, which scrolls
-// with the page, and its terminal, which is laid over it and attached only while shown.
+// with the page, and its terminal, which is laid over it and attached only while shown. Opened from a
+// message, the chat has it pinned under the bar.
 
 import { Ellipsis } from 'lucide-react'
-import { Activity, lazy, Suspense, useCallback, useEffect, useLayoutEffect, useState } from 'react'
+import {
+  Activity,
+  lazy,
+  type ReactNode,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useState,
+} from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router'
 import { Modal } from '../../components/dialog'
 import { DropdownMenu } from '../../components/menu'
@@ -24,6 +34,7 @@ import { projectFilesHref } from '../../utils/hrefs'
 import { Loading } from '../loading'
 import { BackButton, PhoneBar, TAP } from './bar'
 import { PhoneChat } from './chat'
+import { PIN, Pinned } from './inbox/pinned'
 
 // With xterm, which a chat alone does not need.
 const PhoneTerminal = lazy(() => import('./terminal').then(m => ({ default: m.PhoneTerminal })))
@@ -86,9 +97,15 @@ function Opened({ mid, paneId, found }: { mid: string; paneId: string; found: Fo
   const [info, setInfo] = useState(false)
   const [ending, setEnding] = useState(false)
   const [via, setVia] = useState<Via>()
+  const pinAt = new URLSearchParams(search).get(PIN)
+  const unpin = () => {
+    const params = new URLSearchParams(search)
+    params.delete(PIN)
+    navigate({ search: params.toString() }, { replace: true })
+  }
 
-  const bar = (
-    <PhoneBar>
+  const barWith = (under?: ReactNode) => (
+    <PhoneBar under={under}>
       <BackButton />
       <div className="min-w-0 flex-1">
         <b className="block truncate text-[14.5px] leading-tight font-semibold">
@@ -134,7 +151,7 @@ function Opened({ mid, paneId, found }: { mid: string; paneId: string; found: Fo
       {shown === 'terminal' ? (
         <Suspense fallback={<Loading />}>
           <PathRoot value={{ project, cwd }}>
-            <PhoneTerminal bar={bar} mid={mid} paneId={paneId} onVia={setVia} />
+            <PhoneTerminal bar={barWith()} mid={mid} paneId={paneId} onVia={setVia} />
           </PathRoot>
         </Suspense>
       ) : null}
@@ -142,7 +159,7 @@ function Opened({ mid, paneId, found }: { mid: string; paneId: string; found: Fo
       {agent ? (
         <Activity mode={shown === 'chat' ? 'visible' : 'hidden'}>
           <div className="flex min-h-dvh flex-col">
-            {bar}
+            {barWith(pinAt ? <Pinned key={pinAt} mid={mid} id={Number(pinAt)} onClose={unpin} /> : null)}
             <PhoneChat project={project} session={agent} ran={ran} />
           </div>
         </Activity>

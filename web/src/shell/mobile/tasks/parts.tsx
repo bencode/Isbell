@@ -1,15 +1,14 @@
 // The pieces of the phone's Tasks: tasks in a card, each its state, title, number, priority, the role
 // that follows it and what it is under; goals with how far they are; a file a task gave, opened to
-// read; the messages about one. Each goes where it says.
+// read. Each goes where it says.
 
 import { FileText, Target } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { RoleAvatar } from '../../../components/role-avatar'
-import { type Shelf, useRunningRoles, useRunningSession } from '../../../core/books'
+import { type Shelf, useRunningRoles } from '../../../core/books'
 import { type Key, useI18n } from '../../../core/i18n'
 import { useProjects } from '../../../core/space'
-import { AGENT_NAMES } from '../../../features/session/session-row'
 import { projectHolding } from '../../../model/files/worktrees'
 import {
   ended,
@@ -20,11 +19,9 @@ import {
   type Task,
   type TaskState,
 } from '../../../model/goals'
-import { lastActive, type Message, type MessageKind } from '../../../model/messages'
 import type { Placed } from '../../../model/projects'
 import { roleKey } from '../../../model/roles'
-import { projectFilesHref, sessionHref } from '../../../utils/hrefs'
-import { since } from '../../../utils/time'
+import { projectFilesHref } from '../../../utils/hrefs'
 import { BackButton, PhoneBar } from '../bar'
 
 export const taskHref = (mid: string, id: number) => `/tasks/${encodeURIComponent(mid)}/${id}`
@@ -218,60 +215,6 @@ export function FileChip({ mid, path }: { mid: string; path: string }) {
     </Link>
   ) : (
     <div className={look}>{body}</div>
-  )
-}
-
-const KINDS: Readonly<Record<MessageKind, { glyph: string; tone: string }>> = {
-  ask: { glyph: '?', tone: 'bg-warn/15 text-warn' },
-  warn: { glyph: '!', tone: 'bg-danger/15 text-danger' },
-  done: { glyph: '✓', tone: 'bg-ok/15 text-ok' },
-  info: { glyph: 'i', tone: 'bg-raised-2 text-faint' },
-}
-
-/** Messages on a machine, each opening the agent that sent it while it runs. */
-export function MessageList({ mid, messages, now }: { mid: string; messages: Message[]; now: number }) {
-  const running = useRunningSession()
-  return (
-    <div className={CARD}>
-      {messages.map(message => {
-        const { from } = message
-        const placed = from && running(mid, from.agent, from.session)
-        const who = from && (from.role ?? AGENT_NAMES[from.agent] ?? from.agent)
-        const kind = KINDS[message.kind]
-        const body = (
-          <>
-            <span
-              aria-hidden
-              className={`mt-px grid size-5 flex-none place-items-center rounded-full text-[11px] font-bold ${kind.tone}`}
-            >
-              {kind.glyph}
-            </span>
-            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="line-clamp-2 text-[13.5px] leading-snug font-medium [overflow-wrap:anywhere]">
-                {message.title ?? message.text}
-              </span>
-              <span className="text-[11.5px] text-faint">
-                {[who, since(lastActive(message), now)].filter(Boolean).join(' · ')}
-              </span>
-            </span>
-          </>
-        )
-        const look = 'flex gap-2.5 px-3 py-2.5 text-text no-underline'
-        return placed ? (
-          <Link
-            key={message.id}
-            to={sessionHref(placed.session.mid, placed.session.paneId)}
-            className={`${look} active:bg-press`}
-          >
-            {body}
-          </Link>
-        ) : (
-          <div key={message.id} className={look}>
-            {body}
-          </div>
-        )
-      })}
-    </div>
   )
 }
 

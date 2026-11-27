@@ -13,6 +13,7 @@ import { roleKey } from '../../../model/roles'
 import { sessionHref } from '../../../utils/hrefs'
 import { shortDay, useNow } from '../../../utils/time'
 import { BackButton, BarTitle, PhoneBar } from '../bar'
+import { MessageRow } from '../inbox/message-row'
 import {
   Absent,
   CARD,
@@ -20,7 +21,6 @@ import {
   Facts,
   FileChip,
   goalHref,
-  MessageList,
   Owner,
   Priority,
   Section,
@@ -131,7 +131,17 @@ export function PhoneTask() {
         ) : null}
         {messages.length ? (
           <Section title={t('mobile.messages')} count={messages.length}>
-            <MessageList mid={mid} messages={messages} now={now} />
+            <div className={CARD}>
+              {messages.map(message => (
+                <MessageRow
+                  key={message.id}
+                  posted={{ mid, name: shelf.name, message }}
+                  named={false}
+                  now={now}
+                  onTask
+                />
+              ))}
+            </div>
           </Section>
         ) : null}
         {task.sessions.length ? (
