@@ -199,10 +199,6 @@ impl Calls {
             Method::AgentShareList => link.send(response_frame(id, Ok(self.shares.agents.list()))),
             Method::AgentShareLink => link.send(response_frame(id, self.shares.agents.link(p))),
             Method::AgentShareStop => link.send(response_frame(id, self.shares.agents.stop(p))),
-            Method::AgentShareSession => {
-                let only = RpcError::new("method_not_allowed", "only a share's guests ask that");
-                link.send(response_frame(id, Err(only)));
-            }
             Method::Upgrade => {
                 self.tasks
                     .spawn(async move { link.send(response_frame(id, upgrade::upgrade().await)) });
