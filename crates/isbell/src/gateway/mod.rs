@@ -111,6 +111,7 @@ pub async fn run(opts: GatewayOptions) -> Result<(), GatewayError> {
         opts.machine.clone(),
         Arc::clone(&slot),
         states_rx.clone(),
+        opts.uploads.clone(),
     );
     let (inbox, inbox_rx) = mpsc::unbounded_channel();
     tracing::info!(uploads = %opts.uploads.display(), "files sent for agents go here");

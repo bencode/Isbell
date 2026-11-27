@@ -28,6 +28,7 @@ pub async fn guests_reach_only_what_is_shared(owner: &Session, mid: &str, url: &
     let state = shown(&guest, &mut events, mid, |s| !s.agents.is_empty()).await;
     assert_eq!(panes(&state), ["w1:p1"]);
     assert!(state.machine.hostname.is_empty(), "guests are not told the hostname");
+    assert!(state.caps.methods.iter().any(|m| m == "isbell.file.upload"), "guests send files");
 
     let read = |target: &str| json!({"method": "agent.read", "params": {"target": target, "source": "recent"}});
     let text = guest.call(mid, "herdr", read("w1:p1"), None).await.unwrap();

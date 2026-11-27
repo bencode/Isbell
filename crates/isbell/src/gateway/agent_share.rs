@@ -45,6 +45,8 @@ pub struct AgentShares {
     states: States,
     /// Where the agent hook keeps its session records.
     records: Option<PathBuf>,
+    /// Where files guests send for the agents go: the machine's uploads directory.
+    uploads: PathBuf,
 }
 
 struct Running {
@@ -100,6 +102,7 @@ impl AgentShares {
         machine: MachineInfo,
         slot: HerdrSlot,
         states: States,
+        uploads: PathBuf,
     ) -> Arc<AgentShares> {
         Arc::new(AgentShares {
             running: Mutex::default(),
@@ -111,6 +114,7 @@ impl AgentShares {
             slot,
             states,
             records: workspace::expand_home("~/.isbell/sessions"),
+            uploads,
         })
     }
 
@@ -200,6 +204,7 @@ async fn serve(
         Arc::clone(&shares.slot),
         panes.clone(),
         shares.records.clone(),
+        shares.uploads.clone(),
         shares.ice.clone(),
         inbox.clone(),
     );
@@ -298,6 +303,7 @@ mod tests {
             machine,
             HerdrSlot::default(),
             states,
+            PathBuf::new(),
         )
     }
 

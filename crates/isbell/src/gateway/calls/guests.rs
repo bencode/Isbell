@@ -1,8 +1,9 @@
 //! What an agent share's guests reach: the agents shared, by their panes, and nothing else. They
 //! talk with them as the user would (prompts, keys, the screen, the conversation as the agent keeps
-//! it, the terminal) but start, close or read nothing else. Anyone with the link can send frames
-//! here, so calls are allowed by name, and each is held to the panes shared as they are when it
-//! comes; a pane is named by its id, never by an agent's name, which could be another's.
+//! it, the terminal, files sent for them) but start, close or read nothing else. Anyone with the
+//! link can send frames here, so calls are allowed by name, and each is held to the panes shared as
+//! they are when it comes; a pane is named by its id, never by an agent's name, which could be
+//! another's.
 
 use std::path::{Path, PathBuf};
 
@@ -23,8 +24,17 @@ use crate::gateway::{HerdrSlot, direct, file, rpc, terminal};
 /// The herdr methods a guest may call, each on a pane shared.
 const HERDR_METHODS: &[&str] =
     &["agent.get", "agent.read", "agent.prompt", "agent.wait", "agent.send_keys", "pane.read"];
-const OWN_METHODS: [Method; 4] =
-    [Method::Terminal, Method::FileRead, Method::RtcOffer, Method::AgentShareSession];
+const OWN_METHODS: [Method; 5] = [
+    Method::Terminal,
+    Method::FileRead,
+    Method::FileUpload,
+    Method::RtcOffer,
+    Method::AgentShareSession,
+];
+
+/// The largest file a guest may send, as the web takes for anyone (`UPLOAD_MAX`): the owner's own
+/// uploads are not held to it, but anyone with the link can send one.
+const GUEST_UPLOAD_MAX: u64 = 20 * 1024 * 1024;
 
 /// Methods a share's machine advertises.
 pub fn methods() -> Vec<String> {
@@ -51,6 +61,8 @@ pub struct Guests {
     panes: watch::Receiver<Vec<String>>,
     /// Where the agent hook keeps its session records (`~/.isbell/sessions`).
     records: Option<PathBuf>,
+    /// Where files sent for the agents go, as the owner's own uploads do.
+    uploads: PathBuf,
     /// STUN servers for direct links.
     ice: Vec<String>,
     /// Its own inbox, so that a direct link's frames are held to the same rules.
@@ -62,6 +74,7 @@ impl Guests {
         slot: HerdrSlot,
         panes: watch::Receiver<Vec<String>>,
         records: Option<PathBuf>,
+        uploads: PathBuf,
         ice: Vec<String>,
         inbox: mpsc::UnboundedSender<ToCalls>,
     ) -> Guests {
@@ -71,6 +84,7 @@ impl Guests {
             slot,
             panes,
             records,
+            uploads,
             ice,
             inbox,
         }
@@ -126,6 +140,10 @@ impl Guests {
                     file::open_read(p).await
                 };
                 self.stream(link, id, open, file::pump_read);
+            }
+            Method::FileUpload => {
+                let open = file::open_upload(p, self.uploads.clone());
+                self.stream(link, id, open, file::pump_write);
             }
             Method::RtcOffer => {
                 let (ice, inbox) = (self.ice.clone(), self.inbox.clone());
@@ -191,7 +209,11 @@ fn allowed(method: Method, p: &Value, shared: &[String]) -> Result<(), RpcError>
             on_shared(if name == "pane.read" { &params["pane_id"] } else { &params["target"] })
         }
         Method::Terminal if p["new"].is_null() => on_shared(&p["target"]),
-        Method::FileRead | Method::RtcOffer => Ok(()),
+        // An upload lands in a directory of its own under the uploads one, by its name's last part.
+        Method::FileUpload if p["size"].as_u64().is_some_and(|size| size > GUEST_UPLOAD_MAX) => {
+            Err(RpcError::new("too_large", "a share takes files of at most 20 MB"))
+        }
+        Method::FileRead | Method::FileUpload | Method::RtcOffer => Ok(()),
         Method::AgentShareSession => on_shared(&p["paneId"]),
         _ => Err(not_allowed()),
     }
@@ -267,7 +289,7 @@ mod tests {
     fn guests(panes: &[&str]) -> (Guests, watch::Sender<Vec<String>>) {
         let (inbox, _rx) = mpsc::unbounded_channel();
         let (tx, rx) = watch::channel(panes.iter().map(|p| (*p).to_owned()).collect());
-        (Guests::new(HerdrSlot::default(), rx, None, Vec::new(), inbox), tx)
+        (Guests::new(HerdrSlot::default(), rx, None, PathBuf::new(), Vec::new(), inbox), tx)
     }
 
     fn refused(guests: &mut Guests, m: &str, p: Value) -> Option<String> {
@@ -326,6 +348,10 @@ mod tests {
             refused(&mut guests, "isbell.terminal", shell).as_deref(),
             Some("method_not_allowed")
         );
+
+        // A file larger than a guest may send.
+        let big = json!({"name": "big.bin", "size": GUEST_UPLOAD_MAX + 1});
+        assert_eq!(refused(&mut guests, "isbell.file.upload", big).as_deref(), Some("too_large"));
 
         // Unshared while the link is held: refused from then on.
         panes.send_replace(Vec::new());

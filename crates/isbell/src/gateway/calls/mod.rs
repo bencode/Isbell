@@ -263,8 +263,15 @@ mod tests {
             version: "v".into(),
         };
         let space = identity.sid();
-        let agents =
-            AgentShares::new(space, String::new(), vec![], machine, slot.clone(), states_rx);
+        let agents = AgentShares::new(
+            space,
+            String::new(),
+            vec![],
+            machine,
+            slot.clone(),
+            states_rx,
+            uploads.clone(),
+        );
         let shares = Sharing { files: shares, agents };
         let calls = Calls::new(slot, refresh, vec![], uploads, push, shares, inbox.clone());
         let streams = Arc::clone(&calls.streams);
