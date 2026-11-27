@@ -5,11 +5,13 @@
 import { lazy, type ReactNode, Suspense, useCallback, useState } from 'react'
 import { rememberView } from '../../core/prefs'
 import { usePaneSession } from '../../core/session-records'
+import { useSpaceView } from '../../core/space'
 import { useFilesRoots } from '../../core/worktrees'
+import { sharedWithMe } from '../../model/agent-share'
 import { CHAT_AGENTS } from '../../model/agents'
 import { rootHolding } from '../../model/files/worktrees'
 import { type Found, paneKey } from '../../model/projects'
-import type { Via } from '../../model/space'
+import { machineOf, type Via } from '../../model/space'
 import { Chat } from './chat'
 import { PathRoot, ShowTerminal } from './context'
 import { EndPane } from './end-pane-dialog'
@@ -67,6 +69,7 @@ export function SessionView({
   const [ending, setEnding] = useState(false)
   const { roots } = useFilesRoots(project)
   const branch = roots.length ? (rootHolding(roots, cwd)?.root.branch ?? null) : undefined
+  const shared = sharedWithMe(machineOf(useSpaceView().machines, mid))
 
   return (
     <ShowTerminal value={showTerminal}>
@@ -79,7 +82,7 @@ export function SessionView({
           facts={
             <PaneFacts mid={mid} project={project} pane={pane} via={shown === 'terminal' ? via : 'calls'} />
           }
-          onEnd={() => setEnding(true)}
+          onEnd={shared ? undefined : () => setEnding(true)}
           actions={actions}
         />
         <div className="relative min-h-0 flex-1">

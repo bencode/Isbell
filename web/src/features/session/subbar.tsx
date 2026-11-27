@@ -22,7 +22,8 @@ type Props = {
   /** What it has to offer beyond its facts, before them. */
   tools?: ReactNode
   facts: ReactNode
-  onEnd: () => void
+  /** Absent for a pane shared with the user: its owner names and ends it. */
+  onEnd?: (() => void) | undefined
   /** What the place it is in adds, at its end. */
   actions?: ReactNode
 }
@@ -38,7 +39,11 @@ export function Subbar({ pane, branch, view, tools, facts, onEnd, actions }: Pro
       {'session' in pane ? (
         <>
           <StatusDot status={pane.session.status} />
-          <NameEditor session={pane.session} />
+          {onEnd ? (
+            <NameEditor session={pane.session} />
+          ) : (
+            <span className="min-w-0 truncate text-[13px] text-text">{pane.session.name}</span>
+          )}
         </>
       ) : (
         <span className="font-mono text-[13px] text-text">{pane.shell.paneId}</span>
@@ -66,14 +71,16 @@ export function Subbar({ pane, branch, view, tools, facts, onEnd, actions }: Pro
             </Popover.Positioner>
           </Popover.Portal>
         </Popover.Root>
-        <IconButton
-          label={t('session' in pane ? 'end.confirm' : 'terminal.endConfirm')}
-          size="small"
-          onClick={onEnd}
-          className="hover:text-danger"
-        >
-          <Square {...SMALL_ICON} />
-        </IconButton>
+        {onEnd ? (
+          <IconButton
+            label={t('session' in pane ? 'end.confirm' : 'terminal.endConfirm')}
+            size="small"
+            onClick={onEnd}
+            className="hover:text-danger"
+          >
+            <Square {...SMALL_ICON} />
+          </IconButton>
+        ) : null}
         {actions}
       </span>
     </div>

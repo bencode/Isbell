@@ -9,7 +9,8 @@ import { useLocation, useNavigate } from 'react-router'
 import { IconButton } from '../../components/icon-button'
 import { errorText, useI18n } from '../../core/i18n'
 import { lastInTerminal } from '../../core/prefs'
-import { useProjects, useSpace, useSpaceView } from '../../core/space'
+import { useSharedSpaces, useSharedSpacesReady } from '../../core/shared-spaces'
+import { ProvideSpace, useProjects, useSpace, useSpaceView } from '../../core/space'
 import {
   type Found,
   lanes,
@@ -72,10 +73,12 @@ export function usePeek() {
     (to: Peeked | null) => navigate({ pathname, search: withPeek(search, to) }, { replace: true }),
     [navigate, pathname, search],
   )
-  /** Looks at a session; the tab on screen keeps its view unless the terminal is asked for. */
-  const open = ({ session: { mid, paneId }, project }: Placed, terminal?: boolean) => {
-    if (tabOf(search, isTab) !== sessionTabId(mid, paneId))
-      go({ mid, paneId, terminal: terminal ?? lastInTerminal(paneKey(mid, paneId)) })
+  /** Looks at a session; the tab on screen keeps its view unless the terminal is asked for. One in
+   * the share whose space has the sid `space` has no tab, and is always looked at here. */
+  const open = ({ session: { mid, paneId }, project }: Placed, terminal?: boolean, space?: string) => {
+    const view = terminal ?? lastInTerminal(paneKey(mid, paneId))
+    if (space) go({ mid, paneId, terminal: view, space })
+    else if (tabOf(search, isTab) !== sessionTabId(mid, paneId)) go({ mid, paneId, terminal: view })
     else if (terminal) navigate(sessionTabHref(project.key, mid, paneId, true), { replace: true })
     else if (peekOf(search)) go(null)
   }
@@ -113,8 +116,21 @@ function Looking({ peek, found, go }: { peek: Peeked; found: Found; go: (to: Pee
   const { mid, paneId } = peek
   const next = nextNeeding(lanes(useProjects()), peek)?.session
   const other = next && !(next.mid === mid && next.paneId === paneId) ? next : undefined
-  const openTab = () => navigate(sessionTabHref(found.project.key, mid, paneId, peek.terminal))
+  // One shared with the user has no tab, and its machine none of the user's projects.
+  const own = !peek.space
+  const openTab = () => {
+    if (own) navigate(sessionTabHref(found.project.key, mid, paneId, peek.terminal))
+  }
   useOpenKey(openTab)
+  const close = (
+    <Dialog.Close
+      render={
+        <IconButton label={t('peek.close')} size="small">
+          <X {...SMALL} />
+        </IconButton>
+      }
+    />
+  )
   return (
     <SessionView
       mid={mid}
@@ -126,38 +142,57 @@ function Looking({ peek, found, go }: { peek: Peeked; found: Found; go: (to: Pee
       onDraft={() => undefined}
       onEnded={() => go(null)}
       actions={
-        <>
-          {found.project.configured ? null : <AddAsProject project={found.project} />}
-          <IconButton
-            label={t('peek.next')}
-            size="small"
-            disabled={!other}
-            onClick={() =>
-              other && go({ mid: other.mid, paneId: other.paneId, terminal: opensInTerminal(other) })
-            }
-          >
-            <SkipForward {...SMALL} />
-          </IconButton>
-          <IconButton label={`${t('peek.open')} (${OPEN_KEY})`} size="small" onClick={openTab}>
-            <Maximize2 {...SMALL} />
-          </IconButton>
-          <Dialog.Close
-            render={
-              <IconButton label={t('peek.close')} size="small">
-                <X {...SMALL} />
-              </IconButton>
-            }
-          />
-        </>
+        own ? (
+          <>
+            {found.project.configured ? null : <AddAsProject project={found.project} />}
+            <IconButton
+              label={t('peek.next')}
+              size="small"
+              disabled={!other}
+              onClick={() =>
+                other && go({ mid: other.mid, paneId: other.paneId, terminal: opensInTerminal(other) })
+              }
+            >
+              <SkipForward {...SMALL} />
+            </IconButton>
+            <IconButton label={`${t('peek.open')} (${OPEN_KEY})`} size="small" onClick={openTab}>
+              <Maximize2 {...SMALL} />
+            </IconButton>
+            {close}
+          </>
+        ) : (
+          close
+        )
       }
     />
   )
 }
 
-/** `container`: the workspace, which it covers. */
+/** `container`: the workspace, which it covers. One looked at in a share given to the user is seen
+ * through the share's space; with the share gone, so is the drawer. */
 export function Peek({ container }: { container: HTMLElement | null }) {
-  const t = useI18n()
   const { peek, go } = usePeek()
+  const shared = useSharedSpaces().find(s => s.sid === peek?.space)
+  const ready = useSharedSpacesReady()
+  const lost = !!peek?.space && ready && !shared
+  useEffect(() => {
+    if (lost) go(null)
+  }, [lost, go])
+  if (lost) return null
+  const drawer = <Drawer container={container} peek={peek} go={go} />
+  return shared ? <ProvideSpace space={shared.space}>{drawer}</ProvideSpace> : drawer
+}
+
+function Drawer({
+  container,
+  peek,
+  go,
+}: {
+  container: HTMLElement | null
+  peek: Peeked | null
+  go: (to: Peeked | null) => void
+}) {
+  const t = useI18n()
   const projects = useProjects()
   const settled = projectsSettled(useSpaceView())
   const found = peek ? locate(projects, peek.mid, peek.paneId) : undefined
@@ -191,7 +226,7 @@ export function Peek({ container }: { container: HTMLElement | null }) {
         >
           {peek && found ? (
             <Suspense>
-              <Looking key={`${peek.mid}/${peek.paneId}`} peek={peek} found={found} go={go} />
+              <Looking key={`${peek.space}/${peek.mid}/${peek.paneId}`} peek={peek} found={found} go={go} />
             </Suspense>
           ) : null}
         </Dialog.Popup>

@@ -49,7 +49,7 @@ export function SharePage() {
 }
 
 /** The share's space: undefined while it is made, null for a key that is not one. */
-function useShareSpace(key: string | undefined) {
+export function useShareSpace(key: string | undefined) {
   const [space, setSpace] = useState<Space | null>()
   useEffect(() => {
     if (!key) return

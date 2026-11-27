@@ -1,15 +1,16 @@
 // The parts of a session's chat: its conversation as the agent records it, the dock that adds to
 // it, and the facts needed to reach it by hand. What the agent's screen shows is in its terminal.
 
-import { type ReactNode, useEffect } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { InfoFacts } from '../../components/info-panel'
 import { useChatLog } from '../../core/chat-log'
 import { errorText, useI18n } from '../../core/i18n'
 import { markSeen } from '../../core/prefs'
 import { type Ran, useSessionRecords } from '../../core/session-records'
-import { RELAY_URL, useSpaceView } from '../../core/space'
+import { RELAY_URL, useSpace, useSpaceView } from '../../core/space'
+import { SESSION, sharedWithMe } from '../../model/agent-share'
 import { type Pane, type Project, paneKey, type Session } from '../../model/projects'
-import type { Via } from '../../model/space'
+import { machineOf, type Via } from '../../model/space'
 import { useNow } from '../../utils/time'
 import { AskingBanner } from './asking'
 import { Composer } from './composer'
@@ -29,11 +30,15 @@ export function useSession(
   project: Project,
   ran: Ran | undefined,
 ) {
-  const { recent } = useSessionRecords(project)
+  const shared = sharedWithMe(machineOf(useSpaceView().machines, mid))
+  const lent = useSharedTranscript(mid, paneId, shared, ran?.id)
+  // A share's machine keeps its records to itself.
+  const { recent } = useSessionRecords(shared ? undefined : project)
   // Not a session of the agent the pane ran before this one.
   const own = ran?.agent === session.kind ? ran : undefined
-  const transcript =
-    own && (recent?.find(r => r.agent === own.agent && r.id === own.id)?.transcript ?? own.file)
+  const transcript = shared
+    ? lent?.transcript
+    : own && (recent?.find(r => r.agent === own.agent && r.id === own.id)?.transcript ?? own.file)
   const log = useChatLog(mid, session.kind, transcript, session.status)
 
   // Looking at a finished session marks it read.
@@ -42,7 +47,34 @@ export function useSession(
   }, [session, mid, paneId])
 
   // Until the project's records are read, a record may still be found.
-  return { log, transcript, read: recent !== undefined }
+  return { log, transcript, read: shared ? lent !== undefined : recent !== undefined }
+}
+
+type Lent = { ran: string | undefined; transcript?: string }
+
+/** For a pane shared with the user, the conversation's file its machine lets them read, for the
+ * session `ranId` the pane runs: undefined until answered, without `transcript` when none is known. */
+function useSharedTranscript(mid: string, paneId: string, shared: boolean, ranId: string | undefined) {
+  const { call } = useSpace()
+  const [lent, setLent] = useState<Lent>()
+  useEffect(() => {
+    if (!shared) return
+    let gone = false
+    call(mid, SESSION, { paneId }, 15_000).then(
+      found => {
+        if (!gone) setLent({ ...(found as { transcript?: string }), ran: ranId })
+      },
+      (err: unknown) => {
+        console.warn('could not learn the session shared in', paneId, err)
+        if (!gone) setLent({ ran: ranId })
+      },
+    )
+    return () => {
+      gone = true
+    }
+  }, [call, mid, paneId, shared, ranId])
+  // What was found for the session run before is not this one's.
+  return lent?.ran === ranId ? lent : undefined
 }
 
 type Parts = { mid: string; paneId: string; project: Project; session: Session; state: SessionState }

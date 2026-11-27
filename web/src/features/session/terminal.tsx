@@ -56,10 +56,11 @@ export function Terminal({
         {state.phase === 'ended' ? (
           <div className="absolute inset-0 grid place-items-center bg-scrim">
             <div className="flex max-w-md flex-col items-start gap-3 rounded-lg border border-line bg-raised p-5 index-card-lifted">
-              <p className="m-0 font-semibold">{t('terminal.ended')}</p>
+              {/* Ended by herdr with no error: another screen took it over, or the pane closed. */}
+              <p className="m-0 font-semibold">{t(state.error ? 'terminal.ended' : 'terminal.takenOver')}</p>
               {state.error ? <p className="m-0 text-[13px] text-muted">{errorText(t, state.error)}</p> : null}
               <Button variant="primary" onClick={reconnect}>
-                {t('terminal.reconnect')}
+                {t(state.error ? 'terminal.reconnect' : 'terminal.takeBack')}
               </Button>
             </div>
           </div>
