@@ -58,6 +58,16 @@ export function matchRoots(roots: FilesRoot[], query: string): FilesRoot[] {
   return roots.filter(({ branch, display }) => `${branch ?? ''}\n${display}`.toLowerCase().includes(needle))
 }
 
+/** The project on `mid` holding `abs`, the deepest, and where it is under it. */
+export function projectHolding(projects: Project[], mid: string, abs: string) {
+  const roots = projects
+    .filter(p => p.mid === mid && p.path)
+    .map(p => ({ key: p.key, path: p.path, display: p.display, branch: null, own: true }))
+  const found = rootHolding(roots, abs)
+  const project = found && projects.find(p => p.key === found.root.key)
+  return project && found ? { project, rel: found.rel } : undefined
+}
+
 /** The root `abs` is under, the deepest where worktrees nest, and where it sits in it; `at` is the
  * side of a root compared (its path, or its path as shown). */
 export function rootHolding(roots: FilesRoot[], abs: string, at: (root: FilesRoot) => string = r => r.path) {

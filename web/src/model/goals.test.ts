@@ -11,6 +11,7 @@ import {
   type Task,
   type TaskFilter,
   taskCount,
+  todoTasks,
 } from './goals'
 
 const goal = (id: number, extra: Partial<Goal> = {}): Goal => ({
@@ -92,6 +93,18 @@ test('now: the tasks doing, the most pressing then the longest going, then those
     task(8, { state: 'doing', priority: 'P1', startedAt: 2 }),
   ].map(t => ({ task: t }))
   expect(nowTasks(items, 100).map(i => i.task.id)).toEqual([3, 8, 2, 1, 4])
+})
+
+test('to do: the most pressing first, else in the order of the book', () => {
+  const items = [
+    task(1),
+    task(2, { priority: 'P1' }),
+    task(3, { state: 'doing', priority: 'P0' }),
+    task(4),
+    task(5, { priority: 'P0' }),
+    task(6, { priority: 'P1' }),
+  ].map(t => ({ task: t }))
+  expect(todoTasks(items).map(i => i.task.id)).toEqual([5, 2, 6, 1, 4])
 })
 
 describe('openTree', () => {

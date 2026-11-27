@@ -133,6 +133,10 @@ export function nowTasks<T extends { task: Task }>(items: T[], dayStart: number)
   return [...doing, ...doneToday]
 }
 
+/** The tasks to do, the most pressing first, else in the order the book has them. */
+export const todoTasks = <T extends { task: Task }>(items: T[]): T[] =>
+  items.filter(({ task }) => task.state === 'todo').sort((a, b) => rank(a.task) - rank(b.task))
+
 /** `items` by `key`, each group in their order. */
 function groupBy<T, K>(items: T[], key: (item: T) => K) {
   const groups = new Map<K, T[]>()
