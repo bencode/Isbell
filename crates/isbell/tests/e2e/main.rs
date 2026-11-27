@@ -3,6 +3,7 @@
 //! over, or goes offline.
 //! Needs a real Redis (`docker compose up -d redis`, or REDIS_URL).
 
+mod agent_share;
 mod checks;
 mod direct;
 mod failover;
@@ -35,6 +36,7 @@ async fn gateway_serves_cli_through_relay() {
     files::write(&session, mid).await;
     files::list_and_search(&session, mid).await;
     direct::serves_streams(&harness).await;
+    agent_share::guests_reach_only_what_is_shared(&session, mid, &harness.url).await;
 
     failover::reconnect(&session, &mut events, &harness).await;
     let second_gateway = failover::takeover(&session, &mut events, &harness, first_gateway).await;

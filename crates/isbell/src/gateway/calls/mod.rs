@@ -4,6 +4,7 @@
 //! reconnect still reaches its caller. One task owns them; relayed and direct frames both reach it
 //! through its inbox.
 
+pub mod guests;
 pub mod readers;
 mod route;
 mod streams;
@@ -20,6 +21,7 @@ pub use self::route::methods;
 pub(super) use self::route::response_frame;
 use self::route::{Inbound, Method, route};
 use self::streams::{Emit, MAX_STREAMS, Streams, close_caller, feed, register, serve_stream};
+use super::agent_share::AgentShares;
 use super::herdr::HerdrError;
 use super::link::Link;
 use super::push::Push;
@@ -28,6 +30,12 @@ use super::stream::Input;
 use super::system::Sampler;
 use super::terminal;
 use super::{HerdrSlot, direct, file, git, launch, nudge, process, rpc, upgrade};
+
+/// What this machine shares by link: files to read, and agents to talk with.
+pub struct Sharing {
+    pub files: Arc<Shares>,
+    pub agents: Arc<AgentShares>,
+}
 
 /// What reaches the calls: a frame from a caller, or the end of a direct caller's link.
 pub enum ToCalls {
@@ -57,7 +65,7 @@ pub struct Calls {
     /// Where files sent for agents go.
     uploads: PathBuf,
     push: Arc<Push>,
-    shares: Arc<Shares>,
+    shares: Sharing,
     system: Arc<Sampler>,
     /// The calls' own inbox, for the frames of direct links.
     inbox: mpsc::UnboundedSender<ToCalls>,
@@ -70,7 +78,7 @@ impl Calls {
         ice: Vec<String>,
         uploads: PathBuf,
         push: Arc<Push>,
-        shares: Arc<Shares>,
+        shares: Sharing,
         inbox: mpsc::UnboundedSender<ToCalls>,
     ) -> Calls {
         Calls {
@@ -180,13 +188,21 @@ impl Calls {
                 self.tasks.spawn(direct::serve(link, id, p, ice, inbox));
             }
             Method::ShareStart => {
-                let shares = Arc::clone(&self.shares);
+                let shares = Arc::clone(&self.shares.files);
                 self.tasks.spawn(async move {
                     link.send(response_frame(id, shares.start(p).await));
                 });
             }
-            Method::ShareLink => link.send(response_frame(id, self.shares.link(p))),
-            Method::ShareStop => link.send(response_frame(id, self.shares.stop(p))),
+            Method::ShareLink => link.send(response_frame(id, self.shares.files.link(p))),
+            Method::ShareStop => link.send(response_frame(id, self.shares.files.stop(p))),
+            Method::AgentSharePut => link.send(response_frame(id, self.shares.agents.put(p))),
+            Method::AgentShareList => link.send(response_frame(id, Ok(self.shares.agents.list()))),
+            Method::AgentShareLink => link.send(response_frame(id, self.shares.agents.link(p))),
+            Method::AgentShareStop => link.send(response_frame(id, self.shares.agents.stop(p))),
+            Method::AgentShareSession => {
+                let only = RpcError::new("method_not_allowed", "only a share's guests ask that");
+                link.send(response_frame(id, Err(only)));
+            }
             Method::Upgrade => {
                 self.tasks
                     .spawn(async move { link.send(response_frame(id, upgrade::upgrade().await)) });
@@ -238,6 +254,18 @@ mod tests {
         let push = Arc::new(Push::new(&identity, dir.path().join("push.json"), ""));
         let slot = HerdrSlot::default();
         let shares = Shares::new(refresh.clone(), String::new(), vec![], String::new());
+        let (_states, states_rx) = tokio::sync::watch::channel(None);
+        let machine = isbell_proto::state::MachineInfo {
+            id: "0123456789abcdef".into(),
+            name: "n".into(),
+            hostname: "h".into(),
+            os: "o".into(),
+            version: "v".into(),
+        };
+        let space = identity.sid();
+        let agents =
+            AgentShares::new(space, String::new(), vec![], machine, slot.clone(), states_rx);
+        let shares = Sharing { files: shares, agents };
         let calls = Calls::new(slot, refresh, vec![], uploads, push, shares, inbox.clone());
         let streams = Arc::clone(&calls.streams);
         let _calls = crate::AbortOnDrop(tokio::spawn(run(calls, inbox_rx)));

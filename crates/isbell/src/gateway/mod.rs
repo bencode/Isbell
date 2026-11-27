@@ -1,5 +1,6 @@
 //! `isbell gateway run`: keeps this machine's herdr state reported to the relay and serves requests.
 
+mod agent_share;
 mod calls;
 mod direct;
 mod file;
@@ -29,7 +30,8 @@ use isbell_proto::identity::Identity;
 use isbell_proto::state::{Caps, MachineInfo};
 use tokio::sync::{mpsc, watch};
 
-use self::calls::Calls;
+use self::agent_share::AgentShares;
+use self::calls::{Calls, Sharing};
 use self::herdr::Herdr;
 use self::push::Push;
 use self::share::Shares;
@@ -102,6 +104,14 @@ pub async fn run(opts: GatewayOptions) -> Result<(), GatewayError> {
     let push = Arc::new(Push::new(&opts.identity, opts.push.clone(), &opts.relay));
     let _push = AbortOnDrop(tokio::spawn(push::run(Arc::clone(&push), states_rx.clone())));
     let _loops = AbortOnDrop(tokio::spawn(loops::run(Arc::clone(&slot), states_rx.clone())));
+    let agent_shares = AgentShares::new(
+        opts.identity.sid(),
+        opts.relay.clone(),
+        opts.ice.clone(),
+        opts.machine.clone(),
+        Arc::clone(&slot),
+        states_rx.clone(),
+    );
     let (inbox, inbox_rx) = mpsc::unbounded_channel();
     tracing::info!(uploads = %opts.uploads.display(), "files sent for agents go here");
     let calls = Calls::new(
@@ -110,7 +120,7 @@ pub async fn run(opts: GatewayOptions) -> Result<(), GatewayError> {
         opts.ice.clone(),
         opts.uploads.clone(),
         push,
-        shares,
+        Sharing { files: shares, agents: agent_shares },
         inbox.clone(),
     );
     let _calls = AbortOnDrop(tokio::spawn(calls::run(calls, inbox_rx)));
