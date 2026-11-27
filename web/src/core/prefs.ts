@@ -52,6 +52,8 @@ export type Layout = {
   earlierOpen: boolean
   /** Whether a project's list shows the sessions hidden from it. */
   hiddenShown: boolean
+  /** Whether the right column's Agents shows the user's agent shares over its list. */
+  agentSharesOpen: boolean
 }
 
 /** How documents read in the files view. */
@@ -99,6 +101,7 @@ const DEFAULTS: Local = {
     taskToggles: [],
     earlierOpen: false,
     hiddenShown: false,
+    agentSharesOpen: false,
   },
   reader: { ...DEFAULT_APPEARANCE, outline: true },
   projectTabs: {},
@@ -170,6 +173,9 @@ export const toggleEarlier = () =>
 
 export const toggleHiddenShown = () =>
   updateLocal(l => ({ layout: { ...l.layout, hiddenShown: !l.layout.hiddenShown } }))
+
+export const setAgentSharesOpen = (agentSharesOpen: boolean) =>
+  updateLocal(l => ({ layout: { ...l.layout, agentSharesOpen } }))
 
 export const toggleAgentFold = (key: string) =>
   updateLocal(l => {
