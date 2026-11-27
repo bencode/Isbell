@@ -15,9 +15,10 @@ import type { Project } from '../../../model/projects'
 import { projectFilesHref } from '../../../utils/hrefs'
 import { SearchField } from './search'
 
-type Props = { project: Project; roots: FilesRoot[]; root: FilesRoot }
+/** `onPick`: where another is taken, in place of going to its address. */
+type Props = { project: Project; roots: FilesRoot[]; root: FilesRoot; onPick?: (root: FilesRoot) => void }
 
-export function WorktreeSheet({ project, roots, root }: Props) {
+export function WorktreeSheet({ project, roots, root, onPick }: Props) {
   const t = useI18n()
   const { call } = useSpace()
   const navigate = useNavigate()
@@ -35,8 +36,10 @@ export function WorktreeSheet({ project, roots, root }: Props) {
   }
   const choose = (at: FilesRoot) => {
     setOpen(false)
+    if (at.key === root.key) return
+    if (onPick) onPick(at)
     // In place, so that back still leaves the files.
-    if (at.key !== root.key) void navigate(projectFilesHref(at.key), { replace: true })
+    else void navigate(projectFilesHref(at.key), { replace: true })
   }
 
   return (

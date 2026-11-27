@@ -10,7 +10,7 @@ import { useProjects, useSpaceView } from '../../../core/space'
 import { useFilesRoots } from '../../../core/worktrees'
 import { Marked } from '../../../features/session/session-row'
 import { rootHolding } from '../../../model/files/worktrees'
-import type { Project } from '../../../model/projects'
+import { latestOnline, type Project } from '../../../model/projects'
 import { byDay, excerpt, lineTime, matches, type SessionLine, sessionKey } from '../../../model/sessions'
 import { projectsSettled } from '../../../model/space'
 import { endedHref, sessionHref } from '../../../utils/hrefs'
@@ -32,11 +32,7 @@ export function PhoneSessions() {
   const { sessionsProject } = useLocal().layout
   const listed = useProjects().filter(p => p.path)
   // The one last looked at here; at first, the one last active, once all are known to choose from.
-  const project =
-    listed.find(p => p.key === sessionsProject) ??
-    (settled
-      ? listed.filter(p => p.online).sort((a, b) => (b.updated ?? 0) - (a.updated ?? 0))[0]
-      : undefined)
+  const project = listed.find(p => p.key === sessionsProject) ?? (settled ? latestOnline(listed) : undefined)
   // In the address, for a search to be there on coming back to it; and here, as the router's updates
   // come too late for what is being typed.
   const [params, setParams] = useSearchParams()

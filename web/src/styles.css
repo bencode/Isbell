@@ -26,6 +26,17 @@
   --color-selected: var(--selected);
   --color-accent-soft: var(--accent-soft);
   --color-term: var(--term);
+  /* A role's avatar: one of five hues, by its name. */
+  --color-hue-0: var(--hue-0);
+  --color-hue-0-ink: var(--hue-0-ink);
+  --color-hue-1: var(--hue-1);
+  --color-hue-1-ink: var(--hue-1-ink);
+  --color-hue-2: var(--hue-2);
+  --color-hue-2-ink: var(--hue-2-ink);
+  --color-hue-3: var(--hue-3);
+  --color-hue-3-ink: var(--hue-3-ink);
+  --color-hue-4: var(--hue-4);
+  --color-hue-4-ink: var(--hue-4-ink);
   /* A running agent's dot, its ring going out. */
   --animate-ring: ring 1.8s var(--ease-fold) infinite;
   @keyframes ring {
@@ -76,6 +87,16 @@
   --hover: light-dark(rgb(28 35 51 / 0.06), rgb(233 229 217 / 0.07));
   --press: light-dark(rgb(28 35 51 / 0.1), rgb(233 229 217 / 0.11));
   --selected: light-dark(rgb(28 35 51 / 0.1), rgb(233 229 217 / 0.12));
+  --hue-0: light-dark(#e3e9fb, #1d2a4d);
+  --hue-0-ink: light-dark(#2449b8, #9db8ff);
+  --hue-1: light-dark(#f6e6d2, #3a2a17);
+  --hue-1-ink: light-dark(#8a4d0e, #f0bd76);
+  --hue-2: light-dark(#dff0e6, #173226);
+  --hue-2-ink: light-dark(#26704a, #7fdaa5);
+  --hue-3: light-dark(#f3e1ea, #3a1d2b);
+  --hue-3-ink: light-dark(#93305f, #f1a2c6);
+  --hue-4: light-dark(#e8e3f6, #26203f);
+  --hue-4-ink: light-dark(#5b3fa8, #bba8f5);
 }
 
 /* An index card's hard offset shadow, for anything that lies on top of the page. */

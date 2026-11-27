@@ -1,8 +1,8 @@
-// The machines of the space on a phone: how many are online in the bar, and a sheet from the bottom
-// that shows one at a time, so that only that one's load is read, and lists them all to pick another.
+// The machines of the space on a phone: a sheet from the bottom, opened from the menu of a tab, that
+// shows one at a time, so that only that one's load is read, and lists them all to pick another.
 
 import { Dialog } from '@base-ui/react/dialog'
-import { Check, ChevronDown, ChevronsUpDown } from 'lucide-react'
+import { Check, ChevronsUpDown } from 'lucide-react'
 import { useState } from 'react'
 import { useI18n } from '../../core/i18n'
 import { MachineFacts } from '../../features/machine/machine-facts'
@@ -90,17 +90,18 @@ function MachineView({ machines }: { machines: MachineEntry[] }) {
   )
 }
 
-export function MachinesSheet({ machines }: { machines: MachineEntry[] }) {
+export function MachinesSheet({
+  machines,
+  open,
+  onOpenChange,
+}: {
+  machines: MachineEntry[]
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const t = useI18n()
   return (
-    <Dialog.Root>
-      <Dialog.Trigger
-        disabled={!machines.length}
-        className="flex h-11 min-w-0 cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 text-[12.5px] text-faint"
-      >
-        <span className="truncate">{t('mobile.online', { n: machines.filter(m => m.online).length })}</span>
-        <ChevronDown size={13} className="flex-none" />
-      </Dialog.Trigger>
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-40 bg-scrim" />
         {/* Of a set height, so the sheet stays put as a machine is picked and its load arrives. */}

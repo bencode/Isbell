@@ -2,6 +2,7 @@
 // session takes, kept with the sessions that took it and the role it reports to. Read only here.
 
 import type { Run } from './herdr'
+import { type Placed, placedKey } from './projects'
 
 export const rolesPath = '~/.isbell/roles.json'
 
@@ -129,4 +130,35 @@ export function clustered(keys: string[], placings: ReadonlyMap<string, Placing>
   }
   const order = [...new Set(keys.map(teamOf))].flatMap(below)
   return [...order.filter(k => keys.includes(k)), ...keys.filter(k => !placed.has(k))]
+}
+
+/** The agents of each lane, in the lanes' order, with the roles they took: what `teams` places. */
+export function membersOf(
+  byLane: Readonly<Record<Lane, Placed[]>>,
+  roleFor: (placed: Placed) => RoleOf | undefined,
+): Member[] {
+  return LANES.flatMap(lane =>
+    byLane[lane].map(p => {
+      const role = roleFor(p)
+      return { key: placedKey(p), machine: p.session.mid, lane, ...(role ? { role } : {}) }
+    }),
+  )
+}
+
+/** A team as listed: its lead, unless that stays elsewhere for now, and the others in it. */
+export type TeamBlock = { team: string; lead?: Placed; members: Placed[] }
+
+/** `list` cut where its teams change. */
+export function teamBlocks(list: Placed[], placings: ReadonlyMap<string, Placing>): TeamBlock[] {
+  const cut: TeamBlock[] = []
+  for (const p of list) {
+    const placing = placings.get(placedKey(p))
+    const team = placing?.team ?? placedKey(p)
+    const last = cut.at(-1)
+    const block = last?.team === team ? last : { team, members: [] }
+    if (block !== last) cut.push(block)
+    if (placing?.depth) block.members.push(p)
+    else block.lead = p
+  }
+  return cut
 }

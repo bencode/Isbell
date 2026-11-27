@@ -3,8 +3,10 @@
 
 import { Activity, lazy, Suspense, useState } from 'react'
 import { matchPath, Navigate, Route, Routes, useLocation } from 'react-router'
+import { useBooksPull } from '../../core/books'
 import { Loading } from '../loading'
 import { PhoneFiles } from './files/files'
+import { PhoneFilesTab } from './files/files-tab'
 import { Home } from './home'
 import { PhoneNewSession } from './new-session'
 
@@ -17,6 +19,8 @@ const PhoneSessions = lazy(() => import('./sessions/sessions').then(m => ({ defa
 const FILES = '/p/:key/files/*'
 
 export function MobileRoutes() {
+  // The roles agents took, for the Agents tab to name them by.
+  useBooksPull()
   const location = useLocation()
   const files = !!matchPath(FILES, location.pathname)
   // The page files were opened from stays behind them as it was left: its place, a reply half written.
@@ -28,6 +32,7 @@ export function MobileRoutes() {
         <Activity mode={files ? 'hidden' : 'visible'}>
           <Routes location={behind}>
             <Route index element={<Home />} />
+            <Route path="files" element={<PhoneFilesTab />} />
             <Route
               path="s/:mid/*"
               element={

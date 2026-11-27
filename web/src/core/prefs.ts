@@ -38,6 +38,8 @@ export type Layout = {
   wrapOnPhone: boolean
   /** The project whose sessions a phone last listed. */
   sessionsProject: string | null
+  /** The root whose files the phone's Files tab last showed, by its key. */
+  filesTab: string | null
   /** Which sessions the right column shows. */
   activeFilter: 'all' | 'blocked' | 'working' | 'finished' | 'idle'
   /** Whether those standing by are unfolded on the phone's home. */
@@ -97,6 +99,7 @@ const DEFAULTS: Local = {
     wrap: false,
     wrapOnPhone: true,
     sessionsProject: null,
+    filesTab: null,
     activeFilter: 'all',
     idleOpen: false,
     agentFolds: [],
@@ -264,6 +267,8 @@ export const toggleWrapOnPhone = () =>
 
 export const setSessionsProject = (sessionsProject: string) =>
   updateLocal(l => ({ layout: { ...l.layout, sessionsProject } }))
+
+export const setFilesTab = (filesTab: string) => updateLocal(l => ({ layout: { ...l.layout, filesTab } }))
 
 export const setReader = (change: Partial<Reader>) =>
   updateLocal(l => ({ reader: { ...l.reader, ...change } }))
