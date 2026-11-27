@@ -187,6 +187,10 @@ describe('the session looked at', () => {
     const peek = { mid: 'm1', paneId: 'w1/p2', terminal: true }
     const search = withPeek('?view=terminal&tab=session/m1/w2', peek)
     expect(peekOf(search)).toEqual(peek)
+    // One in a share's space says which, and gives way with it.
+    const shared = { ...peek, space: 'sid1' }
+    expect(peekOf(withPeek(search, shared))).toEqual(shared)
+    expect(peekOf(withPeek(withPeek(search, shared), peek))).toEqual(peek)
     expect(tabOf(search, any)).toBe('session/m1/w2')
     expect(queryOf(search)).toBe('view=terminal')
     expect(withoutPeek(search)).toBe('?view=terminal&tab=session/m1/w2')

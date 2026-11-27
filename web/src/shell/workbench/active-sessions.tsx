@@ -19,6 +19,7 @@ import { AgentRow, type Team } from './agent-row'
 import { SharePanel, ShareToggle } from './agent-share/share-panel'
 import { MachineHeading } from './machine-heading'
 import { usePeek } from './peek'
+import { SharedWithMe } from './shared-with-me'
 
 type Filter = Layout['activeFilter']
 
@@ -70,7 +71,9 @@ export function ActiveSessions() {
   const now = useNow()
   const { activeFilter: filter, agentFolds, agentSharesOpen } = useLocal().layout
   const live = lanes(useProjects())
-  const { peek, open } = usePeek()
+  const { peek: peeked, open } = usePeek()
+  // One looked at in a share is shown with the share's agents.
+  const peek = peeked?.space ? null : peeked
   const roleFor = useRoleOf()
   const { machines } = useSpaceView()
   const shares = sharedTo(useAgentShares())
@@ -215,6 +218,7 @@ export function ActiveSessions() {
         ) : (
           <p className="m-0 px-2 py-2.5 text-[13px] text-muted">{t('active.none')}</p>
         )}
+        <SharedWithMe shows={lane => all || FILTER_OF[lane] === filter} now={now} />
       </div>
       {agentSharesOpen ? <SharePanel /> : null}
     </div>

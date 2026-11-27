@@ -3,6 +3,7 @@
 // since machine state only lists agents), and the projects it lists and its recorded sessions ran
 // in (read from the machine's files).
 
+import { sharedWithMe } from './agent-share'
 import { type ConnStatus, connect } from './connection'
 import { type DirectLink, openDirect, type Path } from './direct'
 import { read, writeText } from './files/remote'
@@ -181,9 +182,11 @@ export function createSpace(url: string, id: Identity): Space {
     for (const listener of listeners) listener()
   }
 
+  // A share's machine shows the user only its agents shared: no shells, nor the files projects
+  // are made of.
   const pullable = (mid: string) => {
     const m = machines.get(mid)
-    return m?.online === true && m.state.herdr.status === 'ready'
+    return m?.online === true && m.state.herdr.status === 'ready' && !sharedWithMe(m)
   }
 
   const directable = (mid: string) => {
@@ -307,7 +310,7 @@ export function createSpace(url: string, id: Identity): Space {
 
   const readable = (mid: string) => {
     const m = machines.get(mid)
-    return m?.online === true && m.state.caps.methods.includes('isbell.file.read')
+    return m?.online === true && m.state.caps.methods.includes('isbell.file.read') && !sharedWithMe(m)
   }
 
   const setConfig = (mid: string, config: ProjectConfig) => {

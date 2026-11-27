@@ -27,6 +27,7 @@ import {
   toggleRail,
   useLocal,
 } from '../../core/prefs'
+import { SharedSpacesProvider } from '../../core/shared-spaces'
 import { type Overlay, Overlays } from '../../features/settings/settings-dialog'
 import { ReconnectBanner } from '../reconnect-banner'
 import { ActiveSessions, AgentsTools } from './active-sessions'
@@ -204,80 +205,83 @@ export function Frame({ inProject }: { inProject: boolean }) {
   })
   return (
     <Tooltip.Provider delay={400} timeout={500}>
-      <div className="flex h-full">
-        <Projects onOverlay={setOverlay} />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <ReconnectBanner />
-          <div className="flex min-h-0 flex-1">
-            <div className="relative min-w-0 flex-1">
-              <IconButton
-                label={t(list.folded ? 'workbench.unfoldList' : 'workbench.foldList')}
-                onClick={list.toggle}
-                className={`${FOLD_BUTTON} left-2`}
-              >
-                {list.folded ? <PanelLeftOpen {...ICON} /> : <PanelLeftClose {...ICON} />}
-              </IconButton>
-              <Group
-                orientation="horizontal"
-                className={`h-full ${moving ? MOVING : ''}`}
-                groupRef={group}
-                defaultLayout={split.defaultLayout}
-                onLayoutChanged={(layout, meta) => {
-                  split.onLayoutChanged(layout, meta)
-                  list.settle()
-                  for (const view of RIGHT_VIEWS) columns[view].settle()
-                  agree()
-                }}
-              >
-                <FoldingColumn id="list" fold={list}>
-                  <ListColumn />
-                </FoldingColumn>
-                <ResizeHandle label={t('workbench.resizeList')} disabled={list.folded} />
-                <Panel
-                  id="main"
-                  className="flex"
-                  minSize={MAIN_MIN}
-                  panelRef={main}
-                  // The library lets a panel scroll; this one's content scrolls inside it. Clipped, the
-                  // peek's drawer taking focus as it slides in from past the edge cannot scroll it aside.
-                  style={{ overflow: 'clip' }}
+      {/* The shares given to the user, which the Agents column lists and the peek opens. */}
+      <SharedSpacesProvider>
+        <div className="flex h-full">
+          <Projects onOverlay={setOverlay} />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <ReconnectBanner />
+            <div className="flex min-h-0 flex-1">
+              <div className="relative min-w-0 flex-1">
+                <IconButton
+                  label={t(list.folded ? 'workbench.unfoldList' : 'workbench.foldList')}
+                  onClick={list.toggle}
+                  className={`${FOLD_BUTTON} left-2`}
                 >
-                  <main ref={setWorkspace} className="relative flex min-w-0 flex-1 flex-col">
-                    <div
-                      className={`${BAR} bg-side transition-[padding] duration-200 ease-fold motion-reduce:transition-none ${list.folded ? 'pl-11' : ''}`}
-                    >
-                      {inProject ? <TabStrip edged={list.folded} /> : null}
-                    </div>
-                    {inProject ? <TabPanes /> : null}
-                    <Peek container={workspace} />
-                  </main>
-                </Panel>
-                {RIGHT_VIEWS.map(view => {
-                  const { title, Body, Tools } = VIEW_PARTS[view]
-                  const fold = columns[view]
-                  return (
-                    <Fragment key={view}>
-                      <ResizeHandle label={t('workbench.resizeRight')} disabled={fold.folded} />
-                      <FoldingColumn id={view} fold={fold} shut={!views.includes(view)}>
-                        <div className={`${BAR} pr-2 pl-3.5 text-[13px] font-semibold`}>
-                          {t(title)}
-                          {Tools && !fold.folded && views.includes(view) ? (
-                            <span className="ml-auto font-normal">
-                              <Tools />
-                            </span>
-                          ) : null}
-                        </div>
-                        {fold.folded || !views.includes(view) ? null : <Body />}
-                      </FoldingColumn>
-                    </Fragment>
-                  )
-                })}
-              </Group>
+                  {list.folded ? <PanelLeftOpen {...ICON} /> : <PanelLeftClose {...ICON} />}
+                </IconButton>
+                <Group
+                  orientation="horizontal"
+                  className={`h-full ${moving ? MOVING : ''}`}
+                  groupRef={group}
+                  defaultLayout={split.defaultLayout}
+                  onLayoutChanged={(layout, meta) => {
+                    split.onLayoutChanged(layout, meta)
+                    list.settle()
+                    for (const view of RIGHT_VIEWS) columns[view].settle()
+                    agree()
+                  }}
+                >
+                  <FoldingColumn id="list" fold={list}>
+                    <ListColumn />
+                  </FoldingColumn>
+                  <ResizeHandle label={t('workbench.resizeList')} disabled={list.folded} />
+                  <Panel
+                    id="main"
+                    className="flex"
+                    minSize={MAIN_MIN}
+                    panelRef={main}
+                    // The library lets a panel scroll; this one's content scrolls inside it. Clipped, the
+                    // peek's drawer taking focus as it slides in from past the edge cannot scroll it aside.
+                    style={{ overflow: 'clip' }}
+                  >
+                    <main ref={setWorkspace} className="relative flex min-w-0 flex-1 flex-col">
+                      <div
+                        className={`${BAR} bg-side transition-[padding] duration-200 ease-fold motion-reduce:transition-none ${list.folded ? 'pl-11' : ''}`}
+                      >
+                        {inProject ? <TabStrip edged={list.folded} /> : null}
+                      </div>
+                      {inProject ? <TabPanes /> : null}
+                      <Peek container={workspace} />
+                    </main>
+                  </Panel>
+                  {RIGHT_VIEWS.map(view => {
+                    const { title, Body, Tools } = VIEW_PARTS[view]
+                    const fold = columns[view]
+                    return (
+                      <Fragment key={view}>
+                        <ResizeHandle label={t('workbench.resizeRight')} disabled={fold.folded} />
+                        <FoldingColumn id={view} fold={fold} shut={!views.includes(view)}>
+                          <div className={`${BAR} pr-2 pl-3.5 text-[13px] font-semibold`}>
+                            {t(title)}
+                            {Tools && !fold.folded && views.includes(view) ? (
+                              <span className="ml-auto font-normal">
+                                <Tools />
+                              </span>
+                            ) : null}
+                          </div>
+                          {fold.folded || !views.includes(view) ? null : <Body />}
+                        </FoldingColumn>
+                      </Fragment>
+                    )
+                  })}
+                </Group>
+              </div>
+              <RightBar onToggle={toggleView} />
             </div>
-            <RightBar onToggle={toggleView} />
           </div>
         </div>
-      </div>
+      </SharedSpacesProvider>
       <Overlays overlay={overlay} setOverlay={setOverlay} />
       <CommandPalette />
     </Tooltip.Provider>
