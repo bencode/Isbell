@@ -16,6 +16,7 @@ import {
 } from 'react-resizable-panels'
 import { ICON, IconButton } from '../../components/icon-button'
 import { ResizeHandle } from '../../components/resize-handle'
+import { useAgentSharesPull } from '../../core/agent-shares'
 import { useBooksPull } from '../../core/books'
 import { type Key, useI18n } from '../../core/i18n'
 import {
@@ -28,7 +29,7 @@ import {
 } from '../../core/prefs'
 import { type Overlay, Overlays } from '../../features/settings/settings-dialog'
 import { ReconnectBanner } from '../reconnect-banner'
-import { ActiveSessions, MarkAllSeen } from './active-sessions'
+import { ActiveSessions, AgentsTools } from './active-sessions'
 import { BAR } from './bar'
 import { CommandPalette } from './command-palette'
 import { ListColumn } from './list-column'
@@ -43,7 +44,7 @@ import { TabPanes } from './workspace'
 
 /** Each right column: its title, what it shows, and what its bar offers beside the title. */
 const VIEW_PARTS: Record<RightView, { title: Key; Body: () => ReactNode; Tools?: () => ReactNode }> = {
-  agents: { title: 'workbench.agents', Body: ActiveSessions, Tools: MarkAllSeen },
+  agents: { title: 'workbench.agents', Body: ActiveSessions, Tools: AgentsTools },
   tasks: { title: 'workbench.tasks', Body: TasksView },
   messages: { title: 'workbench.messages', Body: MessagesView },
 }
@@ -182,6 +183,7 @@ export function Frame({ inProject }: { inProject: boolean }) {
   const moving = list.moving || RIGHT_VIEWS.some(v => columns[v].moving)
   const views = useLocal().layout.rightViews
   useBooksPull()
+  useAgentSharesPull()
   // Each view is a column of its own, which opens and folds with it.
   const toggleView = (view: RightView) => {
     const opening = !views.includes(view)

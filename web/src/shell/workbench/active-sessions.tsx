@@ -5,15 +5,18 @@
 // folds away, and stays so. Opening one looks at it over the workspace, unless it is the tab on
 // screen.
 
+import { useAgentShares } from '../../core/agent-shares'
 import { useRoleOf } from '../../core/books'
 import { type Key, useI18n } from '../../core/i18n'
 import { type Layout, markAllSeen, setActiveFilter, toggleAgentFold, useLocal } from '../../core/prefs'
 import { useProjects, useSpaceView } from '../../core/space'
+import { sharedTo } from '../../model/agent-share'
 import { lanes, type Placed, paneKey } from '../../model/projects'
 import { clustered, LANES, type Lane, type Member, type Placing, teams } from '../../model/roles'
 import { keysIn, usePinned } from '../../utils/held-order'
 import { useNow } from '../../utils/time'
 import { AgentRow, type Team } from './agent-row'
+import { SharePanel, ShareToggle } from './agent-share/share-panel'
 import { MachineHeading } from './machine-heading'
 import { usePeek } from './peek'
 
@@ -65,11 +68,12 @@ function blocks(list: Placed[], placings: ReadonlyMap<string, Placing>) {
 export function ActiveSessions() {
   const t = useI18n()
   const now = useNow()
-  const { activeFilter: filter, agentFolds } = useLocal().layout
+  const { activeFilter: filter, agentFolds, agentSharesOpen } = useLocal().layout
   const live = lanes(useProjects())
   const { peek, open } = usePeek()
   const roleFor = useRoleOf()
   const { machines } = useSpaceView()
+  const shares = sharedTo(useAgentShares())
 
   const lanesNow: Record<Lane, Placed[]> = {
     asking: live.asking,
@@ -119,7 +123,13 @@ export function ActiveSessions() {
     }
   }
   const row = (p: Placed, team?: Team) => (
-    <AgentRow key={keyOf(p)} role={roles.get(keyOf(p))} team={team} {...propsOf(p)} />
+    <AgentRow
+      key={keyOf(p)}
+      role={roles.get(keyOf(p))}
+      team={team}
+      sharedTo={shares.get(keyOf(p))}
+      {...propsOf(p)}
+    />
   )
   // Each team as one block: its lead, then the others on a line down from the lead's dot.
   const teamBlocks = (mid: string, list: Placed[]) =>
@@ -172,7 +182,7 @@ export function ActiveSessions() {
     ]
   })
   return (
-    <>
+    <div className="relative flex min-h-0 flex-1 flex-col">
       {/* One line: narrower than the names need, each state keeps its dot and count, named on pointing. */}
       <div className="@container flex-none px-2 pt-1.5 pb-1">
         <div className="flex items-center gap-0.5 overflow-hidden">
@@ -206,7 +216,18 @@ export function ActiveSessions() {
           <p className="m-0 px-2 py-2.5 text-[13px] text-muted">{t('active.none')}</p>
         )}
       </div>
-    </>
+      {agentSharesOpen ? <SharePanel /> : null}
+    </div>
+  )
+}
+
+/** The column's bar: marking the finished seen, and the shares. */
+export function AgentsTools() {
+  return (
+    <span className="flex items-center gap-0.5">
+      <MarkAllSeen />
+      <ShareToggle />
+    </span>
   )
 }
 

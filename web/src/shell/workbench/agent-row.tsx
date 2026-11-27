@@ -2,7 +2,8 @@
 // under them what it waits on or uses, or else its project and agent. One that asks for you stands
 // out and can be answered in its terminal; a lead folds its team. Opening it looks at it.
 
-import { ChevronDown, ChevronRight, SquareTerminal } from 'lucide-react'
+import { ChevronDown, ChevronRight, Share2, SquareTerminal } from 'lucide-react'
+import { Tip } from '../../components/tip'
 import { useI18n } from '../../core/i18n'
 import { AGENT_NAMES, STATUS_DOTS } from '../../features/session/session-row'
 import { SessionTime } from '../../features/session/session-time'
@@ -21,6 +22,8 @@ type Props = {
   /** It is the one looked at. */
   peeking: boolean
   team?: Team | undefined
+  /** The notes of the shares it is in. */
+  sharedTo?: string[] | undefined
   /** Opens it in its terminal, or else as it was last viewed. */
   onOpen: (terminal?: boolean) => void
 }
@@ -32,7 +35,7 @@ function whereOf({ project, session }: Placed) {
   return { text: [name, agent].filter(Boolean).join(' · '), title: `${name} · ${project.machine}` }
 }
 
-export function AgentRow({ placed, role, now, peeking, team, onOpen }: Props) {
+export function AgentRow({ placed, role, now, peeking, team, sharedTo, onOpen }: Props) {
   const t = useI18n()
   const { session } = placed
   const { tool, topic } = useCardNote(session)
@@ -48,14 +51,23 @@ export function AgentRow({ placed, role, now, peeking, team, onOpen }: Props) {
     >
       <span aria-hidden className={`relative mt-[7px] size-1.5 flex-none rounded-full ${dot}`} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <button
-          type="button"
-          onClick={() => onOpen()}
-          className="min-w-0 cursor-pointer truncate border-0 bg-transparent p-0 text-left text-[13px] leading-5 text-text outline-none after:absolute after:inset-0 after:rounded-[7px] focus-visible:after:outline-2 focus-visible:after:outline-accent"
-        >
-          {role ? <span className="mr-1.5 font-semibold">{role}</span> : null}
-          {session.title ?? topic ?? session.name}
-        </button>
+        <div className="flex min-w-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={() => onOpen()}
+            className="min-w-0 cursor-pointer truncate border-0 bg-transparent p-0 text-left text-[13px] leading-5 text-text outline-none after:absolute after:inset-0 after:rounded-[7px] focus-visible:after:outline-2 focus-visible:after:outline-accent"
+          >
+            {role ? <span className="mr-1.5 font-semibold">{role}</span> : null}
+            {session.title ?? topic ?? session.name}
+          </button>
+          {sharedTo?.length ? (
+            <Tip label={t('agentShare.to', { names: sharedTo.join(t('agentShare.and')) })} side="top">
+              <span className="relative z-[1] inline-flex flex-none text-accent">
+                <Share2 size={11} />
+              </span>
+            </Tip>
+          ) : null}
+        </div>
         {under ? (
           <span
             className={`truncate text-[11.5px] leading-4 text-muted ${tool ? 'font-mono text-[11px]' : ''}`}

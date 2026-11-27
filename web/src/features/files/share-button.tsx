@@ -95,7 +95,7 @@ function useStart({ mid, path, root, setLasts }: Panel) {
   return { start, busy, error }
 }
 
-function LastsPicker({ value, onChange }: { value: Lasts; onChange: (lasts: Lasts) => void }) {
+export function LastsPicker({ value, onChange }: { value: Lasts; onChange: (lasts: Lasts) => void }) {
   const t = useI18n()
   return (
     <div className="flex items-center gap-2.5">
@@ -213,7 +213,7 @@ function Sharing(props: Panel & { share: Share; onStopped: () => void }) {
 }
 
 /** How long a share has left, to the minute. */
-function left(t: T, ms: number) {
+export function left(t: T, ms: number) {
   const minutes = Math.max(0, Math.floor(ms / MINUTE_MS))
   const [d, h, m] = [Math.floor(minutes / 1440), Math.floor(minutes / 60) % 24, minutes % 60]
   return d ? t('share.leftDays', { d, h }) : t('share.left', { h, m })
