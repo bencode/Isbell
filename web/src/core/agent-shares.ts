@@ -21,6 +21,11 @@ import { useSpace } from './space'
 
 const EVERY_MS = 30_000
 const CALL_MS = 15_000
+/** Taken off an end asked for: the machine checks it against its own clock, which the browser's may
+ * be ahead of, and refuses one past seven days from its now. */
+const CLOCK_MARGIN_MS = 60_000
+
+const endIn = (lasts: Lasts) => Date.now() + LASTS[lasts] - CLOCK_MARGIN_MS
 
 let lists: Readonly<Record<string, Listed[]>> = {}
 let shares: AgentShare[] = []
@@ -111,12 +116,9 @@ export const useAgentShares = (): AgentShare[] => useSyncExternalStore(subscribe
 
 /** Starts a share on machine `mid`, showing nothing yet; answers its id. */
 export async function startShare(space: Space, mid: string, name: string, lasts: Lasts) {
-  const { id } = (await space.call(
-    mid,
-    PUT,
-    { name, expiresAt: Date.now() + LASTS[lasts], panes: [] },
-    CALL_MS,
-  )) as { id: string }
+  const { id } = (await space.call(mid, PUT, { name, expiresAt: endIn(lasts), panes: [] }, CALL_MS)) as {
+    id: string
+  }
   await refreshShares(space)
   return id
 }
@@ -147,7 +149,7 @@ export async function setPanes(space: Space, share: AgentShare, mid: string, pan
 export async function changeShare(space: Space, share: AgentShare, change: { name?: string; lasts?: Lasts }) {
   const key = await keyOf(space, share)
   const name = change.name ?? share.name
-  const expiresAt = change.lasts ? Date.now() + LASTS[change.lasts] : share.expiresAt
+  const expiresAt = change.lasts ? endIn(change.lasts) : share.expiresAt
   try {
     await Promise.all(
       holders(share).map(mid =>
