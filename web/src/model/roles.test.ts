@@ -1,5 +1,15 @@
 import { describe, expect, test } from 'vitest'
-import { clustered, type Member, type Placing, parseRoles, type Roles, roleOf, teams } from './roles'
+import type { Placed, Project } from './projects'
+import {
+  clustered,
+  type Member,
+  type Placing,
+  parseRoles,
+  type Roles,
+  roleOf,
+  teamBlocks,
+  teams,
+} from './roles'
 
 const book: Roles = {
   roles: [
@@ -104,4 +114,33 @@ describe('teams', () => {
     )
     expect(clustered(['x', 'c', 'd', 'b', 'a'], placings)).toEqual(['x', 'a', 'd', 'b', 'c'])
   })
+})
+
+test('a list is cut where its teams change, each with its lead and the others in it', () => {
+  const project: Project = {
+    key: 'mac:/w',
+    mid: 'mac',
+    machine: 'mac',
+    online: true,
+    path: '/w',
+    display: '/w',
+    name: 'w',
+    configured: true,
+    sessions: [],
+    shells: [],
+  }
+  const at = (paneId: string): Placed => ({
+    project,
+    session: { mid: 'mac', paneId, name: paneId, status: 'working', statusSince: 0, unread: false },
+  })
+  const placings = new Map<string, Placing>([
+    ['mac/a', { key: 'mac/a', lane: 'running', team: 'mac/a', depth: 0 }],
+    ['mac/b', { key: 'mac/b', lane: 'running', team: 'mac/a', depth: 1, under: 'mac/a' }],
+    ['mac/c', { key: 'mac/c', lane: 'running', team: 'mac/c', depth: 0 }],
+  ])
+  const cut = teamBlocks([at('a'), at('b'), at('c')], placings)
+  expect(cut.map(b => [b.team, b.lead?.session.paneId, b.members.map(m => m.session.paneId)])).toEqual([
+    ['mac/a', 'a', ['b']],
+    ['mac/c', 'c', []],
+  ])
 })

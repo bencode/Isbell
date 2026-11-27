@@ -12,7 +12,7 @@ import { type Layout, markAllSeen, setActiveFilter, toggleAgentFold, useLocal } 
 import { useProjects, useSpaceView } from '../../core/space'
 import { sharedTo } from '../../model/agent-share'
 import { lanes, type Placed, paneKey } from '../../model/projects'
-import { clustered, LANES, type Lane, type Member, type Placing, teams } from '../../model/roles'
+import { clustered, LANES, type Lane, membersOf, type Placing, teamBlocks, teams } from '../../model/roles'
 import { keysIn, usePinned } from '../../utils/held-order'
 import { useNow } from '../../utils/time'
 import { AgentRow, type Team } from './agent-row'
@@ -51,21 +51,6 @@ const keyOf = ({ session }: Placed) => paneKey(session.mid, session.paneId)
 
 const asks = ({ session }: Placed) => session.status === 'blocked'
 
-/** `list` cut where its teams change: each with its lead, unless that stays elsewhere for now. */
-function blocks(list: Placed[], placings: ReadonlyMap<string, Placing>) {
-  const cut: { team: string; lead?: Placed; members: Placed[] }[] = []
-  for (const p of list) {
-    const placing = placings.get(keyOf(p))
-    const team = placing?.team ?? keyOf(p)
-    const last = cut.at(-1)
-    const block = last?.team === team ? last : { team, members: [] }
-    if (block !== last) cut.push(block)
-    if (placing?.depth) block.members.push(p)
-    else block.lead = p
-  }
-  return cut
-}
-
 export function ActiveSessions() {
   const t = useI18n()
   const now = useNow()
@@ -84,12 +69,7 @@ export function ActiveSessions() {
     finished: [...live.finished].reverse(),
     standing: live.standing,
   }
-  const members: Member[] = LANES.flatMap(lane =>
-    lanesNow[lane].map(p => {
-      const role = roleFor(p)
-      return { key: keyOf(p), machine: p.session.mid, lane, ...(role ? { role } : {}) }
-    }),
-  )
+  const members = membersOf(lanesNow, roleFor)
   const placings = new Map<string, Placing>(teams(members).map(p => [p.key, p]))
   const roles = new Map(members.flatMap(m => (m.role ? [[m.key, m.role.name] as const] : [])))
   const teamLane = new Map(members.map(m => [m.key, placings.get(m.key)?.lane ?? m.lane]))
@@ -135,8 +115,8 @@ export function ActiveSessions() {
     />
   )
   // Each team as one block: its lead, then the others on a line down from the lead's dot.
-  const teamBlocks = (mid: string, list: Placed[]) =>
-    blocks(list, placings).map(({ team, lead, members }) => {
+  const teamRows = (mid: string, list: Placed[]) =>
+    teamBlocks(list, placings).map(({ team, lead, members }) => {
       const name = lead && roles.get(keyOf(lead))
       const foldKey = name ? `team:${mid}:${name.toLowerCase()}` : undefined
       const shut = foldKey ? folded(foldKey) : false
@@ -180,7 +160,7 @@ export function ActiveSessions() {
             {...(all ? { onToggle: () => toggleAgentFold(foldKey) } : {})}
           />
         ) : null}
-        {shut ? null : teamBlocks(mid, list)}
+        {shut ? null : teamRows(mid, list)}
       </section>,
     ]
   })

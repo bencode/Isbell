@@ -187,6 +187,10 @@ export const needs = (projects: Project[]): Session[] =>
         Number(b.status === 'blocked') - Number(a.status === 'blocked') || b.statusSince - a.statusSince,
     )
 
+/** Of the projects online, the one last active. */
+export const latestOnline = (projects: Project[]): Project | undefined =>
+  projects.filter(p => p.online).sort((a, b) => (b.updated ?? 0) - (a.updated ?? 0))[0]
+
 /** A session with the project it runs in. */
 export type Placed = { session: Session; project: Project }
 

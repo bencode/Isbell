@@ -2,7 +2,7 @@
 // scrolling with the page; or, while a search is typed, the files found.
 
 import { ChevronDown, ChevronRight, Folder, FolderOpen, RotateCw } from 'lucide-react'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { errorText, useI18n } from '../../../core/i18n'
 import { openDirs, toggleDir, useLocal } from '../../../core/prefs'
@@ -16,6 +16,7 @@ import type { FilesRoot } from '../../../model/files/worktrees'
 import type { Project } from '../../../model/projects'
 import { projectFilesHref } from '../../../utils/hrefs'
 import { BackButton, BarTitle, PhoneBar, TAP } from '../bar'
+import { UNDER_TABS } from '../tab-bar'
 import { SearchField, SearchResults } from './search'
 import { WorktreeSheet } from './worktree-sheet'
 
@@ -31,9 +32,19 @@ type Props = {
   root: FilesRoot
   /** A directory to open down to, relative to `root` ('' for none). */
   dir: string
+  /** The bar's start, in place of the way back and the title. */
+  start?: ReactNode
+  /** What follows the refresh, at the bar's end. */
+  end?: ReactNode
+  /** Another project to browse, on a line of its own with the worktrees above the search. */
+  picker?: ReactNode
+  /** Where another worktree is taken, in place of going to its address. */
+  onRoot?: (root: FilesRoot) => void
+  /** Over the tabs, which its foot leaves room for. */
+  underTabs?: boolean
 }
 
-export function FilesTree({ project, roots, root, dir }: Props) {
+export function FilesTree({ project, roots, root, dir, start, end, picker, onRoot, underTabs }: Props) {
   const t = useI18n()
   const { call } = useSpace()
   const open = useLocal().layout.files[root.key] ?? []
@@ -68,23 +79,41 @@ export function FilesTree({ project, roots, root, dir }: Props) {
     void refreshWorktrees(call, project)
     setRound(r => r + 1)
   }
-  const under = (
+  const worktrees =
+    roots.length > 1 ? (
+      <WorktreeSheet project={project} roots={roots} root={root} {...(onRoot ? { onPick: onRoot } : {})} />
+    ) : null
+  const search = <SearchField value={text} onChange={setText} placeholder={t('files.search')} />
+  const under = picker ? (
+    <div className="flex flex-col gap-2 border-t border-line px-2.5 py-2">
+      <div className="flex min-w-0 items-center gap-1.5">
+        {picker}
+        {worktrees}
+      </div>
+      <div className="flex">{search}</div>
+    </div>
+  ) : (
     <div className="flex items-center gap-1.5 border-t border-line px-2.5 py-2">
-      {roots.length > 1 ? <WorktreeSheet project={project} roots={roots} root={root} /> : null}
-      <SearchField value={text} onChange={setText} placeholder={t('files.search')} />
+      {worktrees}
+      {search}
     </div>
   )
   return (
     <div className="flex min-h-dvh flex-col">
       <PhoneBar under={under}>
-        <BackButton />
-        <BarTitle title={t('workbench.files')} where={`${project.name} · ${project.machine}`} />
+        {start ?? (
+          <>
+            <BackButton />
+            <BarTitle title={t('workbench.files')} where={`${project.name} · ${project.machine}`} />
+          </>
+        )}
         <button type="button" onClick={refresh} aria-label={t('files.refresh')} className={TAP}>
           <RotateCw size={19} />
         </button>
+        {end}
       </PhoneBar>
       {/* A new round lists every open folder again. */}
-      <main key={round} className="min-w-0 flex-1 px-2 pt-1.5 pb-4">
+      <main key={round} className={`min-w-0 flex-1 px-2 pt-1.5 ${underTabs ? UNDER_TABS : 'pb-4'}`}>
         {query ? (
           <SearchResults mid={project.mid} root={root} query={query} />
         ) : (

@@ -5,12 +5,12 @@ import { useNavigationType } from 'react-router'
 
 const left = new Map<string, number>()
 
-/** Back at the spot `page` was left, opened anew at the top. What it lists must be in memory already,
- * for there to be something to scroll to at once. */
+/** Back at the spot `page` was left, by going back or by a tab (which replaces), opened anew at the
+ * top. What it lists must be in memory already, for there to be something to scroll to at once. */
 export function usePlaceKept(page: string) {
   const how = useNavigationType()
   useLayoutEffect(() => {
-    window.scrollTo(0, how === 'POP' ? (left.get(page) ?? 0) : 0)
+    window.scrollTo(0, how === 'PUSH' ? 0 : (left.get(page) ?? 0))
     const remember = () => {
       left.set(page, window.scrollY)
     }
