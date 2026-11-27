@@ -28,28 +28,29 @@ pub async fn sessions() -> Vec<Live> {
 }
 
 fn of_list(list: &Value) -> Vec<Live> {
-    let agents = list["agents"].as_array().into_iter().flatten();
-    agents
-        .filter_map(|a| {
-            let agent = Agent::parse(a["agent"].as_str()?)?;
-            let tokens = &a["tokens"];
-            // What the hook left outlives its agent in the pane: it holds for the one that made it.
-            // The hook's first version, for Claude Code alone, did not say which.
-            let ours = tokens["isbell_agent"].as_str().unwrap_or("claude") == agent.as_str();
-            let session = ours
-                .then(|| tokens["isbell_session"].as_str())
-                .flatten()
-                .filter(|s| !s.is_empty())
-                .map(str::to_owned)
-                .or_else(|| herdr_session(&a["agent_session"], agent))?;
-            Some(Live {
-                agent,
-                session,
-                pane: a["pane_id"].as_str()?.to_owned(),
-                name: a["name"].as_str().map(str::to_owned),
-            })
-        })
-        .collect()
+    list["agents"].as_array().into_iter().flatten().filter_map(live_of).collect()
+}
+
+/// The session the agent in a pane runs, from herdr's account of it (an item of `agent.list`, or
+/// what `agent.get` answers with), if it is known to run one.
+pub fn live_of(a: &Value) -> Option<Live> {
+    let agent = Agent::parse(a["agent"].as_str()?)?;
+    let tokens = &a["tokens"];
+    // What the hook left outlives its agent in the pane: it holds for the one that made it.
+    // The hook's first version, for Claude Code alone, did not say which.
+    let ours = tokens["isbell_agent"].as_str().unwrap_or("claude") == agent.as_str();
+    let session = ours
+        .then(|| tokens["isbell_session"].as_str())
+        .flatten()
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned)
+        .or_else(|| herdr_session(&a["agent_session"], agent))?;
+    Some(Live {
+        agent,
+        session,
+        pane: a["pane_id"].as_str()?.to_owned(),
+        name: a["name"].as_str().map(str::to_owned),
+    })
 }
 
 /// The session herdr made out for the agent in the pane now: its id, or the file it is kept in,

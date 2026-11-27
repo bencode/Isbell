@@ -29,11 +29,17 @@ pub enum Method {
     ShareStart,
     ShareLink,
     ShareStop,
+    AgentSharePut,
+    AgentShareList,
+    AgentShareLink,
+    AgentShareStop,
+    /// Served only in an agent share's space, to its guests.
+    AgentShareSession,
     Upgrade,
 }
 
 impl Method {
-    pub(super) const ALL: [Method; 19] = [
+    pub(super) const ALL: [Method; 24] = [
         Method::Herdr,
         Method::StartAgent,
         Method::LaunchAgent,
@@ -52,6 +58,11 @@ impl Method {
         Method::ShareStart,
         Method::ShareLink,
         Method::ShareStop,
+        Method::AgentSharePut,
+        Method::AgentShareList,
+        Method::AgentShareLink,
+        Method::AgentShareStop,
+        Method::AgentShareSession,
         Method::Upgrade,
     ];
 
@@ -75,6 +86,11 @@ impl Method {
             Method::ShareStart => "isbell.share.start",
             Method::ShareLink => "isbell.share.link",
             Method::ShareStop => "isbell.share.stop",
+            Method::AgentSharePut => "isbell.agentShare.put",
+            Method::AgentShareList => "isbell.agentShare.list",
+            Method::AgentShareLink => "isbell.agentShare.link",
+            Method::AgentShareStop => "isbell.agentShare.stop",
+            Method::AgentShareSession => "isbell.agentShare.session",
             Method::Upgrade => "isbell.upgrade",
         }
     }
@@ -84,9 +100,13 @@ impl Method {
     }
 }
 
-/// Methods advertised in `caps`: the herdr methods passed through, and the gateway's own.
+/// Methods advertised in `caps`: the herdr methods passed through, and the gateway's own (but for
+/// what only an agent share's guests are served).
 pub fn methods() -> Vec<String> {
-    let own = Method::ALL.into_iter().filter(|m| *m != Method::Herdr).map(Method::name);
+    let own = Method::ALL
+        .into_iter()
+        .filter(|m| !matches!(m, Method::Herdr | Method::AgentShareSession))
+        .map(Method::name);
     rpc::ALLOWED.iter().copied().chain(own).map(str::to_owned).collect()
 }
 
