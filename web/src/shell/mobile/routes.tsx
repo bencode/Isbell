@@ -9,6 +9,7 @@ import { Loading } from '../loading'
 import { PhoneFiles } from './files/files'
 import { PhoneFilesTab } from './files/files-tab'
 import { Home } from './home'
+import { PhoneInbox } from './inbox/inbox'
 import { PhoneNewSession } from './new-session'
 import { PhoneGoal } from './tasks/goal-page'
 import { PhoneTask } from './tasks/task-page'
@@ -23,7 +24,7 @@ const PhoneSessions = lazy(() => import('./sessions/sessions').then(m => ({ defa
 const FILES = '/p/:key/files/*'
 
 export function MobileRoutes() {
-  // The roles agents took, for the Agents tab to name them by, and the goals and messages for Tasks.
+  // The roles agents took, for the Agents tab to name them by, the goals for Tasks, and the messages.
   useBooksPull()
   const location = useLocation()
   const files = !!matchPath(FILES, location.pathname)
@@ -39,6 +40,7 @@ export function MobileRoutes() {
             <Route path="tasks" element={<PhoneTasks />} />
             <Route path="tasks/:mid/:id" element={<PhoneTask />} />
             <Route path="goals/:mid/:id" element={<PhoneGoal />} />
+            <Route path="inbox" element={<PhoneInbox />} />
             <Route path="files" element={<PhoneFilesTab />} />
             <Route
               path="s/:mid/*"

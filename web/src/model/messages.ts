@@ -84,6 +84,9 @@ export function parseMessages(text: string): Messages | undefined {
 /** When it was last active: its latest reply, or when it was sent. */
 export const lastActive = (m: Message) => m.replies.at(-1)?.time ?? m.time
 
+/** Whether it waits on the user: a question, or a warning. */
+export const asksYou = (m: Message) => m.kind === 'ask' || m.kind === 'warn'
+
 /** The messages of every machine as one list, the latest active first. */
 export const feed = <T extends { message: Message }>(items: T[]): T[] =>
   [...items].sort((a, b) => lastActive(b.message) - lastActive(a.message))
