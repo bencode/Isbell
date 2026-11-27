@@ -8,7 +8,7 @@ import { useGoalShelves, useMessageFeed, useRunningSession } from '../../core/bo
 import { useI18n } from '../../core/i18n'
 import { useProjects } from '../../core/space'
 import { AGENT_NAMES } from '../../features/session/session-row'
-import { rootHolding } from '../../model/files/worktrees'
+import { projectHolding } from '../../model/files/worktrees'
 import { type Link, parseLink } from '../../model/messages'
 import { closedTabId, withTab } from '../../model/tabs'
 import { projectHref } from '../../utils/hrefs'
@@ -34,15 +34,7 @@ export function MessagesView() {
 
   const named = new Set(posted.map(p => p.mid)).size > 1
   const asking = posted.filter(({ message }) => message.kind === 'ask').length
-  /** The project on `mid` a path is in, the deepest holding it, and where it is under it. */
-  const projectAt = (mid: string, path: string) => {
-    const roots = projects
-      .filter(p => p.mid === mid && p.path)
-      .map(p => ({ key: p.key, path: p.path, display: p.display, branch: null, own: true }))
-    const found = rootHolding(roots, path)
-    const project = found && projects.find(p => p.key === found.root.key)
-    return project && found ? { project, rel: found.rel } : undefined
-  }
+  const projectAt = (mid: string, path: string) => projectHolding(projects, mid, path)
   const projectName = (p: (typeof projects)[number]) => (p.configured ? p.name : p.display)
   /** A session: looked at while it runs; else its record, in the project `dir` is in. */
   const sessionTag = (mid: string, agent: string, id: string, who: string, dir: string | undefined) => {

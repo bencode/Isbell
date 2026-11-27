@@ -1,5 +1,6 @@
-// A phone's pages. A session lives at the address its push notifications have, and a project's files
-// at the address they have everywhere, over the page they were opened from.
+// A phone's pages. A session lives at the address its push notifications have, a task and a goal by
+// their machine and number, and a project's files at the address they have everywhere, over the page
+// they were opened from.
 
 import { Activity, lazy, Suspense, useState } from 'react'
 import { matchPath, Navigate, Route, Routes, useLocation } from 'react-router'
@@ -9,6 +10,9 @@ import { PhoneFiles } from './files/files'
 import { PhoneFilesTab } from './files/files-tab'
 import { Home } from './home'
 import { PhoneNewSession } from './new-session'
+import { PhoneGoal } from './tasks/goal-page'
+import { PhoneTask } from './tasks/task-page'
+import { PhoneTasks } from './tasks/tasks-tab'
 
 // With the rendering of messages and its highlighter, which the first page does not need.
 const PhoneSession = lazy(() => import('./session').then(m => ({ default: m.PhoneSession })))
@@ -19,7 +23,7 @@ const PhoneSessions = lazy(() => import('./sessions/sessions').then(m => ({ defa
 const FILES = '/p/:key/files/*'
 
 export function MobileRoutes() {
-  // The roles agents took, for the Agents tab to name them by.
+  // The roles agents took, for the Agents tab to name them by, and the goals and messages for Tasks.
   useBooksPull()
   const location = useLocation()
   const files = !!matchPath(FILES, location.pathname)
@@ -32,6 +36,9 @@ export function MobileRoutes() {
         <Activity mode={files ? 'hidden' : 'visible'}>
           <Routes location={behind}>
             <Route index element={<Home />} />
+            <Route path="tasks" element={<PhoneTasks />} />
+            <Route path="tasks/:mid/:id" element={<PhoneTask />} />
+            <Route path="goals/:mid/:id" element={<PhoneGoal />} />
             <Route path="files" element={<PhoneFilesTab />} />
             <Route
               path="s/:mid/*"

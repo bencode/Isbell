@@ -8,7 +8,7 @@ import { useI18n } from '../../../core/i18n'
 import { useProjects } from '../../../core/space'
 import { useTabActions } from '../../../core/tabs'
 import { AGENT_NAMES } from '../../../features/session/session-row'
-import { rootHolding } from '../../../model/files/worktrees'
+import { projectHolding } from '../../../model/files/worktrees'
 import { type Goal, type Progress, periodLabel, type Task } from '../../../model/goals'
 import type { Placed } from '../../../model/projects'
 import { closedTabId } from '../../../model/tabs'
@@ -48,12 +48,9 @@ function LinkValue({ mid, value }: { mid: string; value: string }) {
   const { href } = useTabActions()
   const projects = useProjects()
   const abs = value.replace(/^file:/, '')
-  const roots = projects
-    .filter(p => p.mid === mid && p.path)
-    .map(p => ({ key: p.key, path: p.path, display: p.display, branch: null, own: true }))
-  const found = value.startsWith('file:') ? rootHolding(roots, abs) : undefined
+  const found = value.startsWith('file:') ? projectHolding(projects, mid, abs) : undefined
   return found ? (
-    <Link to={href(fileTabId(found.root.key, found.rel))} className={LINK}>
+    <Link to={href(fileTabId(found.project.key, found.rel))} className={LINK}>
       {abs}
     </Link>
   ) : (

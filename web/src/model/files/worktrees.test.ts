@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { matchRoots, parseRootKey, rootKey, rootsOf } from './worktrees'
+import type { Project } from '../projects'
+import { matchRoots, parseRootKey, projectHolding, rootKey, rootsOf } from './worktrees'
 
 const project = { key: 'app-1', path: '/Users/me/work/app', display: '~/work/app' }
 
@@ -38,5 +39,25 @@ describe('worktrees', () => {
 
   it('is the project alone where no worktrees are known', () => {
     expect(rootsOf(project, [])).toEqual([{ ...project, branch: null, own: true }])
+  })
+
+  it('finds the deepest project on the machine holding a path', () => {
+    const at = (key: string, mid: string, path: string): Project => ({
+      key,
+      mid,
+      machine: mid,
+      online: true,
+      path,
+      display: path,
+      name: key,
+      configured: true,
+      sessions: [],
+      shells: [],
+    })
+    const projects = [at('work', 'mac', '/w'), at('app', 'mac', '/w/app'), at('other', 'mini', '/w/app/sub')]
+    const found = (path: string) => projectHolding(projects, 'mac', path)
+    expect(found('/w/app/sub/x.md')).toMatchObject({ project: { key: 'app' }, rel: 'sub/x.md' })
+    expect(found('/w/notes.md')).toMatchObject({ project: { key: 'work' }, rel: 'notes.md' })
+    expect(found('/elsewhere/x.md')).toBeUndefined()
   })
 })
