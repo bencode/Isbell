@@ -80,6 +80,8 @@ export type Local = {
   lastAgent: string | null
   /** What each machine last listed as its projects, by machine id, for while it is offline. */
   projectPaths: Record<string, string[]>
+  /** The keys of the agent shares joined here, whose agents the right column's Agents shows. */
+  sharesJoined: string[]
 }
 
 const DEFAULTS: Local = {
@@ -109,6 +111,7 @@ const DEFAULTS: Local = {
   lastProject: null,
   lastAgent: null,
   projectPaths: {},
+  sharesJoined: [],
 }
 
 const FIELDS = Object.keys(DEFAULTS) as (keyof Local)[]
@@ -173,6 +176,14 @@ export const toggleEarlier = () =>
 
 export const toggleHiddenShown = () =>
   updateLocal(l => ({ layout: { ...l.layout, hiddenShown: !l.layout.hiddenShown } }))
+
+export const joinShare = (key: string) =>
+  updateLocal(l => ({
+    sharesJoined: l.sharesJoined.includes(key) ? l.sharesJoined : [...l.sharesJoined, key],
+  }))
+
+export const leaveShare = (key: string) =>
+  updateLocal(l => ({ sharesJoined: l.sharesJoined.filter(k => k !== key) }))
 
 export const setAgentSharesOpen = (agentSharesOpen: boolean) =>
   updateLocal(l => ({ layout: { ...l.layout, agentSharesOpen } }))
