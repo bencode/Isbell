@@ -199,10 +199,6 @@ impl Calls {
             Method::AgentShareList => link.send(response_frame(id, Ok(self.shares.agents.list()))),
             Method::AgentShareLink => link.send(response_frame(id, self.shares.agents.link(p))),
             Method::AgentShareStop => link.send(response_frame(id, self.shares.agents.stop(p))),
-            Method::AgentShareSession => {
-                let only = RpcError::new("method_not_allowed", "only a share's guests ask that");
-                link.send(response_frame(id, Err(only)));
-            }
             Method::Upgrade => {
                 self.tasks
                     .spawn(async move { link.send(response_frame(id, upgrade::upgrade().await)) });
@@ -263,8 +259,15 @@ mod tests {
             version: "v".into(),
         };
         let space = identity.sid();
-        let agents =
-            AgentShares::new(space, String::new(), vec![], machine, slot.clone(), states_rx);
+        let agents = AgentShares::new(
+            space,
+            String::new(),
+            vec![],
+            machine,
+            slot.clone(),
+            states_rx,
+            uploads.clone(),
+        );
         let shares = Sharing { files: shares, agents };
         let calls = Calls::new(slot, refresh, vec![], uploads, push, shares, inbox.clone());
         let streams = Arc::clone(&calls.streams);

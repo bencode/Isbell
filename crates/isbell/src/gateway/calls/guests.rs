@@ -1,8 +1,9 @@
 //! What an agent share's guests reach: the agents shared, by their panes, and nothing else. They
 //! talk with them as the user would (prompts, keys, the screen, the conversation as the agent keeps
-//! it, the terminal) but start, close or read nothing else. Anyone with the link can send frames
-//! here, so calls are allowed by name, and each is held to the panes shared as they are when it
-//! comes; a pane is named by its id, never by an agent's name, which could be another's.
+//! it, the terminal, files sent for them) but start, close or read nothing else. Anyone with the
+//! link can send frames here, so calls are allowed by name, and each is held to the panes shared as
+//! they are when it comes; a pane is named by its id, never by an agent's name, which could be
+//! another's.
 
 use std::path::{Path, PathBuf};
 
@@ -24,12 +25,19 @@ use crate::gateway::{HerdrSlot, direct, file, rpc, terminal};
 const HERDR_METHODS: &[&str] =
     &["agent.get", "agent.read", "agent.prompt", "agent.wait", "agent.send_keys", "pane.read"];
 const OWN_METHODS: [Method; 4] =
-    [Method::Terminal, Method::FileRead, Method::RtcOffer, Method::AgentShareSession];
+    [Method::Terminal, Method::FileRead, Method::FileUpload, Method::RtcOffer];
+/// The session a pane shared runs: asked of a share's machine alone, so not one of the gateway's
+/// own methods, which its owner's space is served.
+const SESSION: &str = "isbell.agentShare.session";
+
+/// The largest file a guest may send, as the web takes for anyone (`UPLOAD_MAX`): the owner's own
+/// uploads are not held to it, but anyone with the link can send one.
+const GUEST_UPLOAD_MAX: u64 = 20 * 1024 * 1024;
 
 /// Methods a share's machine advertises.
 pub fn methods() -> Vec<String> {
     let own = OWN_METHODS.map(Method::name);
-    HERDR_METHODS.iter().chain(own.iter()).map(|m| (*m).to_owned()).collect()
+    HERDR_METHODS.iter().chain(own.iter()).chain([&SESSION]).map(|m| (*m).to_owned()).collect()
 }
 
 /// Owns a share's calls: relayed and direct frames both reach it through its inbox.
@@ -51,6 +59,8 @@ pub struct Guests {
     panes: watch::Receiver<Vec<String>>,
     /// Where the agent hook keeps its session records (`~/.isbell/sessions`).
     records: Option<PathBuf>,
+    /// Where files sent for the agents go, as the owner's own uploads do.
+    uploads: PathBuf,
     /// STUN servers for direct links.
     ice: Vec<String>,
     /// Its own inbox, so that a direct link's frames are held to the same rules.
@@ -62,6 +72,7 @@ impl Guests {
         slot: HerdrSlot,
         panes: watch::Receiver<Vec<String>>,
         records: Option<PathBuf>,
+        uploads: PathBuf,
         ice: Vec<String>,
         inbox: mpsc::UnboundedSender<ToCalls>,
     ) -> Guests {
@@ -71,6 +82,7 @@ impl Guests {
             slot,
             panes,
             records,
+            uploads,
             ice,
             inbox,
         }
@@ -81,6 +93,12 @@ impl Guests {
             Inbound::Call { id, method: Ok(method), p } => {
                 match allowed(method, &p, &self.shared()) {
                     Ok(()) => self.start(link, id, method, p),
+                    Err(refused) => link.send(response_frame(id, Err(refused))),
+                }
+            }
+            Inbound::Call { id, method: Err(name), p } if name == SESSION => {
+                match on_shared(&p["paneId"], &self.shared()) {
+                    Ok(()) => self.session(link, id, p),
                     Err(refused) => link.send(response_frame(id, Err(refused))),
                 }
             }
@@ -104,10 +122,7 @@ impl Guests {
 
     /// Starts a call `allowed` let through.
     fn start(&mut self, link: Link, id: u64, method: Method, p: Value) {
-        let herdr = self.slot.read().expect("herdr slot poisoned").clone();
-        let herdr = herdr.ok_or_else(|| {
-            RpcError::from(HerdrError::unavailable("herdr server is not available"))
-        });
+        let herdr = self.herdr();
         match method {
             Method::Herdr => {
                 self.tasks.spawn(async move {
@@ -127,23 +142,35 @@ impl Guests {
                 };
                 self.stream(link, id, open, file::pump_read);
             }
+            Method::FileUpload => {
+                let open = file::open_upload(p, self.uploads.clone());
+                self.stream(link, id, open, file::pump_write);
+            }
             Method::RtcOffer => {
                 let (ice, inbox) = (self.ice.clone(), self.inbox.clone());
                 self.tasks.spawn(direct::serve(link, id, p, ice, inbox));
             }
-            Method::AgentShareSession => {
-                let records = self.records.clone();
-                self.tasks.spawn(async move {
-                    let result = async {
-                        let pane = p["paneId"].as_str().unwrap_or_default();
-                        session_of(&herdr?, pane, records.as_deref()).await
-                    }
-                    .await;
-                    link.send(response_frame(id, result));
-                });
-            }
             _ => link.send(response_frame(id, Err(not_allowed()))),
         }
+    }
+
+    /// Answers SESSION for the pane in `p`, which `on_shared` let through.
+    fn session(&mut self, link: Link, id: u64, p: Value) {
+        let (herdr, records) = (self.herdr(), self.records.clone());
+        self.tasks.spawn(async move {
+            let result = async {
+                let pane = p["paneId"].as_str().unwrap_or_default();
+                session_of(&herdr?, pane, records.as_deref()).await
+            }
+            .await;
+            link.send(response_frame(id, result));
+        });
+    }
+
+    fn herdr(&self) -> Result<Herdr, RpcError> {
+        let herdr = self.slot.read().expect("herdr slot poisoned").clone();
+        herdr
+            .ok_or_else(|| RpcError::from(HerdrError::unavailable("herdr server is not available")))
     }
 
     /// As `Calls::stream`: registered now, in order with the caller's other frames.
@@ -173,14 +200,6 @@ fn not_allowed() -> RpcError {
 /// Whether a guest may make the call, on the panes `shared` now. A file read is held to the
 /// conversations of those panes later, once herdr says which they are.
 fn allowed(method: Method, p: &Value, shared: &[String]) -> Result<(), RpcError> {
-    let on_shared = |pane: &Value| {
-        let pane = pane.as_str().unwrap_or_default();
-        if shared.iter().any(|s| s == pane) {
-            Ok(())
-        } else {
-            Err(RpcError::new("not_shared", "that pane is not shared"))
-        }
-    };
     match method {
         Method::Herdr => {
             let name = p["method"].as_str().unwrap_or_default();
@@ -188,12 +207,26 @@ fn allowed(method: Method, p: &Value, shared: &[String]) -> Result<(), RpcError>
                 return Err(not_allowed());
             }
             let params = &p["params"];
-            on_shared(if name == "pane.read" { &params["pane_id"] } else { &params["target"] })
+            let pane = if name == "pane.read" { &params["pane_id"] } else { &params["target"] };
+            on_shared(pane, shared)
         }
-        Method::Terminal if p["new"].is_null() => on_shared(&p["target"]),
-        Method::FileRead | Method::RtcOffer => Ok(()),
-        Method::AgentShareSession => on_shared(&p["paneId"]),
+        Method::Terminal if p["new"].is_null() => on_shared(&p["target"], shared),
+        // An upload lands in a directory of its own under the uploads one, by its name's last part.
+        Method::FileUpload if p["size"].as_u64().is_some_and(|size| size > GUEST_UPLOAD_MAX) => {
+            Err(RpcError::new("too_large", "a share takes files of at most 20 MB"))
+        }
+        Method::FileRead | Method::FileUpload | Method::RtcOffer => Ok(()),
         _ => Err(not_allowed()),
+    }
+}
+
+/// Whether `pane`, by its id, is one of the panes `shared` now.
+fn on_shared(pane: &Value, shared: &[String]) -> Result<(), RpcError> {
+    let pane = pane.as_str().unwrap_or_default();
+    if shared.iter().any(|s| s == pane) {
+        Ok(())
+    } else {
+        Err(RpcError::new("not_shared", "that pane is not shared"))
     }
 }
 
@@ -267,7 +300,7 @@ mod tests {
     fn guests(panes: &[&str]) -> (Guests, watch::Sender<Vec<String>>) {
         let (inbox, _rx) = mpsc::unbounded_channel();
         let (tx, rx) = watch::channel(panes.iter().map(|p| (*p).to_owned()).collect());
-        (Guests::new(HerdrSlot::default(), rx, None, Vec::new(), inbox), tx)
+        (Guests::new(HerdrSlot::default(), rx, None, PathBuf::new(), Vec::new(), inbox), tx)
     }
 
     fn refused(guests: &mut Guests, m: &str, p: Value) -> Option<String> {
@@ -316,16 +349,17 @@ mod tests {
         let read = json!({"method": "pane.read", "params": {"pane_id": "w1:p2"}});
         assert_eq!(refused(&mut guests, "herdr", read).as_deref(), not_shared);
         let session = json!({"paneId": "w1:p2"});
-        assert_eq!(
-            refused(&mut guests, "isbell.agentShare.session", session).as_deref(),
-            not_shared
-        );
+        assert_eq!(refused(&mut guests, SESSION, session).as_deref(), not_shared);
         // A new shell is not an agent shared.
         let shell = json!({"new": {"cwd": "/"}, "mode": "control", "cols": 80, "rows": 24});
         assert_eq!(
             refused(&mut guests, "isbell.terminal", shell).as_deref(),
             Some("method_not_allowed")
         );
+
+        // A file larger than a guest may send.
+        let big = json!({"name": "big.bin", "size": GUEST_UPLOAD_MAX + 1});
+        assert_eq!(refused(&mut guests, "isbell.file.upload", big).as_deref(), Some("too_large"));
 
         // Unshared while the link is held: refused from then on.
         panes.send_replace(Vec::new());
