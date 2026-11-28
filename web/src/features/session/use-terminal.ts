@@ -12,7 +12,7 @@ import { type BarKey, barKeyBytes } from '../../model/term-keys'
 import { type Cell, type FindPaths, lineAround, lineLinks } from '../../model/term-links'
 import { cellAt, turnWheel, wheelReport } from '../../model/term-wheel'
 import { openTerminal, type Terminal } from '../../model/terminal'
-import { PHONE } from '../../utils/phone'
+import { COARSE } from '../../utils/phone'
 import { useMentions } from './mention-text'
 
 type TerminalState = {
@@ -85,8 +85,8 @@ function linksOn(term: XTerm, paths: FindPaths | undefined, y: number) {
 }
 
 /** The web addresses on the screen, and its paths where the pane's project is known, as links that
- * open as they do in chat: at a tap on a phone, elsewhere with ⌘ or Ctrl held, so that a click or a
- * double click still selects. An address opens in a new tab. */
+ * open as they do in chat: at a tap on a phone or a tablet, elsewhere with ⌘ or Ctrl held, so that a
+ * click or a double click still selects. An address opens in a new tab. */
 function termLinks(term: XTerm, links: RefObject<Links | null>): ILinkProvider {
   return {
     provideLinks(y, callback) {
@@ -95,7 +95,7 @@ function termLinks(term: XTerm, links: RefObject<Links | null>): ILinkProvider {
           range: { start, end },
           text: target.text,
           activate: event => {
-            if (!(PHONE || event.metaKey || event.ctrlKey)) return
+            if (!(COARSE || event.metaKey || event.ctrlKey)) return
             if (target.kind === 'url') window.open(target.url, '_blank', 'noopener,noreferrer')
             else links.current?.open(target.mention)
           },
@@ -105,9 +105,33 @@ function termLinks(term: XTerm, links: RefObject<Links | null>): ILinkProvider {
   }
 }
 
+/** Follows one finger drawn over `el`: `drag` gets how far up it went since it last moved, in pixels,
+ * and where it is now, and says whether it took the move, for the page not to follow it as well. Two
+ * fingers are a pinch, and a tap moves nothing, so it still brings up the keyboard or opens a link.
+ * Returns how to stop following. */
+function followFinger(el: HTMLElement, drag: (up: number, point: { x: number; y: number }) => boolean) {
+  let lastY: number | undefined
+  const start = (event: TouchEvent) => {
+    lastY = event.touches.length === 1 ? event.touches[0]?.clientY : undefined
+  }
+  const move = (event: TouchEvent) => {
+    const finger = event.touches[0]
+    if (lastY === undefined || event.touches.length !== 1 || !finger) return
+    const up = lastY - finger.clientY
+    lastY = finger.clientY
+    if (drag(up, { x: finger.clientX, y: finger.clientY })) event.preventDefault()
+  }
+  el.addEventListener('touchstart', start, { passive: true })
+  el.addEventListener('touchmove', move, { passive: false })
+  return () => {
+    el.removeEventListener('touchstart', start)
+    el.removeEventListener('touchmove', move)
+  }
+}
+
 /** `takesKeys`: whether it takes the keys as it opens and shows; on a phone that would bring up the
- * keyboard, which waits to be asked for. `sendsWheel`: whether the wheel goes to the program in the
- * pane, which may change while it stays attached. */
+ * keyboard, which waits to be asked for. `sendsWheel`: whether the wheel, and a finger drawn up or
+ * down, go to the program in the pane, which may change while it stays attached. */
 export function useTerminal(
   el: RefObject<HTMLDivElement | null>,
   mid: string,
@@ -206,16 +230,24 @@ export function useTerminal(
     const typed = term.onData(s => live?.input(utf8.encode(s)))
     const binary = term.onBinary(s => live?.input(Uint8Array.from(s, c => c.charCodeAt(0))))
     let turned = 0
+    const turn = (wheel: Pick<WheelEvent, 'deltaY' | 'deltaMode'>, point: { x: number; y: number }) => {
+      const box = host.getBoundingClientRect()
+      const { notches, left } = turnWheel(turned, wheel, box.height / term.rows, term.rows)
+      turned = left
+      const { col, row } = cellAt(point, box, term)
+      if (notches) live?.input(utf8.encode(wheelReport(notches, col, row)))
+    }
     term.attachCustomWheelEventHandler(event => {
       // A pinch arrives as a wheel with Ctrl held.
       if (!wheelGoesOn.current || event.ctrlKey) return true
-      const box = host.getBoundingClientRect()
-      const { notches, left } = turnWheel(turned, event, box.height / term.rows, term.rows)
-      turned = left
-      const point = { x: event.clientX, y: event.clientY }
-      const { col, row } = cellAt(point, box, term)
-      if (notches) live?.input(utf8.encode(wheelReport(notches, col, row)))
+      turn(event, { x: event.clientX, y: event.clientY })
       return false
+    })
+    // A finger drawn down turns the wheel up, as far as it went, as it moves a page. xterm follows the
+    // finger too, with no history of its own to scroll, and so tells a drag from a tap.
+    const unfollow = followFinger(host, (up, point) => {
+      if (wheelGoesOn.current) turn({ deltaY: up, deltaMode: WheelEvent.DOM_DELTA_PIXEL }, point)
+      return wheelGoesOn.current
     })
     let settle: ReturnType<typeof setTimeout> | undefined
     // Shown again after hiding behind the chat, it takes the keys, as it does on opening.
@@ -239,6 +271,7 @@ export function useTerminal(
       gone = true
       clearTimeout(settle)
       observer.disconnect()
+      unfollow()
       typed.dispose()
       binary.dispose()
       linking.dispose()

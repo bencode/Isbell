@@ -9,6 +9,8 @@ export type BarKey =
   | 'pageDown'
   | 'up'
   | 'down'
+  | 'left'
+  | 'right'
   | 'enter'
   | '1'
   | '2'
@@ -26,7 +28,7 @@ const PLAIN: Partial<Record<BarKey, string>> = {
   '2': '2',
   '3': '3',
 }
-const ARROW: Partial<Record<BarKey, string>> = { up: 'A', down: 'B' }
+const ARROW: Partial<Record<BarKey, string>> = { up: 'A', down: 'B', right: 'C', left: 'D' }
 
 /** What a key on the bar sends; arrows follow the program's cursor-key mode (DECCKM). */
 export const barKeyBytes = (key: BarKey, appCursor: boolean): string =>

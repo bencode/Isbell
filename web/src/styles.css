@@ -169,6 +169,15 @@ body {
   overscroll-behavior: contain;
 }
 
+/* On a tablet the keyboard is laid over the page: while it is up over the terminal, the page keeps to
+   what it leaves. */
+:root[data-viewport="visual"] #root {
+  position: fixed;
+  inset-inline: 0;
+  top: var(--visible-top);
+  height: var(--visible-height);
+}
+
 /* The terminal on a phone is laid over a page that must not move. */
 :root[data-scroll="locked"],
 :root[data-scroll="locked"] body,

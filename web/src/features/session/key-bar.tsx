@@ -1,12 +1,13 @@
-// The keys a touch keyboard lacks, under the terminal. Those that answer an agent's menu and the one
-// that brings up the keyboard stay in sight, Enter at the right edge under the thumb; the rest scroll
-// beside them, ^C last, as a second press quits an agent.
+// The keys a touch keyboard lacks, under the terminal on a phone or a tablet. Those that answer an
+// agent's menu and the one that brings up the keyboard stay in sight, Enter at the right edge under
+// the thumb; the rest scroll beside them where they do not fit, ^C last, as a second press quits an
+// agent.
 
 import { Keyboard } from 'lucide-react'
 import type { MouseEvent, ReactNode } from 'react'
 import { useI18n } from '../../core/i18n'
-import { VOICE_LABEL, VoiceIcon, type VoiceState } from '../../features/session/voice'
 import type { BarKey } from '../../model/term-keys'
+import { VOICE_LABEL, VoiceIcon, type VoiceState } from './voice'
 
 type Key = { key: BarKey; label: ReactNode; aria?: string }
 
@@ -21,10 +22,12 @@ const SCROLLED: Key[] = [
   { key: 'tab', label: 'Tab' },
   { key: 'interrupt', label: '^C', aria: 'Ctrl-C' },
 ]
-const FIXED: Key[] = [
+const UP_DOWN: Key[] = [
   { key: 'up', label: '↑' },
   { key: 'down', label: '↓' },
 ]
+// With room for them, the keys that move along the line too.
+const ARROWS: Key[] = [{ key: 'left', label: '←' }, ...UP_DOWN, { key: 'right', label: '→' }]
 
 // On the terminal's night page (NIGHT in use-terminal.ts), as tall as a finger and as narrow as lets
 // the keys that answer a menu fit on a phone.
@@ -37,19 +40,21 @@ const ENTER = 'w-12! border-[#8fb0ff]! bg-[#8fb0ff]! text-[17px] font-bold text-
 const keepFocus = (e: MouseEvent) => e.preventDefault()
 
 /** `keyboard`: the system keyboard is up. `live`: the terminal is connected, so a key would arrive.
- * `voice`: voice input, when there is a speech service. */
+ * `voice`: voice input, when there is a speech service. `wide`: on a tablet, with ← and → as well. */
 export function KeyBar({
   live,
   keyboard,
   onKeyboard,
   onKey,
   voice,
+  wide = false,
 }: {
   live: boolean
   keyboard: boolean
   onKeyboard: () => void
   onKey: (key: BarKey) => void
   voice?: { state: VoiceState; toggle: () => void } | undefined
+  wide?: boolean
 }) {
   const t = useI18n()
   const button = ({ key, label, aria }: Key, extra = '') => (
@@ -94,7 +99,7 @@ export function KeyBar({
         >
           <Keyboard size={18} />
         </button>
-        {FIXED.map(k => button(k))}
+        {(wide ? ARROWS : UP_DOWN).map(k => button(k))}
         {button({ key: 'enter', label: '⏎', aria: 'Enter' }, ENTER)}
       </div>
     </div>
