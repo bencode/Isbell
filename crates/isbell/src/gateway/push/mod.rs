@@ -1,7 +1,9 @@
 //! Pushes to the phones subscribed on this machine when one of its agents comes to ask or is done,
-//! so they hear of it with Isbell closed. Each gateway pushes its own machine's agents; the relay
-//! keeps nothing. Only Apple's push service is reached: Isbell's phone is an iPhone.
+//! or sends the user a question or a warning, so they hear of it with Isbell closed. Each gateway
+//! pushes its own machine's agents; the relay keeps nothing. Only Apple's push service is reached:
+//! Isbell's phone is an iPhone.
 
+pub mod messages;
 mod store;
 mod vapid;
 
@@ -156,28 +158,41 @@ impl SubscribeRequest {
     }
 }
 
-/// An agent come to ask or done.
+/// What a push says on top: an agent, by its name, come to ask or done, in the phone's words; or
+/// what a message says, as its agent wrote it.
+#[derive(Debug, PartialEq)]
+enum Title {
+    Asks(String),
+    Done(String),
+    Said(String),
+}
+
 #[derive(Debug, PartialEq)]
 struct Notice {
-    mid: String,
-    pane_id: String,
-    name: String,
-    blocked: bool,
-    /// Where it is: its project and machine.
-    place: String,
+    title: Title,
+    /// Who or where it is from.
+    body: String,
+    /// One push of a tag takes the place of the last.
+    tag: String,
+    /// The page a tap opens.
+    url: String,
 }
 
 impl Notice {
-    /// What the service worker shows, and the session a tap opens.
+    /// What the service worker shows.
     fn payload(&self, texts: &Texts) -> Value {
-        let title = if self.blocked { &texts.blocked } else { &texts.done };
-        json!({
-            "title": title.replace("{name}", &self.name),
-            "body": self.place,
-            "tag": format!("{}/{}", self.mid, self.pane_id),
-            "url": format!("/s/{}/{}", self.mid, self.pane_id.replace(':', "%3A")),
-        })
+        let title = match &self.title {
+            Title::Asks(name) => texts.blocked.replace("{name}", name),
+            Title::Done(name) => texts.done.replace("{name}", name),
+            Title::Said(text) => text.clone(),
+        };
+        json!({ "title": title, "body": self.body, "tag": self.tag, "url": self.url })
     }
+}
+
+/// The address of a session, by its machine and pane.
+fn session_url(mid: &str, pane_id: &str) -> String {
+    format!("/s/{mid}/{}", pane_id.replace(':', "%3A"))
 }
 
 /// Each agent's status and since when.
@@ -202,16 +217,21 @@ fn due(before: &Seen, now: &MachineState) -> Vec<Notice> {
         .filter(|a| before.get(&a.pane_id).is_some_and(|was| worth_telling(*was, a)))
         .map(|a| {
             let project = a.cwd.as_deref().and_then(|cwd| cwd.rsplit('/').find(|s| !s.is_empty()));
+            let name = a.name.clone().or_else(|| a.kind.clone()).unwrap_or_else(|| "agent".into());
+            let mid = &now.machine.id;
             Notice {
-                mid: now.machine.id.clone(),
-                pane_id: a.pane_id.clone(),
-                name: a.name.clone().or_else(|| a.kind.clone()).unwrap_or_else(|| "agent".into()),
-                blocked: a.status == AgentStatus::Blocked,
-                place: [project, Some(now.machine.name.as_str())]
+                title: if a.status == AgentStatus::Blocked {
+                    Title::Asks(name)
+                } else {
+                    Title::Done(name)
+                },
+                body: [project, Some(now.machine.name.as_str())]
                     .into_iter()
                     .flatten()
                     .collect::<Vec<_>>()
                     .join(" · "),
+                tag: format!("{mid}/{}", a.pane_id),
+                url: session_url(mid, &a.pane_id),
             }
         })
         .collect()
@@ -239,7 +259,7 @@ mod tests {
 
     use super::*;
 
-    fn agent(pane_id: &str, status: AgentStatus) -> Agent {
+    pub(super) fn agent(pane_id: &str, status: AgentStatus) -> Agent {
         Agent {
             pane_id: pane_id.into(),
             name: None,
@@ -251,7 +271,7 @@ mod tests {
         }
     }
 
-    fn state(agents: Vec<Agent>) -> MachineState {
+    pub(super) fn state(agents: Vec<Agent>) -> MachineState {
         MachineState {
             machine: MachineInfo {
                 id: "e339299e0679d6bb".into(),
@@ -288,10 +308,13 @@ mod tests {
             after("w5:p1", LONG_RUN_MS - 1),
             after("w6:p1", LONG_RUN_MS),
         ]);
-        let told: Vec<_> = due(&before, &now).into_iter().map(|n| (n.pane_id, n.blocked)).collect();
+        let told: Vec<_> = due(&before, &now).into_iter().map(|n| (n.tag, n.title)).collect();
         assert_eq!(
             told,
-            [("w1:p1".to_owned(), true), ("w2:p1".to_owned(), false)],
+            [
+                ("e339299e0679d6bb/w1:p1".to_owned(), Title::Asks("codex".into())),
+                ("e339299e0679d6bb/w2:p1".to_owned(), Title::Done("codex".into())),
+            ],
             "not again, nor a new one, nor after a short run or none"
         );
         assert!(due(&seen(&now), &state(vec![agent("w1:p1", Working)])).is_empty(), "nor at work");

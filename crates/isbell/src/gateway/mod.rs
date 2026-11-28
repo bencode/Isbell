@@ -103,6 +103,8 @@ pub async fn run(opts: GatewayOptions) -> Result<(), GatewayError> {
     let mut monitor = AbortOnDrop(tokio::spawn(monitor));
     let push = Arc::new(Push::new(&opts.identity, opts.push.clone(), &opts.relay));
     let _push = AbortOnDrop(tokio::spawn(push::run(Arc::clone(&push), states_rx.clone())));
+    let messages = push::messages::run(Arc::clone(&push), states_rx.clone());
+    let _messages = AbortOnDrop(tokio::spawn(messages));
     let _loops = AbortOnDrop(tokio::spawn(loops::run(Arc::clone(&slot), states_rx.clone())));
     let agent_shares = AgentShares::new(
         opts.identity.sid(),
