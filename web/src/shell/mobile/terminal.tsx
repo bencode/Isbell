@@ -4,35 +4,15 @@
 // terminal, and its key puts it away. Back from the background, it attaches again by itself.
 
 import '@xterm/xterm/css/xterm.css'
-import { type ReactNode, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from 'react'
 import { Button } from '../../components/button'
 import { errorText, useI18n } from '../../core/i18n'
 import { useSpaceView } from '../../core/space'
+import { KeyBar } from '../../features/session/key-bar'
 import { useTerminal } from '../../features/session/use-terminal'
+import { useVisibleArea } from '../../features/session/visible-area'
 import { useVoice, VoicePill } from '../../features/session/voice'
 import type { Via } from '../../model/space'
-import { KeyBar } from './key-bar'
-
-type Area = { top: number; height: number }
-
-const read = (vv: VisualViewport): Area => ({ top: vv.offsetTop, height: vv.height })
-
-/** What of the page shows: iOS lays the keyboard over it instead of resizing it. */
-function useVisibleArea(): Area | undefined {
-  const [area, setArea] = useState(() => (window.visualViewport ? read(window.visualViewport) : undefined))
-  useEffect(() => {
-    const vv = window.visualViewport
-    if (!vv) return
-    const update = () => setArea(read(vv))
-    vv.addEventListener('resize', update)
-    vv.addEventListener('scroll', update)
-    return () => {
-      vv.removeEventListener('resize', update)
-      vv.removeEventListener('scroll', update)
-    }
-  }, [])
-  return area
-}
 
 /** While mounted the page neither scrolls nor bounces. Let go of in a layout effect, for the chat
  * that shows after it to find a page it can put its place back in. */
@@ -77,19 +57,22 @@ export function PhoneTerminal({
   mid,
   paneId,
   onVia,
+  sendsWheel,
 }: {
   bar: ReactNode
   mid: string
   paneId: string
   onVia: (via: Via | undefined) => void
+  /** Whether a finger drawn over it turns the agent's wheel; a shell would print it. */
+  sendsWheel: boolean
 }) {
   const t = useI18n()
   useLockedPage()
   const area = useVisibleArea()
   // The home indicator is under the page only while the keyboard is down.
-  const keyboard = !!area && area.top + area.height < window.innerHeight - 1
+  const keyboard = !!area?.keyboard
   const box = useRef<HTMLDivElement>(null)
-  const { state, reconnect, press, toggleKeyboard, paste } = useTerminal(box, mid, paneId, false)
+  const { state, reconnect, press, toggleKeyboard, paste } = useTerminal(box, mid, paneId, false, sendsWheel)
   // What is said is pasted at the cursor; Enter sends it.
   const voice = useVoice(paste)
   const waiting = useReattach(state.phase, state.error !== undefined, reconnect)

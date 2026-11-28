@@ -101,6 +101,7 @@ export function SessionView({
                     machine={project.machine}
                     onVia={setVia}
                     sendsWheel={CHAT_AGENTS.includes(agent?.kind ?? '')}
+                    shown={shown === 'terminal'}
                   />
                 </PathRoot>
               </Suspense>

@@ -26,6 +26,7 @@ import { EndPane } from '../../features/session/end-pane-dialog'
 import { PaneFacts } from '../../features/session/session-parts'
 import type { View } from '../../features/session/subbar'
 import { useFoundPane } from '../../features/session/use-found-pane'
+import { CHAT_AGENTS } from '../../model/agents'
 import { rootHolding } from '../../model/files/worktrees'
 import { type Found, placedTitle, placedWhere } from '../../model/projects'
 import type { Via } from '../../model/space'
@@ -151,7 +152,13 @@ function Opened({ mid, paneId, found }: { mid: string; paneId: string; found: Fo
       {shown === 'terminal' ? (
         <Suspense fallback={<Loading />}>
           <PathRoot value={{ project, cwd }}>
-            <PhoneTerminal bar={barWith()} mid={mid} paneId={paneId} onVia={setVia} />
+            <PhoneTerminal
+              bar={barWith()}
+              mid={mid}
+              paneId={paneId}
+              onVia={setVia}
+              sendsWheel={CHAT_AGENTS.includes(agent?.kind ?? '')}
+            />
           </PathRoot>
         </Suspense>
       ) : null}

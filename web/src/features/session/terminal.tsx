@@ -1,34 +1,49 @@
-// A pane's terminal in its tab, under full control: unmounting detaches, ending is the tab's.
+// A pane's terminal in its tab, under full control: unmounting detaches, ending is the tab's. On a
+// tablet it takes a finger as the phone's does: the keys a touch keyboard lacks under it, the keyboard
+// up only when asked for, and the page kept to what the keyboard leaves of it.
 
 import '@xterm/xterm/css/xterm.css'
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { Button } from '../../components/button'
 import { errorText, useI18n } from '../../core/i18n'
 import { typedPath } from '../../model/files/uploads'
 import type { Via } from '../../model/space'
+import { COARSE } from '../../utils/phone'
 import { Attachments, PickFiles, useAttachments } from './attachments'
+import { KeyBar } from './key-bar'
 import { useTerminal } from './use-terminal'
+import { useVisibleArea, type VisibleArea } from './visible-area'
 import { useVoice, useVoiceKey, VOICE_KEY, VOICE_LABEL, VoiceIcon, VoicePill } from './voice'
 
 /** `machine`: the name of the machine `mid`. `onVia`: the path the terminal's stream took, for the
  * tab's facts. `sendsWheel`: whether the wheel goes to the agent in the
- * pane; a shell would print it. */
+ * pane; a shell would print it. `shown`: whether it shows, rather than the chat. */
 export function Terminal({
   mid,
   paneId,
   machine,
   onVia,
   sendsWheel,
+  shown,
 }: {
   mid: string
   paneId: string
   machine: string
   onVia: (via: Via | undefined) => void
   sendsWheel: boolean
+  shown: boolean
 }) {
   const t = useI18n()
   const box = useRef<HTMLDivElement>(null)
-  const { state, reconnect, paste } = useTerminal(box, mid, paneId, true, sendsWheel)
+  const { state, reconnect, paste, press, toggleKeyboard } = useTerminal(
+    box,
+    mid,
+    paneId,
+    !COARSE,
+    sendsWheel,
+  )
+  const area = useVisibleArea()
+  useAboveKeyboard(COARSE && shown && area?.keyboard ? area : undefined)
   const files = useAttachments(mid, machine, path => paste(`${typedPath(path)} `))
   // What is said is pasted at the cursor, as a paste of text is: nothing is sent until Enter.
   const voice = useVoice(paste)
@@ -91,10 +106,10 @@ export function Terminal({
           ) : null}
         </div>
         {voice.error ? <span className="truncate text-danger">{voice.error}</span> : null}
-        {voice.available && !voice.error ? (
+        {voice.available && !voice.error && !COARSE ? (
           <span className="min-w-0 shrink-[50] truncate">{t('voice.keyHint', { key: VOICE_KEY })}</span>
         ) : null}
-        {voice.available ? (
+        {voice.available && !COARSE ? (
           <button
             type="button"
             onClick={voice.toggle}
@@ -107,6 +122,35 @@ export function Terminal({
           </button>
         ) : null}
       </footer>
+      {COARSE ? (
+        <div className="flex-none bg-[#161c27]">
+          <KeyBar
+            wide
+            live={state.phase === 'open'}
+            keyboard={!!area?.keyboard}
+            onKeyboard={toggleKeyboard}
+            onKey={press}
+            voice={voice.available ? voice : undefined}
+          />
+        </div>
+      ) : null}
     </div>
   )
+}
+
+/** Keeps the page to `area` while given one: on a tablet the keyboard is laid over the page, the rail
+ * and the columns with it. */
+function useAboveKeyboard(area: VisibleArea | undefined) {
+  useLayoutEffect(() => {
+    if (!area) return
+    const root = document.documentElement
+    root.dataset.viewport = 'visual'
+    root.style.setProperty('--visible-top', `${area.top}px`)
+    root.style.setProperty('--visible-height', `${area.height}px`)
+    return () => {
+      delete root.dataset.viewport
+      root.style.removeProperty('--visible-top')
+      root.style.removeProperty('--visible-height')
+    }
+  }, [area])
 }
