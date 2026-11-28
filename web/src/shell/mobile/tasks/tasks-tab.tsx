@@ -1,12 +1,15 @@
 // A phone's Tasks tab, from each machine's goals book: the tasks being done on any of them, the most
 // pressing first, then those to do and those done today, each with the role that follows it; then
-// each machine's goals not ended, with how far they are. Each opens what it is. The page scrolls.
+// each machine's goals not ended, with how far they are. Each opens what it is; its plus hands a role
+// new work. The page scrolls.
 
+import { Plus } from 'lucide-react'
+import { Link } from 'react-router'
 import { useGoalShelves } from '../../../core/books'
 import { useI18n } from '../../../core/i18n'
 import { nowTasks, openTree, todoTasks } from '../../../model/goals'
 import { useNow } from '../../../utils/time'
-import { PhoneBar } from '../bar'
+import { PhoneBar, TAP } from '../bar'
 import { MoreMenu } from '../more-menu'
 import { usePlaceKept } from '../page-place'
 import { TabBar, TabTitle, UNDER_TABS } from '../tab-bar'
@@ -36,6 +39,11 @@ export function PhoneTasks() {
     <div className="flex min-h-dvh flex-col">
       <PhoneBar>
         <TabTitle>{t('workbench.tasks')}</TabTitle>
+        <Link to="/tasks/new" aria-label={t('mobile.newTask')} className={TAP}>
+          <span className="grid size-[30px] place-items-center rounded-full bg-accent text-accent-ink">
+            <Plus size={18} strokeWidth={2.4} />
+          </span>
+        </Link>
         <MoreMenu />
       </PhoneBar>
       <main className={`flex-1 ${UNDER_TABS}`}>

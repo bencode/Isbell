@@ -162,3 +162,12 @@ export function teamBlocks(list: Placed[], placings: ReadonlyMap<string, Placing
   }
   return cut
 }
+
+/** The first line a new agent gets from the phone: to name itself, as `name` if given, and to join
+ * `lead`'s team if given. */
+export const nameYourself = (name?: string, lead?: string) =>
+  `Name yourself${name ? ` ${name}` : ''}${lead ? ` and join ${lead}` : ''}, as isbell-tools says.`
+
+/** Work handed to a role from the phone. */
+export const newTask = (text: string) =>
+  `New task: ${text.trim()}\n\nTake it as isbell-tools says under "Take work from the user".`

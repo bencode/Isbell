@@ -1,6 +1,6 @@
 ---
 name: isbell-tools
-description: Work with Isbell on this Mac - name yourself (a role, whose past sessions are its memory), talk to the other agents in this herdr session by their roles, tell the user something they will read later (a message, followed up until handled), and work toward the user's goals and tasks. Use when the user or your lead asks you to name yourself, to ask, tell or hand something to another agent, to tell or report to them, or to take, add or finish a task, and whenever a message starting with [agent-talk] arrives.
+description: Work with Isbell on this Mac - name yourself (a role, whose past sessions are its memory), talk to the other agents in this herdr session by their roles, tell the user something they will read later (a message, followed up until handled), and work toward the user's goals and tasks. Use when the user or your lead asks you to name yourself, to ask, tell or hand something to another agent, to tell or report to them, or to take, add or finish a task, when the user hands you work in a line starting `New task:`, and whenever a message starting with [agent-talk] arrives.
 ---
 
 # Isbell tools
@@ -46,6 +46,9 @@ isbell role name Euler
   takes the new name, keeping its lead. `isbell role name --clear` takes your session out.
 - **Lead**: `isbell role join <name>` makes that role your role's lead; `isbell role leave` drops it.
   `isbell role team <name>` lists a role and the roles reporting to it.
+- **From the phone**, a new session's first line may be `Name yourself [<name>] [and join <lead>],
+  as isbell-tools says.`: take that name if one is given, as above, though a role already yours
+  comes back first; then `isbell role join <lead>` if one is named.
 - **Read a role's memory**: `isbell role show <name> --limit 3` gives its latest sessions, the
   latest first: `agent`, `id`, `home` (the agent's directory, when not its default), `dir`, `at`.
   Find each one's file by its id: Claude Code in `~/.claude/projects/*/<id>.jsonl`, Codex in
@@ -178,3 +181,20 @@ isbell task show 8 | jq -r '.goals[] | "G\(.id) \(.title): \(.outcome)"'
 isbell task update 8 --owner Euler --state doing
 isbell message send --title 'Asks to open a PR' --kind ask --task 8
 ```
+
+## Take work from the user
+
+From their phone, the user hands work to a role in one line: `New task: <what>`. Take it this way,
+for it to show in Isbell's Tasks and Messages.
+
+- **Which goal**: find the one it serves with `isbell goal list`. When that is not clear, ask with
+  `isbell message send --kind ask`, rather than guess.
+- **Add it**: `isbell task add --goal <id> --owner <role> --outcome '<when it is done>' '<title>'`,
+  its outcome in words one can check.
+- **As a lead**, hand it to a role that runs, with `agent-send`, and make that role its owner. Do not
+  start agents yourself; when no one fits, ask.
+- **Report** with `isbell message send --task <id>` only what the user must decide, and that it is
+  done: one matter, one message, followed up with replies. Once done, make the task and the message
+  `done`.
+- **Deliver** what the user should read on a message: `--link file:<path>`, one a message; for
+  several, link their directory or an index file. What is not linked is not delivered.

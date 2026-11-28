@@ -1,6 +1,7 @@
-// New on a phone: which of the machine's start templates and in which project, what was used last
-// chosen already, with the button that starts it saying where. It opens the session in its place, so
-// back leads home.
+// A new agent on a phone: which of the machine's start templates and in which project, what was used
+// last chosen already; the name it takes, if the user has one, and the team on that machine it joins.
+// Its first line, shown before it starts, asks it to name itself so, as isbell-tools says. It opens
+// the session in its place, so back leads home.
 
 import { Check, ChevronLeft } from 'lucide-react'
 import { useState } from 'react'
@@ -10,10 +11,12 @@ import { updateLocal, useLocal } from '../../core/prefs'
 import { useProjects, useSpace, useSpaceView } from '../../core/space'
 import { useTemplates } from '../../core/start-templates'
 import { startIn } from '../../features/session/new-session-menu'
+import { nameYourself } from '../../model/roles'
 import { machineOf, projectsSettled } from '../../model/space'
 import { plain, usable } from '../../model/start-templates'
 import { sessionHref } from '../../utils/hrefs'
 import { PhoneBar, TAP, useBack } from './bar'
+import { RolePicker, Said, useRunningChoices } from './role-picker'
 
 const LABEL = 'm-0 px-4 pt-3.5 pb-1.5 text-[12.5px] font-semibold text-muted'
 
@@ -27,6 +30,8 @@ export function PhoneNewSession() {
   const startable = useProjects().filter(p => p.online && p.configured && p.path)
   const [picked, setPicked] = useState<string>()
   const [chosen, setChosen] = useState<string>()
+  const [named, setNamed] = useState('')
+  const [joining, setJoining] = useState<string>()
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string>()
 
@@ -41,6 +46,10 @@ export function PhoneNewSession() {
   const can = (name: string) => templates.some(tm => tm.name === name && (!caps || usable(tm, caps)))
   const name = [chosen, lastAgent, ...templates.map(tm => tm.name)].find(n => n && can(n))
   const template = templates.find(tm => tm.name === name)
+  // The roles of one machine's book: a lead on another is none to this one.
+  const teams = useRunningChoices().filter(c => c.placed.session.mid === project?.mid)
+  const team = teams.find(c => c.key === joining)
+  const say = nameYourself(named.trim() || undefined, team?.name)
   const machines = view.machines
     .map(({ state: { machine } }) => ({ machine, projects: startable.filter(p => p.mid === machine.id) }))
     .filter(m => m.projects.length)
@@ -50,7 +59,7 @@ export function PhoneNewSession() {
     setStarting(true)
     setError(undefined)
     try {
-      const { paneId, shell } = await startIn(space, project, { template })
+      const { paneId, shell } = await startIn(space, project, { template, say })
       updateLocal(() => ({ lastProject: project.key, lastAgent: template.name }))
       // One whose agent herdr never saw come up is the shell its command ran in, shown as one.
       const href = shell
@@ -75,7 +84,7 @@ export function PhoneNewSession() {
         >
           <ChevronLeft size={22} />
         </button>
-        <b className="min-w-0 flex-1 truncate text-base font-semibold">{t('session.new')}</b>
+        <b className="min-w-0 flex-1 truncate text-base font-semibold">{t('mobile.newAgent')}</b>
       </PhoneBar>
       <main className="min-w-0 flex-1 pb-3">
         <h2 className={LABEL}>{t('mobile.agent')}</h2>
@@ -93,6 +102,27 @@ export function PhoneNewSession() {
             </button>
           ))}
         </div>
+        <h2 className={LABEL}>{t('mobile.name')}</h2>
+        <div className="px-3">
+          <input
+            value={named}
+            onChange={e => setNamed(e.target.value)}
+            disabled={starting}
+            maxLength={64}
+            placeholder={t('mobile.nameItself')}
+            className="h-12 w-full rounded-[10px] border border-line bg-raised px-3 text-[15px] text-text outline-none focus:border-accent"
+          />
+        </div>
+        <h2 className={LABEL}>{t('mobile.joinTeam')}</h2>
+        <RolePicker
+          choices={teams}
+          value={team?.key}
+          onChange={setJoining}
+          none={t('mobile.noTeam')}
+          named={false}
+          disabled={starting}
+        />
+        <Said label={t('mobile.saysFirst')} text={say} />
         <h2 className={`${LABEL} pb-0`}>{t('mobile.project')}</h2>
         {machines.map(({ machine, projects }) => (
           <section key={machine.id}>

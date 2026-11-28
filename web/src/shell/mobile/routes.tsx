@@ -12,6 +12,7 @@ import { Home } from './home'
 import { PhoneInbox } from './inbox/inbox'
 import { PhoneNewSession } from './new-session'
 import { PhoneGoal } from './tasks/goal-page'
+import { PhoneNewTask } from './tasks/new-task'
 import { PhoneTask } from './tasks/task-page'
 import { PhoneTasks } from './tasks/tasks-tab'
 
@@ -38,6 +39,7 @@ export function MobileRoutes() {
           <Routes location={behind}>
             <Route index element={<Home />} />
             <Route path="tasks" element={<PhoneTasks />} />
+            <Route path="tasks/new" element={<PhoneNewTask />} />
             <Route path="tasks/:mid/:id" element={<PhoneTask />} />
             <Route path="goals/:mid/:id" element={<PhoneGoal />} />
             <Route path="inbox" element={<PhoneInbox />} />
