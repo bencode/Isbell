@@ -19,8 +19,8 @@ const SHELL = ''
 const ROW =
   'flex cursor-pointer items-center gap-2.5 rounded-md border-0 bg-transparent px-2.5 py-2 text-left text-text outline-none enabled:hover:bg-raised focus-visible:bg-raised disabled:cursor-default disabled:text-faint'
 
-/** What to start: a template, or a plain shell. */
-export type Choice = { template: StartTemplate } | 'shell'
+/** What to start: a template, with `say` the first thing it is told, or a plain shell. */
+export type Choice = { template: StartTemplate; say?: string } | 'shell'
 
 /** Starts `choice` in the project's directory; the pane it runs in, and whether that is a shell: one
  * asked for, or one whose command herdr did not see an agent come up from. */
@@ -34,7 +34,9 @@ export async function startIn(
     await space.refreshShells(mid)
     return { paneId, shell: true }
   }
-  const call = startCall(choice.template, path, newArgs(choice.template.agent))
+  // Each agent takes its first prompt as its last argument, however it is started.
+  const args = [...newArgs(choice.template.agent), ...(choice.say ? [choice.say] : [])]
+  const call = startCall(choice.template, path, args)
   if (call.method === 'isbell.agent.start')
     return { paneId: (await startAgent(space.call, mid, call.p)).paneId, shell: false }
   const { paneId, recognized } = await launchAgent(space.call, mid, call.p)
