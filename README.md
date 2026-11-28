@@ -75,8 +75,8 @@ pane is closed.
 
 A remote control for when you are away from your computer, with a layout of its own:
 
-- See every session, the ones asking you first, and get a push when an agent asks or finishes, even
-  with Isbell closed.
+- See every session, the ones asking you first, and get a push when an agent asks or finishes, or
+  sends you a question or a warning, even with Isbell closed.
 - Read a session as a chat and reply, or answer in its terminal with a bar of the keys agents ask
   for.
 - Read the files agents write, start a new session, and find and resume past ones.
@@ -85,7 +85,8 @@ To set it up:
 
 1. Open <https://isbell.fmap.dev> in Safari, then Share → Add to Home Screen.
 2. Open Isbell from the Home Screen and paste your key.
-3. In Settings, turn on **Push to this iPhone**. Pushes need `isbell` 0.3.0 or later on your machines.
+3. In Settings, turn on **Push to this iPhone**. Pushes need `isbell` 0.3.0 or later on your machines;
+   those of messages, 0.11.0.
 
 After an update, close the app completely and open it again to get the new version.
 

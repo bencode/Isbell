@@ -150,6 +150,8 @@ isbell message list | jq -c '.[] | select(.kind == "ask")'    # what still waits
 - `ask` means the user has something to do: once they have done it, make it `done`.
 - The user answers an `ask` in your session: their answer arrives as your next turn. Do not wait
   for it by polling `message list`: end your turn, or go on with what does not depend on it.
+- A new `ask` or `warn` is pushed to the user's iPhone; a reply or a change of kind is not. To ask
+  them again, send a new `ask` rather than make an old message `ask` again.
 - A reply brings its message to the top. The last 500 messages and 50 replies each are kept.
 
 ## Work toward goals
